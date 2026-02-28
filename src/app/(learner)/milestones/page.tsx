@@ -45,7 +45,7 @@ export default function MilestonesPage() {
             <header className="border-b bg-white px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
                 <div className="font-bold text-xl text-primary flex items-center gap-2">
                     <Link href="/dashboard" className="text-muted-foreground hover:text-primary transition-colors">
-                        TOPIK IBT
+                        LUYỆN NÓI CÙNG KOREA LINK
                     </Link>
                     <span className="text-muted-foreground font-normal text-sm">/</span>
                     <span>Đánh giá Mốc Tiến Độ</span>

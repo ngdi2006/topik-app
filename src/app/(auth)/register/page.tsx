@@ -75,7 +75,7 @@ export default function RegisterPage() {
                 <CardHeader className="space-y-1 text-center">
                     <CardTitle className="text-2xl font-bold">Tạo tài khoản</CardTitle>
                     <CardDescription>
-                        Đăng ký tài khoản TOPIK IBT để bắt đầu luyện thi
+                        Đăng ký tài khoản LUYỆN NÓI CÙNG KOREA LINK để bắt đầu luyện thi
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">

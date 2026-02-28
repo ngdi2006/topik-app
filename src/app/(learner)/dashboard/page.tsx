@@ -68,7 +68,7 @@ export default function DashboardPage() {
         <div className="min-h-screen flex flex-col">
             {/* Header */}
             <header className="border-b bg-white px-6 py-4 flex items-center justify-between sticky top-0 z-10">
-                <div className="font-bold text-xl text-primary">TOPIK IBT</div>
+                <div className="font-bold text-xl text-primary">LUYỆN NÓI CÙNG KOREA LINK</div>
                 <div className="flex items-center gap-4">
                     <UserNav />
                 </div>

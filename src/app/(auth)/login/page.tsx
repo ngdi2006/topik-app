@@ -61,7 +61,7 @@ export default function LoginPage() {
                 <CardHeader className="space-y-1 text-center">
                     <CardTitle className="text-2xl font-bold">Đăng nhập</CardTitle>
                     <CardDescription>
-                        Đăng nhập vào hệ thống TOPIK IBT
+                        Đăng nhập vào hệ thống LUYỆN NÓI CÙNG KOREA LINK
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">

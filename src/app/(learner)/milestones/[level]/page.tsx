@@ -130,14 +130,33 @@ export default function MilestoneLevelPage() {
                 router.push('/milestones')
                 return
             }
+
+            // Parser để tương thích ngược với Data chữ thuần cũ và Array JSON mới
+            const parseArray = (val: string) => {
+                if (!val) return [""]
+                try {
+                    const parsed = JSON.parse(val)
+                    return Array.isArray(parsed) ? parsed : [val]
+                } catch {
+                    return [val]
+                }
+            }
+
+            const readArr = parseArray(data.reading_text)
+            const qaArr = parseArray(data.qa_text)
+
+            // Random Picker
+            const randomRead = readArr.length > 0 ? readArr[Math.floor(Math.random() * readArr.length)] : ""
+            const randomQA = qaArr.length > 0 ? qaArr[Math.floor(Math.random() * qaArr.length)] : ""
+
             setMilestoneData({
                 title: data.title,
                 desc: data.description,
-                initialReadingText: data.reading_text,
-                questionText: data.qa_text,
+                initialReadingText: randomRead,
+                questionText: randomQA,
                 hasPersonalForm: data.has_personal_form
             })
-            setReadingText(data.reading_text || "")
+            setReadingText(randomRead)
             setLoadingData(false)
         }
         fetchLevelData()
@@ -362,8 +381,15 @@ export default function MilestoneLevelPage() {
                             <div className="flex gap-3 items-start">
                                 <div className="p-2 bg-white rounded-full text-emerald-600 shadow-sm mt-0.5"><PlayCircle className="w-5 h-5" /></div>
                                 <div>
-                                    <p className="text-sm font-bold text-emerald-800 mb-1">CÂU HỎI HỆ THỐNG:</p>
-                                    <p className="font-medium text-lg text-emerald-950">{milestoneData.questionText}</p>
+                                    <p className="text-sm font-bold text-emerald-800 mb-1">CÂU HỎI BÍ MẬT TỪ HỆ THỐNG:</p>
+                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-1">
+                                        <p className="font-medium text-lg text-emerald-950/20 blur-[5px] select-none pointer-events-none">
+                                            질문이 여기에 숨겨져 있습니다. (Câu hỏi đã bị ẩn)
+                                        </p>
+                                        <div className="text-sm font-medium text-emerald-700 italic border-l-2 border-emerald-300 pl-3 py-0.5">
+                                            👈 Hãy nhấn <strong className="bg-emerald-100 px-1 rounded">biểu tượng Loa</strong> để lắng nghe câu hỏi và trả lời tự do!
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <Button size="icon" variant="outline" className="rounded-full shadow-sm hover:bg-emerald-100 text-emerald-700 shrink-0" onClick={() => speakText(milestoneData.questionText)}>

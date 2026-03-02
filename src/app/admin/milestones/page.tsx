@@ -25,8 +25,8 @@ export default function AdminMilestones() {
         level: "",
         title: "",
         description: "",
-        reading_text: "",
-        qa_text: "",
+        reading_texts: [""],
+        qa_texts: [""],
         has_personal_form: "false",
         is_active: "true"
     })
@@ -50,13 +50,24 @@ export default function AdminMilestones() {
         setLoading(false)
     }
 
+    const safeParseArray = (val: string) => {
+        if (!val) return [""]
+        try {
+            const parsed = JSON.parse(val)
+            if (Array.isArray(parsed)) return parsed
+            return [val]
+        } catch {
+            return [val]
+        }
+    }
+
     const handleOpenEdit = (m: any) => {
         setFormData({
             level: m.level,
             title: m.title,
             description: m.description || "",
-            reading_text: m.reading_text || "",
-            qa_text: m.qa_text || "",
+            reading_texts: safeParseArray(m.reading_text),
+            qa_texts: safeParseArray(m.qa_text),
             has_personal_form: m.has_personal_form ? "true" : "false",
             is_active: m.is_active ? "true" : "false"
         })
@@ -66,21 +77,29 @@ export default function AdminMilestones() {
 
     const handleOpenNew = () => {
         setFormData({
-            level: "", title: "", description: "", reading_text: "", qa_text: "", has_personal_form: "false", is_active: "true"
+            level: "", title: "", description: "", reading_texts: [""], qa_texts: [""], has_personal_form: "false", is_active: "true"
         })
         setEditingId(null)
         setIsOpen(true)
     }
 
     const handleSave = async () => {
-        if (!formData.level || !formData.title || !formData.reading_text || !formData.qa_text) {
-            toast.error("Vui lòng nhập đủ các trường bắt buộc (Level, Title, Reading, QA).")
+        // Lọc bỏ các câu trống rỗng
+        const validReadingTexts = formData.reading_texts.filter(t => t.trim() !== "")
+        const validQaTexts = formData.qa_texts.filter(t => t.trim() !== "")
+
+        if (!formData.level || !formData.title || validReadingTexts.length === 0 || validQaTexts.length === 0) {
+            toast.error("Vui lòng nhập đủ Mã Level, Tiêu đề và ít nhất 1 câu Đọc, 1 câu Vấn đáp.")
             return
         }
 
         setIsSaving(true)
         const payload = {
-            ...formData,
+            level: formData.level,
+            title: formData.title,
+            description: formData.description,
+            reading_text: JSON.stringify(validReadingTexts),
+            qa_text: JSON.stringify(validQaTexts),
             has_personal_form: formData.has_personal_form === "true",
             is_active: formData.is_active === "true",
             updated_at: new Date().toISOString()
@@ -153,13 +172,47 @@ export default function AdminMilestones() {
                                 <Label>Mô tả ngắn (Hiển thị dưới Tiêu đề)</Label>
                                 <Input placeholder="Mô tả kỹ năng kiểm tra..." value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
                             </div>
-                            <div className="space-y-2">
-                                <Label>Bài Tập Đọc Thành Tiếng (Văn bản để thu âm đọc)</Label>
-                                <Textarea className="h-24" placeholder="Nhập tiếng Hàn..." value={formData.reading_text} onChange={e => setFormData({ ...formData, reading_text: e.target.value })} />
+                            <div className="space-y-4 border p-4 rounded-xl bg-slate-50">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-blue-700 font-bold">Ngân hàng: Bài Đọc Thành Tiếng</Label>
+                                    <Button size="sm" variant="outline" onClick={() => setFormData({ ...formData, reading_texts: [...formData.reading_texts, ""] })}><Plus className="w-4 h-4 mr-1" /> Thêm câu</Button>
+                                </div>
+                                {formData.reading_texts.map((text, idx) => (
+                                    <div key={idx} className="flex gap-2">
+                                        <Textarea className="h-20" placeholder={`Câu Đọc ${idx + 1}...`} value={text} onChange={e => {
+                                            const newArr = [...formData.reading_texts]
+                                            newArr[idx] = e.target.value
+                                            setFormData({ ...formData, reading_texts: newArr })
+                                        }} />
+                                        {formData.reading_texts.length > 1 && (
+                                            <Button variant="ghost" size="icon" className="text-red-500" onClick={() => {
+                                                const newArr = formData.reading_texts.filter((_, i) => i !== idx)
+                                                setFormData({ ...formData, reading_texts: newArr })
+                                            }}><Trash2 className="w-4 h-4" /></Button>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
-                            <div className="space-y-2">
-                                <Label>Câu Hỏi Vấn Đáp (Nghe & Trả lời tự do)</Label>
-                                <Textarea className="h-16" placeholder="Nhập câu hỏi tiếng Hàn..." value={formData.qa_text} onChange={e => setFormData({ ...formData, qa_text: e.target.value })} />
+                            <div className="space-y-4 border p-4 rounded-xl bg-emerald-50">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-emerald-700 font-bold">Ngân hàng: Câu Hỏi Vấn Đáp</Label>
+                                    <Button size="sm" variant="outline" onClick={() => setFormData({ ...formData, qa_texts: [...formData.qa_texts, ""] })}><Plus className="w-4 h-4 mr-1" /> Thêm câu</Button>
+                                </div>
+                                {formData.qa_texts.map((text, idx) => (
+                                    <div key={idx} className="flex gap-2">
+                                        <Textarea className="h-16" placeholder={`Câu Hỏi ${idx + 1}...`} value={text} onChange={e => {
+                                            const newArr = [...formData.qa_texts]
+                                            newArr[idx] = e.target.value
+                                            setFormData({ ...formData, qa_texts: newArr })
+                                        }} />
+                                        {formData.qa_texts.length > 1 && (
+                                            <Button variant="ghost" size="icon" className="text-red-500" onClick={() => {
+                                                const newArr = formData.qa_texts.filter((_, i) => i !== idx)
+                                                setFormData({ ...formData, qa_texts: newArr })
+                                            }}><Trash2 className="w-4 h-4" /></Button>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">

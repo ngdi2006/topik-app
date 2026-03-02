@@ -7,7 +7,7 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 
 export default async function MilestonesPage() {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: dbMilestones } = await supabase.from('milestones').select('*').eq('is_active', true).order('level', { ascending: true })
 
     const STYLE_PRESETS = [
@@ -69,7 +69,7 @@ export default async function MilestonesPage() {
                             Admin chưa thiết lập Mốc kiểm tra nào trong hệ thống, hoặc DB chưa được khởi tạo.
                         </div>
                     )}
-                    {milestones.map((ms, index) => {
+                    {milestones.map((ms: any, index: number) => {
                         const style = STYLE_PRESETS[index % STYLE_PRESETS.length]
                         return (
                             <Card key={ms.id} className={`z-10 relative overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 ${style.color}`}>

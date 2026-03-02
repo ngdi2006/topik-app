@@ -10,37 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Mic, MicOff, Volume2, ArrowLeft, Loader2, CheckCircle2, AlertCircle, Lightbulb, UserCircle, Send, PlayCircle, Wand2 } from "lucide-react"
 import Link from "next/link"
 
-// --- Bộ Dữ Liệu 4 Mốc ---
-const MILESTONE_DATA: Record<string, any> = {
-    "1": {
-        title: "Mốc 1: Nhập môn",
-        desc: "Kiểm tra phát âm cơ bản và phản xạ chào hỏi.",
-        initialReadingText: "안녕하세요. 만나서 반갑습니다. 제 이름은 톰입니다.",
-        questionText: "이름이 뭡니까? 어느 나라 사람입니까?",
-        hasPersonalForm: false,
-    },
-    "2": {
-        title: "Mốc 2: Sau Bài 8",
-        desc: "Đoạn văn ngắn (Biến âm, Nối âm) và vấn đáp thường ngày.",
-        initialReadingText: "저는 학생입니다. 매일 아침 7시에 일어납니다. 학교에서 한국어를 공부합니다. 주말에는 친구를 만나고 영화를 봅니다.",
-        questionText: "주말에 보통 뭐 해요? 어제 뭘 했어요?",
-        hasPersonalForm: false,
-    },
-    "3": {
-        title: "Mốc 3: Sau Bài 20",
-        desc: "Tích hợp AI tạo Form Giới thiệu bản thân chi tiết.",
-        initialReadingText: "Vui lòng điền thông tin cá nhân ở trên để AI biên soạn bài giới thiệu mẫu dành riêng cho bạn trước khi làm Bài Test Đọc.",
-        questionText: "취미가 뭐예요? 왜 그 취미를 좋아해요?",
-        hasPersonalForm: true,
-    },
-    "4": {
-        title: "Mốc 4: Sau Bài 30",
-        desc: "Đoạn văn dài phức tạp (Trung cấp) và phản xạ giao tiếp mở rộng.",
-        initialReadingText: "최근 환경 문제가 심각해지고 있습니다. 우리는 일회용품 사용을 줄이고 재활용을 실천해야 합니다. 작은 노력이 큰 변화를 만듭니다.",
-        questionText: "한국 문화를 좋아하게 된 계기가 무엇인가요?",
-        hasPersonalForm: false,
-    }
-}
+import { createClient } from "@/lib/supabase/client"
 
 // --- Component Đọc Tiếng Hàn (Web Speech API) ---
 const speakText = (text: string) => {
@@ -133,14 +103,16 @@ export default function MilestoneLevelPage() {
     const router = useRouter()
     const level = params.level as string
 
-    const milestoneData = MILESTONE_DATA[level]
+    const [milestoneData, setMilestoneData] = useState<any>(null)
+    const [loadingData, setLoadingData] = useState(true)
+    const supabase = createClient()
 
     // Form data (For milestone 3)
     const [formData, setFormData] = useState({ name: "", age: "", job: "", hobbies: "", familySize: "" })
     const [isGeneratingIntro, setIsGeneratingIntro] = useState(false)
 
     // Test states
-    const [readingText, setReadingText] = useState(milestoneData?.initialReadingText || "")
+    const [readingText, setReadingText] = useState("")
     const [readingReport, setReadingReport] = useState<any>(null)
     const [isEvalReading, setIsEvalReading] = useState(false)
 
@@ -152,8 +124,33 @@ export default function MilestoneLevelPage() {
     const { isRecording, transcript, interimTranscript, startRecording, stopRecording, resetTranscript } = useSpeechRecognition("ko-KR")
 
     useEffect(() => {
-        if (!milestoneData) router.push('/milestones')
-    }, [milestoneData, router])
+        const fetchLevelData = async () => {
+            const { data, error } = await supabase.from('milestones').select('*').eq('level', level).eq('is_active', true).single()
+            if (error || !data) {
+                router.push('/milestones')
+                return
+            }
+            setMilestoneData({
+                title: data.title,
+                desc: data.description,
+                initialReadingText: data.reading_text,
+                questionText: data.qa_text,
+                hasPersonalForm: data.has_personal_form
+            })
+            setReadingText(data.reading_text || "")
+            setLoadingData(false)
+        }
+        fetchLevelData()
+    }, [level, router])
+
+    if (loadingData) {
+        return (
+            <div className="min-h-screen bg-muted/10 flex items-center justify-center flex-col gap-4">
+                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                <p className="text-muted-foreground">Đang lấy dữ liệu Câu hỏi từ máy chủ...</p>
+            </div>
+        )
+    }
 
     if (!milestoneData) return null
 

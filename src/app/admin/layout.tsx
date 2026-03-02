@@ -22,7 +22,11 @@ export default function AdminLayout({
                     </Link>
                     <Link href="/admin/users" className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
                         <Users className="w-5 h-5 mr-3" />
-                        Users
+                        Người dùng
+                    </Link>
+                    <Link href="/admin/milestones" className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
+                        <FileText className="w-5 h-5 mr-3" />
+                        Các Mốc Học
                     </Link>
                     <Link href="/admin/exams" className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
                         <FileText className="w-5 h-5 mr-3" />

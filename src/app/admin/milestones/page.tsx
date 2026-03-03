@@ -26,7 +26,9 @@ export default function AdminMilestones() {
         title: "",
         description: "",
         reading_texts: [""],
-        qa_sections: [{ title: "Câu 1", questions: [""] }],
+        reading_points: 20,
+        reading_time_limit: 120,
+        qa_sections: [{ title: "Câu 1", points: 20, time_limit: 60, questions: [""] }],
         grammar_context: "",
         has_personal_form: "false",
         is_active: "true"
@@ -63,21 +65,26 @@ export default function AdminMilestones() {
     }
 
     const safeParseQaSections = (val: string) => {
-        if (!val) return [{ title: "Câu 1", questions: [""] }]
+        if (!val) return [{ title: "Câu 1", points: 20, time_limit: 60, questions: [""] }]
         try {
             const parsed = JSON.parse(val)
             if (Array.isArray(parsed)) {
-                if (parsed.length === 0) return [{ title: "Câu 1", questions: [""] }]
+                if (parsed.length === 0) return [{ title: "Câu 1", points: 20, time_limit: 60, questions: [""] }]
                 // Trường hợp cũ: Mảng các chuỗi ['câu 1', 'câu 2']
                 if (typeof parsed[0] === 'string') {
-                    return [{ title: "Câu 1", questions: parsed }]
+                    return [{ title: "Câu 1", points: 20, time_limit: 60, questions: parsed }]
                 }
                 // Trường hợp cấu trúc Object mới
-                return parsed
+                return parsed.map((s: any) => ({
+                    title: s.title || "Câu 1",
+                    points: s.points || 20,
+                    time_limit: s.time_limit || 60,
+                    questions: s.questions || [""]
+                }))
             }
-            return [{ title: "Câu 1", questions: [val] }]
+            return [{ title: "Câu 1", points: 20, time_limit: 60, questions: [val] }]
         } catch {
-            return [{ title: "Câu 1", questions: [val] }]
+            return [{ title: "Câu 1", points: 20, time_limit: 60, questions: [val] }]
         }
     }
 
@@ -87,6 +94,8 @@ export default function AdminMilestones() {
             title: m.title,
             description: m.description || "",
             reading_texts: safeParseArray(m.reading_text),
+            reading_points: m.reading_points || 20,
+            reading_time_limit: m.reading_time_limit || 120,
             qa_sections: safeParseQaSections(m.qa_text),
             grammar_context: m.grammar_context || "",
             has_personal_form: m.has_personal_form ? "true" : "false",
@@ -98,7 +107,7 @@ export default function AdminMilestones() {
 
     const handleOpenNew = () => {
         setFormData({
-            level: "", title: "", description: "", reading_texts: [""], qa_sections: [{ title: "Câu 1", questions: [""] }], grammar_context: "", has_personal_form: "false", is_active: "true"
+            level: "", title: "", description: "", reading_texts: [""], reading_points: 20, reading_time_limit: 120, qa_sections: [{ title: "Câu 1", points: 20, time_limit: 60, questions: [""] }], grammar_context: "", has_personal_form: "false", is_active: "true"
         })
         setEditingId(null)
         setIsOpen(true)
@@ -110,6 +119,8 @@ export default function AdminMilestones() {
 
         const validQaSections = formData.qa_sections.map(section => ({
             title: section.title.trim() || "Câu Hỏi Không Tên",
+            points: section.points,
+            time_limit: section.time_limit,
             questions: section.questions.map(q => q.trim())
         }))
 
@@ -124,6 +135,8 @@ export default function AdminMilestones() {
             title: formData.title,
             description: formData.description,
             reading_text: JSON.stringify(validReadingTexts),
+            reading_points: Number(formData.reading_points) || 0,
+            reading_time_limit: Number(formData.reading_time_limit) || 0,
             qa_text: JSON.stringify(validQaSections),
             grammar_context: formData.grammar_context,
             has_personal_form: formData.has_personal_form === "true",
@@ -213,6 +226,18 @@ export default function AdminMilestones() {
                                     <Label className="text-blue-700 font-bold">Ngân hàng: Bài Đọc Thành Tiếng</Label>
                                     <Button size="sm" variant="outline" onClick={() => setFormData({ ...formData, reading_texts: [...formData.reading_texts, ""] })}><Plus className="w-4 h-4 mr-1" /> Thêm câu</Button>
                                 </div>
+
+                                <div className="grid grid-cols-2 gap-4 bg-white p-3 rounded-md border text-sm">
+                                    <div className="space-y-2">
+                                        <Label className="text-gray-600">Điểm tối đa phần này</Label>
+                                        <Input type="number" placeholder="Vd: 20" value={formData.reading_points} onChange={e => setFormData({ ...formData, reading_points: parseInt(e.target.value) || 0 })} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-gray-600">Thời gian trả lời (Giây)</Label>
+                                        <Input type="number" placeholder="Vd: 120" value={formData.reading_time_limit} onChange={e => setFormData({ ...formData, reading_time_limit: parseInt(e.target.value) || 0 })} />
+                                    </div>
+                                </div>
+
                                 {formData.reading_texts.map((text, idx) => (
                                     <div key={idx} className="flex gap-2">
                                         <Textarea className="h-20" placeholder={`Câu Đọc ${idx + 1}...`} value={text} onChange={e => {
@@ -235,7 +260,7 @@ export default function AdminMilestones() {
                                     <Button size="sm" variant="default" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => {
                                         setFormData({
                                             ...formData,
-                                            qa_sections: [...formData.qa_sections, { title: `Câu ${formData.qa_sections.length + 1}`, questions: [""] }]
+                                            qa_sections: [...formData.qa_sections, { title: `Câu ${formData.qa_sections.length + 1}`, points: 20, time_limit: 60, questions: [""] }]
                                         })
                                     }}>
                                         <Plus className="w-4 h-4 mr-1" /> Thêm Bài Vấn Đáp Mới
@@ -260,6 +285,23 @@ export default function AdminMilestones() {
                                                     <Trash2 className="w-4 h-4 mr-1" /> Hủy bài này
                                                 </Button>
                                             )}
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4 mt-3 bg-white border border-emerald-100 p-2 rounded text-sm">
+                                            <div className="space-y-1">
+                                                <Label className="text-emerald-700 text-xs">Điểm câu này</Label>
+                                                <Input type="number" className="h-8" value={section.points} onChange={(e) => {
+                                                    const newSec = formData.qa_sections.map((s, i) => i === secIdx ? { ...s, points: parseInt(e.target.value) || 0 } : s)
+                                                    setFormData({ ...formData, qa_sections: newSec })
+                                                }} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-emerald-700 text-xs">Giới hạn thời gian (Giây)</Label>
+                                                <Input type="number" className="h-8" value={section.time_limit} onChange={(e) => {
+                                                    const newSec = formData.qa_sections.map((s, i) => i === secIdx ? { ...s, time_limit: parseInt(e.target.value) || 0 } : s)
+                                                    setFormData({ ...formData, qa_sections: newSec })
+                                                }} />
+                                            </div>
                                         </div>
 
                                         <div className="pl-2 space-y-2 border-l-2 border-emerald-100 pt-2 ml-4">

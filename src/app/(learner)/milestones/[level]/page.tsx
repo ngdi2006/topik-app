@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useState, useEffect, useCallback, useRef } from "react"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -108,7 +108,10 @@ const ReportCard = ({ report, isEvaluating }: { report: any, isEvaluating: boole
 export default function MilestoneLevelPage() {
     const params = useParams()
     const router = useRouter()
+    const searchParams = useSearchParams()
     const level = params.level as string
+    const mode = searchParams.get('mode') || 'practice'
+    const isTestMode = mode === 'test'
 
     const [milestoneData, setMilestoneData] = useState<any>(null)
     const [allMilestones, setAllMilestones] = useState<any[]>([])
@@ -123,7 +126,7 @@ export default function MilestoneLevelPage() {
     const [isEvalReading, setIsEvalReading] = useState(false)
 
     // QA States (Multi-sections)
-    const [qaSections, setQaSections] = useState<{ title: string, questions: string[] }[]>([])
+    const [qaSections, setQaSections] = useState<{ title: string, questions: string[], points?: number, time_limit?: number }[]>([])
     const [selectedQaQuestions, setSelectedQaQuestions] = useState<string[]>([])
     const [activeQaIndex, setActiveQaIndex] = useState(0)
     const [qaReports, setQaReports] = useState<Record<number, any>>({})
@@ -132,6 +135,8 @@ export default function MilestoneLevelPage() {
     // STT hook cho bài Test đang Active (1: Reading, 2: QA, 0: None)
     const [activeSection, setActiveSection] = useState<0 | 1 | 2>(0)
     const { isRecording, transcript, interimTranscript, startRecording, stopRecording, resetTranscript } = useSpeechRecognition("ko-KR")
+
+    const [timeLeft, setTimeLeft] = useState<number | null>(null)
 
     const [isSavingScore, setIsSavingScore] = useState(false)
     const [savedScore, setSavedScore] = useState<number | null>(null)
@@ -163,15 +168,19 @@ export default function MilestoneLevelPage() {
                 try {
                     const parsed = JSON.parse(val)
                     if (Array.isArray(parsed)) {
-                        if (parsed.length === 0) return [{ title: "Câu 1", questions: [""] }]
+                        if (parsed.length === 0) return [{ title: "Câu 1", points: 20, time_limit: 60, questions: [""] }]
                         if (typeof parsed[0] === 'string') {
-                            return [{ title: "Câu 1", questions: parsed }] // Format cũ
+                            return [{ title: "Câu 1", points: 20, time_limit: 60, questions: parsed }] // Format cũ
                         }
-                        return parsed // Format N-Dạng mới
+                        return parsed.map((s: any) => ({
+                            ...s,
+                            points: s.points || 20,
+                            time_limit: s.time_limit || 60
+                        })) // Format N-Dạng mới
                     }
-                    return [{ title: "Câu 1", questions: [val] }]
+                    return [{ title: "Câu 1", points: 20, time_limit: 60, questions: [val] }]
                 } catch {
-                    return [{ title: "Câu 1", questions: [val] }]
+                    return [{ title: "Câu 1", points: 20, time_limit: 60, questions: [val] }]
                 }
             }
 
@@ -194,7 +203,9 @@ export default function MilestoneLevelPage() {
                 title: data.title,
                 desc: data.description,
                 initialReadingText: randomRead,
-                hasPersonalForm: data.has_personal_form
+                hasPersonalForm: data.has_personal_form,
+                readingPoints: data.reading_points || 20,
+                readingTimeLimit: data.reading_time_limit || 120
             })
             setReadingText(randomRead)
             setLoadingData(false)
@@ -274,6 +285,43 @@ export default function MilestoneLevelPage() {
         }
     }
 
+    const handleEvaluateRef = useRef(handleEvaluate)
+    useEffect(() => {
+        handleEvaluateRef.current = handleEvaluate
+    })
+
+    // --- Xử lý Đếm ngược Thời gian ---
+    useEffect(() => {
+        if (!isTestMode || activeSection === 0) {
+            setTimeLeft(null)
+            return
+        }
+        let initialTime = 0
+        if (activeSection === 1) initialTime = milestoneData?.readingTimeLimit || 120
+        else if (activeSection === 2) initialTime = qaSections[activeQaIndex]?.time_limit || 60
+
+        setTimeLeft(initialTime)
+
+        const timer = setInterval(() => {
+            setTimeLeft(prev => {
+                if (prev === null) return null
+                if (prev <= 1) {
+                    clearInterval(timer)
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+        return () => clearInterval(timer)
+    }, [activeSection, isTestMode, milestoneData, qaSections, activeQaIndex])
+
+    // Lắng nghe hết giờ tự động chặn và nộp
+    useEffect(() => {
+        if (timeLeft === 0 && isRecording) {
+            handleEvaluateRef.current(activeSection === 1 ? 'reading' : 'qa')
+        }
+    }, [timeLeft, isRecording, activeSection])
+
     // -- Live STT display logic --
     const getActiveTranscript = (sectionId: 1 | 2) => {
         return activeSection === sectionId ? (transcript + " " + interimTranscript).trim() : ""
@@ -288,7 +336,12 @@ export default function MilestoneLevelPage() {
                         <ArrowLeft className="w-5 h-5 text-gray-700" />
                     </Button>
                     <div>
-                        <h1 className="font-bold text-lg md:text-xl text-primary">{milestoneData.title}</h1>
+                        <h1 className="font-bold text-lg md:text-xl text-primary flex items-center gap-2">
+                            {milestoneData.title}
+                            <span className={`text-xs px-2 py-0.5 rounded-full text-white ${isTestMode ? 'bg-red-500' : 'bg-emerald-500'}`}>
+                                Mode: {isTestMode ? 'KIỂM TRA' : 'LUYỆN TẬP'}
+                            </span>
+                        </h1>
                         <p className="text-xs md:text-sm text-muted-foreground">{milestoneData.desc}</p>
                     </div>
                 </div>
@@ -323,6 +376,14 @@ export default function MilestoneLevelPage() {
                                 </Button>
                             </div>
                         </div>
+
+                        {isTestMode && activeSection === 1 && timeLeft !== null && (
+                            <div className="flex items-center justify-center mt-3 bg-red-50 py-2 rounded-lg border border-red-100">
+                                <span className={`font-mono text-xl md:text-2xl font-black flex items-center gap-2 ${timeLeft <= 10 ? 'text-red-600 animate-pulse' : 'text-red-500'}`}>
+                                    ⏱️ {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
+                                </span>
+                            </div>
+                        )}
                     </CardHeader>
                     <CardContent className="pt-6 relative">
                         <div className="p-4 bg-muted/10 border rounded-xl text-lg md:text-xl font-medium leading-relaxed text-gray-800 italic relative overflow-hidden group">
@@ -450,6 +511,14 @@ export default function MilestoneLevelPage() {
                                 </div>
                             </div>
 
+                            {isTestMode && activeSection === 2 && timeLeft !== null && (
+                                <div className="flex items-center justify-center -mt-2 mb-4 bg-red-50 py-2 rounded-lg border border-red-100">
+                                    <span className={`font-mono text-xl md:text-2xl font-black flex items-center gap-2 ${timeLeft <= 10 ? 'text-red-600 animate-pulse' : 'text-red-500'}`}>
+                                        ⏱️ {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
+                                    </span>
+                                </div>
+                            )}
+
                             <div className="mt-2">
                                 <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                                     <Button
@@ -500,7 +569,14 @@ export default function MilestoneLevelPage() {
                         <h2 className="text-2xl md:text-3xl font-black text-indigo-900 drop-shadow-sm">Chúc Mừng Bạn Đã Hoàn Thành Bài Thi!</h2>
                         <p className="text-indigo-700 text-lg max-w-2xl mx-auto font-medium">Bạn đã trả lời xuất sắc 100% các câu hỏi của Mốc này. AI đã tổng hợp đầy đủ số điểm từng chặng để đưa ra báo cáo tổng kết cuối cùng.</p>
 
-                        {savedScore !== null ? (
+                        {!isTestMode ? (
+                            <div className="bg-white rounded-2xl p-6 border-2 border-emerald-100 shadow-sm inline-block max-w-lg mx-auto">
+                                <h3 className="text-emerald-700 font-bold mb-2 flex items-center justify-center gap-2">
+                                    <Lightbulb className="w-5 h-5" /> CHẾ ĐỘ LUYỆN TẬP
+                                </h3>
+                                <p className="text-gray-600 text-sm">Điểm số và Lịch sử không bị lưu lại. Bạn có thể làm lại thoải mái để cải thiện kỹ năng trước khi vào chế độ Kiểm tra chính thức nhé!</p>
+                            </div>
+                        ) : savedScore !== null ? (
                             <div className="bg-white rounded-2xl p-8 border-2 border-indigo-100 shadow-inner inline-block min-w-[280px]">
                                 <h3 className="text-indigo-800 font-bold mb-2">ĐIỂM SỐ CHÍNH THỨC CỦA BẠN</h3>
                                 <div className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-indigo-600 to-purple-600">{savedScore}<span className="text-2xl text-indigo-400">/100</span></div>
@@ -519,23 +595,35 @@ export default function MilestoneLevelPage() {
                                             return
                                         }
 
-                                        const readScore = readingReport.score || 0
-                                        const qaScores = Object.values(qaReports).map((r: any) => r.score || 0)
-                                        const sumQa = qaScores.reduce((acc, curr) => acc + curr, 0)
-                                        const totalScore = Math.round((readScore + sumQa) / (1 + qaScores.length))
+                                        // Tính Điểm Trọng Số
+                                        const readPointsWeight = milestoneData?.readingPoints || 20
+                                        const readScoreCalculated = (readingReport.score || 0) * (readPointsWeight / 100)
+
+                                        let sumQaPointsWeight = 0
+                                        let sumQaScoreCalculated = 0
+                                        Object.values(qaReports).forEach((r: any, idx) => {
+                                            const w = qaSections[idx]?.points || 20
+                                            sumQaPointsWeight += w
+                                            sumQaScoreCalculated += (r.score || 0) * (w / 100)
+                                        })
+
+                                        const maxPossibleScore = readPointsWeight + sumQaPointsWeight
+                                        const rawTotal = readScoreCalculated + sumQaScoreCalculated
+                                        // Quy đổi điểm Scale 100
+                                        const finalTotalScore = maxPossibleScore > 0 ? Math.round((rawTotal / maxPossibleScore) * 100) : 0
 
                                         const { error } = await supabase.from('milestone_results').insert({
                                             user_id: user.id,
                                             milestone_id: currentMilestoneId,
-                                            reading_score: readScore,
-                                            qa_score: qaScores.length > 0 ? Math.round(sumQa / qaScores.length) : 0,
-                                            total_score: totalScore,
+                                            reading_score: Math.round((readingReport.score || 0)), // Lưu điểm thô AI chấm
+                                            qa_score: qaSections.length > 0 ? Math.round(Object.values(qaReports).map((r: any) => r.score || 0).reduce((a, b) => a + b, 0) / qaSections.length) : 0,
+                                            total_score: finalTotalScore, // Điểm đã nhân tỷ trọng
                                             reading_report: readingReport,
                                             qa_reports: qaReports
                                         })
 
                                         if (error) throw error
-                                        setSavedScore(totalScore)
+                                        setSavedScore(finalTotalScore)
 
                                     } catch (error: any) {
                                         console.error(error)

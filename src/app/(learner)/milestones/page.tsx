@@ -14,22 +14,26 @@ export default async function MilestonesPage() {
         {
             icon: <Mic className="w-5 h-5 text-blue-500" />,
             color: "border-blue-200 bg-gradient-to-br from-white to-blue-50/50",
-            buttonColor: "bg-blue-600 hover:bg-blue-700"
+            buttonColor: "bg-blue-600 hover:bg-blue-700",
+            outlineButton: "text-blue-700 border-blue-200 hover:bg-blue-50/50 bg-white/80"
         },
         {
             icon: <BookOpen className="w-5 h-5 text-emerald-500" />,
             color: "border-emerald-200 bg-gradient-to-br from-white to-emerald-50/50",
-            buttonColor: "bg-emerald-600 hover:bg-emerald-700"
+            buttonColor: "bg-emerald-600 hover:bg-emerald-700",
+            outlineButton: "text-emerald-700 border-emerald-200 hover:bg-emerald-50/50 bg-white/80"
         },
         {
             icon: <UserCircle className="w-5 h-5 text-amber-500" />,
             color: "border-amber-200 bg-gradient-to-br from-white to-amber-50/50",
-            buttonColor: "bg-amber-600 hover:bg-amber-700"
+            buttonColor: "bg-amber-600 hover:bg-amber-700",
+            outlineButton: "text-amber-700 border-amber-200 hover:bg-amber-50/50 bg-white/80"
         },
         {
             icon: <BrainCircuit className="w-5 h-5 text-purple-500" />,
             color: "border-purple-200 bg-gradient-to-br from-white to-purple-50/50",
-            buttonColor: "bg-purple-600 hover:bg-purple-700"
+            buttonColor: "bg-purple-600 hover:bg-purple-700",
+            outlineButton: "text-purple-700 border-purple-200 hover:bg-purple-50/50 bg-white/80"
         }
     ]
 
@@ -119,11 +123,16 @@ export default async function MilestonesPage() {
                                         {ms.description}
                                     </CardDescription>
                                 </CardHeader>
-                                <CardFooter className="pt-5 relative">
-                                    <Button asChild className={`w-full text-white shadow-sm flex items-center justify-between group h-11 text-base ${style.buttonColor}`}>
-                                        <Link href={`/milestones/${ms.level}`}>
-                                            Bắt đầu Kiểm tra
-                                            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                <CardFooter className="pt-5 relative flex gap-3 flex-col sm:flex-row">
+                                    <Button asChild variant="outline" className={`w-full sm:w-1/2 flex items-center justify-center group h-11 text-sm font-bold transition-all ${style.outlineButton}`}>
+                                        <Link href={`/milestones/${ms.level}?mode=practice`}>
+                                            Luyện Tập
+                                        </Link>
+                                    </Button>
+                                    <Button asChild className={`w-full sm:w-1/2 text-white shadow-sm flex items-center justify-center group h-11 text-sm font-bold transition-all ${style.buttonColor}`}>
+                                        <Link href={`/milestones/${ms.level}?mode=test`}>
+                                            Kiểm Tra <span className="ml-1 text-base leading-none translate-y-[-1px]">⏱️</span>
+                                            <ArrowRight className="w-4 h-4 ml-1.5 group-hover:translate-x-1 transition-transform" />
                                         </Link>
                                     </Button>
                                 </CardFooter>

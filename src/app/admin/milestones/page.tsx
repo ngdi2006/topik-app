@@ -125,8 +125,7 @@ export default function AdminMilestones() {
             reading_text: JSON.stringify(validReadingTexts),
             qa_text: JSON.stringify(validQaSections),
             has_personal_form: formData.has_personal_form === "true",
-            is_active: formData.is_active === "true",
-            updated_at: new Date().toISOString()
+            is_active: formData.is_active === "true"
         }
 
         try {
@@ -236,8 +235,7 @@ export default function AdminMilestones() {
                                                 [{secIdx + 1}]
                                             </div>
                                             <Input className="font-semibold text-emerald-800 border-white focus-visible:ring-1 bg-emerald-50 max-w-[200px]" placeholder="TD: Câu 1, Miêu tả..." value={section.title} onChange={(e) => {
-                                                const newSec = [...formData.qa_sections]
-                                                newSec[secIdx].title = e.target.value
+                                                const newSec = formData.qa_sections.map((s, i) => i === secIdx ? { ...s, title: e.target.value } : s)
                                                 setFormData({ ...formData, qa_sections: newSec })
                                             }} />
                                             {formData.qa_sections.length > 1 && (
@@ -255,8 +253,7 @@ export default function AdminMilestones() {
                                             <Label className="text-sm font-medium text-emerald-600 flex justify-between items-center">
                                                 Ngân hàng câu hỏi (Random bốc thăm 1 câu)
                                                 <Button size="sm" variant="ghost" className="h-6 text-emerald-600" onClick={() => {
-                                                    const newSec = [...formData.qa_sections]
-                                                    newSec[secIdx].questions.push("")
+                                                    const newSec = formData.qa_sections.map((s, i) => i === secIdx ? { ...s, questions: [...s.questions, ""] } : s)
                                                     setFormData({ ...formData, qa_sections: newSec })
                                                 }}><Plus className="w-3 h-3 mr-1" /> Thêm câu</Button>
                                             </Label>
@@ -264,14 +261,12 @@ export default function AdminMilestones() {
                                                 <div key={qIdx} className="flex gap-2 items-start">
                                                     <div className="mt-2 text-xs font-bold text-gray-400 w-4">{qIdx + 1}.</div>
                                                     <Textarea className="h-10 min-h-0 py-2" placeholder={`Nội dung câu hỏi ${qIdx + 1}...`} value={text} onChange={e => {
-                                                        const newSec = [...formData.qa_sections]
-                                                        newSec[secIdx].questions[qIdx] = e.target.value
+                                                        const newSec = formData.qa_sections.map((s, i) => i === secIdx ? { ...s, questions: s.questions.map((q, j) => j === qIdx ? e.target.value : q) } : s)
                                                         setFormData({ ...formData, qa_sections: newSec })
                                                     }} />
                                                     {section.questions.length > 1 && (
                                                         <Button variant="ghost" size="icon" className="text-red-400 h-8 w-8 mt-1" onClick={() => {
-                                                            const newSec = [...formData.qa_sections]
-                                                            newSec[secIdx].questions = newSec[secIdx].questions.filter((_, i) => i !== qIdx)
+                                                            const newSec = formData.qa_sections.map((s, i) => i === secIdx ? { ...s, questions: s.questions.filter((_, j) => j !== qIdx) } : s)
                                                             setFormData({ ...formData, qa_sections: newSec })
                                                         }}><Trash2 className="w-4 h-4" /></Button>
                                                     )}

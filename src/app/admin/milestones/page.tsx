@@ -27,6 +27,7 @@ export default function AdminMilestones() {
         description: "",
         reading_texts: [""],
         qa_sections: [{ title: "Câu 1", questions: [""] }],
+        grammar_context: "",
         has_personal_form: "false",
         is_active: "true"
     })
@@ -87,6 +88,7 @@ export default function AdminMilestones() {
             description: m.description || "",
             reading_texts: safeParseArray(m.reading_text),
             qa_sections: safeParseQaSections(m.qa_text),
+            grammar_context: m.grammar_context || "",
             has_personal_form: m.has_personal_form ? "true" : "false",
             is_active: m.is_active ? "true" : "false"
         })
@@ -96,7 +98,7 @@ export default function AdminMilestones() {
 
     const handleOpenNew = () => {
         setFormData({
-            level: "", title: "", description: "", reading_texts: [""], qa_sections: [{ title: "Câu 1", questions: [""] }], has_personal_form: "false", is_active: "true"
+            level: "", title: "", description: "", reading_texts: [""], qa_sections: [{ title: "Câu 1", questions: [""] }], grammar_context: "", has_personal_form: "false", is_active: "true"
         })
         setEditingId(null)
         setIsOpen(true)
@@ -123,6 +125,7 @@ export default function AdminMilestones() {
             description: formData.description,
             reading_text: JSON.stringify(validReadingTexts),
             qa_text: JSON.stringify(validQaSections),
+            grammar_context: formData.grammar_context,
             has_personal_form: formData.has_personal_form === "true",
             is_active: formData.is_active === "true"
         }
@@ -285,6 +288,18 @@ export default function AdminMilestones() {
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                            <div className="space-y-2 border p-4 rounded-xl bg-amber-50">
+                                <Label className="text-amber-800 font-bold">Tài liệu Context & Ngữ pháp áp dụng (Dành riêng cho AI giới thiệu bản thân)</Label>
+                                <Textarea
+                                    className="h-24 bg-amber-50/50"
+                                    placeholder="Điền ngữ pháp/từ vựng cốt lõi của bài này để mớm cho AI. Vd: Ngữ pháp -(으)니까, -(으)면, từ vựng về Thời tiết..."
+                                    value={formData.grammar_context}
+                                    onChange={e => setFormData({ ...formData, grammar_context: e.target.value })}
+                                />
+                                <p className="text-xs text-amber-600/80 italic">
+                                    * Phần này không hiển thị ra cho học viên, chỉ dùng để nhét vào Prompt mớm cho AI.
+                                </p>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">

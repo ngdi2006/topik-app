@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Mic, MicOff, Volume2, ArrowLeft, Loader2, CheckCircle2, AlertCircle, Lightbulb, UserCircle, Send, PlayCircle, Wand2 } from "lucide-react"
 import Link from "next/link"
 
@@ -106,6 +106,7 @@ export default function MilestoneLevelPage() {
     const level = params.level as string
 
     const [milestoneData, setMilestoneData] = useState<any>(null)
+    const [allMilestones, setAllMilestones] = useState<any[]>([])
     const [loadingData, setLoadingData] = useState(true)
     const supabase = createClient()
 
@@ -119,7 +120,7 @@ export default function MilestoneLevelPage() {
         personality: "",
         familySize: "",
         family: "",
-        extraDoc: ""
+        targetMilestoneId: ""
     })
     const [isGeneratingIntro, setIsGeneratingIntro] = useState(false)
     const [speechRate, setSpeechRate] = useState<number>(1.0) // Audio speed control
@@ -147,6 +148,9 @@ export default function MilestoneLevelPage() {
                 router.push('/milestones')
                 return
             }
+
+            const { data: allData } = await supabase.from('milestones').select('id, level, title').eq('is_active', true).order('level', { ascending: true })
+            if (allData) setAllMilestones(allData)
 
             // Parser để tương thích ngược với Data chữ thuần cũ và Array JSON mới
             const parseArray = (val: string) => {
@@ -335,15 +339,21 @@ export default function MilestoneLevelPage() {
                             <div className="space-y-1.5"><Label>Gia đình gồm mấy người?</Label><Input value={formData.familySize} onChange={e => setFormData({ ...formData, familySize: e.target.value })} placeholder="VD: 4 người" /></div>
                             <div className="space-y-1.5"><Label>Đó là những ai?</Label><Input value={formData.family} onChange={e => setFormData({ ...formData, family: e.target.value })} placeholder="VD: Bố, Mẹ, Chị Gái và Tôi" /></div>
                             <div className="col-span-1 sm:col-span-2 space-y-1.5 mt-2">
-                                <Label className="text-amber-800 font-bold">📚 Tài liệu Context (Bối cảnh bổ sung cho AI)</Label>
-                                <Textarea
-                                    className="min-h-[100px] border-amber-200 focus-visible:ring-amber-500 bg-amber-50/20"
-                                    value={formData.extraDoc}
-                                    onChange={e => setFormData({ ...formData, extraDoc: e.target.value })}
-                                    placeholder="Điền đoạn văn bản tiếng Việt dài mô tả chi tiết bất kỳ thông tin nào bạn muốn AI nhắc tới trong bài. Ví dụ: 'Tôi từng là du học sinh ở Busan 2 năm, tôi cực kì thích món Kimchi Jjigae ở đó. Ước mơ của tôi là mở một nhà hàng Hàn Quốc.' "
-                                />
+                                <Label className="text-amber-800 font-bold flex items-center gap-1">🎯 Mục tiêu lộ trình (Bài sau bài mốc)</Label>
+                                <Select value={formData.targetMilestoneId} onValueChange={v => setFormData({ ...formData, targetMilestoneId: v })}>
+                                    <SelectTrigger className="w-full border-amber-200 bg-amber-50/30">
+                                        <SelectValue placeholder="-- Chọn mốc ngữ pháp mục tiêu --" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {allMilestones.map(m => (
+                                            <SelectItem key={m.id} value={m.id.toString()}>
+                                                Level {m.level} - {m.title}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 <p className="text-xs text-amber-600/80 mt-1 italic">
-                                    * AI sẽ thông minh sử dụng Text trên làm khung sườn RAG để sinh ra bài giới thiệu hoàn hảo nhất với bạn.
+                                    * AI sẽ sử dụng bộ ngữ pháp của mốc này (do Giáo viên biên soạn) để xây dựng cấu trúc bài giới thiệu cho bạn.
                                 </p>
                             </div>
                         </CardContent>
@@ -358,7 +368,8 @@ export default function MilestoneLevelPage() {
                             </Button>
                         </CardFooter>
                     </Card>
-                )}
+                )
+                }
 
                 {/* Section 1: Bài kiểm tra Đọc */}
                 <Card className="shadow-md border-blue-100/50 rounded-2xl">
@@ -553,7 +564,7 @@ export default function MilestoneLevelPage() {
                     )}
                 </Card>
 
-            </main>
-        </div>
+            </main >
+        </div >
     )
 }

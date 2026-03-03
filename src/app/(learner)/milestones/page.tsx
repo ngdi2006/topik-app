@@ -1,7 +1,7 @@
 import { UserNav } from "@/components/shared/UserNav"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, BookOpen, Mic, BrainCircuit, UserCircle } from "lucide-react"
+import { ArrowRight, BookOpen, Mic, BrainCircuit, UserCircle, Sparkles, Wand2 } from "lucide-react"
 import Link from "next/link"
 
 import { createClient } from "@/lib/supabase/server"
@@ -61,6 +61,36 @@ export default async function MilestonesPage() {
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-6 relative">
+                    {/* Thẻ Card Trợ Lý AI (VIP) */}
+                    <Card className="col-span-1 sm:col-span-2 relative overflow-hidden shadow-md hover:shadow-xl transition-all duration-500 border-amber-300 bg-gradient-to-r from-amber-500 via-amber-400 to-orange-400 group cursor-pointer">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none group-hover:scale-110 transition-transform duration-700"></div>
+                        <div className="absolute bottom-0 left-0 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
+
+                        <div className="p-1 sm:p-2">
+                            <CardHeader className="pb-2">
+                                <div className="flex items-center gap-3 mb-1">
+                                    <div className="p-2.5 bg-white/20 backdrop-blur-md rounded-xl shadow-inner border border-white/30 text-white">
+                                        <Sparkles className="w-6 h-6 animate-pulse" />
+                                    </div>
+                                    <div className="text-xs font-bold tracking-[0.2em] text-white/90 uppercase bg-black/10 px-3 py-1 rounded-full backdrop-blur-sm">
+                                        TÍNH NĂNG ĐỘC QUYỀN
+                                    </div>
+                                </div>
+                                <CardTitle className="text-2xl sm:text-3xl font-black text-white drop-shadow-sm">Trợ Lý AI: Tạo Đoạn Giới Thiệu Bản Thân</CardTitle>
+                                <CardDescription className="text-white/90 text-sm sm:text-base leading-relaxed mt-2 max-w-2xl font-medium">
+                                    Không biết viết CV tiếng Hàn? KHÔNG SAO! Chỉ cần khai báo thông tin cơ bản bằng Tiếng Việt, AI Gemini sẽ tự động rập khuôn Ngữ Pháp theo Mốc Giáo Trình để đúc kết cho bạn một bản Introduce Yourself hoàn hảo cực sốc!
+                                </CardDescription>
+                            </CardHeader>
+                            <CardFooter className="pt-4 pb-4">
+                                <Button asChild className="bg-white text-amber-700 hover:bg-amber-50 shadow-lg hover:shadow-xl transition-all font-bold text-base h-12 px-8 rounded-full">
+                                    <Link href="/milestones/intro-generator">
+                                        Trải Nghiệm Ngay <Wand2 className="w-5 h-5 ml-2" />
+                                    </Link>
+                                </Button>
+                            </CardFooter>
+                        </div>
+                    </Card>
+
                     {/* Connecting line for visual milestone progression */}
                     <div className="absolute left-1/2 top-4 bottom-4 w-1 bg-gradient-to-b from-blue-200 via-amber-200 to-purple-200 -translate-x-1/2 hidden sm:block rounded-full z-0 opacity-40"></div>
 

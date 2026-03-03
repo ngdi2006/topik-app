@@ -110,19 +110,6 @@ export default function MilestoneLevelPage() {
     const [loadingData, setLoadingData] = useState(true)
     const supabase = createClient()
 
-    // Form data (For milestone 3)
-    const [formData, setFormData] = useState({
-        name: "",
-        age: "",
-        dob: "",
-        job: "",
-        hobbies: "",
-        personality: "",
-        familySize: "",
-        family: "",
-        targetMilestoneId: ""
-    })
-    const [isGeneratingIntro, setIsGeneratingIntro] = useState(false)
     const [speechRate, setSpeechRate] = useState<number>(1.0) // Audio speed control
 
     // Test states
@@ -148,9 +135,6 @@ export default function MilestoneLevelPage() {
                 router.push('/milestones')
                 return
             }
-
-            const { data: allData } = await supabase.from('milestones').select('id, level, title').eq('is_active', true).order('level', { ascending: true })
-            if (allData) setAllMilestones(allData)
 
             // Parser để tương thích ngược với Data chữ thuần cũ và Array JSON mới
             const parseArray = (val: string) => {
@@ -219,29 +203,6 @@ export default function MilestoneLevelPage() {
     if (!milestoneData) return null
 
     // -- Handler functions --
-    const handleGenerateIntro = async () => {
-        setIsGeneratingIntro(true)
-        try {
-            const res = await fetch('/api/ai/milestones/generate-intro', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            })
-            const data = await res.json()
-            if (data.script) {
-                setReadingText(data.script)
-                alert("✨ AI đã biên soạn xong! Vui lòng cuộn xuống phần Bài Tập Đọc Thành Tiếng bên dưới để xem văn bản.")
-            } else if (data.error) {
-                alert("Lỗi từ AI: " + data.error)
-            }
-        } catch (e) {
-            console.error(e)
-            alert("Lỗi tạo bài, vui lòng thử lại.")
-        } finally {
-            setIsGeneratingIntro(false)
-        }
-    }
-
     const handleToggleRecord = (sectionId: 1 | 2) => {
         if (isRecording) {
             stopRecording()
@@ -317,59 +278,6 @@ export default function MilestoneLevelPage() {
             </header>
 
             <main className="max-w-4xl mx-auto p-4 md:p-8 space-y-8 mt-4">
-
-                {/* Form Sinh Info (Chỉ xuất hiện nếu Mốc 3) */}
-                {milestoneData.hasPersonalForm && (
-                    <Card className="border-amber-200 border-2 shadow-sm rounded-2xl overflow-hidden bg-gradient-to-r from-amber-50/30 to-white">
-                        <CardHeader className="bg-amber-100/30 border-b border-amber-100 pb-4">
-                            <CardTitle className="text-amber-800 flex items-center gap-2 text-lg">
-                                <UserCircle className="w-5 h-5" /> Form Khai Báo Dữ Liệu Cá Nhân
-                            </CardTitle>
-                            <CardDescription className="text-amber-700/80">
-                                AI sẽ sử dụng những thông tin cá nhân dưới đây để tự biên soạn Bản Giới Thiệu dành riêng cho bạn.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="pt-6 grid sm:grid-cols-2 gap-4">
-                            <div className="space-y-1.5"><Label>Tên (Tùy chọn)</Label><Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="VD: Nam Định" /></div>
-                            <div className="space-y-1.5"><Label>Tuổi (Tùy chọn)</Label><Input value={formData.age} onChange={e => setFormData({ ...formData, age: e.target.value })} placeholder="VD: 25" type="number" /></div>
-                            <div className="space-y-1.5"><Label>Ngày tháng năm sinh</Label><Input value={formData.dob} onChange={e => setFormData({ ...formData, dob: e.target.value })} placeholder="VD: 15/08/1999" /></div>
-                            <div className="space-y-1.5"><Label>Nghề nghiệp / Chuyên Ngành</Label><Input value={formData.job} onChange={e => setFormData({ ...formData, job: e.target.value })} placeholder="VD: Sinh viên IT, Kế toán..." /></div>
-                            <div className="space-y-1.5"><Label>Sở thích cá nhân</Label><Input value={formData.hobbies} onChange={e => setFormData({ ...formData, hobbies: e.target.value })} placeholder="VD: Đọc sách, Nghe nhạc Hàn" /></div>
-                            <div className="space-y-1.5"><Label>Tính cách</Label><Input value={formData.personality} onChange={e => setFormData({ ...formData, personality: e.target.value })} placeholder="VD: Hòa đồng, Hướng nội..." /></div>
-                            <div className="space-y-1.5"><Label>Gia đình gồm mấy người?</Label><Input value={formData.familySize} onChange={e => setFormData({ ...formData, familySize: e.target.value })} placeholder="VD: 4 người" /></div>
-                            <div className="space-y-1.5"><Label>Đó là những ai?</Label><Input value={formData.family} onChange={e => setFormData({ ...formData, family: e.target.value })} placeholder="VD: Bố, Mẹ, Chị Gái và Tôi" /></div>
-                            <div className="col-span-1 sm:col-span-2 space-y-1.5 mt-2">
-                                <Label className="text-amber-800 font-bold flex items-center gap-1">🎯 Mục tiêu lộ trình (Bài sau bài mốc)</Label>
-                                <Select value={formData.targetMilestoneId} onValueChange={v => setFormData({ ...formData, targetMilestoneId: v })}>
-                                    <SelectTrigger className="w-full border-amber-200 bg-amber-50/30">
-                                        <SelectValue placeholder="-- Chọn mốc ngữ pháp mục tiêu --" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {allMilestones.map(m => (
-                                            <SelectItem key={m.id} value={m.id.toString()}>
-                                                Level {m.level} - {m.title}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <p className="text-xs text-amber-600/80 mt-1 italic">
-                                    * AI sẽ sử dụng bộ ngữ pháp của mốc này (do Giáo viên biên soạn) để xây dựng cấu trúc bài giới thiệu cho bạn.
-                                </p>
-                            </div>
-                        </CardContent>
-                        <CardFooter className="bg-amber-50/50 pt-4 border-t border-amber-50">
-                            <Button
-                                onClick={handleGenerateIntro}
-                                disabled={isGeneratingIntro}
-                                className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white shadow-md gap-2 rounded-xl"
-                            >
-                                {isGeneratingIntro ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-                                {isGeneratingIntro ? "Đang đúc kết bản văn..." : "AI Soạn Bản Giới Thiệu (Reading Text)"}
-                            </Button>
-                        </CardFooter>
-                    </Card>
-                )
-                }
 
                 {/* Section 1: Bài kiểm tra Đọc */}
                 <Card className="shadow-md border-blue-100/50 rounded-2xl">

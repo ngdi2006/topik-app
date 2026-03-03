@@ -60,9 +60,9 @@ export async function GET() {
             created_at: m.created_at,
             type: 'milestone',
             exams: {
-                id: m.milestones?.id,
-                title: m.milestones?.title || "Kiểm tra Mốc",
-                level: `Mốc ${m.milestones?.level}`,
+                id: (m.milestones as any)?.id,
+                title: (m.milestones as any)?.title || "Kiểm tra Mốc",
+                level: `Mốc ${(m.milestones as any)?.level}`,
                 part_type: 'Speaking AI'
             }
         }))

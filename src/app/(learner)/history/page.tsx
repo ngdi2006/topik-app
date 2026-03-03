@@ -107,7 +107,7 @@ export default function HistoryPage() {
                                                     </div>
                                                     <div className="flex items-center gap-1.5">
                                                         <Clock className="w-4 h-4 text-gray-400" />
-                                                        Thời gian đã làm: {Math.floor((record.time_taken || 0) / 60)} phút {(record.time_taken || 0) % 60} giây
+                                                        {record.type === 'milestone' ? 'Hoàn thành' : `Thời gian đã làm: ${Math.floor((record.time_taken || 0) / 60)} phút ${(record.time_taken || 0) % 60} giây`}
                                                     </div>
                                                 </div>
                                             </div>
@@ -118,13 +118,15 @@ export default function HistoryPage() {
                                                     <div className="text-3xl font-black text-primary">
                                                         {record.score}<span className="text-lg text-gray-400 font-semibold">/100</span>
                                                     </div>
-                                                    <p className="text-sm font-medium text-green-600 mt-1">
-                                                        Đúng {record.total_correct} câu
-                                                    </p>
+                                                    {record.type !== 'milestone' && (
+                                                        <p className="text-sm font-medium text-green-600 mt-1">
+                                                            Đúng {record.total_correct} câu
+                                                        </p>
+                                                    )}
                                                 </div>
                                                 <Button
                                                     className="shadow-sm hover:shadow-md transition-all"
-                                                    onClick={() => router.push(`/exam/${record.exams?.id}/result/${record.id}`)}
+                                                    onClick={() => record.type === 'milestone' ? alert('Tính năng xem chi tiết chữa bài Mốc đang được AI biên soạn, sẽ ra mắt sớm!') : router.push(`/exam/${record.exams?.id}/result/${record.id}`)}
                                                 >
                                                     Xem chi tiết
                                                 </Button>

@@ -243,7 +243,7 @@ export default function DashboardPage() {
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    onClick={() => router.push(`/exam/${record.exams?.id}/result/${record.id}`)}
+                                                    onClick={() => record.type === 'milestone' ? alert('Tính năng xem chi tiết chữa bài Mốc đang được AI biên soạn, sẽ ra mắt sớm!') : router.push(`/exam/${record.exams?.id}/result/${record.id}`)}
                                                     className="w-full sm:w-auto hover:bg-primary/5"
                                                 >
                                                     Xem lại kết quả

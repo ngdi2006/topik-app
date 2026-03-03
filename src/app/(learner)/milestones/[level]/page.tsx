@@ -213,6 +213,50 @@ function MilestoneLevelContent() {
         fetchLevelData()
     }, [level, router])
 
+    // ============================================================
+    // ⚠️ TẤT CẢ HOOKS PHẢI Ở ĐÂY - TRƯỚC MỌI CONDITIONAL RETURN
+    // (Rules of Hooks: không được gọi hook sau early return)
+    // ============================================================
+
+    // Ref để tránh stale closure trong timer callback
+    const handleEvaluateRef = useRef<((taskType: 'reading' | 'qa') => Promise<void>) | null>(null)
+
+    // --- Xử lý Đếm ngược Thời gian ---
+    useEffect(() => {
+        if (!isTestMode || activeSection === 0) {
+            setTimeLeft(null)
+            return
+        }
+        let initialTime = 0
+        if (activeSection === 1) initialTime = milestoneData?.readingTimeLimit || 120
+        else if (activeSection === 2) initialTime = qaSections[activeQaIndex]?.time_limit || 60
+
+        setTimeLeft(initialTime)
+
+        const timer = setInterval(() => {
+            setTimeLeft(prev => {
+                if (prev === null) return null
+                if (prev <= 1) {
+                    clearInterval(timer)
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+        return () => clearInterval(timer)
+    }, [activeSection, isTestMode, milestoneData, qaSections, activeQaIndex])
+
+    // Lắng nghe hết giờ tự động nộp bài
+    useEffect(() => {
+        if (timeLeft === 0 && isRecording && handleEvaluateRef.current) {
+            handleEvaluateRef.current(activeSection === 1 ? 'reading' : 'qa')
+        }
+    }, [timeLeft, isRecording, activeSection])
+
+    // ============================================================
+    // CONDITIONAL RETURNS (sau tất cả hooks)
+    // ============================================================
+
     if (loadingData) {
         return (
             <div className="min-h-screen bg-muted/10 flex items-center justify-center flex-col gap-4">
@@ -224,7 +268,7 @@ function MilestoneLevelContent() {
 
     if (!milestoneData) return null
 
-    // -- Handler functions --
+    // -- Handler functions (không phải hooks, được phép khai báo sau early returns) --
     const handleToggleRecord = (sectionId: 1 | 2) => {
         if (isRecording) {
             stopRecording()
@@ -284,43 +328,8 @@ function MilestoneLevelContent() {
             resetTranscript()
         }
     }
-
-    const handleEvaluateRef = useRef(handleEvaluate)
-    useEffect(() => {
-        handleEvaluateRef.current = handleEvaluate
-    })
-
-    // --- Xử lý Đếm ngược Thời gian ---
-    useEffect(() => {
-        if (!isTestMode || activeSection === 0) {
-            setTimeLeft(null)
-            return
-        }
-        let initialTime = 0
-        if (activeSection === 1) initialTime = milestoneData?.readingTimeLimit || 120
-        else if (activeSection === 2) initialTime = qaSections[activeQaIndex]?.time_limit || 60
-
-        setTimeLeft(initialTime)
-
-        const timer = setInterval(() => {
-            setTimeLeft(prev => {
-                if (prev === null) return null
-                if (prev <= 1) {
-                    clearInterval(timer)
-                    return 0
-                }
-                return prev - 1
-            })
-        }, 1000)
-        return () => clearInterval(timer)
-    }, [activeSection, isTestMode, milestoneData, qaSections, activeQaIndex])
-
-    // Lắng nghe hết giờ tự động chặn và nộp
-    useEffect(() => {
-        if (timeLeft === 0 && isRecording) {
-            handleEvaluateRef.current(activeSection === 1 ? 'reading' : 'qa')
-        }
-    }, [timeLeft, isRecording, activeSection])
+    // Cập nhật ref mỗi render để timer luôn gọi phiên bản mới nhất
+    handleEvaluateRef.current = handleEvaluate
 
     // -- Live STT display logic --
     const getActiveTranscript = (sectionId: 1 | 2) => {

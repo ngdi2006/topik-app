@@ -56,8 +56,13 @@ const ReportCard = ({ report, isEvaluating }: { report: any, isEvaluating: boole
                 <CheckCircle2 className="w-5 h-5 text-green-500" /> Bảng Điểm Đánh Giá Mốc
             </h4>
 
-            <div className="bg-white p-4 rounded-lg border shadow-sm">
+            <div className="bg-white p-4 rounded-lg border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <p className="text-gray-800 font-medium leading-relaxed">{report.evaluation}</p>
+                {report.score !== undefined && (
+                    <div className="shrink-0 bg-blue-100 text-blue-800 font-black text-2xl px-5 py-2 rounded-2xl border border-blue-200 text-center shadow-inner">
+                        {report.score}<span className="text-sm font-medium text-blue-600">/100</span>
+                    </div>
+                )}
             </div>
 
             <div className="grid md:grid-cols-2 gap-4 mt-4">
@@ -128,6 +133,10 @@ export default function MilestoneLevelPage() {
     const [activeSection, setActiveSection] = useState<0 | 1 | 2>(0)
     const { isRecording, transcript, interimTranscript, startRecording, stopRecording, resetTranscript } = useSpeechRecognition("ko-KR")
 
+    const [isSavingScore, setIsSavingScore] = useState(false)
+    const [savedScore, setSavedScore] = useState<number | null>(null)
+    const [currentMilestoneId, setCurrentMilestoneId] = useState<string>("")
+
     useEffect(() => {
         const fetchLevelData = async () => {
             const { data, error } = await supabase.from('milestones').select('*').eq('level', level).eq('is_active', true).single()
@@ -135,6 +144,8 @@ export default function MilestoneLevelPage() {
                 router.push('/milestones')
                 return
             }
+
+            setCurrentMilestoneId(data.id)
 
             // Parser để tương thích ngược với Data chữ thuần cũ và Array JSON mới
             const parseArray = (val: string) => {
@@ -215,6 +226,12 @@ export default function MilestoneLevelPage() {
     }
 
     const handleEvaluate = async (taskType: 'reading' | 'qa') => {
+        // TẮT MIC NGAY LẬP TỨC KHI BẤM NỘP BÀI
+        if (isRecording) {
+            stopRecording()
+            setActiveSection(0)
+        }
+
         const fullTranscript = (transcript + " " + interimTranscript).trim()
         if (!fullTranscript) {
             alert("Vui lòng Bật Mic và nói tiếng Hàn trước khi nộp bài Đánh giá!")
@@ -471,6 +488,69 @@ export default function MilestoneLevelPage() {
                         </CardContent>
                     )}
                 </Card>
+
+                {/* --- MÀN HÌNH TỔNG QUAN EVALUATOR --- */}
+                {readingReport && qaSections.length > 0 && qaSections.every((_, i) => qaReports[i]) && (
+                    <div className="mt-12 bg-gradient-to-br from-indigo-50 to-blue-50 border-2 border-indigo-200 rounded-3xl p-6 md:p-10 shadow-xl text-center space-y-6 animate-in slide-in-from-bottom-8 duration-700">
+                        <div className="flex justify-center mb-2">
+                            <div className="bg-white p-4 rounded-full shadow-md border-4 border-indigo-100 animate-bounce">
+                                <CheckCircle2 className="w-10 h-10 text-indigo-600" />
+                            </div>
+                        </div>
+                        <h2 className="text-2xl md:text-3xl font-black text-indigo-900 drop-shadow-sm">Chúc Mừng Bạn Đã Hoàn Thành Bài Thi!</h2>
+                        <p className="text-indigo-700 text-lg max-w-2xl mx-auto font-medium">Bạn đã trả lời xuất sắc 100% các câu hỏi của Mốc này. AI đã tổng hợp đầy đủ số điểm từng chặng để đưa ra báo cáo tổng kết cuối cùng.</p>
+
+                        {savedScore !== null ? (
+                            <div className="bg-white rounded-2xl p-8 border-2 border-indigo-100 shadow-inner inline-block min-w-[280px]">
+                                <h3 className="text-indigo-800 font-bold mb-2">ĐIỂM SỐ CHÍNH THỨC CỦA BẠN</h3>
+                                <div className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-indigo-600 to-purple-600">{savedScore}<span className="text-2xl text-indigo-400">/100</span></div>
+                            </div>
+                        ) : (
+                            <Button
+                                size="lg"
+                                className="h-16 px-10 rounded-full text-lg font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                                disabled={isSavingScore}
+                                onClick={async () => {
+                                    setIsSavingScore(true)
+                                    try {
+                                        const { data: { user } } = await supabase.auth.getUser()
+                                        if (!user) {
+                                            alert("Vui lòng đăng nhập để lưu kết quả!")
+                                            return
+                                        }
+
+                                        const readScore = readingReport.score || 0
+                                        const qaScores = Object.values(qaReports).map((r: any) => r.score || 0)
+                                        const sumQa = qaScores.reduce((acc, curr) => acc + curr, 0)
+                                        const totalScore = Math.round((readScore + sumQa) / (1 + qaScores.length))
+
+                                        const { error } = await supabase.from('milestone_results').insert({
+                                            user_id: user.id,
+                                            milestone_id: currentMilestoneId,
+                                            reading_score: readScore,
+                                            qa_score: qaScores.length > 0 ? Math.round(sumQa / qaScores.length) : 0,
+                                            total_score: totalScore,
+                                            reading_report: readingReport,
+                                            qa_reports: qaReports
+                                        })
+
+                                        if (error) throw error
+                                        setSavedScore(totalScore)
+
+                                    } catch (error: any) {
+                                        console.error(error)
+                                        alert("Lỗi khi lưu kết quả: " + error.message)
+                                    } finally {
+                                        setIsSavingScore(false)
+                                    }
+                                }}
+                            >
+                                {isSavingScore ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : <Wand2 className="w-6 h-6 mr-2" />}
+                                {isSavingScore ? "Đang xử lý Bảng Điểm..." : "Chốt Sổ & Tra Cứu Điểm Số"}
+                            </Button>
+                        )}
+                    </div>
+                )}
 
             </main >
         </div >

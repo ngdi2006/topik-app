@@ -26,7 +26,7 @@ export default function AdminMilestones() {
         title: "",
         description: "",
         reading_texts: [""],
-        qa_texts: [""],
+        qa_sections: [{ title: "Câu 1", questions: [""] }],
         has_personal_form: "false",
         is_active: "true"
     })
@@ -61,13 +61,32 @@ export default function AdminMilestones() {
         }
     }
 
+    const safeParseQaSections = (val: string) => {
+        if (!val) return [{ title: "Câu 1", questions: [""] }]
+        try {
+            const parsed = JSON.parse(val)
+            if (Array.isArray(parsed)) {
+                if (parsed.length === 0) return [{ title: "Câu 1", questions: [""] }]
+                // Trường hợp cũ: Mảng các chuỗi ['câu 1', 'câu 2']
+                if (typeof parsed[0] === 'string') {
+                    return [{ title: "Câu 1", questions: parsed }]
+                }
+                // Trường hợp cấu trúc Object mới
+                return parsed
+            }
+            return [{ title: "Câu 1", questions: [val] }]
+        } catch {
+            return [{ title: "Câu 1", questions: [val] }]
+        }
+    }
+
     const handleOpenEdit = (m: any) => {
         setFormData({
             level: m.level,
             title: m.title,
             description: m.description || "",
             reading_texts: safeParseArray(m.reading_text),
-            qa_texts: safeParseArray(m.qa_text),
+            qa_sections: safeParseQaSections(m.qa_text),
             has_personal_form: m.has_personal_form ? "true" : "false",
             is_active: m.is_active ? "true" : "false"
         })
@@ -77,19 +96,24 @@ export default function AdminMilestones() {
 
     const handleOpenNew = () => {
         setFormData({
-            level: "", title: "", description: "", reading_texts: [""], qa_texts: [""], has_personal_form: "false", is_active: "true"
+            level: "", title: "", description: "", reading_texts: [""], qa_sections: [{ title: "Câu 1", questions: [""] }], has_personal_form: "false", is_active: "true"
         })
         setEditingId(null)
         setIsOpen(true)
     }
 
     const handleSave = async () => {
-        // Lọc bỏ các câu trống rỗng
+        // Lọc bỏ Đọc trống
         const validReadingTexts = formData.reading_texts.filter(t => t.trim() !== "")
-        const validQaTexts = formData.qa_texts.filter(t => t.trim() !== "")
 
-        if (!formData.level || !formData.title || validReadingTexts.length === 0 || validQaTexts.length === 0) {
-            toast.error("Vui lòng nhập đủ Mã Level, Tiêu đề và ít nhất 1 câu Đọc, 1 câu Vấn đáp.")
+        // Lọc Câu Hỏi rỗng trong từng Dạng Vấn Đáp
+        const validQaSections = formData.qa_sections.map(section => ({
+            title: section.title.trim() || "Câu Hỏi Không Tên",
+            questions: section.questions.filter(q => q.trim() !== "")
+        })).filter(section => section.questions.length > 0)
+
+        if (!formData.level || !formData.title || validReadingTexts.length === 0 || validQaSections.length === 0) {
+            toast.error("Vui lòng nhập đủ: Level, Tiêu đề, ít nhất 1 bài Đọc và ít nhất 1 Dạng Vấn Đáp có Ngân hàng câu hỏi.")
             return
         }
 
@@ -99,7 +123,7 @@ export default function AdminMilestones() {
             title: formData.title,
             description: formData.description,
             reading_text: JSON.stringify(validReadingTexts),
-            qa_text: JSON.stringify(validQaTexts),
+            qa_text: JSON.stringify(validQaSections),
             has_personal_form: formData.has_personal_form === "true",
             is_active: formData.is_active === "true",
             updated_at: new Date().toISOString()
@@ -194,23 +218,66 @@ export default function AdminMilestones() {
                                 ))}
                             </div>
                             <div className="space-y-4 border p-4 rounded-xl bg-emerald-50">
-                                <div className="flex items-center justify-between">
-                                    <Label className="text-emerald-700 font-bold">Ngân hàng: Câu Hỏi Vấn Đáp</Label>
-                                    <Button size="sm" variant="outline" onClick={() => setFormData({ ...formData, qa_texts: [...formData.qa_texts, ""] })}><Plus className="w-4 h-4 mr-1" /> Thêm câu</Button>
+                                <div className="flex items-center justify-between pb-2 border-b border-emerald-100 mb-2">
+                                    <Label className="text-emerald-700 font-bold text-base">Giao án Vấn Đáp Cơ Động</Label>
+                                    <Button size="sm" variant="default" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => {
+                                        setFormData({
+                                            ...formData,
+                                            qa_sections: [...formData.qa_sections, { title: `Câu ${formData.qa_sections.length + 1}`, questions: [""] }]
+                                        })
+                                    }}>
+                                        <Plus className="w-4 h-4 mr-1" /> Thêm Bài Vấn Đáp Mới
+                                    </Button>
                                 </div>
-                                {formData.qa_texts.map((text, idx) => (
-                                    <div key={idx} className="flex gap-2">
-                                        <Textarea className="h-16" placeholder={`Câu Hỏi ${idx + 1}...`} value={text} onChange={e => {
-                                            const newArr = [...formData.qa_texts]
-                                            newArr[idx] = e.target.value
-                                            setFormData({ ...formData, qa_texts: newArr })
-                                        }} />
-                                        {formData.qa_texts.length > 1 && (
-                                            <Button variant="ghost" size="icon" className="text-red-500" onClick={() => {
-                                                const newArr = formData.qa_texts.filter((_, i) => i !== idx)
-                                                setFormData({ ...formData, qa_texts: newArr })
-                                            }}><Trash2 className="w-4 h-4" /></Button>
-                                        )}
+                                {formData.qa_sections.map((section, secIdx) => (
+                                    <div key={secIdx} className="bg-white p-4 rounded-lg border shadow-sm relative space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className="bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-md font-semibold font-mono border border-emerald-200">
+                                                [{secIdx + 1}]
+                                            </div>
+                                            <Input className="font-semibold text-emerald-800 border-white focus-visible:ring-1 bg-emerald-50 max-w-[200px]" placeholder="TD: Câu 1, Miêu tả..." value={section.title} onChange={(e) => {
+                                                const newSec = [...formData.qa_sections]
+                                                newSec[secIdx].title = e.target.value
+                                                setFormData({ ...formData, qa_sections: newSec })
+                                            }} />
+                                            {formData.qa_sections.length > 1 && (
+                                                <Button variant="ghost" size="sm" className="ml-auto text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => {
+                                                    if (!confirm(`Xóa Bài Vấn Đáp [${secIdx + 1}]?`)) return
+                                                    const newSec = formData.qa_sections.filter((_, i) => i !== secIdx)
+                                                    setFormData({ ...formData, qa_sections: newSec })
+                                                }}>
+                                                    <Trash2 className="w-4 h-4 mr-1" /> Hủy bài này
+                                                </Button>
+                                            )}
+                                        </div>
+
+                                        <div className="pl-2 space-y-2 border-l-2 border-emerald-100 pt-2 ml-4">
+                                            <Label className="text-sm font-medium text-emerald-600 flex justify-between items-center">
+                                                Ngân hàng câu hỏi (Random bốc thăm 1 câu)
+                                                <Button size="sm" variant="ghost" className="h-6 text-emerald-600" onClick={() => {
+                                                    const newSec = [...formData.qa_sections]
+                                                    newSec[secIdx].questions.push("")
+                                                    setFormData({ ...formData, qa_sections: newSec })
+                                                }}><Plus className="w-3 h-3 mr-1" /> Thêm câu</Button>
+                                            </Label>
+                                            {section.questions.map((text, qIdx) => (
+                                                <div key={qIdx} className="flex gap-2 items-start">
+                                                    <div className="mt-2 text-xs font-bold text-gray-400 w-4">{qIdx + 1}.</div>
+                                                    <Textarea className="h-10 min-h-0 py-2" placeholder={`Nội dung câu hỏi ${qIdx + 1}...`} value={text} onChange={e => {
+                                                        const newSec = [...formData.qa_sections]
+                                                        newSec[secIdx].questions[qIdx] = e.target.value
+                                                        setFormData({ ...formData, qa_sections: newSec })
+                                                    }} />
+                                                    {section.questions.length > 1 && (
+                                                        <Button variant="ghost" size="icon" className="text-red-400 h-8 w-8 mt-1" onClick={() => {
+                                                            const newSec = [...formData.qa_sections]
+                                                            newSec[secIdx].questions = newSec[secIdx].questions.filter((_, i) => i !== qIdx)
+                                                            setFormData({ ...formData, qa_sections: newSec })
+                                                        }}><Trash2 className="w-4 h-4" /></Button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 ))}
                             </div>

@@ -116,7 +116,11 @@ export default function MilestoneLevelPage() {
     const [readingReport, setReadingReport] = useState<any>(null)
     const [isEvalReading, setIsEvalReading] = useState(false)
 
-    const [qaReport, setQaReport] = useState<any>(null)
+    // QA States (Multi-sections)
+    const [qaSections, setQaSections] = useState<{ title: string, questions: string[] }[]>([])
+    const [selectedQaQuestions, setSelectedQaQuestions] = useState<string[]>([])
+    const [activeQaIndex, setActiveQaIndex] = useState(0)
+    const [qaReports, setQaReports] = useState<Record<number, any>>({})
     const [isEvalQA, setIsEvalQA] = useState(false)
 
     // STT hook cho bài Test đang Active (1: Reading, 2: QA, 0: None)
@@ -221,7 +225,7 @@ export default function MilestoneLevelPage() {
             setReadingReport(null)
         } else {
             setIsEvalQA(true)
-            setQaReport(null)
+            setQaReports(prev => ({ ...prev, [activeQaIndex]: null }))
         }
 
         try {
@@ -232,18 +236,18 @@ export default function MilestoneLevelPage() {
                     transcript: fullTranscript,
                     taskType,
                     level,
-                    expectedText: isReading ? readingText : null,
-                    questionText: isReading ? null : milestoneData.questionText
+                    expectedText: isReading ? readingText : selectedQaQuestions[activeQaIndex],
+                    questionText: isReading ? null : selectedQaQuestions[activeQaIndex]
                 })
             })
 
             const data = await res.json()
             if (isReading) setReadingReport(data)
-            else setQaReport(data)
+            else setQaReports(prev => ({ ...prev, [activeQaIndex]: data }))
 
         } catch (error) {
             if (isReading) setReadingReport({ error: true })
-            else setQaReport({ error: true })
+            else setQaReports(prev => ({ ...prev, [activeQaIndex]: { error: true } }))
         } finally {
             if (isReading) setIsEvalReading(false)
             else setIsEvalQA(false)
@@ -363,76 +367,113 @@ export default function MilestoneLevelPage() {
                     </CardContent>
                 </Card>
 
-                {/* Section 2: Bài kiểm tra Vấn đáp */}
+                {/* Section 2: Bài kiểm tra Vấn đáp (Multi-sections UI) */}
                 <Card className="shadow-md border-emerald-100/50 rounded-2xl relative overflow-hidden">
                     <CardHeader className="bg-gradient-to-r from-emerald-50/50 to-white border-b pb-4">
                         <div className="flex justify-between items-start">
-                            <div>
+                            <div className="w-full">
                                 <CardTitle className="text-xl flex items-center gap-2 text-emerald-800">
                                     <span className="flex items-center justify-center w-7 h-7 rounded-sm bg-emerald-100 text-emerald-700 text-sm font-black">2</span>
                                     Bài Tập Vấn Đáp Phản Xạ
                                 </CardTitle>
-                                <CardDescription className="mt-1.5">Nghe và tự do trả lời câu hỏi bằng tiếng Hàn để vượt Mốc xuất sắc.</CardDescription>
+                                <CardDescription className="mt-1.5">Mỗi câu hỏi sẽ được máy hệ thống bốc thăm bí mật. Nghe và tự do trả lời.</CardDescription>
+
+                                {/* Thanh điều hướng Câu hỏi */}
+                                {qaSections.length > 0 && (
+                                    <div className="mt-4 flex flex-wrap gap-2 items-center bg-white/50 p-2 rounded-xl">
+                                        {qaSections.map((sec, idx) => {
+                                            const isCompleted = !!qaReports[idx]
+                                            const isActive = activeQaIndex === idx
+                                            return (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => {
+                                                        if (isRecording) {
+                                                            alert("Vui lòng Dừng máy ghi âm hiện tại trước khi chuyển câu khác.")
+                                                            return
+                                                        }
+                                                        setActiveQaIndex(idx)
+                                                        resetTranscript()
+                                                    }}
+                                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold transition-all border-2 ${isActive
+                                                            ? "border-emerald-500 bg-emerald-500 text-white shadow-sm scale-105"
+                                                            : isCompleted
+                                                                ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                                                : "border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100"
+                                                        }`}
+                                                >
+                                                    <Volume2 className={`w-4 h-4 ${isActive ? "text-emerald-100" : isCompleted ? "text-emerald-500" : "text-gray-400"}`} />
+                                                    {sec.title}
+                                                    {isCompleted && (
+                                                        <CheckCircle2 className="w-4 h-4 text-emerald-500 ml-1 rounded-full bg-white" />
+                                                    )}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent className="pt-6">
-                        <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-xl flex sm:items-center sm:justify-between flex-col sm:flex-row gap-4 mb-6 shadow-sm">
-                            <div className="flex gap-3 items-start">
-                                <div className="p-2 bg-white rounded-full text-emerald-600 shadow-sm mt-0.5"><PlayCircle className="w-5 h-5" /></div>
-                                <div>
-                                    <p className="text-sm font-bold text-emerald-800 mb-1">CÂU HỎI BÍ MẬT TỪ HỆ THỐNG:</p>
-                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-1">
-                                        <p className="font-medium text-lg text-emerald-950/20 blur-[5px] select-none pointer-events-none">
-                                            질문이 여기에 숨겨져 있습니다. (Câu hỏi đã bị ẩn)
-                                        </p>
-                                        <div className="text-sm font-medium text-emerald-700 italic border-l-2 border-emerald-300 pl-3 py-0.5">
-                                            👈 Hãy nhấn <strong className="bg-emerald-100 px-1 rounded">biểu tượng Loa</strong> để lắng nghe câu hỏi và trả lời tự do!
+                    {qaSections.length > 0 && (
+                        <CardContent className="pt-6 relative">
+                            <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-xl flex sm:items-center sm:justify-between flex-col sm:flex-row gap-4 mb-6 shadow-sm">
+                                <div className="flex gap-3 items-start">
+                                    <div className="p-2 bg-white rounded-full text-emerald-600 shadow-sm mt-0.5"><PlayCircle className="w-5 h-5" /></div>
+                                    <div>
+                                        <p className="text-sm font-bold text-emerald-800 mb-1">CÂU HỎI BÍ MẬT ({qaSections[activeQaIndex]?.title}):</p>
+                                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-1">
+                                            <p className="font-medium text-lg text-emerald-950/20 blur-[5px] select-none pointer-events-none">
+                                                질문이 여기에 숨겨져 있습니다. (Đã bị ẩn)
+                                            </p>
+                                            <div className="text-sm font-medium text-emerald-700 italic border-l-2 border-emerald-300 pl-3 py-0.5">
+                                                👈 Hãy bóp <strong className="bg-emerald-100 px-1 rounded">Cái Loa</strong> để lắng nghe!
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                            <Button size="icon" variant="outline" className="rounded-full shadow-sm hover:bg-emerald-100 text-emerald-700 shrink-0" onClick={() => speakText(milestoneData.questionText)}>
-                                <Volume2 className="w-5 h-5" />
-                            </Button>
-                        </div>
-
-                        <div className="mt-2">
-                            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                                <Button
-                                    className={`flex-1 gap-2 rounded-xl h-12 shadow-md transition-all ${activeSection === 2 && isRecording ? 'bg-red-500 hover:bg-red-600 ring-4 ring-red-100' : 'bg-emerald-600 hover:bg-emerald-700'}`}
-                                    onClick={() => handleToggleRecord(2)}
-                                    disabled={activeSection === 1}
-                                >
-                                    {activeSection === 2 && isRecording ? (
-                                        <><MicOff className="w-5 h-5 animate-pulse" /> Tắt Máy Thu & Lên điểm</>
-                                    ) : (
-                                        <><Mic className="w-5 h-5" /> Bật Mic Trả Lời</>
-                                    )}
-                                </Button>
-
-                                <Button
-                                    variant="secondary"
-                                    className="sm:w-32 h-12 rounded-xl gap-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-0"
-                                    onClick={() => handleEvaluate('qa')}
-                                    disabled={activeSection !== 2 || !transcript && !interimTranscript || isEvalQA}
-                                >
-                                    {isEvalQA ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Send className="w-4 h-4" /> Gửi nộp</>}
+                                <Button size="icon" variant="outline" className="rounded-full shadow-sm hover:bg-emerald-100 text-emerald-700 shrink-0 h-12 w-12" onClick={() => speakText(selectedQaQuestions[activeQaIndex])}>
+                                    <Volume2 className="w-6 h-6" />
                                 </Button>
                             </div>
 
-                            {/* Live STT Transcript Display */}
-                            {activeSection === 2 && getActiveTranscript(2) && (
-                                <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100 animate-in fade-in">
-                                    <span className="font-bold">🎤 Đang nghe:</span> {getActiveTranscript(2)}
+                            <div className="mt-2">
+                                <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                                    <Button
+                                        className={`flex-1 gap-2 rounded-xl h-12 shadow-md transition-all ${activeSection === 2 && isRecording ? 'bg-red-500 hover:bg-red-600 ring-4 ring-red-100' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                                        onClick={() => handleToggleRecord(2)}
+                                        disabled={activeSection === 1}
+                                    >
+                                        {activeSection === 2 && isRecording ? (
+                                            <><MicOff className="w-5 h-5 animate-pulse" /> Tắt Máy Thu & Lên điểm</>
+                                        ) : (
+                                            <><Mic className="w-5 h-5" /> Trả lời {qaSections[activeQaIndex]?.title} (Record)</>
+                                        )}
+                                    </Button>
+
+                                    <Button
+                                        variant="secondary"
+                                        className="sm:w-32 h-12 rounded-xl gap-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-0"
+                                        onClick={() => handleEvaluate('qa')}
+                                        disabled={activeSection !== 2 || (!transcript && !interimTranscript) || isEvalQA}
+                                    >
+                                        {isEvalQA ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Send className="w-4 h-4" /> Nộp câu này</>}
+                                    </Button>
                                 </div>
-                            )}
-                        </div>
 
-                        {/* Rendering Report */}
-                        <ReportCard report={qaReport} isEvaluating={isEvalQA} />
+                                {/* Live STT Transcript Display */}
+                                {activeSection === 2 && getActiveTranscript(2) && (
+                                    <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100 animate-in fade-in">
+                                        <span className="font-bold">🎤 Đang nghe:</span> {getActiveTranscript(2)}
+                                    </div>
+                                )}
+                            </div>
 
-                    </CardContent>
+                            {/* Rendering Report */}
+                            <ReportCard report={qaReports[activeQaIndex]} isEvaluating={isEvalQA} />
+
+                        </CardContent>
+                    )}
                 </Card>
 
             </main>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition"
 import { Button } from "@/components/ui/button"
@@ -105,7 +105,7 @@ const ReportCard = ({ report, isEvaluating }: { report: any, isEvaluating: boole
     )
 }
 
-export default function MilestoneLevelPage() {
+function MilestoneLevelContent() {
     const params = useParams()
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -642,5 +642,18 @@ export default function MilestoneLevelPage() {
 
             </main >
         </div >
+    )
+}
+
+export default function MilestoneLevelPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-muted/10 flex items-center justify-center flex-col gap-4">
+                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                <p className="text-muted-foreground">Đang chuẩn bị môi trường thi...</p>
+            </div>
+        }>
+            <MilestoneLevelContent />
+        </Suspense>
     )
 }

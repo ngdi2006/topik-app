@@ -91,9 +91,6 @@ export default async function MilestonesPage() {
                         </div>
                     </Card>
 
-                    {/* Connecting line for visual milestone progression */}
-                    <div className="absolute left-1/2 top-4 bottom-4 w-1 bg-gradient-to-b from-blue-200 via-amber-200 to-purple-200 -translate-x-1/2 hidden sm:block rounded-full z-0 opacity-40"></div>
-
                     {milestones.length === 0 && (
                         <div className="col-span-2 text-center py-10 text-muted-foreground w-full">
                             Admin chưa thiết lập Mốc kiểm tra nào trong hệ thống, hoặc DB chưa được khởi tạo.

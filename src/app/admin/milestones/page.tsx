@@ -103,14 +103,13 @@ export default function AdminMilestones() {
     }
 
     const handleSave = async () => {
-        // Lọc bỏ Đọc trống
-        const validReadingTexts = formData.reading_texts.filter(t => t.trim() !== "")
+        // Bảo toàn tuyệt đối cấu trúc Input gốc, kể cả các ô trống để user có thể lưu nháp
+        const validReadingTexts = formData.reading_texts.map(t => t.trim())
 
-        // Lọc Câu Hỏi rỗng trong từng Dạng Vấn Đáp
         const validQaSections = formData.qa_sections.map(section => ({
             title: section.title.trim() || "Câu Hỏi Không Tên",
-            questions: section.questions.filter(q => q.trim() !== "")
-        })).filter(section => section.questions.length > 0)
+            questions: section.questions.map(q => q.trim())
+        }))
 
         if (!formData.level || !formData.title || validReadingTexts.length === 0 || validQaSections.length === 0) {
             toast.error("Vui lòng nhập đủ: Level, Tiêu đề, ít nhất 1 bài Đọc và ít nhất 1 Dạng Vấn Đáp có Ngân hàng câu hỏi.")

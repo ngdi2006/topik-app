@@ -1,0 +1,5 @@
+Error: fetch failed
+TypeError: fetch failed
+    at node:internal/deps/undici/undici:13510:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async testApi (E:\TOPIK-IBT\topik-app\test_api_file.js:22:21)

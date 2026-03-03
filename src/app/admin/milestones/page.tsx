@@ -130,12 +130,22 @@ export default function AdminMilestones() {
 
         try {
             if (editingId) {
-                const { error } = await supabase.from('milestones').update(payload).eq('id', editingId)
-                if (error) throw error
+                const res = await fetch('/api/admin/milestones', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: editingId, ...payload })
+                })
+                const data = await res.json()
+                if (!res.ok) throw new Error(data.error)
                 toast.success("Cập nhật mốc thành công!")
             } else {
-                const { error } = await supabase.from('milestones').insert([payload])
-                if (error) throw error
+                const res = await fetch('/api/admin/milestones', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                const data = await res.json()
+                if (!res.ok) throw new Error(data.error)
                 toast.success("Thêm mốc mới thành công!")
             }
             setIsOpen(false)
@@ -151,8 +161,9 @@ export default function AdminMilestones() {
         if (!confirm(`Bạn có chắc chắn muốn XÓA VĨNH VIỄN mốc Level ${level} này không?`)) return
 
         try {
-            const { error } = await supabase.from('milestones').delete().eq('id', id)
-            if (error) throw error
+            const res = await fetch(`/api/admin/milestones?id=${id}`, { method: 'DELETE' })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.error)
             toast.success("Đã xóa Mốc đánh giá thành công!")
             fetchMilestones()
         } catch (error: any) {

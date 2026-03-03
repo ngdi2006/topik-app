@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { Loader2, Plus, Pencil, Trash2 } from "lucide-react"
+import { Loader2, Plus, Pencil, Trash2, BookOpen, Clock, Trophy, Dumbbell } from "lucide-react"
 
 export default function AdminMilestones() {
     const supabase = createClient()
@@ -207,6 +207,7 @@ export default function AdminMilestones() {
                             <DialogTitle>{editingId ? "Sửa nội dung Mốc" : "Thêm Mốc Đánh Giá Mới"}</DialogTitle>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
+                            {/* Thông tin cơ bản */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>Mã Level (Bắt buộc, Duy nhất)</Label>
@@ -221,20 +222,50 @@ export default function AdminMilestones() {
                                 <Label>Mô tả ngắn (Hiển thị dưới Tiêu đề)</Label>
                                 <Input placeholder="Mô tả kỹ năng kiểm tra..." value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
                             </div>
-                            <div className="space-y-4 border p-4 rounded-xl bg-slate-50">
+
+                            {/* ====================== PHÂN VÙNG 2 MODE ====================== */}
+                            <div className="rounded-xl border-2 border-dashed border-gray-200 p-1">
+                                <div className="flex gap-2 mb-3 px-3 pt-3">
+                                    <span className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-full border border-emerald-200">
+                                        <Dumbbell className="w-3.5 h-3.5" /> LUYỆN TẬP — Không điểm, không đếm giờ
+                                    </span>
+                                    <span className="inline-flex items-center gap-1.5 bg-red-100 text-red-700 text-xs font-bold px-3 py-1.5 rounded-full border border-red-200">
+                                        <Trophy className="w-3.5 h-3.5" /> KIỂM TRA — Có điểm số + đồng hồ đếm ngược
+                                    </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground px-3 pb-3 italic">Nội dung câu hỏi dùng chung cho cả 2 chế độ. Điểm số và giới hạn thời gian bên dưới CHỈ áp dụng khi học viên chọn chế độ <strong>KIỂM TRA</strong>.</p>
+                            </div>
+                            {/* SECTION 1: BÀI ĐỌC */}
+                            <div className="space-y-4 border-2 border-blue-200 p-4 rounded-xl bg-blue-50/40">
                                 <div className="flex items-center justify-between">
-                                    <Label className="text-blue-700 font-bold">Ngân hàng: Bài Đọc Thành Tiếng</Label>
+                                    <div>
+                                        <Label className="text-blue-700 font-bold text-base flex items-center gap-2">
+                                            <BookOpen className="w-4 h-4" /> Ngân hàng: Bài Đọc Thành Tiếng
+                                        </Label>
+                                        <p className="text-xs text-blue-500 mt-0.5">Hệ thống sẽ bốc ngẫu nhiên 1 câu cho mỗi lần thi</p>
+                                    </div>
                                     <Button size="sm" variant="outline" onClick={() => setFormData({ ...formData, reading_texts: [...formData.reading_texts, ""] })}><Plus className="w-4 h-4 mr-1" /> Thêm câu</Button>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4 bg-white p-3 rounded-md border text-sm">
-                                    <div className="space-y-2">
-                                        <Label className="text-gray-600">Điểm tối đa phần này</Label>
-                                        <Input type="number" placeholder="Vd: 20" value={formData.reading_points} onChange={e => setFormData({ ...formData, reading_points: parseInt(e.target.value) || 0 })} />
+                                {/* Cấu hình riêng CHẾ ĐỘ KIỂM TRA */}
+                                <div className="bg-red-50 border border-red-200 p-3 rounded-lg">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Trophy className="w-3.5 h-3.5 text-red-600" />
+                                        <span className="text-xs font-bold text-red-700 uppercase tracking-wide">Cấu hình chế độ KIỂM TRA</span>
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-gray-600">Thời gian trả lời (Giây)</Label>
-                                        <Input type="number" placeholder="Vd: 120" value={formData.reading_time_limit} onChange={e => setFormData({ ...formData, reading_time_limit: parseInt(e.target.value) || 0 })} />
+                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                        <div className="space-y-1">
+                                            <Label className="text-red-700 text-xs flex items-center gap-1">
+                                                <Trophy className="w-3 h-3" /> Điểm tối đa phần Đọc
+                                            </Label>
+                                            <Input type="number" placeholder="Vd: 20" value={formData.reading_points} onChange={e => setFormData({ ...formData, reading_points: parseInt(e.target.value) || 0 })} className="bg-white" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-red-700 text-xs flex items-center gap-1">
+                                                <Clock className="w-3 h-3" /> Giới hạn thời gian (Giây)
+                                            </Label>
+                                            <Input type="number" placeholder="Vd: 120" value={formData.reading_time_limit} onChange={e => setFormData({ ...formData, reading_time_limit: parseInt(e.target.value) || 0 })} className="bg-white" />
+                                        </div>
                                     </div>
                                 </div>
 
@@ -254,9 +285,15 @@ export default function AdminMilestones() {
                                     </div>
                                 ))}
                             </div>
-                            <div className="space-y-4 border p-4 rounded-xl bg-emerald-50">
+                            {/* SECTION 2: VẤN ĐÁP */}
+                            <div className="space-y-4 border-2 border-emerald-200 p-4 rounded-xl bg-emerald-50/40">
                                 <div className="flex items-center justify-between pb-2 border-b border-emerald-100 mb-2">
-                                    <Label className="text-emerald-700 font-bold text-base">Giao án Vấn Đáp Cơ Động</Label>
+                                    <div>
+                                        <Label className="text-emerald-700 font-bold text-base flex items-center gap-2">
+                                            <BookOpen className="w-4 h-4" /> Giao án Vấn Đáp Cơ Động
+                                        </Label>
+                                        <p className="text-xs text-emerald-600 mt-0.5">Mỗi dạng sẽ bốc ngẫu nhiên 1 câu. Điểm/Thời gian bên dưới chỉ áp dụng khi KIỂM TRA.</p>
+                                    </div>
                                     <Button size="sm" variant="default" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => {
                                         setFormData({
                                             ...formData,
@@ -287,20 +324,27 @@ export default function AdminMilestones() {
                                             )}
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-4 mt-3 bg-white border border-emerald-100 p-2 rounded text-sm">
-                                            <div className="space-y-1">
-                                                <Label className="text-emerald-700 text-xs">Điểm câu này</Label>
-                                                <Input type="number" className="h-8" value={section.points} onChange={(e) => {
-                                                    const newSec = formData.qa_sections.map((s, i) => i === secIdx ? { ...s, points: parseInt(e.target.value) || 0 } : s)
-                                                    setFormData({ ...formData, qa_sections: newSec })
-                                                }} />
+                                        {/* Cấu hình chế độ KIỂM TRA cho từng bài QA */}
+                                        <div className="bg-red-50 border border-red-200 p-2 rounded-lg mt-2">
+                                            <div className="flex items-center gap-1.5 mb-2">
+                                                <Trophy className="w-3 h-3 text-red-600" />
+                                                <span className="text-xs font-bold text-red-700">Cấu hình KIỂM TRA cho dạng này</span>
                                             </div>
-                                            <div className="space-y-1">
-                                                <Label className="text-emerald-700 text-xs">Giới hạn thời gian (Giây)</Label>
-                                                <Input type="number" className="h-8" value={section.time_limit} onChange={(e) => {
-                                                    const newSec = formData.qa_sections.map((s, i) => i === secIdx ? { ...s, time_limit: parseInt(e.target.value) || 0 } : s)
-                                                    setFormData({ ...formData, qa_sections: newSec })
-                                                }} />
+                                            <div className="grid grid-cols-2 gap-3 text-sm">
+                                                <div className="space-y-1">
+                                                    <Label className="text-red-700 text-xs flex items-center gap-1"><Trophy className="w-3 h-3" /> Điểm câu này</Label>
+                                                    <Input type="number" className="h-8 bg-white" value={section.points} onChange={(e) => {
+                                                        const newSec = formData.qa_sections.map((s, i) => i === secIdx ? { ...s, points: parseInt(e.target.value) || 0 } : s)
+                                                        setFormData({ ...formData, qa_sections: newSec })
+                                                    }} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-red-700 text-xs flex items-center gap-1"><Clock className="w-3 h-3" /> Giới hạn thời gian (Giây)</Label>
+                                                    <Input type="number" className="h-8 bg-white" value={section.time_limit} onChange={(e) => {
+                                                        const newSec = formData.qa_sections.map((s, i) => i === secIdx ? { ...s, time_limit: parseInt(e.target.value) || 0 } : s)
+                                                        setFormData({ ...formData, qa_sections: newSec })
+                                                    }} />
+                                                </div>
                                             </div>
                                         </div>
 

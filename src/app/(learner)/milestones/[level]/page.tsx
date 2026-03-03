@@ -13,11 +13,12 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 
 // --- Component Đọc Tiếng Hàn (Web Speech API) ---
-const speakText = (text: string) => {
+const speakText = (text: string, rate: number = 1.0) => {
     if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel()
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'ko-KR';
+        utterance.rate = rate;
         const voices = window.speechSynthesis.getVoices();
         const koVoice = voices.find(v => v.lang === 'ko-KR' || v.lang === 'ko_KR');
         if (koVoice) utterance.voice = koVoice;
@@ -110,6 +111,7 @@ export default function MilestoneLevelPage() {
     // Form data (For milestone 3)
     const [formData, setFormData] = useState({ name: "", age: "", job: "", hobbies: "", familySize: "" })
     const [isGeneratingIntro, setIsGeneratingIntro] = useState(false)
+    const [speechRate, setSpeechRate] = useState<number>(1.0) // Audio speed control
 
     // Test states
     const [readingText, setReadingText] = useState("")
@@ -342,9 +344,21 @@ export default function MilestoneLevelPage() {
                                 </CardTitle>
                                 <CardDescription className="mt-1.5">Bấm nút Nghe để AI đọc mẫu, sau đó thu âm lại để kiểm tra độ trôi chảy.</CardDescription>
                             </div>
-                            <Button variant="outline" size="sm" className="gap-2 text-blue-700 border-blue-200 hover:bg-blue-50 rounded-full shadow-sm" onClick={() => speakText(readingText)}>
-                                <Volume2 className="w-4 h-4" /> Nghe AI đọc mẫu
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <select
+                                    className="h-9 px-3 border border-blue-200 rounded-full text-sm text-blue-700 bg-white font-medium focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-sm outline-none"
+                                    value={speechRate}
+                                    onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
+                                >
+                                    <option value="0.5">0.5x</option>
+                                    <option value="0.75">0.75x</option>
+                                    <option value="1">1.0x</option>
+                                    <option value="1.25">1.25x</option>
+                                </select>
+                                <Button variant="outline" size="sm" className="gap-2 text-blue-700 border-blue-200 hover:bg-blue-50 rounded-full shadow-sm" onClick={() => speakText(readingText, speechRate)}>
+                                    <Volume2 className="w-4 h-4" /> Nghe AI đọc mẫu
+                                </Button>
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent className="pt-6 relative">
@@ -456,9 +470,21 @@ export default function MilestoneLevelPage() {
                                         </div>
                                     </div>
                                 </div>
-                                <Button size="icon" variant="outline" className="rounded-full shadow-sm hover:bg-emerald-100 text-emerald-700 shrink-0 h-12 w-12" onClick={() => speakText(selectedQaQuestions[activeQaIndex])}>
-                                    <Volume2 className="w-6 h-6" />
-                                </Button>
+                                <div className="flex items-center gap-2">
+                                    <select
+                                        className="h-10 px-4 border border-emerald-300 rounded-full text-sm text-emerald-800 bg-white font-bold focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-sm outline-none"
+                                        value={speechRate}
+                                        onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
+                                    >
+                                        <option value="0.5">Rùa bò (0.5x)</option>
+                                        <option value="0.75">Chậm (0.75x)</option>
+                                        <option value="1">Bình thường (1.0x)</option>
+                                        <option value="1.25">Nhanh (1.25x)</option>
+                                    </select>
+                                    <Button size="icon" variant="outline" className="rounded-full shadow-sm hover:bg-emerald-100 text-emerald-700 shrink-0 h-12 w-12 border-emerald-300" onClick={() => speakText(selectedQaQuestions[activeQaIndex], speechRate)}>
+                                        <Volume2 className="w-6 h-6 fill-emerald-100" />
+                                    </Button>
+                                </div>
                             </div>
 
                             <div className="mt-2">

@@ -146,18 +146,42 @@ export default function MilestoneLevelPage() {
                 }
             }
 
-            const readArr = parseArray(data.reading_text)
-            const qaArr = parseArray(data.qa_text)
+            const safeParseQaSections = (val: string) => {
+                if (!val) return [{ title: "Câu 1", questions: [""] }]
+                try {
+                    const parsed = JSON.parse(val)
+                    if (Array.isArray(parsed)) {
+                        if (parsed.length === 0) return [{ title: "Câu 1", questions: [""] }]
+                        if (typeof parsed[0] === 'string') {
+                            return [{ title: "Câu 1", questions: parsed }] // Format cũ
+                        }
+                        return parsed // Format N-Dạng mới
+                    }
+                    return [{ title: "Câu 1", questions: [val] }]
+                } catch {
+                    return [{ title: "Câu 1", questions: [val] }]
+                }
+            }
 
-            // Random Picker
+            const readArr = parseArray(data.reading_text)
             const randomRead = readArr.length > 0 ? readArr[Math.floor(Math.random() * readArr.length)] : ""
-            const randomQA = qaArr.length > 0 ? qaArr[Math.floor(Math.random() * qaArr.length)] : ""
+
+            // Xử lý Giao án QA Multi-sections
+            const parsedSections = safeParseQaSections(data.qa_text)
+            setQaSections(parsedSections)
+
+            // Random 1 câu duy nhất cho từng Dạng
+            const randomQaSelected = parsedSections.map(sec => {
+                const qArr = sec.questions.filter((q: string) => q.trim() !== "")
+                if (qArr.length === 0) return ""
+                return qArr[Math.floor(Math.random() * qArr.length)]
+            })
+            setSelectedQaQuestions(randomQaSelected)
 
             setMilestoneData({
                 title: data.title,
                 desc: data.description,
                 initialReadingText: randomRead,
-                questionText: randomQA,
                 hasPersonalForm: data.has_personal_form
             })
             setReadingText(randomRead)
@@ -396,10 +420,10 @@ export default function MilestoneLevelPage() {
                                                         resetTranscript()
                                                     }}
                                                     className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold transition-all border-2 ${isActive
-                                                            ? "border-emerald-500 bg-emerald-500 text-white shadow-sm scale-105"
-                                                            : isCompleted
-                                                                ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                                                : "border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100"
+                                                        ? "border-emerald-500 bg-emerald-500 text-white shadow-sm scale-105"
+                                                        : isCompleted
+                                                            ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                                            : "border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100"
                                                         }`}
                                                 >
                                                     <Volume2 className={`w-4 h-4 ${isActive ? "text-emerald-100" : isCompleted ? "text-emerald-500" : "text-gray-400"}`} />

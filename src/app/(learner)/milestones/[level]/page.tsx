@@ -282,15 +282,15 @@ export default function MilestoneLevelPage() {
                 {/* Section 1: Bài kiểm tra Đọc */}
                 <Card className="shadow-md border-blue-100/50 rounded-2xl">
                     <CardHeader className="bg-gradient-to-r from-blue-50/50 to-white border-b pb-4">
-                        <div className="flex justify-between items-start">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                             <div>
                                 <CardTitle className="text-xl flex items-center gap-2 text-blue-800">
                                     <span className="flex items-center justify-center w-7 h-7 rounded-sm bg-blue-100 text-blue-700 text-sm font-black">1</span>
                                     Bài Tập Đọc Thành Tiếng
                                 </CardTitle>
-                                <CardDescription className="mt-1.5">Bấm nút Nghe để AI đọc mẫu, sau đó thu âm lại để kiểm tra độ trôi chảy.</CardDescription>
+                                <CardDescription className="mt-1.5 text-blue-800/80 font-medium">아래 문장을 읽어보세요 (Hãy đọc đoạn văn dưới đây)</CardDescription>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
                                 <select
                                     className="h-9 px-3 border border-blue-200 rounded-full text-sm text-blue-700 bg-white font-medium focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-sm outline-none"
                                     value={speechRate}

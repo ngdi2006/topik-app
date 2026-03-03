@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Mic, MicOff, Volume2, ArrowLeft, Loader2, CheckCircle2, AlertCircle, Lightbulb, UserCircle, Send, PlayCircle, Wand2 } from "lucide-react"
 import Link from "next/link"
 
@@ -109,7 +110,17 @@ export default function MilestoneLevelPage() {
     const supabase = createClient()
 
     // Form data (For milestone 3)
-    const [formData, setFormData] = useState({ name: "", age: "", job: "", hobbies: "", familySize: "" })
+    const [formData, setFormData] = useState({
+        name: "",
+        age: "",
+        dob: "",
+        job: "",
+        hobbies: "",
+        personality: "",
+        familySize: "",
+        family: "",
+        extraDoc: ""
+    })
     const [isGeneratingIntro, setIsGeneratingIntro] = useState(false)
     const [speechRate, setSpeechRate] = useState<number>(1.0) // Audio speed control
 
@@ -315,10 +326,26 @@ export default function MilestoneLevelPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="pt-6 grid sm:grid-cols-2 gap-4">
-                            <div className="space-y-1.5"><Label>Tên (Tùy chọn)</Label><Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="VD: Nam" /></div>
+                            <div className="space-y-1.5"><Label>Tên (Tùy chọn)</Label><Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="VD: Nam Định" /></div>
                             <div className="space-y-1.5"><Label>Tuổi (Tùy chọn)</Label><Input value={formData.age} onChange={e => setFormData({ ...formData, age: e.target.value })} placeholder="VD: 25" type="number" /></div>
-                            <div className="space-y-1.5"><Label>Nghề nghiệp</Label><Input value={formData.job} onChange={e => setFormData({ ...formData, job: e.target.value })} placeholder="VD: Sinh viên, Nhân viên VP" /></div>
-                            <div className="space-y-1.5"><Label>Sở thích cá nhân</Label><Input value={formData.hobbies} onChange={e => setFormData({ ...formData, hobbies: e.target.value })} placeholder="VD: Nghe nhạc Hàn, Chơi game" /></div>
+                            <div className="space-y-1.5"><Label>Ngày tháng năm sinh</Label><Input value={formData.dob} onChange={e => setFormData({ ...formData, dob: e.target.value })} placeholder="VD: 15/08/1999" /></div>
+                            <div className="space-y-1.5"><Label>Nghề nghiệp / Chuyên Ngành</Label><Input value={formData.job} onChange={e => setFormData({ ...formData, job: e.target.value })} placeholder="VD: Sinh viên IT, Kế toán..." /></div>
+                            <div className="space-y-1.5"><Label>Sở thích cá nhân</Label><Input value={formData.hobbies} onChange={e => setFormData({ ...formData, hobbies: e.target.value })} placeholder="VD: Đọc sách, Nghe nhạc Hàn" /></div>
+                            <div className="space-y-1.5"><Label>Tính cách</Label><Input value={formData.personality} onChange={e => setFormData({ ...formData, personality: e.target.value })} placeholder="VD: Hòa đồng, Hướng nội..." /></div>
+                            <div className="space-y-1.5"><Label>Gia đình gồm mấy người?</Label><Input value={formData.familySize} onChange={e => setFormData({ ...formData, familySize: e.target.value })} placeholder="VD: 4 người" /></div>
+                            <div className="space-y-1.5"><Label>Đó là những ai?</Label><Input value={formData.family} onChange={e => setFormData({ ...formData, family: e.target.value })} placeholder="VD: Bố, Mẹ, Chị Gái và Tôi" /></div>
+                            <div className="col-span-1 sm:col-span-2 space-y-1.5 mt-2">
+                                <Label className="text-amber-800 font-bold">📚 Tài liệu Context (Bối cảnh bổ sung cho AI)</Label>
+                                <Textarea
+                                    className="min-h-[100px] border-amber-200 focus-visible:ring-amber-500 bg-amber-50/20"
+                                    value={formData.extraDoc}
+                                    onChange={e => setFormData({ ...formData, extraDoc: e.target.value })}
+                                    placeholder="Điền đoạn văn bản tiếng Việt dài mô tả chi tiết bất kỳ thông tin nào bạn muốn AI nhắc tới trong bài. Ví dụ: 'Tôi từng là du học sinh ở Busan 2 năm, tôi cực kì thích món Kimchi Jjigae ở đó. Ước mơ của tôi là mở một nhà hàng Hàn Quốc.' "
+                                />
+                                <p className="text-xs text-amber-600/80 mt-1 italic">
+                                    * AI sẽ thông minh sử dụng Text trên làm khung sườn RAG để sinh ra bài giới thiệu hoàn hảo nhất với bạn.
+                                </p>
+                            </div>
                         </CardContent>
                         <CardFooter className="bg-amber-50/50 pt-4 border-t border-amber-50">
                             <Button

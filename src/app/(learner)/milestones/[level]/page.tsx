@@ -4,11 +4,9 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Mic, MicOff, Volume2, ArrowLeft, Loader2, CheckCircle2, AlertCircle, Lightbulb, UserCircle, Send, PlayCircle, Wand2 } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Mic, MicOff, Volume2, ArrowLeft, Loader2, CheckCircle2, AlertCircle, Lightbulb, Send, PlayCircle, Wand2, Clock, Trophy } from "lucide-react"
 import Link from "next/link"
 
 import { createClient } from "@/lib/supabase/client"
@@ -28,7 +26,7 @@ const speakText = (text: string, rate: number = 1.0) => {
 }
 
 // --- Component Render Báo cáo (Report JSON UI) ---
-const ReportCard = ({ report, isEvaluating }: { report: any, isEvaluating: boolean }) => {
+const ReportCard = ({ report, isEvaluating, hideScore = false }: { report: any, isEvaluating: boolean, hideScore?: boolean }) => {
     if (isEvaluating) {
         return (
             <div className="mt-4 p-8 border rounded-xl bg-muted/20 flex flex-col items-center justify-center gap-3">
@@ -58,7 +56,7 @@ const ReportCard = ({ report, isEvaluating }: { report: any, isEvaluating: boole
 
             <div className="bg-white p-4 rounded-lg border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <p className="text-gray-800 font-medium leading-relaxed">{report.evaluation}</p>
-                {report.score !== undefined && (
+                {!hideScore && report.score !== undefined && (
                     <div className="shrink-0 bg-blue-100 text-blue-800 font-black text-2xl px-5 py-2 rounded-2xl border border-blue-200 text-center shadow-inner">
                         {report.score}<span className="text-sm font-medium text-blue-600">/100</span>
                     </div>
@@ -105,6 +103,67 @@ const ReportCard = ({ report, isEvaluating }: { report: any, isEvaluating: boole
     )
 }
 
+// --- Result Modal (Test Mode Only) ---
+const ResultModal = ({ open, onClose, onSave, readingReport, qaReports, qaSections, milestoneData, isSaving, savedScore }: {
+    open: boolean, onClose: () => void, onSave: () => void
+    readingReport: any, qaReports: Record<number, any>
+    qaSections: { title: string, points?: number }[], milestoneData: any
+    isSaving: boolean, savedScore: number | null
+}) => {
+    const rPts = milestoneData?.readingPoints || 20
+    const rScore = readingReport?.score || 0
+    let qaPtsTotal = 0, qaWeightedTotal = 0
+    qaSections.forEach((sec, i) => {
+        const pt = sec.points || 20
+        qaPtsTotal += pt
+        qaWeightedTotal += (qaReports[i]?.score || 0) * (pt / 100)
+    })
+    const maxPts = rPts + qaPtsTotal
+    const finalScore = savedScore !== null ? savedScore : (maxPts > 0 ? Math.round(((rScore * (rPts / 100)) + qaWeightedTotal) / maxPts * 100) : 0)
+    return (
+        <Dialog open={open} onOpenChange={onClose}>
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-xl">
+                        <Trophy className="w-6 h-6 text-amber-500" /> Kết Quả Bài Kiểm Tra
+                    </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                    <div className="text-center py-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border-2 border-indigo-100">
+                        <p className="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-1">Điểm Tổng Kết</p>
+                        <div className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-indigo-600 to-purple-600">
+                            {finalScore}<span className="text-2xl text-indigo-400">/100</span>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <p className="text-xs font-bold text-gray-500 uppercase">Chi tiết từng phần</p>
+                        <div className="bg-blue-50 rounded-lg p-3 flex justify-between items-center border border-blue-100">
+                            <div><p className="font-semibold text-blue-800">📖 Đọc Thành Tiếng</p><p className="text-xs text-blue-500">Tỷ trọng: {rPts} điểm</p></div>
+                            <div className="text-right"><p className="font-black text-xl text-blue-700">{rScore}<span className="text-sm">/100</span></p></div>
+                        </div>
+                        {qaSections.map((sec, i) => (
+                            <div key={i} className="bg-emerald-50 rounded-lg p-3 flex justify-between items-center border border-emerald-100">
+                                <div><p className="font-semibold text-emerald-800">🎤 {sec.title}</p><p className="text-xs text-emerald-500">Tỷ trọng: {sec.points || 20} điểm</p></div>
+                                <div className="text-right"><p className="font-black text-xl text-emerald-700">{qaReports[i]?.score || 0}<span className="text-sm">/100</span></p></div>
+                            </div>
+                        ))}
+                    </div>
+                    {savedScore === null ? (
+                        <button onClick={onSave} disabled={isSaving} className="w-full h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-70">
+                            {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
+                            {isSaving ? "Đang lưu..." : "Lưu Kết Quả vào Lịch Sử"}
+                        </button>
+                    ) : (
+                        <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200 text-green-700 font-medium">
+                            <CheckCircle2 className="w-5 h-5" /> Đã lưu thành công! Điểm: {savedScore}/100
+                        </div>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 function MilestoneLevelContent() {
     const params = useParams()
     const router = useRouter()
@@ -114,7 +173,9 @@ function MilestoneLevelContent() {
     const isTestMode = mode === 'test'
 
     const [milestoneData, setMilestoneData] = useState<any>(null)
-    const [allMilestones, setAllMilestones] = useState<any[]>([])
+    const [totalTimeLeft, setTotalTimeLeft] = useState<number | null>(null)
+    const [showResultModal, setShowResultModal] = useState(false)
+    const [isAutoSubmitting, setIsAutoSubmitting] = useState(false)
     const [loadingData, setLoadingData] = useState(true)
     const supabase = createClient()
 
@@ -136,7 +197,7 @@ function MilestoneLevelContent() {
     const [activeSection, setActiveSection] = useState<0 | 1 | 2>(0)
     const { isRecording, transcript, interimTranscript, startRecording, stopRecording, resetTranscript } = useSpeechRecognition("ko-KR")
 
-    const [timeLeft, setTimeLeft] = useState<number | null>(null)
+    // (timeLeft removed - replaced by totalTimeLeft global timer)
 
     const [isSavingScore, setIsSavingScore] = useState(false)
     const [savedScore, setSavedScore] = useState<number | null>(null)
@@ -208,6 +269,12 @@ function MilestoneLevelContent() {
                 readingTimeLimit: data.reading_time_limit || 120
             })
             setReadingText(randomRead)
+            // Tính tổng thời gian cho chế độ Kiểm Tra
+            if (isTestMode) {
+                const totalSecs = (data.reading_time_limit || 120) +
+                    parsedSections.reduce((sum: number, s: any) => sum + (s.time_limit || 60), 0)
+                setTotalTimeLeft(totalSecs)
+            }
             setLoadingData(false)
         }
         fetchLevelData()
@@ -218,40 +285,32 @@ function MilestoneLevelContent() {
     // (Rules of Hooks: không được gọi hook sau early return)
     // ============================================================
 
-    // Ref để tránh stale closure trong timer callback
-    const handleEvaluateRef = useRef<((taskType: 'reading' | 'qa') => Promise<void>) | null>(null)
+    // Refs to avoid stale closures
+    const handleEvaluateRef = useRef<Function | null>(null)
+    const autoSubmitAllRef = useRef<Function | null>(null)
 
-    // --- Xử lý Đếm ngược Thời gian ---
+    // Global test timer countdown
     useEffect(() => {
-        if (!isTestMode || activeSection === 0) {
-            setTimeLeft(null)
-            return
-        }
-        let initialTime = 0
-        if (activeSection === 1) initialTime = milestoneData?.readingTimeLimit || 120
-        else if (activeSection === 2) initialTime = qaSections[activeQaIndex]?.time_limit || 60
+        if (!isTestMode || totalTimeLeft === null || totalTimeLeft <= 0) return
+        const t = setTimeout(() => setTotalTimeLeft(p => (p !== null && p > 0) ? p - 1 : 0), 1000)
+        return () => clearTimeout(t)
+    }, [totalTimeLeft, isTestMode])
 
-        setTimeLeft(initialTime)
-
-        const timer = setInterval(() => {
-            setTimeLeft(prev => {
-                if (prev === null) return null
-                if (prev <= 1) {
-                    clearInterval(timer)
-                    return 0
-                }
-                return prev - 1
-            })
-        }, 1000)
-        return () => clearInterval(timer)
-    }, [activeSection, isTestMode, milestoneData, qaSections, activeQaIndex])
-
-    // Lắng nghe hết giờ tự động nộp bài
+    // When timer hits 0 → auto-submit all sections
     useEffect(() => {
-        if (timeLeft === 0 && isRecording && handleEvaluateRef.current) {
-            handleEvaluateRef.current(activeSection === 1 ? 'reading' : 'qa')
+        if (isTestMode && totalTimeLeft === 0 && !isAutoSubmitting && autoSubmitAllRef.current) {
+            setIsAutoSubmitting(true)
+            autoSubmitAllRef.current()
         }
-    }, [timeLeft, isRecording, activeSection])
+    }, [totalTimeLeft, isTestMode, isAutoSubmitting])
+
+    // When all sections done in test mode → show result modal
+    useEffect(() => {
+        if (isTestMode && readingReport && qaSections.length > 0 && qaSections.every((_, i) => qaReports[i])) {
+            setShowResultModal(true)
+            setIsAutoSubmitting(false)
+        }
+    }, [isTestMode, readingReport, qaReports, qaSections])
 
     // ============================================================
     // CONDITIONAL RETURNS (sau tất cả hooks)
@@ -280,56 +339,55 @@ function MilestoneLevelContent() {
         }
     }
 
-    const handleEvaluate = async (taskType: 'reading' | 'qa') => {
-        // TẮT MIC NGAY LẬP TỨC KHI BẤM NỘP BÀI
-        if (isRecording) {
-            stopRecording()
-            setActiveSection(0)
+    const handleEvaluate = async (taskType: 'reading' | 'qa', qaIdx?: number, forcedTranscript?: string) => {
+        if (forcedTranscript === undefined && isRecording) { stopRecording(); setActiveSection(0) }
+        const idx = qaIdx !== undefined ? qaIdx : activeQaIndex
+        const fullTranscript = forcedTranscript !== undefined
+            ? forcedTranscript
+            : (transcript + " " + interimTranscript).trim()
+        if (!fullTranscript && forcedTranscript === undefined) {
+            alert("Vui lòng Bật Mic và nói tiếng Hàn trước khi nộp bài Đánh giá!"); return
         }
-
-        const fullTranscript = (transcript + " " + interimTranscript).trim()
-        if (!fullTranscript) {
-            alert("Vui lòng Bật Mic và nói tiếng Hàn trước khi nộp bài Đánh giá!")
-            return
-        }
-
         const isReading = taskType === 'reading'
-        if (isReading) {
-            setIsEvalReading(true)
-            setReadingReport(null)
-        } else {
-            setIsEvalQA(true)
-            setQaReports(prev => ({ ...prev, [activeQaIndex]: null }))
-        }
-
+        if (isReading) { setIsEvalReading(true); setReadingReport(null) }
+        else { setIsEvalQA(true); setQaReports(prev => ({ ...prev, [idx]: null })) }
         try {
             const res = await fetch('/api/ai/milestones/evaluate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    transcript: fullTranscript,
-                    taskType,
-                    level,
-                    expectedText: isReading ? readingText : selectedQaQuestions[activeQaIndex],
-                    questionText: isReading ? null : selectedQaQuestions[activeQaIndex]
+                    transcript: fullTranscript || "[Hết giờ - không có transcript]",
+                    taskType, level,
+                    expectedText: isReading ? readingText : selectedQaQuestions[idx],
+                    questionText: isReading ? null : selectedQaQuestions[idx]
                 })
             })
-
             const data = await res.json()
             if (isReading) setReadingReport(data)
-            else setQaReports(prev => ({ ...prev, [activeQaIndex]: data }))
-
-        } catch (error) {
+            else setQaReports(prev => ({ ...prev, [idx]: data }))
+        } catch {
             if (isReading) setReadingReport({ error: true })
-            else setQaReports(prev => ({ ...prev, [activeQaIndex]: { error: true } }))
+            else setQaReports(prev => ({ ...prev, [idx]: { error: true } }))
         } finally {
             if (isReading) setIsEvalReading(false)
             else setIsEvalQA(false)
-            resetTranscript()
+            if (forcedTranscript === undefined) resetTranscript()
         }
     }
-    // Cập nhật ref mỗi render để timer luôn gọi phiên bản mới nhất
     handleEvaluateRef.current = handleEvaluate
+
+    const handleAutoSubmitAll = async () => {
+        if (isRecording) { stopRecording(); setActiveSection(0) }
+        const cur = (transcript + " " + interimTranscript).trim()
+        const tasks: Promise<void>[] = []
+        if (!readingReport && !isEvalReading) tasks.push(handleEvaluate('reading', undefined, cur))
+        for (let i = 0; i < qaSections.length; i++) {
+            if (!qaReports[i] && !isEvalQA) tasks.push(handleEvaluate('qa', i, ""))
+        }
+        await Promise.allSettled(tasks)
+        setIsAutoSubmitting(false)
+        setShowResultModal(true)
+    }
+    autoSubmitAllRef.current = handleAutoSubmitAll
 
     // -- Live STT display logic --
     const getActiveTranscript = (sectionId: 1 | 2) => {
@@ -339,21 +397,38 @@ function MilestoneLevelContent() {
     return (
         <div className="min-h-screen bg-muted/10 pb-20">
             {/* Header */}
-            <header className="border-b bg-white px-4 md:px-8 py-4 sticky top-0 z-50 shadow-sm flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/milestones')} className="rounded-full bg-muted/30 hover:bg-muted/80">
-                        <ArrowLeft className="w-5 h-5 text-gray-700" />
-                    </Button>
-                    <div>
-                        <h1 className="font-bold text-lg md:text-xl text-primary flex items-center gap-2">
-                            {milestoneData.title}
-                            <span className={`text-xs px-2 py-0.5 rounded-full text-white ${isTestMode ? 'bg-red-500' : 'bg-emerald-500'}`}>
-                                Mode: {isTestMode ? 'KIỂM TRA' : 'LUYỆN TẬP'}
-                            </span>
-                        </h1>
-                        <p className="text-xs md:text-sm text-muted-foreground">{milestoneData.desc}</p>
+            <header className="border-b bg-white px-4 md:px-8 py-3 sticky top-0 z-50 shadow-sm">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Button variant="ghost" size="icon" onClick={() => router.push('/milestones')} className="rounded-full bg-muted/30 hover:bg-muted/80">
+                            <ArrowLeft className="w-5 h-5 text-gray-700" />
+                        </Button>
+                        <div>
+                            <h1 className="font-bold text-lg md:text-xl text-primary flex items-center gap-2">
+                                {milestoneData.title}
+                                <span className={`text-xs px-2 py-0.5 rounded-full text-white ${isTestMode ? 'bg-red-500' : 'bg-emerald-500'}`}>
+                                    {isTestMode ? '🏆 KIỂM TRA' : '🏓 LUYỆN TẬP'}
+                                </span>
+                            </h1>
+                            <p className="text-xs md:text-sm text-muted-foreground">{milestoneData.desc}</p>
+                        </div>
                     </div>
+                    {/* Global Timer - chỉ hiển thị khi Kiểm Tra */}
+                    {isTestMode && totalTimeLeft !== null && (
+                        <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 font-mono text-lg font-black transition-all ${totalTimeLeft <= 30 ? 'bg-red-100 border-red-400 text-red-700 animate-pulse'
+                                : totalTimeLeft <= 60 ? 'bg-orange-100 border-orange-300 text-orange-700'
+                                    : 'bg-slate-100 border-slate-300 text-slate-700'
+                            }`}>
+                            <Clock className="w-5 h-5" />
+                            {String(Math.floor(totalTimeLeft / 60)).padStart(2, '0')}:{String(totalTimeLeft % 60).padStart(2, '0')}
+                        </div>
+                    )}
                 </div>
+                {isAutoSubmitting && (
+                    <div className="mt-2 p-2 bg-red-100 text-red-700 text-sm font-bold rounded-lg flex items-center gap-2 animate-pulse">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Hết giờ! Đang tự động thu bài và chấm điểm...
+                    </div>
+                )}
             </header>
 
             <main className="max-w-4xl mx-auto p-4 md:p-8 space-y-8 mt-4">
@@ -386,13 +461,7 @@ function MilestoneLevelContent() {
                             </div>
                         </div>
 
-                        {isTestMode && activeSection === 1 && timeLeft !== null && (
-                            <div className="flex items-center justify-center mt-3 bg-red-50 py-2 rounded-lg border border-red-100">
-                                <span className={`font-mono text-xl md:text-2xl font-black flex items-center gap-2 ${timeLeft <= 10 ? 'text-red-600 animate-pulse' : 'text-red-500'}`}>
-                                    ⏱️ {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
-                                </span>
-                            </div>
-                        )}
+                        {readingReport && <div className="mt-2 flex items-center gap-1.5 text-sm text-green-600 font-medium"><CheckCircle2 className="w-4 h-4" /> Đã nộp bài đọc</div>}
                     </CardHeader>
                     <CardContent className="pt-6 relative">
                         <div className="p-4 bg-muted/10 border rounded-xl text-lg md:text-xl font-medium leading-relaxed text-gray-800 italic relative overflow-hidden group">
@@ -432,8 +501,16 @@ function MilestoneLevelContent() {
                             )}
                         </div>
 
-                        {/* Rendering Report */}
-                        <ReportCard report={readingReport} isEvaluating={isEvalReading} />
+                        {/* Feedback: Luyện Tập = full report không điểm, Kiểm Tra = chỉ xác nhận gọi ý */}
+                        {isTestMode ? (
+                            readingReport && !readingReport.error && (
+                                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 flex items-center gap-2">
+                                    <CheckCircle2 className="w-4 h-4" /> Đã ghi nhận bài đọc. Điểm sẽ hiển thị sau khi hoàn thành toàn bộ bài thi.
+                                </div>
+                            )
+                        ) : (
+                            <ReportCard report={readingReport} isEvaluating={isEvalReading} hideScore={true} />
+                        )}
 
                     </CardContent>
                 </Card>
@@ -520,13 +597,7 @@ function MilestoneLevelContent() {
                                 </div>
                             </div>
 
-                            {isTestMode && activeSection === 2 && timeLeft !== null && (
-                                <div className="flex items-center justify-center -mt-2 mb-4 bg-red-50 py-2 rounded-lg border border-red-100">
-                                    <span className={`font-mono text-xl md:text-2xl font-black flex items-center gap-2 ${timeLeft <= 10 ? 'text-red-600 animate-pulse' : 'text-red-500'}`}>
-                                        ⏱️ {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
-                                    </span>
-                                </div>
-                            )}
+                            {/* Timer bị xóa - này đã chuyển thành đồng hồ toàn cục trên Header */}
 
                             <div className="mt-2">
                                 <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
@@ -560,92 +631,66 @@ function MilestoneLevelContent() {
                                 )}
                             </div>
 
-                            {/* Rendering Report */}
-                            <ReportCard report={qaReports[activeQaIndex]} isEvaluating={isEvalQA} />
+                            {/* Feedback: Luyện Tập = full report không điểm, Kiểm Tra = chỉ xác nhận */}
+                            {isTestMode ? (
+                                qaReports[activeQaIndex] && !qaReports[activeQaIndex]?.error && (
+                                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 flex items-center gap-2">
+                                        <CheckCircle2 className="w-4 h-4" /> Đã ghi nhận {qaSections[activeQaIndex]?.title}. Điểm sẽ hiển thị sau khi hoàn thành toàn bộ.
+                                    </div>
+                                )
+                            ) : (
+                                <ReportCard report={qaReports[activeQaIndex]} isEvaluating={isEvalQA} hideScore={true} />
+                            )}
 
                         </CardContent>
                     )}
                 </Card>
 
-                {/* --- MÀN HÌNH TỔNG QUAN EVALUATOR --- */}
-                {readingReport && qaSections.length > 0 && qaSections.every((_, i) => qaReports[i]) && (
-                    <div className="mt-12 bg-gradient-to-br from-indigo-50 to-blue-50 border-2 border-indigo-200 rounded-3xl p-6 md:p-10 shadow-xl text-center space-y-6 animate-in slide-in-from-bottom-8 duration-700">
-                        <div className="flex justify-center mb-2">
-                            <div className="bg-white p-4 rounded-full shadow-md border-4 border-indigo-100 animate-bounce">
-                                <CheckCircle2 className="w-10 h-10 text-indigo-600" />
-                            </div>
-                        </div>
-                        <h2 className="text-2xl md:text-3xl font-black text-indigo-900 drop-shadow-sm">Chúc Mừng Bạn Đã Hoàn Thành Bài Thi!</h2>
-                        <p className="text-indigo-700 text-lg max-w-2xl mx-auto font-medium">Bạn đã trả lời xuất sắc 100% các câu hỏi của Mốc này. AI đã tổng hợp đầy đủ số điểm từng chặng để đưa ra báo cáo tổng kết cuối cùng.</p>
+                {/* Result Modal (Test Mode) */}
+                {isTestMode && (
+                    <ResultModal
+                        open={showResultModal}
+                        onClose={() => setShowResultModal(false)}
+                        readingReport={readingReport}
+                        qaReports={qaReports}
+                        qaSections={qaSections}
+                        milestoneData={milestoneData}
+                        isSaving={isSavingScore}
+                        savedScore={savedScore}
+                        onSave={async () => {
+                            setIsSavingScore(true)
+                            try {
+                                const { data: { user } } = await supabase.auth.getUser()
+                                if (!user) { alert("Vui lòng đăng nhập!"); return }
+                                const rPts = milestoneData?.readingPoints || 20
+                                const rW = (readingReport?.score || 0) * (rPts / 100)
+                                let qPts = 0, qW = 0
+                                qaSections.forEach((sec, i) => { const p = sec.points || 20; qPts += p; qW += (qaReports[i]?.score || 0) * (p / 100) })
+                                const max = rPts + qPts
+                                const total = max > 0 ? Math.round(((rW + qW) / max) * 100) : 0
+                                const { error } = await supabase.from('milestone_results').insert({
+                                    user_id: user.id, milestone_id: currentMilestoneId,
+                                    reading_score: Math.round(readingReport?.score || 0),
+                                    qa_score: qaSections.length > 0 ? Math.round(qaSections.reduce((s, _, i) => s + (qaReports[i]?.score || 0), 0) / qaSections.length) : 0,
+                                    total_score: total, reading_report: readingReport, qa_reports: qaReports
+                                })
+                                if (error) throw error
+                                setSavedScore(total)
+                            } catch (e: any) { alert("Lỗi: " + e.message) }
+                            finally { setIsSavingScore(false) }
+                        }}
+                    />
+                )}
 
-                        {!isTestMode ? (
-                            <div className="bg-white rounded-2xl p-6 border-2 border-emerald-100 shadow-sm inline-block max-w-lg mx-auto">
-                                <h3 className="text-emerald-700 font-bold mb-2 flex items-center justify-center gap-2">
-                                    <Lightbulb className="w-5 h-5" /> CHẾ ĐỘ LUYỆN TẬP
-                                </h3>
-                                <p className="text-gray-600 text-sm">Điểm số và Lịch sử không bị lưu lại. Bạn có thể làm lại thoải mái để cải thiện kỹ năng trước khi vào chế độ Kiểm tra chính thức nhé!</p>
-                            </div>
-                        ) : savedScore !== null ? (
-                            <div className="bg-white rounded-2xl p-8 border-2 border-indigo-100 shadow-inner inline-block min-w-[280px]">
-                                <h3 className="text-indigo-800 font-bold mb-2">ĐIỂM SỐ CHÍNH THỨC CỦA BẠN</h3>
-                                <div className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-indigo-600 to-purple-600">{savedScore}<span className="text-2xl text-indigo-400">/100</span></div>
-                            </div>
-                        ) : (
-                            <Button
-                                size="lg"
-                                className="h-16 px-10 rounded-full text-lg font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-xl transition-all hover:scale-105"
-                                disabled={isSavingScore}
-                                onClick={async () => {
-                                    setIsSavingScore(true)
-                                    try {
-                                        const { data: { user } } = await supabase.auth.getUser()
-                                        if (!user) {
-                                            alert("Vui lòng đăng nhập để lưu kết quả!")
-                                            return
-                                        }
-
-                                        // Tính Điểm Trọng Số
-                                        const readPointsWeight = milestoneData?.readingPoints || 20
-                                        const readScoreCalculated = (readingReport.score || 0) * (readPointsWeight / 100)
-
-                                        let sumQaPointsWeight = 0
-                                        let sumQaScoreCalculated = 0
-                                        Object.values(qaReports).forEach((r: any, idx) => {
-                                            const w = qaSections[idx]?.points || 20
-                                            sumQaPointsWeight += w
-                                            sumQaScoreCalculated += (r.score || 0) * (w / 100)
-                                        })
-
-                                        const maxPossibleScore = readPointsWeight + sumQaPointsWeight
-                                        const rawTotal = readScoreCalculated + sumQaScoreCalculated
-                                        // Quy đổi điểm Scale 100
-                                        const finalTotalScore = maxPossibleScore > 0 ? Math.round((rawTotal / maxPossibleScore) * 100) : 0
-
-                                        const { error } = await supabase.from('milestone_results').insert({
-                                            user_id: user.id,
-                                            milestone_id: currentMilestoneId,
-                                            reading_score: Math.round((readingReport.score || 0)), // Lưu điểm thô AI chấm
-                                            qa_score: qaSections.length > 0 ? Math.round(Object.values(qaReports).map((r: any) => r.score || 0).reduce((a, b) => a + b, 0) / qaSections.length) : 0,
-                                            total_score: finalTotalScore, // Điểm đã nhân tỷ trọng
-                                            reading_report: readingReport,
-                                            qa_reports: qaReports
-                                        })
-
-                                        if (error) throw error
-                                        setSavedScore(finalTotalScore)
-
-                                    } catch (error: any) {
-                                        console.error(error)
-                                        alert("Lỗi khi lưu kết quả: " + error.message)
-                                    } finally {
-                                        setIsSavingScore(false)
-                                    }
-                                }}
-                            >
-                                {isSavingScore ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : <Wand2 className="w-6 h-6 mr-2" />}
-                                {isSavingScore ? "Đang xử lý Bảng Điểm..." : "Chốt Sổ & Tra Cứu Điểm Số"}
-                            </Button>
-                        )}
+                {/* Practice mode complete message (no score) */}
+                {!isTestMode && readingReport && qaSections.length > 0 && qaSections.every((_, i) => qaReports[i]) && (
+                    <div className="mt-8 bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-3xl p-6 text-center space-y-3 animate-in slide-in-from-bottom-8 duration-700">
+                        <div className="flex justify-center"><div className="bg-white p-4 rounded-full shadow-md border-4 border-emerald-100"><CheckCircle2 className="w-10 h-10 text-emerald-500" /></div></div>
+                        <h2 className="text-2xl font-black text-emerald-900">Buổi Luyện Tập Hoàn Thành!</h2>
+                        <p className="text-emerald-700 max-w-lg mx-auto">Bạn đã hoàn thành toàn bộ câu hỏi luyện tập. Hãy xem nhận xét của AI ở từng phần để cải thiện kỹ năng. Điểm số không được lưu trong chế độ Luyện Tập.</p>
+                        <button onClick={() => router.push('/milestones')} className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full font-bold transition-all">
+                            ← Quay Lại Danh Sách Mốc
+                        </button>
                     </div>
                 )}
 

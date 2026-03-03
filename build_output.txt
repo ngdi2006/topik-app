@@ -3,3 +3,58 @@
 
 ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
   Creating an optimized production build ...
+✓ Compiled successfully in 3.4s
+  Running TypeScript ...
+  Collecting page data using 11 workers ...
+  Generating static pages using 11 workers (0/13) ...
+  Generating static pages using 11 workers (3/13) 
+  Generating static pages using 11 workers (6/13) 
+  Generating static pages using 11 workers (9/13) 
+✓ Generating static pages using 11 workers (13/13) in 122.6ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /admin
+├ ƒ /admin/exams
+├ ƒ /admin/exams/[id]
+├ ƒ /admin/milestones
+├ ƒ /admin/users
+├ ƒ /ai-chat
+├ ƒ /api/admin/exams
+├ ƒ /api/admin/exams/[id]
+├ ƒ /api/admin/exams/[id]/questions
+├ ƒ /api/admin/exams/[id]/questions/[qId]
+├ ƒ /api/admin/milestones
+├ ƒ /api/admin/users
+├ ƒ /api/admin/users/[id]
+├ ƒ /api/admin/users/[id]/group
+├ ƒ /api/admin/users/[id]/history
+├ ƒ /api/admin/users/[id]/role
+├ ƒ /api/ai/milestones/evaluate
+├ ƒ /api/ai/milestones/generate-intro
+├ ƒ /api/auth/callback
+├ ƒ /api/chat
+├ ƒ /api/chat/evaluate
+├ ƒ /api/exams
+├ ƒ /api/exams/[id]
+├ ƒ /api/exams/[id]/result/[resultId]
+├ ƒ /api/exams/[id]/submit
+├ ƒ /api/generate-exam
+├ ƒ /api/learner/history
+├ ƒ /dashboard
+├ ƒ /exam/[id]
+├ ƒ /exam/[id]/result/[resultId]
+├ ƒ /history
+├ ƒ /login
+├ ƒ /milestones
+├ ƒ /milestones/[level]
+├ ƒ /milestones/intro-generator
+└ ƒ /register
+
+
+ƒ Proxy (Middleware)
+
+ƒ  (Dynamic)  server-rendered on demand
+

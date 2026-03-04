@@ -396,29 +396,25 @@ function MilestoneLevelContent() {
 
     return (
         <div className="min-h-screen bg-muted/10 pb-20">
-            {/* Header */}
-            <header className="border-b bg-white px-3 md:px-8 py-2 md:py-3 sticky top-0 z-50 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
-                <div className="flex items-start md:items-center gap-3 w-full">
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/milestones')} className="rounded-full bg-muted/30 hover:bg-muted/80 shrink-0 mt-1 md:mt-0">
+            <header className="border-b bg-white px-3 md:px-8 py-3 sticky top-0 z-50 shadow-sm flex items-center justify-between gap-3">
+                <div className="flex items-start gap-3 w-full">
+                    <Button variant="ghost" size="icon" onClick={() => router.push('/milestones')} className="rounded-full bg-muted/30 hover:bg-muted/80 shrink-0 mt-0.5">
                         <ArrowLeft className="w-5 h-5 text-gray-700" />
                     </Button>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-1">
-                            <h1 className="font-bold text-base md:text-xl text-primary leading-tight line-clamp-2 md:line-clamp-1">
-                                {milestoneData.title}
-                            </h1>
-                            <span className={`text-[10px] md:text-xs px-2 py-0.5 rounded-full text-white shrink-0 font-medium tracking-wide ${isTestMode ? 'bg-red-500 shadow-sm shadow-red-200' : 'bg-emerald-500 shadow-sm shadow-emerald-200'}`}>
-                                {isTestMode ? '🏆 KIỂM TRA' : '🏓 LUYỆN TẬP'}
-                            </span>
-                        </div>
-                        <p className="text-[11px] md:text-sm text-muted-foreground truncate">{milestoneData.desc}</p>
+                    <div className="flex-1 min-w-0 pr-2">
+                        <h1 className="font-bold text-base md:text-xl text-primary leading-tight line-clamp-2 md:line-clamp-1 mb-1.5">
+                            {milestoneData.title}
+                        </h1>
+                        <span className={`inline-block text-[10px] md:text-xs px-2.5 py-0.5 rounded-full text-white font-medium tracking-wide ${isTestMode ? 'bg-red-500 shadow-sm shadow-red-200' : 'bg-emerald-500 shadow-sm shadow-emerald-200'}`}>
+                            {isTestMode ? '🏆 KIỂM TRA' : '🏓 LUYỆN TẬP'}
+                        </span>
                     </div>
                 </div>
 
-                {/* Global Timer - chỉ hiển thị khi Kiểm Tra */}
+                {/* Global Timer - chỉ hiển thị khi Kiểm Tra, luôn neo ở góc phải */}
                 {isTestMode && totalTimeLeft !== null && (
-                    <div className="w-full md:w-auto flex justify-end">
-                        <div className={`flex items-center justify-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border-2 font-mono text-base md:text-lg font-black transition-all ${totalTimeLeft <= 30 ? 'bg-red-50 border-red-300 text-red-600 animate-pulse'
+                    <div className="shrink-0 flex items-center justify-end">
+                        <div className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border-2 font-mono text-base font-black transition-all ${totalTimeLeft <= 30 ? 'bg-red-50 border-red-300 text-red-600 animate-pulse'
                             : totalTimeLeft <= 60 ? 'bg-orange-50 border-orange-200 text-orange-600'
                                 : 'bg-slate-50 border-slate-200 text-slate-700'
                             }`}>

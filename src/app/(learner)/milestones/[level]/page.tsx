@@ -397,35 +397,38 @@ function MilestoneLevelContent() {
     return (
         <div className="min-h-screen bg-muted/10 pb-20">
             {/* Header */}
-            <header className="border-b bg-white px-4 md:px-8 py-3 sticky top-0 z-50 shadow-sm">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Button variant="ghost" size="icon" onClick={() => router.push('/milestones')} className="rounded-full bg-muted/30 hover:bg-muted/80">
-                            <ArrowLeft className="w-5 h-5 text-gray-700" />
-                        </Button>
-                        <div>
-                            <h1 className="font-bold text-lg md:text-xl text-primary flex items-center gap-2">
+            <header className="border-b bg-white px-3 md:px-8 py-2 md:py-3 sticky top-0 z-50 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
+                <div className="flex items-start md:items-center gap-3 w-full">
+                    <Button variant="ghost" size="icon" onClick={() => router.push('/milestones')} className="rounded-full bg-muted/30 hover:bg-muted/80 shrink-0 mt-1 md:mt-0">
+                        <ArrowLeft className="w-5 h-5 text-gray-700" />
+                    </Button>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-1">
+                            <h1 className="font-bold text-base md:text-xl text-primary leading-tight line-clamp-2 md:line-clamp-1">
                                 {milestoneData.title}
-                                <span className={`text-xs px-2 py-0.5 rounded-full text-white ${isTestMode ? 'bg-red-500' : 'bg-emerald-500'}`}>
-                                    {isTestMode ? '🏆 KIỂM TRA' : '🏓 LUYỆN TẬP'}
-                                </span>
                             </h1>
-                            <p className="text-xs md:text-sm text-muted-foreground">{milestoneData.desc}</p>
+                            <span className={`text-[10px] md:text-xs px-2 py-0.5 rounded-full text-white shrink-0 font-medium tracking-wide ${isTestMode ? 'bg-red-500 shadow-sm shadow-red-200' : 'bg-emerald-500 shadow-sm shadow-emerald-200'}`}>
+                                {isTestMode ? '🏆 KIỂM TRA' : '🏓 LUYỆN TẬP'}
+                            </span>
                         </div>
+                        <p className="text-[11px] md:text-sm text-muted-foreground truncate">{milestoneData.desc}</p>
                     </div>
-                    {/* Global Timer - chỉ hiển thị khi Kiểm Tra */}
-                    {isTestMode && totalTimeLeft !== null && (
-                        <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 font-mono text-lg font-black transition-all ${totalTimeLeft <= 30 ? 'bg-red-100 border-red-400 text-red-700 animate-pulse'
-                                : totalTimeLeft <= 60 ? 'bg-orange-100 border-orange-300 text-orange-700'
-                                    : 'bg-slate-100 border-slate-300 text-slate-700'
+                </div>
+
+                {/* Global Timer - chỉ hiển thị khi Kiểm Tra */}
+                {isTestMode && totalTimeLeft !== null && (
+                    <div className="w-full md:w-auto flex justify-end">
+                        <div className={`flex items-center justify-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-lg border-2 font-mono text-base md:text-lg font-black transition-all ${totalTimeLeft <= 30 ? 'bg-red-50 border-red-300 text-red-600 animate-pulse'
+                            : totalTimeLeft <= 60 ? 'bg-orange-50 border-orange-200 text-orange-600'
+                                : 'bg-slate-50 border-slate-200 text-slate-700'
                             }`}>
-                            <Clock className="w-5 h-5" />
+                            <Clock className="w-4 h-4 md:w-5 md:h-5" />
                             {String(Math.floor(totalTimeLeft / 60)).padStart(2, '0')}:{String(totalTimeLeft % 60).padStart(2, '0')}
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
                 {isAutoSubmitting && (
-                    <div className="mt-2 p-2 bg-red-100 text-red-700 text-sm font-bold rounded-lg flex items-center gap-2 animate-pulse">
+                    <div className="mt-2 p-2 bg-red-100 text-red-700 text-sm font-bold rounded-lg flex items-center gap-2 animate-pulse w-full">
                         <Loader2 className="w-4 h-4 animate-spin" /> Hết giờ! Đang tự động thu bài và chấm điểm...
                     </div>
                 )}

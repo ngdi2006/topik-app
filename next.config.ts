@@ -1,10 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  env: {
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder-project-url.supabase.co",
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key",
-  },
+  // Environment variables are automatically available via process.env
+  // No need to re-declare NEXT_PUBLIC_ vars here - they are auto-exposed to the browser
 };
 
 export default nextConfig;

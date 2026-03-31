@@ -16,7 +16,7 @@ export async function POST(req: Request) {
         // or directly use standard Response streaming.
 
         const responseStream = await ai.models.generateContentStream({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.0-flash',
             contents: messages.map((m: { role: string, content: string }) => ({
                 role: m.role === 'user' ? 'user' : 'model',
                 parts: [{ text: m.content }]

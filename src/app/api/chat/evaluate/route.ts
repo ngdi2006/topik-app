@@ -36,7 +36,7 @@ Trả về KẾT QUẢ PHÂN TÍCH DƯỚI DẠNG JSON với cấu trúc chính 
         const finalPrompt = prompt + "\n\nĐOẠN HỘI THOẠI:\n" + chatHistory;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.0-flash',
             contents: finalPrompt,
             config: {
                 temperature: 0.1, // Low temperature for consistent JSON structure

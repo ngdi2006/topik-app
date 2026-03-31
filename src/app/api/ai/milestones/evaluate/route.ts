@@ -31,7 +31,7 @@ Lưu ý: "score" là số nguyên từ 0 đến 100.
 `;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.0-flash',
             contents: `Giọng đọc học viên nhận diện STT (Speech-to-text input): "${transcript}"`,
             config: {
                 systemInstruction: systemPrompt,

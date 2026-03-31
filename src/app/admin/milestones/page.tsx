@@ -10,7 +10,39 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { Loader2, Plus, Pencil, Trash2, BookOpen, Clock, Trophy, Dumbbell } from "lucide-react"
+import { Loader2, Plus, Pencil, Trash2, BookOpen, Clock, Trophy, Dumbbell, ImagePlus } from "lucide-react"
+
+const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 800;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > MAX_WIDTH) {
+                    height = Math.round((height *= MAX_WIDTH / width));
+                    width = MAX_WIDTH;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                // Nén JPEG 70% để tiết kiệm DB
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                resolve(dataUrl);
+            };
+            img.onerror = (error) => reject(error);
+        };
+        reader.onerror = (error) => reject(error);
+    });
+};
 
 export default function AdminMilestones() {
     const supabase = createClient()
@@ -28,7 +60,7 @@ export default function AdminMilestones() {
         reading_texts: [""],
         reading_points: 20,
         reading_time_limit: 120,
-        qa_sections: [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: [""] }],
+        qa_sections: [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: [{ text: "", image: "" }] }],
         grammar_context: "",
         has_personal_form: "false",
         is_active: "true"
@@ -65,14 +97,15 @@ export default function AdminMilestones() {
     }
 
     const safeParseQaSections = (val: string) => {
-        if (!val) return [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: [""] }]
+        const defaultQ = [{ text: "", image: "" }]
+        if (!val) return [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: defaultQ }]
         try {
             const parsed = JSON.parse(val)
             if (Array.isArray(parsed)) {
-                if (parsed.length === 0) return [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: [""] }]
+                if (parsed.length === 0) return [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: defaultQ }]
                 // Trường hợp cũ: Mảng các chuỗi ['câu 1', 'câu 2']
                 if (typeof parsed[0] === 'string') {
-                    return [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: parsed }]
+                    return [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: parsed.map(q => ({ text: q, image: "" })) }]
                 }
                 // Trường hợp cấu trúc Object mới
                 return parsed.map((s: any) => ({
@@ -80,12 +113,12 @@ export default function AdminMilestones() {
                     points: s.points || 20,
                     time_limit: s.time_limit || 60,
                     question_count: s.question_count || 1,
-                    questions: s.questions || [""]
+                    questions: Array.isArray(s.questions) ? s.questions.map((q: any) => typeof q === 'string' ? { text: q, image: "" } : { text: q.text || "", image: q.image || "" }) : defaultQ
                 }))
             }
-            return [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: [val] }]
+            return [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: [{ text: val, image: "" }] }]
         } catch {
-            return [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: [val] }]
+            return [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: [{ text: val, image: "" }] }]
         }
     }
 
@@ -108,7 +141,7 @@ export default function AdminMilestones() {
 
     const handleOpenNew = () => {
         setFormData({
-            level: "", title: "", description: "", reading_texts: [""], reading_points: 20, reading_time_limit: 120, qa_sections: [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: [""] }], grammar_context: "", has_personal_form: "false", is_active: "true"
+            level: "", title: "", description: "", reading_texts: [""], reading_points: 20, reading_time_limit: 120, qa_sections: [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: [{ text: "", image: "" }] }], grammar_context: "", has_personal_form: "false", is_active: "true"
         })
         setEditingId(null)
         setIsOpen(true)
@@ -123,7 +156,10 @@ export default function AdminMilestones() {
             points: section.points,
             time_limit: section.time_limit,
             question_count: Math.max(1, section.question_count || 1),
-            questions: section.questions.map(q => q.trim()).filter(q => q) // Filter empty out
+            questions: section.questions.filter(q => q.text.trim() || q.image).map(q => ({
+                text: q.text.trim(),
+                image: q.image
+            }))
         }))
 
         if (!formData.level || !formData.title || validReadingTexts.length === 0 || validQaSections.length === 0) {
@@ -299,7 +335,7 @@ export default function AdminMilestones() {
                                     <Button size="sm" variant="default" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => {
                                         setFormData({
                                             ...formData,
-                                            qa_sections: [...formData.qa_sections, { title: `Câu ${formData.qa_sections.length + 1}`, points: 20, time_limit: 60, question_count: 1, questions: [""] }]
+                                            qa_sections: [...formData.qa_sections, { title: `Câu ${formData.qa_sections.length + 1}`, points: 20, time_limit: 60, question_count: 1, questions: [{ text: "", image: "" }] }]
                                         })
                                     }}>
                                         <Plus className="w-4 h-4 mr-1" /> Thêm Bài Vấn Đáp Mới
@@ -361,19 +397,48 @@ export default function AdminMilestones() {
                                             <Label className="text-sm font-medium text-emerald-600 flex justify-between items-center">
                                                 Ngân hàng câu hỏi (Random bốc thăm 1 câu)
                                                 <Button size="sm" variant="ghost" className="h-6 text-emerald-600" onClick={() => {
-                                                    const newSec = formData.qa_sections.map((s, i) => i === secIdx ? { ...s, questions: [...s.questions, ""] } : s)
+                                                    const newSec = formData.qa_sections.map((s, i) => i === secIdx ? { ...s, questions: [...s.questions, { text: "", image: "" }] } : s)
                                                     setFormData({ ...formData, qa_sections: newSec })
                                                 }}><Plus className="w-3 h-3 mr-1" /> Thêm câu</Button>
                                             </Label>
-                                            {section.questions.map((text, qIdx) => (
-                                                <div key={qIdx} className="flex gap-2 items-start">
-                                                    <div className="mt-2 text-xs font-bold text-gray-400 w-4">{qIdx + 1}.</div>
-                                                    <Textarea className="h-10 min-h-0 py-2" placeholder={`Nội dung câu hỏi ${qIdx + 1}...`} value={text} onChange={e => {
-                                                        const newSec = formData.qa_sections.map((s, i) => i === secIdx ? { ...s, questions: s.questions.map((q, j) => j === qIdx ? e.target.value : q) } : s)
-                                                        setFormData({ ...formData, qa_sections: newSec })
-                                                    }} />
+                                            {section.questions.map((qObj, qIdx) => (
+                                                <div key={qIdx} className="flex gap-2 items-start bg-emerald-50/40 p-2.5 rounded-lg border border-emerald-100">
+                                                    <div className="mt-2 text-xs font-black text-emerald-400/70 w-4">{qIdx + 1}.</div>
+                                                    <div className="flex-1 space-y-2">
+                                                        <Textarea className="h-10 min-h-0 py-2 border-emerald-200 focus-visible:ring-emerald-400" placeholder={`Nội dung câu hỏi ${qIdx + 1}...`} value={qObj.text} onChange={e => {
+                                                            const newSec = formData.qa_sections.map((s, i) => i === secIdx ? { ...s, questions: s.questions.map((q, j) => j === qIdx ? { ...q, text: e.target.value } : q) } : s)
+                                                            setFormData({ ...formData, qa_sections: newSec })
+                                                        }} />
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="relative">
+                                                                <Input type="file" accept="image/*" className="h-8 text-xs file:h-full file:border-0 file:bg-emerald-100 file:text-emerald-700 file:px-3 file:mr-2 file:font-semibold rounded border-emerald-200 cursor-pointer bg-white w-full max-w-xs" onChange={async (e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (!file) return;
+                                                                    try {
+                                                                        toast.loading("Đang nén ảnh...", { id: "upload-img" })
+                                                                        const base64 = await compressImage(file);
+                                                                        const newSec = formData.qa_sections.map((s, i) => i === secIdx ? { ...s, questions: s.questions.map((q, j) => j === qIdx ? { ...q, image: base64 } : q) } : s)
+                                                                        setFormData({ ...formData, qa_sections: newSec })
+                                                                        toast.success("Đã nén và thêm ảnh Base64", { id: "upload-img" })
+                                                                    } catch (err) { toast.error("Lỗi khi tải ảnh", { id: "upload-img" }) }
+                                                                }} />
+                                                            </div>
+                                                            {!qObj.image && <span className="text-[10px] text-muted-foreground flex items-center gap-1"><ImagePlus className="w-3 h-3" /> Tùy chọn chèn ảnh</span>}
+                                                        </div>
+                                                        {qObj.image && (
+                                                            <div className="relative inline-block mt-1 border border-emerald-200 rounded p-1.5 bg-white shadow-sm">
+                                                                <img src={qObj.image} alt="preview" className="h-24 w-auto object-contain rounded" />
+                                                                <button onClick={() => {
+                                                                    const newSec = formData.qa_sections.map((s, i) => i === secIdx ? { ...s, questions: s.questions.map((q, j) => j === qIdx ? { ...q, image: "" } : q) } : s)
+                                                                    setFormData({ ...formData, qa_sections: newSec })
+                                                                }} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-md transition-all">
+                                                                    <Trash2 className="w-3 h-3" />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                     {section.questions.length > 1 && (
-                                                        <Button variant="ghost" size="icon" className="text-red-400 h-8 w-8 mt-1" onClick={() => {
+                                                        <Button variant="ghost" size="icon" className="text-red-400 h-8 w-8 mt-1 shrink-0" onClick={() => {
                                                             const newSec = formData.qa_sections.map((s, i) => i === secIdx ? { ...s, questions: s.questions.filter((_, j) => j !== qIdx) } : s)
                                                             setFormData({ ...formData, qa_sections: newSec })
                                                         }}><Trash2 className="w-4 h-4" /></Button>

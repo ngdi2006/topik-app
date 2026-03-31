@@ -26,7 +26,7 @@ const speakText = (text: string, rate: number = 1.0) => {
 }
 
 // --- Component Render Báo cáo (Report JSON UI) ---
-const ReportCard = ({ report, isEvaluating, hideScore = false }: { report: any, isEvaluating: boolean, hideScore?: boolean }) => {
+const ReportCard = ({ report, isEvaluating, hideScore = false, maxScore = 100, customTitle }: { report: any, isEvaluating: boolean, hideScore?: boolean, maxScore?: number, customTitle?: string }) => {
     if (isEvaluating) {
         return (
             <div className="mt-4 p-8 border rounded-xl bg-muted/20 flex flex-col items-center justify-center gap-3">
@@ -51,14 +51,14 @@ const ReportCard = ({ report, isEvaluating, hideScore = false }: { report: any, 
     return (
         <div className="mt-6 space-y-4 p-5 bg-gradient-to-br from-white to-blue-50/40 rounded-xl border border-blue-100 shadow-sm animate-in slide-in-from-bottom-2 fade-in duration-500">
             <h4 className="font-bold flex items-center gap-2 text-primary text-lg">
-                <CheckCircle2 className="w-5 h-5 text-green-500" /> Bảng Điểm Đánh Giá Mốc
+                <CheckCircle2 className="w-5 h-5 text-green-500" /> {customTitle || "Bảng Điểm Đánh Giá Mốc"}
             </h4>
 
             <div className="bg-white p-4 rounded-lg border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <p className="text-gray-800 font-medium leading-relaxed">{report.evaluation}</p>
                 {!hideScore && report.score !== undefined && (
                     <div className="shrink-0 bg-blue-100 text-blue-800 font-black text-2xl px-5 py-2 rounded-2xl border border-blue-200 text-center shadow-inner">
-                        {report.score}<span className="text-sm font-medium text-blue-600">/100</span>
+                        {Math.round((report.score * maxScore) / 100)}<span className="text-sm font-medium text-blue-600">/{maxScore}</span>
                     </div>
                 )}
             </div>
@@ -110,6 +110,7 @@ const ResultModal = ({ open, onClose, onSave, readingReport, qaReports, qaSectio
     qaSections: { title: string, points?: number }[], milestoneData: any
     isSaving: boolean, savedScore: number | null
 }) => {
+    const [showDetails, setShowDetails] = useState(false)
     const rPts = milestoneData?.readingPoints || 20
     const rScore = readingReport?.score || 0
     let qaPtsTotal = 0, qaWeightedTotal = 0
@@ -138,16 +139,39 @@ const ResultModal = ({ open, onClose, onSave, readingReport, qaReports, qaSectio
                     <div className="space-y-2">
                         <p className="text-xs font-bold text-gray-500 uppercase">Chi tiết từng phần</p>
                         <div className="bg-blue-50 rounded-lg p-3 flex justify-between items-center border border-blue-100">
-                            <div><p className="font-semibold text-blue-800">📖 Đọc Thành Tiếng</p><p className="text-xs text-blue-500">Tỷ trọng: {rPts} điểm</p></div>
-                            <div className="text-right"><p className="font-black text-xl text-blue-700">{rScore}<span className="text-sm">/100</span></p></div>
+                            <div><p className="font-semibold text-blue-800">📖 Đọc Thành Tiếng</p></div>
+                            <div className="text-right"><p className="font-black text-xl text-blue-700">{Math.round((rScore * rPts) / 100)}<span className="text-sm">/{rPts}</span></p></div>
                         </div>
-                        {qaSections.map((sec, i) => (
-                            <div key={i} className="bg-emerald-50 rounded-lg p-3 flex justify-between items-center border border-emerald-100">
-                                <div><p className="font-semibold text-emerald-800">🎤 {sec.title}</p><p className="text-xs text-emerald-500">Tỷ trọng: {sec.points || 20} điểm</p></div>
-                                <div className="text-right"><p className="font-black text-xl text-emerald-700">{qaReports[i]?.score || 0}<span className="text-sm">/100</span></p></div>
-                            </div>
-                        ))}
+                        {qaSections.map((sec, i) => {
+                            const maxP = sec.points || 20
+                            const earned = Math.round((qaReports[i]?.score || 0) * (maxP / 100))
+                            return (
+                                <div key={i} className="bg-emerald-50 rounded-lg p-3 flex justify-between items-center border border-emerald-100">
+                                    <div><p className="font-semibold text-emerald-800">🎤 {sec.title}</p></div>
+                                    <div className="text-right"><p className="font-black text-xl text-emerald-700">{earned}<span className="text-sm">/{maxP}</span></p></div>
+                                </div>
+                            )
+                        })}
+                        {/* Tổng Vấn Đáp */}
+                        <div className="bg-emerald-100 rounded-lg p-3 flex justify-between items-center border border-emerald-200 mt-2">
+                            <div><p className="font-bold text-emerald-900">✨ Tổng điểm Vấn Đáp</p></div>
+                            <div className="text-right"><p className="font-black text-xl text-emerald-800">{Math.round(qaWeightedTotal)}<span className="text-sm">/{qaPtsTotal}</span></p></div>
+                        </div>
                     </div>
+
+                    <button onClick={() => setShowDetails(!showDetails)} className="w-full py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
+                        {showDetails ? "Thu gọn chi tiết nhận xét từng câu" : "Xem nhận xét & lỗi sai chi tiết"}
+                    </button>
+
+                    {showDetails && (
+                        <div className="space-y-4 mt-2 border-t pt-4 animate-in slide-in-from-top-2 fade-in duration-300">
+                            <ReportCard report={readingReport} isEvaluating={false} maxScore={rPts} customTitle="📖 Chi tiết: Đọc Thành Tiếng" />
+                            {qaSections.map((sec, i) => (
+                                <ReportCard key={i} report={qaReports[i]} isEvaluating={false} maxScore={sec.points || 20} customTitle={`🎤 Chi tiết: ${sec.title}`} />
+                            ))}
+                        </div>
+                    )}
+
                     {savedScore === null ? (
                         <button onClick={onSave} disabled={isSaving} className="w-full h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-70">
                             {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
@@ -176,6 +200,7 @@ function MilestoneLevelContent() {
     const [totalTimeLeft, setTotalTimeLeft] = useState<number | null>(null)
     const [showResultModal, setShowResultModal] = useState(false)
     const [isAutoSubmitting, setIsAutoSubmitting] = useState(false)
+    const [isTestSubmitted, setIsTestSubmitted] = useState(false)
     const [loadingData, setLoadingData] = useState(true)
     const supabase = createClient()
 
@@ -187,8 +212,8 @@ function MilestoneLevelContent() {
     const [isEvalReading, setIsEvalReading] = useState(false)
 
     // QA States (Multi-sections)
-    const [qaSections, setQaSections] = useState<{ title: string, questions: string[], points?: number, time_limit?: number }[]>([])
-    const [selectedQaQuestions, setSelectedQaQuestions] = useState<string[]>([])
+    const [qaSections, setQaSections] = useState<{ title: string, questions: any[], points?: number, time_limit?: number }[]>([])
+    const [selectedQaQuestions, setSelectedQaQuestions] = useState<any[]>([])
     const [activeQaIndex, setActiveQaIndex] = useState(0)
     const [qaReports, setQaReports] = useState<Record<number, any>>({})
     const [isEvalQA, setIsEvalQA] = useState(false)
@@ -253,10 +278,12 @@ function MilestoneLevelContent() {
             const parsedSections = safeParseQaSections(data.qa_text)
 
             const expandedSections: any[] = []
-            const expandedQuestions: string[] = []
+            const expandedQuestions: any[] = []
+
+            let globalQaIndex = 1;
 
             parsedSections.forEach((sec: any) => {
-                const qArr = sec.questions.filter((q: string) => q.trim() !== "")
+                const qArr = sec.questions.filter((q: any) => typeof q === 'string' ? q.trim() !== "" : (q.text?.trim() !== "" || q.image))
                 if (qArr.length === 0) return
 
                 // Thuật toán Fisher-Yates shuffle
@@ -270,12 +297,12 @@ function MilestoneLevelContent() {
 
                 for (let i = 0; i < count; i++) {
                     expandedSections.push({
-                        title: count > 1 ? `${sec.title} (${i + 1}/${count})` : sec.title,
+                        title: `Câu ${globalQaIndex++}`,
                         points: sec.points,
                         time_limit: sec.time_limit,
                         questions: sec.questions // Lấy mảng gốc để giữ type, câu chốt nằm ở expandedQuestions
                     })
-                    expandedQuestions.push(shuffled[i])
+                    expandedQuestions.push(typeof shuffled[i] === 'string' ? { text: shuffled[i], image: "" } : shuffled[i])
                 }
             })
 
@@ -313,10 +340,10 @@ function MilestoneLevelContent() {
 
     // Global test timer countdown
     useEffect(() => {
-        if (!isTestMode || totalTimeLeft === null || totalTimeLeft <= 0) return
+        if (!isTestMode || totalTimeLeft === null || totalTimeLeft <= 0 || isTestSubmitted || isAutoSubmitting) return
         const t = setTimeout(() => setTotalTimeLeft(p => (p !== null && p > 0) ? p - 1 : 0), 1000)
         return () => clearTimeout(t)
-    }, [totalTimeLeft, isTestMode])
+    }, [totalTimeLeft, isTestMode, isTestSubmitted, isAutoSubmitting])
 
     // When timer hits 0 → auto-submit all sections
     useEffect(() => {
@@ -329,6 +356,7 @@ function MilestoneLevelContent() {
     // When all sections done in test mode → show result modal
     useEffect(() => {
         if (isTestMode && readingReport && qaSections.length > 0 && qaSections.every((_, i) => qaReports[i])) {
+            setIsTestSubmitted(true)
             setShowResultModal(true)
             setIsAutoSubmitting(false)
         }
@@ -379,8 +407,8 @@ function MilestoneLevelContent() {
                 body: JSON.stringify({
                     transcript: fullTranscript || "[Hết giờ - không có transcript]",
                     taskType, level,
-                    expectedText: isReading ? readingText : selectedQaQuestions[idx],
-                    questionText: isReading ? null : selectedQaQuestions[idx]
+                    expectedText: isReading ? readingText : (selectedQaQuestions[idx]?.text || selectedQaQuestions[idx]),
+                    questionText: isReading ? null : (selectedQaQuestions[idx]?.text || selectedQaQuestions[idx])
                 })
             })
             const data = await res.json()
@@ -400,12 +428,19 @@ function MilestoneLevelContent() {
     const handleAutoSubmitAll = async () => {
         if (isRecording) { stopRecording(); setActiveSection(0) }
         const cur = (transcript + " " + interimTranscript).trim()
-        const tasks: Promise<void>[] = []
-        if (!readingReport && !isEvalReading) tasks.push(handleEvaluate('reading', undefined, cur))
-        for (let i = 0; i < qaSections.length; i++) {
-            if (!qaReports[i] && !isEvalQA) tasks.push(handleEvaluate('qa', i, ""))
+        if (!readingReport && !isEvalReading) {
+            await handleEvaluate('reading', undefined, cur)
+            await new Promise(res => setTimeout(res, 2000))
         }
-        await Promise.allSettled(tasks)
+
+        for (let i = 0; i < qaSections.length; i++) {
+            if (!qaReports[i] && !isEvalQA) {
+                await handleEvaluate('qa', i, "")
+                if (i !== qaSections.length - 1) await new Promise(res => setTimeout(res, 2200)) // Tránh Burst CPU Google Gemini
+            }
+        }
+
+        setIsTestSubmitted(true)
         setIsAutoSubmitting(false)
         setShowResultModal(true)
     }
@@ -435,7 +470,21 @@ function MilestoneLevelContent() {
 
                 {/* Global Timer - chỉ hiển thị khi Kiểm Tra, luôn neo ở góc phải */}
                 {isTestMode && totalTimeLeft !== null && (
-                    <div className="shrink-0 flex items-center justify-end">
+                    <div className="shrink-0 flex items-center justify-end gap-2 md:gap-3">
+                        {!isTestSubmitted && !isAutoSubmitting && (
+                            <Button
+                                size="sm"
+                                className="bg-sky-500 hover:bg-sky-600 text-white font-bold h-8 md:h-10 px-3 md:px-4 shadow-sm border-b-2 border-sky-600 transition-all active:border-b-0 active:translate-y-0.5"
+                                onClick={() => {
+                                    if (confirm("Bạn có chắc chắn muốn ĐÓNG BÀI và nộp bài sớm không?")) {
+                                        setIsAutoSubmitting(true)
+                                        handleAutoSubmitAll()
+                                    }
+                                }}
+                            >
+                                <Send className="w-3.5 h-3.5 mr-1 md:w-4 md:h-4 md:mr-1.5" /> <span className="text-xs md:text-sm whitespace-nowrap">Nộp Bài Ngay</span>
+                            </Button>
+                        )}
                         <div className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border-2 font-mono text-base font-black transition-all ${totalTimeLeft <= 30 ? 'bg-red-50 border-red-300 text-red-600 animate-pulse'
                             : totalTimeLeft <= 60 ? 'bg-orange-50 border-orange-200 text-orange-600'
                                 : 'bg-slate-50 border-slate-200 text-slate-700'
@@ -452,7 +501,17 @@ function MilestoneLevelContent() {
                 )}
             </header>
 
-            <main className="max-w-4xl mx-auto p-4 md:p-8 space-y-8 mt-4">
+            <main className={`max-w-4xl mx-auto p-4 md:p-8 space-y-8 mt-4 transition-all duration-700 ${(isTestSubmitted || isAutoSubmitting) ? "pointer-events-none opacity-50 select-none grayscale-[50%]" : ""}`}>
+                {/* Lớp màng Loading che màn hình thông báo Đang chấm điểm */}
+                {isAutoSubmitting && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in">
+                        <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm text-center">
+                            <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
+                            <h3 className="font-black text-xl text-gray-800 mb-2">Đang chấm điểm...</h3>
+                            <p className="text-gray-500 text-sm">Hệ thống giáo viên AI đang duyệt từng câu hỏi của bạn. Vui lòng giữ trình duyệt, quá trình này có thể mất tới 1-2 phút tuỳ số lượng câu hỏi...</p>
+                        </div>
+                    </div>
+                )}
 
                 {/* Section 1: Bài kiểm tra Đọc */}
                 <Card className="shadow-md border-blue-100/50 rounded-2xl">
@@ -584,8 +643,13 @@ function MilestoneLevelContent() {
                             </div>
                         </div>
                     </CardHeader>
-                    {qaSections.length > 0 && (
+                    {qaSections.length > 0 && selectedQaQuestions[activeQaIndex] && (
                         <CardContent className="pt-6 relative">
+                            {selectedQaQuestions[activeQaIndex].image && (
+                                <div className="mb-6 flex justify-center w-full animate-in fade-in zoom-in-95 duration-300">
+                                    <img src={selectedQaQuestions[activeQaIndex].image} alt="Question Illustration" className="w-full max-w-lg object-contain rounded-xl shadow border border-emerald-100/50 bg-white" />
+                                </div>
+                            )}
                             <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-xl flex sm:items-center sm:justify-between flex-col sm:flex-row gap-4 mb-6 shadow-sm">
                                 <div className="flex gap-3 items-start">
                                     <div className="p-2 bg-white rounded-full text-emerald-600 shadow-sm mt-0.5"><PlayCircle className="w-5 h-5" /></div>
@@ -596,7 +660,7 @@ function MilestoneLevelContent() {
                                                 질문이 여기에 숨겨져 있습니다. (Đã bị ẩn)
                                             </p>
                                             <div className="text-sm font-medium text-emerald-700 italic border-l-2 border-emerald-300 pl-3 py-0.5">
-                                                👈 Hãy bóp <strong className="bg-emerald-100 px-1 rounded">Cái Loa</strong> để lắng nghe!
+                                                👈 Hãy bóp <strong className="bg-emerald-100 px-1 rounded">Cái Loa</strong> để nghe đề!
                                             </div>
                                         </div>
                                     </div>
@@ -612,7 +676,10 @@ function MilestoneLevelContent() {
                                         <option value="1">Bình thường (1.0x)</option>
                                         <option value="1.25">Nhanh (1.25x)</option>
                                     </select>
-                                    <Button size="icon" variant="outline" className="rounded-full shadow-sm hover:bg-emerald-100 text-emerald-700 shrink-0 h-12 w-12 border-emerald-300" onClick={() => speakText(selectedQaQuestions[activeQaIndex], speechRate)}>
+                                    <Button size="icon" variant="outline" className="rounded-full shadow-sm hover:bg-emerald-100 text-emerald-700 shrink-0 h-12 w-12 border-emerald-300" onClick={() => {
+                                        const textToSpeak = selectedQaQuestions[activeQaIndex]?.text || selectedQaQuestions[activeQaIndex] || ""
+                                        speakText(textToSpeak, speechRate)
+                                    }}>
                                         <Volume2 className="w-6 h-6 fill-emerald-100" />
                                     </Button>
                                 </div>

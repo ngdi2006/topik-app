@@ -225,40 +225,62 @@ function MilestoneLevelContent() {
             }
 
             const safeParseQaSections = (val: string) => {
-                if (!val) return [{ title: "Câu 1", questions: [""] }]
+                if (!val) return [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: [""] }]
                 try {
                     const parsed = JSON.parse(val)
                     if (Array.isArray(parsed)) {
-                        if (parsed.length === 0) return [{ title: "Câu 1", points: 20, time_limit: 60, questions: [""] }]
+                        if (parsed.length === 0) return [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: [""] }]
                         if (typeof parsed[0] === 'string') {
-                            return [{ title: "Câu 1", points: 20, time_limit: 60, questions: parsed }] // Format cũ
+                            return [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: parsed }] // Format cũ
                         }
                         return parsed.map((s: any) => ({
                             ...s,
                             points: s.points || 20,
-                            time_limit: s.time_limit || 60
+                            time_limit: s.time_limit || 60,
+                            question_count: s.question_count || 1
                         })) // Format N-Dạng mới
                     }
-                    return [{ title: "Câu 1", points: 20, time_limit: 60, questions: [val] }]
+                    return [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: [val] }]
                 } catch {
-                    return [{ title: "Câu 1", points: 20, time_limit: 60, questions: [val] }]
+                    return [{ title: "Câu 1", points: 20, time_limit: 60, question_count: 1, questions: [val] }]
                 }
             }
 
             const readArr = parseArray(data.reading_text)
             const randomRead = readArr.length > 0 ? readArr[Math.floor(Math.random() * readArr.length)] : ""
 
-            // Xử lý Giao án QA Multi-sections
+            // Xử lý Giao án QA Multi-sections & Phân rã mảng nếu question_count > 1
             const parsedSections = safeParseQaSections(data.qa_text)
-            setQaSections(parsedSections)
 
-            // Random 1 câu duy nhất cho từng Dạng
-            const randomQaSelected = parsedSections.map(sec => {
+            const expandedSections: any[] = []
+            const expandedQuestions: string[] = []
+
+            parsedSections.forEach((sec: any) => {
                 const qArr = sec.questions.filter((q: string) => q.trim() !== "")
-                if (qArr.length === 0) return ""
-                return qArr[Math.floor(Math.random() * qArr.length)]
+                if (qArr.length === 0) return
+
+                // Thuật toán Fisher-Yates shuffle
+                const shuffled = [...qArr]
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+                }
+
+                const count = Math.min(sec.question_count || 1, shuffled.length)
+
+                for (let i = 0; i < count; i++) {
+                    expandedSections.push({
+                        title: count > 1 ? `${sec.title} (${i + 1}/${count})` : sec.title,
+                        points: sec.points,
+                        time_limit: sec.time_limit,
+                        questions: sec.questions // Lấy mảng gốc để giữ type, câu chốt nằm ở expandedQuestions
+                    })
+                    expandedQuestions.push(shuffled[i])
+                }
             })
-            setSelectedQaQuestions(randomQaSelected)
+
+            setQaSections(expandedSections)
+            setSelectedQaQuestions(expandedQuestions)
 
             setMilestoneData({
                 title: data.title,
@@ -269,10 +291,10 @@ function MilestoneLevelContent() {
                 readingTimeLimit: data.reading_time_limit || 120
             })
             setReadingText(randomRead)
-            // Tính tổng thời gian cho chế độ Kiểm Tra
+            // Tính tổng thời gian cho chế độ Kiểm Tra dựa trên mảng MỚI
             if (isTestMode) {
                 const totalSecs = (data.reading_time_limit || 120) +
-                    parsedSections.reduce((sum: number, s: any) => sum + (s.time_limit || 60), 0)
+                    expandedSections.reduce((sum: number, s: any) => sum + (s.time_limit || 60), 0)
                 setTotalTimeLeft(totalSecs)
             }
             setLoadingData(false)

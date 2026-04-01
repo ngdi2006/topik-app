@@ -228,6 +228,10 @@ function MilestoneLevelContent() {
     const [savedScore, setSavedScore] = useState<number | null>(null)
     const [currentMilestoneId, setCurrentMilestoneId] = useState<string>("")
 
+    // ★ Batch mode: Lưu transcript local cho Test mode (không gọi AI ngay)
+    const [savedTranscripts, setSavedTranscripts] = useState<{ reading: string, qa: Record<number, string> }>({ reading: "", qa: {} })
+    const [isBatchEvaluating, setIsBatchEvaluating] = useState(false)
+
     useEffect(() => {
         const fetchLevelData = async () => {
             const { data, error } = await supabase.from('milestones').select('*').eq('level', level).eq('is_active', true).single()
@@ -354,8 +358,13 @@ function MilestoneLevelContent() {
     }, [totalTimeLeft, isTestMode, isAutoSubmitting])
 
     // When all sections done in test mode → show result modal
+    // ★ Chỉ trigger cho Practice mode (vì Test mode batch xử lý trong handleBatchSubmit finally)
     useEffect(() => {
-        if (isTestMode && readingReport && qaSections.length > 0 && qaSections.every((_, i) => qaReports[i])) {
+        if (!isTestMode && readingReport && qaSections.length > 0 && qaSections.every((_, i) => qaReports[i])) {
+            // Practice mode: tự động hoàn thành khi tất cả đã chấm xong
+        }
+        // Test mode batch: kết quả modal được xử lý trong handleBatchSubmit
+        if (isTestMode && readingReport && !readingReport._saved && qaSections.length > 0 && qaSections.every((_, i) => qaReports[i] && !qaReports[i]._saved)) {
             setIsTestSubmitted(true)
             setShowResultModal(true)
             setIsAutoSubmitting(false)
@@ -389,7 +398,36 @@ function MilestoneLevelContent() {
         }
     }
 
+    // ★ Test mode: Lưu transcript local (không gọi AI)
+    const handleSaveTranscriptLocal = (taskType: 'reading' | 'qa', qaIdx?: number, forcedTranscript?: string) => {
+        if (forcedTranscript === undefined && isRecording) { stopRecording(); setActiveSection(0) }
+        const idx = qaIdx !== undefined ? qaIdx : activeQaIndex
+        const fullTranscript = forcedTranscript !== undefined
+            ? forcedTranscript
+            : (transcript + " " + interimTranscript).trim()
+        if (!fullTranscript && forcedTranscript === undefined) {
+            alert("Vui lòng Bật Mic và nói tiếng Hàn trước khi nộp bài Đánh giá!"); return
+        }
+        const isReading = taskType === 'reading'
+        if (isReading) {
+            setSavedTranscripts(prev => ({ ...prev, reading: fullTranscript || "" }))
+            // Đánh dấu "đã ghi" bằng placeholder report (chỉ hiển thị xác nhận, không có điểm)
+            setReadingReport({ _saved: true, user_transcript: fullTranscript })
+        } else {
+            setSavedTranscripts(prev => ({ ...prev, qa: { ...prev.qa, [idx]: fullTranscript || "" } }))
+            setQaReports(prev => ({ ...prev, [idx]: { _saved: true, user_transcript: fullTranscript } }))
+        }
+        if (forcedTranscript === undefined) resetTranscript()
+    }
+
+    // ★ Practice mode: Gọi AI chấm từng câu (giữ nguyên logic cũ)
     const handleEvaluate = async (taskType: 'reading' | 'qa', qaIdx?: number, forcedTranscript?: string) => {
+        // Trong Test mode → chỉ lưu local, KHÔNG gọi AI
+        if (isTestMode) {
+            handleSaveTranscriptLocal(taskType, qaIdx, forcedTranscript)
+            return
+        }
+
         if (forcedTranscript === undefined && isRecording) { stopRecording(); setActiveSection(0) }
         const idx = qaIdx !== undefined ? qaIdx : activeQaIndex
         const fullTranscript = forcedTranscript !== undefined
@@ -425,21 +463,95 @@ function MilestoneLevelContent() {
     }
     handleEvaluateRef.current = handleEvaluate
 
+    // ★ BATCH: Gọi AI 1 lần duy nhất khi nộp bài (Test mode)
+    const handleBatchSubmit = async () => {
+        if (isRecording) { stopRecording(); setActiveSection(0) }
+        setIsBatchEvaluating(true)
+        setIsAutoSubmitting(true)
+
+        // Thu thập transcript cuối cùng từ mic đang mở (nếu có)
+        const curTranscript = (transcript + " " + interimTranscript).trim()
+
+        // Chuẩn bị reading transcript
+        const readingTranscript = savedTranscripts.reading || curTranscript || ""
+
+        // Chuẩn bị QA transcripts
+        const qaItemsPayload = qaSections.map((sec, i) => ({
+            questionText: selectedQaQuestions[i]?.text || selectedQaQuestions[i] || "",
+            transcript: savedTranscripts.qa[i] || ""
+        }))
+
+        try {
+            const res = await fetch('/api/ai/milestones/evaluate-batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    level,
+                    reading: { expectedText: readingText, transcript: readingTranscript },
+                    qaItems: qaItemsPayload
+                })
+            })
+            const data = await res.json()
+
+            if (data.error) {
+                setReadingReport({ error: data.error })
+                setIsBatchEvaluating(false)
+                setIsAutoSubmitting(false)
+                return
+            }
+
+            // Gán kết quả reading
+            if (data.reading) {
+                setReadingReport(data.reading)
+            } else {
+                setReadingReport({ score: 0, evaluation: "Không có dữ liệu", mistakes: [], suggested_answers: [] })
+            }
+
+            // Gán kết quả QA
+            const newQaReports: Record<number, any> = {}
+            if (data.qa && Array.isArray(data.qa)) {
+                data.qa.forEach((report: any, i: number) => {
+                    newQaReports[i] = report
+                })
+            }
+            // Fill missing
+            for (let i = 0; i < qaSections.length; i++) {
+                if (!newQaReports[i]) {
+                    newQaReports[i] = { score: 0, evaluation: "Không có dữ liệu", mistakes: [], suggested_answers: [] }
+                }
+            }
+            setQaReports(newQaReports)
+
+        } catch (err: any) {
+            setReadingReport({ error: "Lỗi kết nối: " + (err.message || "Unknown") })
+        } finally {
+            setIsBatchEvaluating(false)
+            setIsTestSubmitted(true)
+            setIsAutoSubmitting(false)
+            setShowResultModal(true)
+        }
+    }
+
     const handleAutoSubmitAll = async () => {
+        // ★ Test mode: Dùng batch API thay vì gọi từng câu
+        if (isTestMode) {
+            await handleBatchSubmit()
+            return
+        }
+
+        // Practice mode fallback (không nên đến đây, nhưng giữ an toàn)
         if (isRecording) { stopRecording(); setActiveSection(0) }
         const cur = (transcript + " " + interimTranscript).trim()
         if (!readingReport && !isEvalReading) {
             await handleEvaluate('reading', undefined, cur)
             await new Promise(res => setTimeout(res, 2000))
         }
-
         for (let i = 0; i < qaSections.length; i++) {
             if (!qaReports[i] && !isEvalQA) {
                 await handleEvaluate('qa', i, "")
-                if (i !== qaSections.length - 1) await new Promise(res => setTimeout(res, 2200)) // Tránh Burst CPU Google Gemini
+                if (i !== qaSections.length - 1) await new Promise(res => setTimeout(res, 2200))
             }
         }
-
         setIsTestSubmitted(true)
         setIsAutoSubmitting(false)
         setShowResultModal(true)
@@ -508,7 +620,12 @@ function MilestoneLevelContent() {
                         <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm text-center">
                             <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
                             <h3 className="font-black text-xl text-gray-800 mb-2">Đang chấm điểm...</h3>
-                            <p className="text-gray-500 text-sm">Hệ thống giáo viên AI đang duyệt từng câu hỏi của bạn. Vui lòng giữ trình duyệt, quá trình này có thể mất tới 1-2 phút tuỳ số lượng câu hỏi...</p>
+                            <p className="text-gray-500 text-sm">
+                                {isTestMode
+                                    ? "AI đang chấm toàn bộ bài thi cùng lúc. Vui lòng đợi khoảng 5-10 giây..."
+                                    : "Hệ thống giáo viên AI đang duyệt từng câu hỏi của bạn. Vui lòng giữ trình duyệt, quá trình này có thể mất tới 1-2 phút tuỳ số lượng câu hỏi..."
+                                }
+                            </p>
                         </div>
                     </div>
                 )}
@@ -569,7 +686,7 @@ function MilestoneLevelContent() {
                                     onClick={() => handleEvaluate('reading')}
                                     disabled={activeSection !== 1 || !transcript && !interimTranscript || isEvalReading}
                                 >
-                                    {isEvalReading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Send className="w-4 h-4" /> Gửi nộp</>}
+                                    {isEvalReading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Send className="w-4 h-4" /> {isTestMode ? "Lưu bài" : "Gửi nộp"}</>}
                                 </Button>
                             </div>
 
@@ -707,7 +824,7 @@ function MilestoneLevelContent() {
                                         onClick={() => handleEvaluate('qa')}
                                         disabled={activeSection !== 2 || (!transcript && !interimTranscript) || isEvalQA}
                                     >
-                                        {isEvalQA ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Send className="w-4 h-4" /> Nộp câu này</>}
+                                        {isEvalQA ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Send className="w-4 h-4" /> {isTestMode ? "Lưu câu" : "Nộp câu này"}</>}
                                     </Button>
                                 </div>
 

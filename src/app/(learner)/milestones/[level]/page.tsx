@@ -1,13 +1,12 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef, Suspense } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Mic, MicOff, Volume2, ArrowLeft, Loader2, CheckCircle2, AlertCircle, Lightbulb, Send, PlayCircle, Wand2, Clock, Trophy } from "lucide-react"
-import Link from "next/link"
+import { Mic, MicOff, Volume2, ArrowLeft, Loader2, CheckCircle2, AlertCircle, Lightbulb, Send, PlayCircle, Clock, Trophy } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
 
@@ -103,14 +102,8 @@ const ReportCard = ({ report, isEvaluating, hideScore = false, maxScore = 100, c
     )
 }
 
-// --- Result Modal (Test Mode Only) ---
-const ResultModal = ({ open, onClose, onSave, readingReport, qaReports, qaSections, milestoneData, isSaving, savedScore }: {
-    open: boolean, onClose: () => void, onSave: () => void
-    readingReport: any, qaReports: Record<number, any>
-    qaSections: { title: string, points?: number }[], milestoneData: any
-    isSaving: boolean, savedScore: number | null
-}) => {
-    const [showDetails, setShowDetails] = useState(false)
+// --- Helper: Tính điểm tổng kết (dùng chung 1 chỗ duy nhất) ---
+const calculateFinalScore = (readingReport: any, qaReports: Record<number, any>, qaSections: { title: string, points?: number }[], milestoneData: any) => {
     const rPts = milestoneData?.readingPoints || 20
     const rScore = readingReport?.score || 0
     let qaPtsTotal = 0, qaWeightedTotal = 0
@@ -120,7 +113,19 @@ const ResultModal = ({ open, onClose, onSave, readingReport, qaReports, qaSectio
         qaWeightedTotal += (qaReports[i]?.score || 0) * (pt / 100)
     })
     const maxPts = rPts + qaPtsTotal
-    const finalScore = savedScore !== null ? savedScore : (maxPts > 0 ? Math.round(((rScore * (rPts / 100)) + qaWeightedTotal) / maxPts * 100) : 0)
+    const finalScore = maxPts > 0 ? Math.round(((rScore * (rPts / 100)) + qaWeightedTotal) / maxPts * 100) : 0
+    return { rPts, rScore, qaPtsTotal, qaWeightedTotal, maxPts, finalScore }
+}
+
+// --- Result Modal (Test Mode Only) ---
+const ResultModal = ({ open, onClose, readingReport, qaReports, qaSections, milestoneData, isSaving, savedScore }: {
+    open: boolean, onClose: () => void
+    readingReport: any, qaReports: Record<number, any>
+    qaSections: { title: string, points?: number }[], milestoneData: any
+    isSaving: boolean, savedScore: number | null
+}) => {
+    const [showDetails, setShowDetails] = useState(false)
+    const { rPts, rScore, qaPtsTotal, qaWeightedTotal, finalScore } = calculateFinalScore(readingReport, qaReports, qaSections, milestoneData)
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
@@ -172,14 +177,18 @@ const ResultModal = ({ open, onClose, onSave, readingReport, qaReports, qaSectio
                         </div>
                     )}
 
-                    {savedScore === null ? (
-                        <button onClick={onSave} disabled={isSaving} className="w-full h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-70">
-                            {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
-                            {isSaving ? "Đang lưu..." : "Lưu Kết Quả vào Lịch Sử"}
-                        </button>
-                    ) : (
+                    {/* Trạng thái tự động lưu (không cần nút bấm thủ công) */}
+                    {isSaving ? (
+                        <div className="flex items-center gap-2 p-3 bg-indigo-50 rounded-lg border border-indigo-200 text-indigo-700 font-medium animate-pulse">
+                            <Loader2 className="w-5 h-5 animate-spin" /> Đang tự động lưu kết quả...
+                        </div>
+                    ) : savedScore !== null ? (
                         <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200 text-green-700 font-medium">
-                            <CheckCircle2 className="w-5 h-5" /> Đã lưu thành công! Điểm: {savedScore}/100
+                            <CheckCircle2 className="w-5 h-5" /> Đã tự động lưu thành công! Điểm: {savedScore}/100
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-700 font-medium">
+                            <AlertCircle className="w-5 h-5" /> Chưa lưu được kết quả. Vui lòng kiểm tra đăng nhập.
                         </div>
                     )}
                 </div>
@@ -229,7 +238,9 @@ function MilestoneLevelContent() {
     const [currentMilestoneId, setCurrentMilestoneId] = useState<string>("")
 
     // ★ Batch mode: Lưu transcript local cho Test mode (không gọi AI ngay)
+    // ★ Dùng useRef thay vì useState để tránh stale closure khi handleBatchSubmit đọc giá trị
     const [savedTranscripts, setSavedTranscripts] = useState<{ reading: string, qa: Record<number, string> }>({ reading: "", qa: {} })
+    const savedTranscriptsRef = useRef<{ reading: string, qa: Record<number, string> }>({ reading: "", qa: {} })
     const [isBatchEvaluating, setIsBatchEvaluating] = useState(false)
 
     useEffect(() => {
@@ -350,25 +361,23 @@ function MilestoneLevelContent() {
     }, [totalTimeLeft, isTestMode, isTestSubmitted, isAutoSubmitting])
 
     // When timer hits 0 → auto-submit all sections
+    // ★ Guard: thêm isBatchEvaluating + isTestSubmitted để tránh gọi lại khi đang chấm hoặc đã nộp
     useEffect(() => {
-        if (isTestMode && totalTimeLeft === 0 && !isAutoSubmitting && autoSubmitAllRef.current) {
+        if (isTestMode && totalTimeLeft === 0 && !isAutoSubmitting && !isBatchEvaluating && !isTestSubmitted && autoSubmitAllRef.current) {
             setIsAutoSubmitting(true)
             autoSubmitAllRef.current()
         }
-    }, [totalTimeLeft, isTestMode, isAutoSubmitting])
+    }, [totalTimeLeft, isTestMode, isAutoSubmitting, isBatchEvaluating, isTestSubmitted])
 
     // When all sections done in test mode → show result modal
-    // ★ Chỉ trigger cho Practice mode (vì Test mode batch xử lý trong handleBatchSubmit finally)
+    // ★ Test mode: ResultModal do handleBatchSubmit finally quản lý hoàn toàn
+    // ★ useEffect này CHỈ dùng cho Practice mode (nếu cần)
     useEffect(() => {
         if (!isTestMode && readingReport && qaSections.length > 0 && qaSections.every((_, i) => qaReports[i])) {
             // Practice mode: tự động hoàn thành khi tất cả đã chấm xong
         }
-        // Test mode batch: kết quả modal được xử lý trong handleBatchSubmit
-        if (isTestMode && readingReport && !readingReport._saved && qaSections.length > 0 && qaSections.every((_, i) => qaReports[i] && !qaReports[i]._saved)) {
-            setIsTestSubmitted(true)
-            setShowResultModal(true)
-            setIsAutoSubmitting(false)
-        }
+        // ★ KHÔNG trigger ResultModal cho Test mode ở đây
+        // → Test mode: handleBatchSubmit() finally đã set showResultModal = true sau khi AI trả kết quả xong
     }, [isTestMode, readingReport, qaReports, qaSections])
 
     // ============================================================
@@ -411,10 +420,13 @@ function MilestoneLevelContent() {
         const isReading = taskType === 'reading'
         if (isReading) {
             setSavedTranscripts(prev => ({ ...prev, reading: fullTranscript || "" }))
+            // ★ Sync ref ngay lập tức (không chờ React re-render) để handleBatchSubmit luôn đọc được giá trị mới nhất
+            savedTranscriptsRef.current = { ...savedTranscriptsRef.current, reading: fullTranscript || "" }
             // Đánh dấu "đã ghi" bằng placeholder report (chỉ hiển thị xác nhận, không có điểm)
             setReadingReport({ _saved: true, user_transcript: fullTranscript })
         } else {
             setSavedTranscripts(prev => ({ ...prev, qa: { ...prev.qa, [idx]: fullTranscript || "" } }))
+            savedTranscriptsRef.current = { ...savedTranscriptsRef.current, qa: { ...savedTranscriptsRef.current.qa, [idx]: fullTranscript || "" } }
             setQaReports(prev => ({ ...prev, [idx]: { _saved: true, user_transcript: fullTranscript } }))
         }
         if (forcedTranscript === undefined) resetTranscript()
@@ -464,7 +476,14 @@ function MilestoneLevelContent() {
     handleEvaluateRef.current = handleEvaluate
 
     // ★ BATCH: Gọi AI 1 lần duy nhất khi nộp bài (Test mode)
+    // ★ Guard: chống gọi lại nếu đã submitted hoặc đang evaluating
     const handleBatchSubmit = async () => {
+        // ★ GUARD: Tránh gọi batch nhiều lần (timer + nút bấm cùng lúc)
+        if (isBatchEvaluating || isTestSubmitted || savedScore !== null) {
+            console.log("[Guard] handleBatchSubmit blocked - already evaluating/submitted/saved")
+            return
+        }
+
         if (isRecording) { stopRecording(); setActiveSection(0) }
         setIsBatchEvaluating(true)
         setIsAutoSubmitting(true)
@@ -472,14 +491,23 @@ function MilestoneLevelContent() {
         // Thu thập transcript cuối cùng từ mic đang mở (nếu có)
         const curTranscript = (transcript + " " + interimTranscript).trim()
 
+        // ★ Đọc từ REF (luôn có giá trị mới nhất, không bị stale closure)
+        const latestTranscripts = savedTranscriptsRef.current
+
         // Chuẩn bị reading transcript
-        const readingTranscript = savedTranscripts.reading || curTranscript || ""
+        const readingTranscript = latestTranscripts.reading || curTranscript || ""
 
         // Chuẩn bị QA transcripts
         const qaItemsPayload = qaSections.map((sec, i) => ({
             questionText: selectedQaQuestions[i]?.text || selectedQaQuestions[i] || "",
-            transcript: savedTranscripts.qa[i] || ""
+            transcript: latestTranscripts.qa[i] || ""
         }))
+
+        console.log("[Batch] Reading transcript:", readingTranscript ? readingTranscript.substring(0, 50) + "..." : "(empty)")
+        console.log("[Batch] QA transcripts:", qaItemsPayload.map((q, i) => `Câu ${i + 1}: ${q.transcript ? q.transcript.substring(0, 30) + "..." : "(empty)"}`))
+
+        let finalReadingReport: any = null
+        let finalQaReports: Record<number, any> = {}
 
         try {
             const res = await fetch('/api/ai/milestones/evaluate-batch', {
@@ -501,26 +529,54 @@ function MilestoneLevelContent() {
             }
 
             // Gán kết quả reading
-            if (data.reading) {
-                setReadingReport(data.reading)
-            } else {
-                setReadingReport({ score: 0, evaluation: "Không có dữ liệu", mistakes: [], suggested_answers: [] })
-            }
+            finalReadingReport = data.reading || { score: 0, evaluation: "Không có dữ liệu", mistakes: [], suggested_answers: [] }
+            setReadingReport(finalReadingReport)
 
             // Gán kết quả QA
-            const newQaReports: Record<number, any> = {}
             if (data.qa && Array.isArray(data.qa)) {
                 data.qa.forEach((report: any, i: number) => {
-                    newQaReports[i] = report
+                    finalQaReports[i] = report
                 })
             }
             // Fill missing
             for (let i = 0; i < qaSections.length; i++) {
-                if (!newQaReports[i]) {
-                    newQaReports[i] = { score: 0, evaluation: "Không có dữ liệu", mistakes: [], suggested_answers: [] }
+                if (!finalQaReports[i]) {
+                    finalQaReports[i] = { score: 0, evaluation: "Không có dữ liệu", mistakes: [], suggested_answers: [] }
                 }
             }
-            setQaReports(newQaReports)
+            setQaReports(finalQaReports)
+
+            // ★ TỰ ĐỘNG LƯU KẾT QUẢ VÀO DB NGAY SAU KHI CHẤM XONG (1 lần duy nhất)
+            try {
+                setIsSavingScore(true)
+                const { data: { user } } = await supabase.auth.getUser()
+                if (user) {
+                    const { finalScore } = calculateFinalScore(finalReadingReport, finalQaReports, qaSections, milestoneData)
+                    const avgQaScore = qaSections.length > 0
+                        ? Math.round(qaSections.reduce((s, _, i) => s + (finalQaReports[i]?.score || 0), 0) / qaSections.length)
+                        : 0
+                    const { error: saveError } = await supabase.from('milestone_results').insert({
+                        user_id: user.id,
+                        milestone_id: currentMilestoneId,
+                        reading_score: Math.round(finalReadingReport?.score || 0),
+                        qa_score: avgQaScore,
+                        total_score: finalScore,
+                        reading_report: finalReadingReport,
+                        qa_reports: finalQaReports
+                    })
+                    if (saveError) {
+                        console.error("Auto-save error:", saveError)
+                    } else {
+                        setSavedScore(finalScore)
+                    }
+                } else {
+                    console.warn("Auto-save skipped: user not logged in")
+                }
+            } catch (saveErr: any) {
+                console.error("Auto-save exception:", saveErr.message)
+            } finally {
+                setIsSavingScore(false)
+            }
 
         } catch (err: any) {
             setReadingReport({ error: "Lỗi kết nối: " + (err.message || "Unknown") })
@@ -851,7 +907,7 @@ function MilestoneLevelContent() {
                     )}
                 </Card>
 
-                {/* Result Modal (Test Mode) */}
+                {/* Result Modal (Test Mode) - Tự động lưu, không cần nút bấm */}
                 {isTestMode && (
                     <ResultModal
                         open={showResultModal}
@@ -862,28 +918,6 @@ function MilestoneLevelContent() {
                         milestoneData={milestoneData}
                         isSaving={isSavingScore}
                         savedScore={savedScore}
-                        onSave={async () => {
-                            setIsSavingScore(true)
-                            try {
-                                const { data: { user } } = await supabase.auth.getUser()
-                                if (!user) { alert("Vui lòng đăng nhập!"); return }
-                                const rPts = milestoneData?.readingPoints || 20
-                                const rW = (readingReport?.score || 0) * (rPts / 100)
-                                let qPts = 0, qW = 0
-                                qaSections.forEach((sec, i) => { const p = sec.points || 20; qPts += p; qW += (qaReports[i]?.score || 0) * (p / 100) })
-                                const max = rPts + qPts
-                                const total = max > 0 ? Math.round(((rW + qW) / max) * 100) : 0
-                                const { error } = await supabase.from('milestone_results').insert({
-                                    user_id: user.id, milestone_id: currentMilestoneId,
-                                    reading_score: Math.round(readingReport?.score || 0),
-                                    qa_score: qaSections.length > 0 ? Math.round(qaSections.reduce((s, _, i) => s + (qaReports[i]?.score || 0), 0) / qaSections.length) : 0,
-                                    total_score: total, reading_report: readingReport, qa_reports: qaReports
-                                })
-                                if (error) throw error
-                                setSavedScore(total)
-                            } catch (e: any) { alert("Lỗi: " + e.message) }
-                            finally { setIsSavingScore(false) }
-                        }}
                     />
                 )}
 

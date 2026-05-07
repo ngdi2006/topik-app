@@ -1,0 +1,240 @@
+// =====================================================================
+// TOPIK-IBT: Random Question Selection với Non-Repeat Logic
+// =====================================================================
+
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type {
+    ExamQuestionRule,
+    QuestionBank,
+    QuestionSnapshot,
+    UserQuestionHistory,
+} from '@/types/exam'
+
+/**
+ * Shuffle array using Fisher-Yates algorithm
+ */
+function shuffleArray<T>(array: T[]): T[] {
+    const shuffled = [...array]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+            ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    return shuffled
+}
+
+/**
+ * Lấy chu kỳ hiện tại của user cho rule
+ */
+async function getCurrentCycle(
+    supabase: SupabaseClient,
+    userId: string,
+    ruleId: string
+): Promise<number> {
+    const { data } = await supabase
+        .from('user_question_history')
+        .select('cycle_number')
+        .eq('user_id', userId)
+        .eq('rule_id', ruleId)
+        .order('cycle_number', { ascending: false })
+        .limit(1)
+
+    return data?.[0]?.cycle_number || 1
+}
+
+/**
+ * Lấy IDs câu hỏi đã thấy trong chu kỳ hiện tại
+ */
+async function getSeenQuestionIds(
+    supabase: SupabaseClient,
+    userId: string,
+    ruleId: string,
+    cycleNumber: number
+): Promise<string[]> {
+    const { data } = await supabase
+        .from('user_question_history')
+        .select('question_bank_id')
+        .eq('user_id', userId)
+        .eq('rule_id', ruleId)
+        .eq('cycle_number', cycleNumber)
+
+    return data?.map((h) => h.question_bank_id) || []
+}
+
+/**
+ * Lưu câu hỏi đã thấy vào history
+ */
+async function saveToHistory(
+    supabase: SupabaseClient,
+    userId: string,
+    ruleId: string,
+    questionIds: string[],
+    cycleNumber: number
+): Promise<void> {
+    const records = questionIds.map((qId) => ({
+        user_id: userId,
+        rule_id: ruleId,
+        question_bank_id: qId,
+        cycle_number: cycleNumber,
+    }))
+
+    await supabase.from('user_question_history').insert(records)
+}
+
+/**
+ * Lấy số lần attempt của user cho exam
+ */
+async function getAttemptNumber(
+    supabase: SupabaseClient,
+    userId: string,
+    examId: string
+): Promise<number> {
+    const { count } = await supabase
+        .from('exam_attempts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('exam_id', examId)
+
+    return (count || 0) + 1
+}
+
+/**
+ * CORE FUNCTION: Generate random questions cho user với non-repeat logic
+ */
+export async function generateRandomQuestionsForUser(
+    supabase: SupabaseClient,
+    userId: string,
+    examId: string
+): Promise<QuestionSnapshot[]> {
+    // 1. Lấy tất cả rules của đề thi
+    const { data: rules, error: rulesError } = await supabase
+        .from('exam_question_rules')
+        .select('*')
+        .eq('exam_id', examId)
+        .order('order_index', { ascending: true })
+
+    if (rulesError || !rules || rules.length === 0) {
+        throw new Error('Không tìm thấy cấu hình câu hỏi cho đề thi này')
+    }
+
+    const allSelectedQuestions: QuestionSnapshot[] = []
+    let globalOrder = 0
+
+    // 2. Xử lý từng rule
+    for (const rule of rules as ExamQuestionRule[]) {
+        // 2a. Lấy tất cả câu hỏi match với rule từ kho
+        let query = supabase
+            .from('question_bank')
+            .select('*')
+            .eq('question_type', rule.question_type)
+
+        // Filter by levels
+        if (rule.levels && rule.levels.length > 0) {
+            query = query.in('level', rule.levels)
+        }
+
+        // Filter by tags (nếu có)
+        if (rule.tags && rule.tags.length > 0) {
+            query = query.contains('tags', rule.tags)
+        }
+
+        const { data: poolQuestions, error: poolError } = await query
+
+        if (poolError || !poolQuestions || poolQuestions.length === 0) {
+            throw new Error(
+                `Không tìm thấy câu hỏi phù hợp cho rule: ${rule.section_name || rule.question_type}`
+            )
+        }
+
+        // 2b. Kiểm tra đủ câu không
+        if (poolQuestions.length < rule.quantity) {
+            throw new Error(
+                `Kho chỉ có ${poolQuestions.length} câu nhưng cần ${rule.quantity} câu cho ${rule.section_name || rule.question_type}`
+            )
+        }
+
+        // 2c. Lấy chu kỳ hiện tại
+        const currentCycle = await getCurrentCycle(supabase, userId, rule.id)
+
+        // 2d. Lấy IDs đã thấy trong chu kỳ này
+        const seenIds = await getSeenQuestionIds(
+            supabase,
+            userId,
+            rule.id,
+            currentCycle
+        )
+
+        // 2e. Filter câu chưa thấy
+        let availableQuestions = poolQuestions.filter(
+            (q) => !seenIds.includes(q.id)
+        )
+        let cycleToUse = currentCycle
+
+        // 2f. RESET nếu không đủ câu
+        if (availableQuestions.length < rule.quantity) {
+            cycleToUse = currentCycle + 1
+            availableQuestions = poolQuestions // Reset toàn bộ pool
+        }
+
+        // 2g. Shuffle và lấy N câu
+        const shuffled = shuffleArray(availableQuestions)
+        const selected = shuffled.slice(0, rule.quantity)
+
+        // 2h. Lưu vào history
+        await saveToHistory(
+            supabase,
+            userId,
+            rule.id,
+            selected.map((q) => q.id),
+            cycleToUse
+        )
+
+        // 2i. Transform sang QuestionSnapshot
+        const snapshots: QuestionSnapshot[] = selected.map((q) => {
+            const qb = q as QuestionBank
+            return {
+                ...qb,
+                rule_id: rule.id,
+                order: globalOrder++,
+                section: rule.section_name || rule.question_type,
+                points_override:
+                    rule.points_per_question > 0
+                        ? rule.points_per_question
+                        : undefined,
+            }
+        })
+
+        allSelectedQuestions.push(...snapshots)
+    }
+
+    return allSelectedQuestions
+}
+
+/**
+ * Tạo exam attempt với snapshot câu hỏi
+ */
+export async function createExamAttempt(
+    supabase: SupabaseClient,
+    userId: string,
+    examId: string,
+    questionsSnapshot: QuestionSnapshot[]
+) {
+    const attemptNumber = await getAttemptNumber(supabase, userId, examId)
+
+    const { data: attempt, error } = await supabase
+        .from('exam_attempts')
+        .insert({
+            user_id: userId,
+            exam_id: examId,
+            questions_snapshot: questionsSnapshot,
+            attempt_number: attemptNumber,
+            status: 'in_progress',
+        })
+        .select()
+        .single()
+
+    if (error) {
+        throw new Error('Không thể tạo phiên thi: ' + error.message)
+    }
+
+    return attempt
+}

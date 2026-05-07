@@ -1,135 +1,145 @@
+// =====================================================================
+// API: Submit Exam - Grade & AI Analysis
+// =====================================================================
+
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { gradeExam } from '@/lib/exam/grader'
+import {
+    analyzeWrongQuestions,
+    analyzeAreas,
+    generateRecommendations,
+} from '@/lib/ai/exam-analyzer'
 
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request) {
     try {
-        console.log("Step 1: Auth check...")
+        const { attempt_id, answers } = await request.json()
+
+        if (!attempt_id || !answers) {
+            return NextResponse.json(
+                { success: false, error: 'Thiếu attempt_id hoặc answers' },
+                { status: 400 }
+            )
+        }
+
         const supabase = await createClient()
-        const { data: { user } } = await supabase.auth.getUser()
+        const {
+            data: { user },
+        } = await supabase.auth.getUser()
 
         if (!user) {
-            console.log("Submit failed: Unauthorized")
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+            return NextResponse.json(
+                { success: false, error: 'Unauthorized' },
+                { status: 401 }
+            )
         }
 
-        console.log("Step 2: Parse params & body...")
-        const resolvedParams = await context.params
-        const examId = resolvedParams.id
+        const adminClient = createAdminClient()
 
-        let body: any
-        try {
-            body = await request.json()
-        } catch (e) {
-            console.log("Submit failed: Invalid JSON Request")
-            return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
-        }
-
-        const { answers, timeTaken } = body
-
-        if (!examId || !answers) {
-            console.log("Submit failed: Missing fields", { examId, hasAnswers: !!answers })
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-        }
-
-        console.log("Step 3: Admin Auth Client...")
-        const adminAuthClient = createAdminClient()
-
-        console.log("Step 4: Fetch Exam and Questions...", examId)
-        // 1. Fetch Exam and Questions from DB to calculate score securely
-        const { data: questions, error: qError } = await adminAuthClient
-            .from('questions')
-            .select('id, correct_answer')
-            .eq('exam_id', examId)
-
-        if (qError || !questions) {
-            console.error("Fetch questions error:", qError)
-            return NextResponse.json({ error: 'Failed to fetch exam questions' }, { status: 500 })
-        }
-
-        const { data: exam, error: eError } = await adminAuthClient
-            .from('exams')
-            .select('total_questions')
-            .eq('id', examId)
+        // 1. Lấy attempt
+        const { data: attempt, error: attemptError } = await adminClient
+            .from('exam_attempts')
+            .select('*')
+            .eq('id', attempt_id)
+            .eq('user_id', user.id)
             .single()
 
-        if (eError || !exam) {
-            console.error("Fetch exam error:", eError)
-            return NextResponse.json({ error: 'Exam not found' }, { status: 404 })
+        if (attemptError || !attempt) {
+            return NextResponse.json(
+                { success: false, error: 'Phiên thi không tồn tại' },
+                { status: 404 }
+            )
         }
 
-        console.log("Step 5: Calculate score...")
-        // 2. Calculate score
-        let totalCorrect = 0
-        const totalQuestions = exam.total_questions || questions.length
+        if (attempt.status === 'completed') {
+            return NextResponse.json(
+                { success: false, error: 'Phiên thi đã được nộp' },
+                { status: 400 }
+            )
+        }
 
-        // Ensure answers object is valid
-        const validAnswers: Record<string, number> = {}
+        const questions = attempt.questions_snapshot
 
-        questions.forEach(q => {
-            const userAnswer = answers[q.id]
-            if (userAnswer !== undefined && userAnswer !== null) {
-                validAnswers[q.id] = userAnswer
-                // Compare answer index. Note: Assuming correct_answer from DB is the letter or options text.
-                // Wait, Gemini generated options and correct_answer as exact string match.
-                // In previous implementation, how did we handle it? 
-                // We should match option text.
-                // But answers from client provides the index of the option chosen.
-            }
-        })
+        // 2. Chấm điểm
+        const result = gradeExam(questions, answers)
 
-        // NOTE: We need the full options array to compare choice index with correct_answer string
-        const { data: fullQuestions } = await adminAuthClient
-            .from('questions')
-            .select('id, options, correct_answer')
-            .eq('exam_id', examId)
-
-        if (fullQuestions) {
-            fullQuestions.forEach(q => {
-                const userAnswerIndex = answers[q.id]
-                if (userAnswerIndex !== undefined && userAnswerIndex !== null) {
-                    if (q.correct_answer !== undefined && q.correct_answer !== null) {
-                        if (Number(userAnswerIndex) === Number(q.correct_answer)) {
-                            totalCorrect++
-                        }
-                    }
-                }
+        // 3. Update attempt
+        await adminClient
+            .from('exam_attempts')
+            .update({
+                answers,
+                score: result.score,
+                total_points: result.total_points,
+                correct_count: result.correct_count,
+                wrong_count: result.wrong_count,
+                status: 'completed',
+                completed_at: new Date().toISOString(),
             })
+            .eq('id', attempt_id)
+
+        // 4. Phân tích AI (synchronous - learner thấy ngay)
+        const wrongQuestions = questions.filter(
+            (q: any) => answers[q.id] !== q.correct_answer
+        )
+        const { weakAreas, strongAreas } = analyzeAreas(questions, answers)
+        const recommendations = generateRecommendations(wrongQuestions, weakAreas)
+
+        // AI extract vocabulary & grammar (có thể chậm do API call)
+        let aiResult: {
+            vocabulary: any[]
+            grammar: any[]
+            summary: string
+        } = {
+            vocabulary: [],
+            grammar: [],
+            summary: '',
         }
 
-        // Standard 100-point scale
-        const score = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0
+        try {
+            aiResult = await analyzeWrongQuestions(wrongQuestions)
+        } catch (aiError) {
+            console.error('AI analysis failed:', aiError)
+            // Vẫn tiếp tục, không block result
+        }
 
-        console.log("Step 6: Insert exam result...")
-        // 3. Save result
-        const { data: result, error: insertError } = await adminAuthClient
-            .from('exam_results')
+        // 5. Lưu analysis
+        const { data: analysis, error: analysisError } = await adminClient
+            .from('exam_analysis')
             .insert({
+                attempt_id,
                 user_id: user.id,
-                exam_id: examId,
-                score: score,
-                total_correct: totalCorrect,
-                answers: validAnswers,
-                time_taken: timeTaken || 0
+                weak_areas: weakAreas,
+                strong_areas: strongAreas,
+                recommendations,
+                vocabulary_list: aiResult.vocabulary,
+                grammar_points: aiResult.grammar,
+                ai_summary: aiResult.summary,
             })
             .select()
             .single()
 
-        if (insertError) {
-            console.error("Insert error:", insertError)
-            return NextResponse.json({ error: insertError.message }, { status: 500 })
+        if (analysisError) {
+            console.error('Analysis insert error:', analysisError)
         }
 
-        console.log("Success! Result ID:", result.id)
         return NextResponse.json({
             success: true,
-            resultId: result.id,
-            score: score,
-            totalCorrect: totalCorrect
-        }, { status: 200 })
-
+            result: {
+                score: result.score,
+                total_points: result.total_points,
+                correct_count: result.correct_count,
+                wrong_count: result.wrong_count,
+                percentage: Math.round(result.percentage * 100) / 100,
+            },
+            attempt_id,
+            analysis_id: analysis?.id,
+        })
     } catch (error: any) {
-        console.error("Fatal API Error:", error)
-        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 })
+        console.error('Submit exam error:', error)
+        return NextResponse.json(
+            { success: false, error: error.message },
+            { status: 500 }
+        )
     }
 }

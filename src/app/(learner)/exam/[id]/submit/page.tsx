@@ -15,7 +15,6 @@ export default function SubmitPage() {
 
     const [status, setStatus] = useState<'submitting' | 'grading' | 'complete' | 'error'>('submitting')
     const [progress, setProgress] = useState(0)
-    const [errorMsg, setErrorMsg] = useState<string>('')
 
     useEffect(() => {
         if (!attemptId) {
@@ -57,12 +56,7 @@ export default function SubmitPage() {
                 router.push(`/exam/${examId}/result/${attemptId}`)
             } catch (error: any) {
                 console.error('Submit error:', error)
-                if (error.message === 'Phiên thi đã được nộp') {
-                    router.push(`/exam/${examId}/result/${attemptId}`)
-                } else {
-                    setErrorMsg(error.message || 'Có lỗi xảy ra')
-                    setStatus('error')
-                }
+                setStatus('error')
             }
         }
 
@@ -103,7 +97,7 @@ export default function SubmitPage() {
                         {status === 'submitting' && 'Hệ thống đang xử lý bài thi của bạn'}
                         {status === 'grading' && 'AI đang chấm điểm và phân tích kết quả'}
                         {status === 'complete' && 'Bài thi đã được chấm xong'}
-                        {status === 'error' && (errorMsg || 'Vui lòng thử lại hoặc liên hệ hỗ trợ')}
+                        {status === 'error' && 'Vui lòng thử lại hoặc liên hệ hỗ trợ'}
                     </p>
 
                     {/* Progress Bar */}

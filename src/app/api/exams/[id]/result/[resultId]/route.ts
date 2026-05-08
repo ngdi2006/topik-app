@@ -13,32 +13,33 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
         const resolvedParams = await context.params
         const examId = resolvedParams.id
-        const attemptId = resolvedParams.resultId  // resultId is actually attemptId
+        const resultId = resolvedParams.resultId
 
-        const adminClient = createAdminClient()
+        const adminAuthClient = createAdminClient()
 
-        // 1. Get attempt (where score/results are saved by submit API)
-        const { data: attempt, error: attemptError } = await adminClient
-            .from('exam_attempts')
+        // 1. Lấy Result
+        const { data: resultData, error: resultError } = await adminAuthClient
+            .from('exam_results')
             .select('*')
-            .eq('id', attemptId)
-            .eq('exam_id', examId)
+            .eq('id', resultId)
             .single()
 
-        if (attemptError || !attempt) {
+        if (resultError || !resultData) {
             return NextResponse.json({ error: 'Không tìm thấy kết quả làm bài' }, { status: 404 })
         }
 
-        // Security: learners can only view their own results
-        if (attempt.user_id !== user.id) {
+        // Bảo mật: Học viên chỉ xem được bài của mình (Admin có thể xem bất kỳ)
+        // Check database user details if necessary, but simply matching IDs ensures standard security
+        if (resultData.user_id !== user.id) {
+            // However, we allow admins to view it.
             const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
             if (!profile || profile.role === 'learner') {
                 return NextResponse.json({ error: 'Bạn không có quyền xem kết quả này' }, { status: 403 })
             }
         }
 
-        // 2. Get exam info
-        const { data: examData, error: examError } = await adminClient
+        // 2. Fetch Exam Info
+        const { data: examData, error: examError } = await adminAuthClient
             .from('exams')
             .select('*')
             .eq('id', examId)
@@ -48,44 +49,21 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
             return NextResponse.json({ error: 'Không tìm thấy thông tin bài thi' }, { status: 404 })
         }
 
-        // 3. Get saved answers
-        const { data: savedAnswers } = await adminClient
-            .from('exam_answers')
+        // 3. Fetch Questions Full Options
+        const { data: questionsData, error: qError } = await adminAuthClient
+            .from('questions')
             .select('*')
-            .eq('attempt_id', attemptId)
+            .eq('exam_id', examId)
+            .order('order_index', { ascending: true })
 
-        // Build answers map: { questionId: selectedOptionIndex }
-        const answersMap: Record<string, number> = {}
-        if (savedAnswers) {
-            savedAnswers.forEach((a: any) => {
-                if (a.selected_option !== null && a.selected_option !== undefined) {
-                    answersMap[a.question_id] = a.selected_option
-                }
-            })
-        }
-
-        // 4. Get questions from the snapshot stored in the attempt
-        const questions = attempt.questions_snapshot || []
-
-        // Build result in the format the frontend expects
-        const resultData = {
-            id: attempt.id,
-            user_id: attempt.user_id,
-            score: attempt.score ?? 0,
-            total_points: attempt.total_points ?? 0,
-            correct_count: attempt.correct_count ?? 0,
-            wrong_count: attempt.wrong_count ?? 0,
-            total_correct: attempt.correct_count ?? 0,
-            status: attempt.status,
-            created_at: attempt.completed_at || attempt.started_at,
-            time_taken: 0,
-            answers: answersMap,
+        if (qError) {
+            return NextResponse.json({ error: 'Không tải được danh sách câu hỏi gốc' }, { status: 500 })
         }
 
         return NextResponse.json({
             result: resultData,
             exam: examData,
-            questions: questions
+            questions: questionsData || []
         }, { status: 200 })
 
     } catch (error: any) {

@@ -8,13 +8,14 @@ import { createAdminClient } from '@/lib/supabase/admin'
 // GET: List rules for an exam (with available count per rule)
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
+        const params = await context.params
         const adminClient = createAdminClient()
         const { data: rules, error } = await adminClient
             .from('exam_question_rules')
-            .select('*')
+            .select('*, category:question_categories(id, name, icon, color)')
             .eq('exam_id', params.id)
             .order('order_index', { ascending: true })
 
@@ -28,6 +29,9 @@ export async function GET(
                     .select('*', { count: 'exact', head: true })
                     .eq('question_type', rule.question_type)
 
+                if (rule.category_id) {
+                    countQuery = countQuery.eq('category_id', rule.category_id)
+                }
                 if (rule.levels && rule.levels.length > 0) {
                     countQuery = countQuery.in('level', rule.levels)
                 }
@@ -56,9 +60,10 @@ export async function GET(
 // POST: Create new rule
 export async function POST(
     request: Request,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
+        const params = await context.params
         const body = await request.json()
 
         if (!body.question_type || !body.levels || !body.quantity) {
@@ -85,10 +90,12 @@ export async function POST(
             .insert({
                 exam_id: params.id,
                 question_type: body.question_type,
+                category_id: body.category_id || null,
                 levels: body.levels,
                 tags: body.tags || [],
                 quantity: body.quantity,
                 points_per_question: body.points_per_question || 0,
+                time_per_question: body.time_per_question || 15,
                 section_name: body.section_name || null,
                 order_index: body.order_index ?? nextOrderIndex,
             })

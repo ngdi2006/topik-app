@@ -15,7 +15,10 @@ export async function GET(request: Request) {
         const adminClient = createAdminClient()
         let query = adminClient
             .from('question_bank')
-            .select('*')
+            .select(`
+                *,
+                question_categories!inner(name)
+            `)
             .order('created_at', { ascending: false })
 
         if (questionType) query = query.eq('question_type', questionType)
@@ -25,7 +28,18 @@ export async function GET(request: Request) {
 
         if (error) throw error
 
-        const buffer = exportQuestionsToBuffer(data || [])
+        // Add category_name to each question from joined data
+        const questionsWithCategory = (data || []).map((q: any) => {
+            const categoryName = q.question_categories?.name || 'Unknown'
+            // Remove the joined object and add category_name
+            const { question_categories, ...rest } = q
+            return {
+                ...rest,
+                category_name: categoryName,
+            }
+        })
+
+        const buffer = exportQuestionsToBuffer(questionsWithCategory)
 
         return new NextResponse(buffer as any, {
             status: 200,

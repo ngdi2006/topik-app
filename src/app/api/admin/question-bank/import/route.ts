@@ -57,17 +57,41 @@ export async function PUT(request: Request) {
 
         const userClient = await createClient()
         const { data: { user } } = await userClient.auth.getUser()
-
-        // Add metadata
-        const toInsert = questions.map((q: any) => ({
-            ...q,
-            created_by: user?.id || null,
-            shuffle_options: q.shuffle_options ?? true,
-            points: q.points ?? 1,
-            tags: q.tags || [],
-        }))
-
         const adminClient = createAdminClient()
+
+        // Lookup category_id for each question by category_name
+        const toInsert = []
+        for (const q of questions) {
+            const { category_name, ...restQuestionData } = q
+            const categoryName = category_name
+
+            if (!categoryName) {
+                throw new Error('Thiếu category_name trong dữ liệu')
+            }
+
+            // Find category by name
+            const { data: category, error: catError } = await adminClient
+                .from('question_categories')
+                .select('id')
+                .eq('name', categoryName)
+                .single()
+
+            if (catError || !category) {
+                throw new Error(`Không tìm thấy kho: "${categoryName}". Vui lòng tạo kho trước khi import.`)
+            }
+
+            // Build insert data with category_id
+            toInsert.push({
+                ...restQuestionData,
+                category_id: category.id,
+                created_by: user?.id || null,
+                shuffle_options: q.shuffle_options ?? true,
+                points: q.points ?? 1,
+                tags: q.tags || [],
+            })
+        }
+
+        // Bulk insert
         const { data, error } = await adminClient
             .from('question_bank')
             .insert(toInsert)

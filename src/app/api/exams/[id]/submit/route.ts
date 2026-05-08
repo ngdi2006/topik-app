@@ -1,5 +1,5 @@
 // =====================================================================
-// API: Submit Exam - Grade & AI Analysis
+// API: Submit Exam - Grade from saved answers in exam_answers table
 // =====================================================================
 
 import { NextResponse } from 'next/server'
@@ -12,13 +12,18 @@ import {
     generateRecommendations,
 } from '@/lib/ai/exam-analyzer'
 
-export async function POST(request: Request) {
+export async function POST(
+    request: Request,
+    context: { params: Promise<{ id: string }> }
+) {
     try {
-        const { attempt_id, answers } = await request.json()
+        const params = await context.params
+        const body = await request.json()
+        const { attemptId } = body
 
-        if (!attempt_id || !answers) {
+        if (!attemptId) {
             return NextResponse.json(
-                { success: false, error: 'Thiếu attempt_id hoặc answers' },
+                { success: false, error: 'Thiếu attemptId' },
                 { status: 400 }
             )
         }
@@ -37,12 +42,13 @@ export async function POST(request: Request) {
 
         const adminClient = createAdminClient()
 
-        // 1. Lấy attempt
+        // 1. Get attempt
         const { data: attempt, error: attemptError } = await adminClient
             .from('exam_attempts')
             .select('*')
-            .eq('id', attempt_id)
+            .eq('id', attemptId)
             .eq('user_id', user.id)
+            .eq('exam_id', params.id)
             .single()
 
         if (attemptError || !attempt) {
@@ -61,14 +67,34 @@ export async function POST(request: Request) {
 
         const questions = attempt.questions_snapshot
 
-        // 2. Chấm điểm
-        const result = gradeExam(questions, answers)
+        // 2. Get saved answers from exam_answers table
+        const { data: savedAnswers, error: answersError } = await adminClient
+            .from('exam_answers')
+            .select('*')
+            .eq('attempt_id', attemptId)
 
-        // 3. Update attempt
+        if (answersError) {
+            console.error('Error fetching answers:', answersError)
+        }
+
+        // 3. Convert saved answers to format for grader
+        // grader expects: { questionId: optionIndex }
+        const answersMap: Record<string, number> = {}
+        if (savedAnswers && savedAnswers.length > 0) {
+            savedAnswers.forEach((ans: any) => {
+                if (ans.selected_option !== null && ans.selected_option !== undefined) {
+                    answersMap[ans.question_id] = ans.selected_option
+                }
+            })
+        }
+
+        // 4. Grade exam
+        const result = gradeExam(questions, answersMap)
+
+        // 5. Update attempt
         await adminClient
             .from('exam_attempts')
             .update({
-                answers,
                 score: result.score,
                 total_points: result.total_points,
                 correct_count: result.correct_count,
@@ -76,16 +102,16 @@ export async function POST(request: Request) {
                 status: 'completed',
                 completed_at: new Date().toISOString(),
             })
-            .eq('id', attempt_id)
+            .eq('id', attemptId)
 
-        // 4. Phân tích AI (synchronous - learner thấy ngay)
+        // 6. AI Analysis (synchronous)
         const wrongQuestions = questions.filter(
-            (q: any) => answers[q.id] !== q.correct_answer
+            (q: any) => answersMap[q.id] !== q.correct_answer
         )
-        const { weakAreas, strongAreas } = analyzeAreas(questions, answers)
+        const { weakAreas, strongAreas } = analyzeAreas(questions, answersMap)
         const recommendations = generateRecommendations(wrongQuestions, weakAreas)
 
-        // AI extract vocabulary & grammar (có thể chậm do API call)
+        // AI extract vocabulary & grammar (may be slow due to API call)
         let aiResult: {
             vocabulary: any[]
             grammar: any[]
@@ -100,14 +126,14 @@ export async function POST(request: Request) {
             aiResult = await analyzeWrongQuestions(wrongQuestions)
         } catch (aiError) {
             console.error('AI analysis failed:', aiError)
-            // Vẫn tiếp tục, không block result
+            // Continue without blocking
         }
 
-        // 5. Lưu analysis
+        // 7. Save analysis
         const { data: analysis, error: analysisError } = await adminClient
             .from('exam_analysis')
             .insert({
-                attempt_id,
+                attempt_id: attemptId,
                 user_id: user.id,
                 weak_areas: weakAreas,
                 strong_areas: strongAreas,
@@ -130,9 +156,9 @@ export async function POST(request: Request) {
                 total_points: result.total_points,
                 correct_count: result.correct_count,
                 wrong_count: result.wrong_count,
-                percentage: Math.round(result.percentage * 100) / 100,
+                percentage: Math.round((result.score / result.total_points) * 10000) / 100,
             },
-            attempt_id,
+            attempt_id: attemptId,
             analysis_id: analysis?.id,
         })
     } catch (error: any) {
@@ -141,5 +167,3 @@ export async function POST(request: Request) {
             { success: false, error: error.message },
             { status: 500 }
         )
-    }
-}

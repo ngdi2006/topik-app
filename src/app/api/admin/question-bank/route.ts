@@ -20,12 +20,15 @@ export async function GET(request: Request) {
         const adminClient = createAdminClient()
         let query = adminClient
             .from('question_bank')
-            .select('*', { count: 'exact' })
+            .select('*, category:question_categories(id, name, icon, color)', { count: 'exact' })
             .order('created_at', { ascending: false })
 
         if (questionType) query = query.eq('question_type', questionType)
         if (level) query = query.eq('level', parseInt(level))
         if (search) query = query.ilike('question_text', `%${search}%`)
+
+        const categoryId = searchParams.get('category_id')
+        if (categoryId) query = query.eq('category_id', categoryId)
 
         const from = (page - 1) * pageSize
         const to = from + pageSize - 1
@@ -105,3 +108,33 @@ export async function POST(request: Request) {
         )
     }
 }
+
+// DELETE: Bulk delete questions
+export async function DELETE(request: Request) {
+    try {
+        const { ids } = await request.json()
+
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return NextResponse.json(
+                { success: false, error: 'Thiếu danh sách ID cần xóa' },
+                { status: 400 }
+            )
+        }
+
+        const adminClient = createAdminClient()
+        const { error } = await adminClient
+            .from('question_bank')
+            .delete()
+            .in('id', ids)
+
+        if (error) throw error
+
+        return NextResponse.json({ success: true, deleted_count: ids.length })
+    } catch (error: any) {
+        return NextResponse.json(
+            { success: false, error: error.message },
+            { status: 500 }
+        )
+    }
+}
+

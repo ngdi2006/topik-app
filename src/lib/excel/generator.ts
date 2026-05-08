@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx'
 import type { QuestionBank } from '@/types/exam'
 
 const HEADERS = [
+    'category_name',
     'question_type',
     'level',
     'passage',
@@ -23,6 +24,7 @@ const HEADERS = [
 
 const SAMPLE_ROWS = [
     {
+        category_name: 'TOPIK I - Cơ bản',
         question_type: 'reading',
         level: 3,
         passage: '한국에서는 추석에 가족과 함께 송편을 만들어 먹습니다.',
@@ -38,6 +40,7 @@ const SAMPLE_ROWS = [
         audio_url: '',
     },
     {
+        category_name: 'TOPIK II - Nâng cao',
         question_type: 'listening',
         level: 4,
         passage: '',
@@ -75,6 +78,7 @@ export function generateTemplateBuffer(): ArrayBuffer {
         ['HƯỚNG DẪN NHẬP CÂU HỎI'],
         [''],
         ['Cột', 'Mô tả', 'Bắt buộc', 'Ví dụ'],
+        ['category_name', 'Tên kho câu hỏi', 'CÓ', 'TOPIK I - Cơ bản'],
         ['question_type', 'Dạng câu hỏi', 'CÓ', 'reading hoặc listening'],
         ['level', 'Cấp độ (1-6)', 'CÓ', '3'],
         ['passage', 'Đoạn văn (đọc hiểu)', 'KHÔNG', '한국에서는...'],
@@ -96,8 +100,9 @@ export function generateTemplateBuffer(): ArrayBuffer {
 /**
  * Export Question Bank data to Excel buffer
  */
-export function exportQuestionsToBuffer(questions: QuestionBank[]): ArrayBuffer {
+export function exportQuestionsToBuffer(questions: any[]): ArrayBuffer {
     const rows = questions.map((q) => ({
+        category_name: q.category_name || 'Unknown',
         question_type: q.question_type,
         level: q.level,
         passage: q.passage || '',
@@ -116,6 +121,8 @@ export function exportQuestionsToBuffer(questions: QuestionBank[]): ArrayBuffer 
     const workbook = XLSX.utils.book_new()
     const sheet = XLSX.utils.json_to_sheet(rows, { header: HEADERS })
     sheet['!cols'] = HEADERS.map(() => ({ wch: 20 }))
+    sheet['!cols'][3] = { wch: 40 } // passage
+    sheet['!cols'][4] = { wch: 40 } // question_text
     XLSX.utils.book_append_sheet(workbook, sheet, 'Questions')
 
     return XLSX.write(workbook, { type: 'array', bookType: 'xlsx' })

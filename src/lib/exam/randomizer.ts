@@ -120,12 +120,17 @@ export async function generateRandomQuestionsForUser(
     let globalOrder = 0
 
     // 2. Xử lý từng rule
-    for (const rule of rules as ExamQuestionRule[]) {
+    for (const rule of rules as any[]) {
         // 2a. Lấy tất cả câu hỏi match với rule từ kho
         let query = supabase
             .from('question_bank')
             .select('*')
             .eq('question_type', rule.question_type)
+
+        // Filter by category (nếu có)
+        if (rule.category_id) {
+            query = query.eq('category_id', rule.category_id)
+        }
 
         // Filter by levels
         if (rule.levels && rule.levels.length > 0) {
@@ -195,7 +200,7 @@ export async function generateRandomQuestionsForUser(
                 ...qb,
                 rule_id: rule.id,
                 order: globalOrder++,
-                section: rule.section_name || rule.question_type,
+                section: rule.question_type === 'listening' ? 'listening' : 'reading',
                 points_override:
                     rule.points_per_question > 0
                         ? rule.points_per_question

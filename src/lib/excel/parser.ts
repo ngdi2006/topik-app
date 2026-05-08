@@ -23,6 +23,12 @@ function validateRow(row: any, rowNumber: number): ExcelImportResult {
         normalized[key.toLowerCase().trim()] = row[key]
     })
 
+    // Validate category_name
+    const categoryName = String(normalized['category_name'] || '').trim()
+    if (!categoryName) {
+        errors.push('Thiếu category_name (tên kho)')
+    }
+
     // Validate question_type
     const questionType = String(normalized['question_type'] || '').toLowerCase().trim()
     if (!questionType) {
@@ -88,8 +94,11 @@ function validateRow(row: any, rowNumber: number): ExcelImportResult {
         }
     }
 
-    // Build QuestionBankCreate
-    const data: QuestionBankCreate = {
+    const isImage = (str: string) => /\.(png|jpe?g|gif|webp)$/i.test(str);
+
+    // Build QuestionBankCreate (with category_name for lookup)
+    const data: any = {
+        category_name: categoryName, // Will be converted to category_id in import route
         question_type: questionType as 'reading' | 'listening',
         level,
         passage: String(normalized['passage'] || '').trim() || undefined,
@@ -98,10 +107,10 @@ function validateRow(row: any, rowNumber: number): ExcelImportResult {
             String(normalized['question_image_url'] || '').trim() || undefined,
         audio_url: audioUrl || undefined,
         options: [
-            { type: 'text', content: option1 },
-            { type: 'text', content: option2 },
-            { type: 'text', content: option3 },
-            { type: 'text', content: option4 },
+            { type: isImage(option1) ? 'image' : 'text', content: option1 },
+            { type: isImage(option2) ? 'image' : 'text', content: option2 },
+            { type: isImage(option3) ? 'image' : 'text', content: option3 },
+            { type: isImage(option4) ? 'image' : 'text', content: option4 },
         ],
         correct_answer: correctAnswer - 1, // Convert 1-4 → 0-3
         shuffle_options: true,

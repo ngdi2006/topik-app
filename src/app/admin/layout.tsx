@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Shield, Users, FileText, Settings, LayoutDashboard } from "lucide-react"
+import { Shield, Users, FileText, Settings, LayoutDashboard, BookOpen } from "lucide-react"
 import { AdminUserNav } from "@/components/admin/AdminUserNav"
 
 export default function AdminLayout({
@@ -28,9 +28,17 @@ export default function AdminLayout({
                         <FileText className="w-5 h-5 mr-3" />
                         Các Mốc Học
                     </Link>
+                    <Link href="/admin/categories" className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
+                        <BookOpen className="w-5 h-5 mr-3" />
+                        Quản lý Kho
+                    </Link>
+                    <Link href="/admin/question-bank" className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
+                        <FileText className="w-5 h-5 mr-3" />
+                        Câu Hỏi
+                    </Link>
                     <Link href="/admin/exams" className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
                         <FileText className="w-5 h-5 mr-3" />
-                        Exams
+                        Đề Thi
                     </Link>
                     <Link href="/admin/settings" className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
                         <Settings className="w-5 h-5 mr-3" />

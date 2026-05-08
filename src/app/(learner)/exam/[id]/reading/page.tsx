@@ -1,0 +1,389 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Clock, ChevronLeft, ChevronRight, AlertCircle, BookOpen } from 'lucide-react'
+import { toast } from 'sonner'
+
+export default function ReadingPage() {
+    const params = useParams()
+    const router = useRouter()
+    const searchParams = useSearchParams()
+
+    const examId = params.id as string
+    const attemptId = searchParams.get('attemptId')
+
+    const [questions, setQuestions] = useState<any[]>([])
+    const [currentIndex, setCurrentIndex] = useState(0)
+    const [answers, setAnswers] = useState<Record<string, number>>({})
+    const [timeLeft, setTimeLeft] = useState(0)
+    const [isLoading, setIsLoading] = useState(true)
+    const [isSubmitting, setIsSubmitting] = useState(false)
+    const [exam, setExam] = useState<any>(null)
+    const [hasListening, setHasListening] = useState(false)
+
+    // Fetch attempt data
+    useEffect(() => {
+        const fetchAttempt = async () => {
+            if (!attemptId) {
+                toast.error('Không tìm thấy phiên thi')
+                router.push(`/exam/${examId}/start`)
+                return
+            }
+
+            try {
+                const res = await fetch(`/api/exams/${examId}/attempt/${attemptId}`)
+                const data = await res.json()
+
+                if (!data.success) {
+                    throw new Error(data.error)
+                }
+
+                // Filter reading questions
+                const readingQuestions = data.attempt.questions.filter(
+                    (q: any) => q.section === 'reading'
+                )
+
+                // Check if exam has listening section
+                const listeningQuestions = data.attempt.questions.filter(
+                    (q: any) => q.section === 'listening'
+                )
+                setHasListening(listeningQuestions.length > 0)
+
+                setQuestions(readingQuestions)
+                setExam(data.exam)
+                setTimeLeft((data.exam.reading_duration || 40) * 60)
+
+                // Load saved answers
+                if (data.attempt.answers && data.attempt.answers.length > 0) {
+                    const savedAnswers: Record<string, number> = {}
+                    data.attempt.answers.forEach((a: any) => {
+                        if (a.section === 'reading') {
+                            savedAnswers[a.question_id] = a.selected_option
+                        }
+                    })
+                    setAnswers(savedAnswers)
+                }
+            } catch (error: any) {
+                toast.error(error.message || 'Lỗi tải dữ liệu')
+                router.push(`/exam/${examId}/start`)
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        fetchAttempt()
+    }, [attemptId, examId, router])
+
+    // Timer countdown
+    useEffect(() => {
+        if (timeLeft <= 0 || isLoading) return
+
+        const timer = setInterval(() => {
+            setTimeLeft((prev) => {
+                if (prev <= 1) {
+                    handleNext()
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+
+        return () => clearInterval(timer)
+    }, [timeLeft, isLoading])
+
+    const handleAnswerSelect = (questionId: string, optionIndex: number) => {
+        setAnswers((prev) => ({
+            ...prev,
+            [questionId]: optionIndex,
+        }))
+    }
+
+    const handleNext = async () => {
+        if (isSubmitting) return
+        setIsSubmitting(true)
+
+        try {
+            // Save reading answers
+            const readingAnswers = questions.map((q) => ({
+                question_id: q.id,
+                selected_option: answers[q.id] !== undefined ? answers[q.id] : null,
+            }))
+
+            const res = await fetch(`/api/exams/${examId}/attempt/${attemptId}/save-section`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    section: 'reading',
+                    answers: readingAnswers,
+                }),
+            })
+
+            const data = await res.json()
+            if (!data.success) {
+                throw new Error(data.error)
+            }
+
+            toast.success('Đã lưu phần Đọc hiểu!')
+
+            // Nếu có phần Nghe → đi đến transition
+            if (hasListening) {
+                router.push(`/exam/${examId}/transition?attemptId=${attemptId}`)
+            } else {
+                // Không có phần Nghe → submit luôn
+                router.push(`/exam/${examId}/submit?attemptId=${attemptId}`)
+            }
+        } catch (error: any) {
+            toast.error(error.message || 'Lỗi lưu bài')
+            setIsSubmitting(false)
+        }
+    }
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60)
+        const secs = seconds % 60
+        return `${mins}:${secs.toString().padStart(2, '0')}`
+    }
+
+    const currentQuestion = questions[currentIndex]
+    const answeredCount = Object.keys(answers).length
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Đang tải câu hỏi...</p>
+                </div>
+            </div>
+        )
+    }
+
+    if (!currentQuestion) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold mb-2">Không có câu hỏi đọc hiểu</h2>
+                    <Button onClick={() => router.push('/dashboard')}>
+                        Quay lại Dashboard
+                    </Button>
+                </div>
+            </div>
+        )
+    }
+
+    // Get options - support both array format and individual fields
+    const getOptions = (q: any) => {
+        if (Array.isArray(q.options)) {
+            return q.options
+        }
+        // Fallback to individual fields
+        return [
+            { content: q.option_1 },
+            { content: q.option_2 },
+            { content: q.option_3 },
+            { content: q.option_4 }
+        ].filter(opt => opt.content)
+    }
+
+    const isImageUrl = (url: string) => {
+        return typeof url === 'string' && (url.startsWith('http') || /\.(png|jpe?g|gif|webp)$/i.test(url)) && url.length < 500
+    }
+
+    const options = getOptions(currentQuestion)
+
+    return (
+        <div className="min-h-screen bg-gray-50">
+            {/* Header with Timer */}
+            <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
+                <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                            <BookOpen className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-bold text-gray-900">
+                                Phần Đọc Hiểu
+                            </h1>
+                            <p className="text-sm text-gray-600">
+                                {exam?.title}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {/* Timer Đọc - đang chạy */}
+                        <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${timeLeft < 300 ? 'bg-red-100 text-red-700 animate-pulse' : 'bg-blue-100 text-blue-700'
+                            }`}>
+                            <Clock className="w-5 h-5" />
+                            <div>
+                                <p className="text-xs">Đọc</p>
+                                <span className="text-xl font-bold font-mono">
+                                    {formatTime(timeLeft)}
+                                </span>
+                            </div>
+                        </div>
+                        {/* Timer Nghe - chưa bắt đầu */}
+                        {hasListening && (
+                            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 text-gray-500">
+                                <Clock className="w-5 h-5" />
+                                <div>
+                                    <p className="text-xs">Nghe</p>
+                                    <span className="text-xl font-bold font-mono">
+                                        {formatTime((exam?.listening_duration || 30) * 60)}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="max-w-7xl mx-auto px-4 py-6">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    {/* Main Question Area */}
+                    <div className="lg:col-span-3">
+                        <Card className="p-6">
+                            <div className="mb-6">
+                                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                                    Câu {currentIndex + 1}
+                                </span>
+                            </div>
+
+                            {/* Passage if exists */}
+                            {currentQuestion.passage && (
+                                <div className="mb-6 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
+                                    <div
+                                        className="prose prose-sm max-w-none text-gray-800"
+                                        dangerouslySetInnerHTML={{ __html: currentQuestion.passage }}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Question Image */}
+                            {currentQuestion.question_image_url && (
+                                <div className="mb-4 flex justify-center">
+                                    <img
+                                        src={currentQuestion.question_image_url}
+                                        alt="Question"
+                                        className="max-h-72 w-auto object-contain rounded-lg border shadow-sm"
+                                    />
+                                </div>
+                            )}
+
+                            {/* Question Text */}
+                            <div className="mb-6">
+                                <div
+                                    className="prose prose-sm max-w-none text-lg text-gray-900"
+                                    dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }}
+                                />
+                            </div>
+
+                            {/* Options */}
+                            <div className="space-y-3">
+                                {options.length === 0 ? (
+                                    <div className="p-4 bg-yellow-50 text-yellow-700 rounded-lg">
+                                        ⚠️ Câu hỏi này chưa có đáp án trong hệ thống
+                                    </div>
+                                ) : (
+                                    options.map((opt: any, idx: number) => {
+                                        const isSelected = answers[currentQuestion.id] === idx
+                                        const optionText = typeof opt === 'string' ? opt : opt.content || opt.text || ''
+                                        const isImg = opt.type === 'image' || isImageUrl(optionText)
+
+                                        return (
+                                            <button
+                                                key={idx}
+                                                onClick={() => handleAnswerSelect(currentQuestion.id, idx)}
+                                                className={`w-full text-left p-4 rounded-lg border-2 transition-all ${isSelected
+                                                    ? 'border-blue-500 bg-blue-50'
+                                                    : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                                                    }`}
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-semibold mt-0.5 ${isSelected
+                                                        ? 'bg-blue-500 text-white'
+                                                        : 'bg-gray-200 text-gray-700'
+                                                        }`}>
+                                                        {idx + 1}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        {isImg ? (
+                                                            <img 
+                                                                src={optionText} 
+                                                                alt={`Option ${idx + 1}`} 
+                                                                className="max-h-40 w-auto rounded border shadow-sm" 
+                                                            />
+                                                        ) : (
+                                                            <div
+                                                                className="prose prose-sm max-w-none text-gray-900"
+                                                                dangerouslySetInnerHTML={{ __html: optionText }}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        )
+                                    })
+                                )}
+                            </div>
+
+                            {/* Navigation Buttons */}
+                            <div className="flex items-center justify-between mt-8 pt-6 border-t">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
+                                    disabled={currentIndex === 0}
+                                >
+                                    <ChevronLeft className="w-4 h-4 mr-2" />
+                                    Câu trước
+                                </Button>
+
+                                <Button
+                                    onClick={() => setCurrentIndex((prev) => Math.min(questions.length - 1, prev + 1))}
+                                    disabled={currentIndex === questions.length - 1}
+                                >
+                                    Câu sau
+                                    <ChevronRight className="w-4 h-4 ml-2" />
+                                </Button>
+                            </div>
+                        </Card>
+                    </div>
+
+                    {/* Question List Sidebar */}
+                    <div className="lg:col-span-1">
+                        <Card className="p-4 sticky top-24 flex flex-col max-h-[calc(100vh-6rem)]">
+                            <Button
+                                onClick={handleNext}
+                                disabled={isSubmitting}
+                                className={`w-full mb-4 shadow-sm font-semibold ${hasListening ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'}`}
+                            >
+                                {isSubmitting ? 'Đang lưu...' : (hasListening ? 'Chuyển sang Nghe hiểu →' : 'Nộp bài ngay')}
+                            </Button>
+                            
+                            <h3 className="font-semibold mb-3 pb-2 border-b">Danh sách câu hỏi</h3>
+                            <div className="grid grid-cols-5 lg:grid-cols-4 gap-2 overflow-y-auto pr-1 pb-2">
+                                {questions.map((q, idx) => (
+                                    <button
+                                        key={q.id}
+                                        onClick={() => setCurrentIndex(idx)}
+                                        className={`aspect-square rounded-lg font-semibold text-sm transition-all ${idx === currentIndex
+                                            ? 'bg-blue-500 text-white ring-2 ring-blue-300'
+                                            : answers[q.id] !== undefined
+                                                ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                            }`}
+                                    >
+                                        {idx + 1}
+                                    </button>
+                                ))}
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}

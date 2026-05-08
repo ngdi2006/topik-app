@@ -79,11 +79,13 @@ export interface ExamQuestionRule {
     exam_id: string;
 
     question_type: QuestionType;
+    category_id?: string | null;
     levels: number[]; // [3, 4, 5]
     tags: string[];
 
     quantity: number;
     points_per_question: number; // 0 = use question.points
+    time_per_question: number; // Thời gian đếm ngược sau audio (giây) - chỉ cho listening
 
     section_name?: string | null;
     order_index: number;

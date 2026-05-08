@@ -7,9 +7,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function PUT(
     request: Request,
-    { params }: { params: { id: string; ruleId: string } }
+    context: { params: Promise<{ id: string; ruleId: string }> }
 ) {
     try {
+        const params = await context.params
         const body = await request.json()
         const adminClient = createAdminClient()
 
@@ -34,9 +35,10 @@ export async function PUT(
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string; ruleId: string } }
+    context: { params: Promise<{ id: string; ruleId: string }> }
 ) {
     try {
+        const params = await context.params
         const adminClient = createAdminClient()
 
         const { error } = await adminClient

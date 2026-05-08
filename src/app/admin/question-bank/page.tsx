@@ -23,17 +23,48 @@ import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import type { QuestionBank } from '@/types/exam'
 
+interface Category {
+    id: string
+    name: string
+    icon: string
+    color: string
+    is_active: boolean
+}
+
+interface QuestionWithCategory extends QuestionBank {
+    category?: Category
+}
+
 export default function QuestionBankPage() {
     const router = useRouter()
-    const [questions, setQuestions] = useState<QuestionBank[]>([])
+    const [questions, setQuestions] = useState<QuestionWithCategory[]>([])
+    const [categories, setCategories] = useState<Category[]>([])
     const [loading, setLoading] = useState(true)
     const [filters, setFilters] = useState({
         question_type: '',
         level: '',
         search: '',
+        category_id: '',
     })
     const [page, setPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
+    const [selectedIds, setSelectedIds] = useState<string[]>([])
+
+    useEffect(() => {
+        fetchCategories()
+    }, [])
+
+    const fetchCategories = async () => {
+        try {
+            const res = await fetch('/api/admin/categories')
+            const data = await res.json()
+            if (data.success) {
+                setCategories(data.data)
+            }
+        } catch (error) {
+            console.error('Lỗi tải kho')
+        }
+    }
 
     const fetchQuestions = async () => {
         setLoading(true)
@@ -46,6 +77,7 @@ export default function QuestionBankPage() {
                 }),
                 ...(filters.level && { level: filters.level }),
                 ...(filters.search && { search: filters.search }),
+                ...(filters.category_id && { category_id: filters.category_id }),
             })
 
             const res = await fetch(`/api/admin/question-bank?${params}`)
@@ -64,7 +96,47 @@ export default function QuestionBankPage() {
 
     useEffect(() => {
         fetchQuestions()
+        setSelectedIds([]) // Reset selection on page or filter change
     }, [page, filters])
+
+    const toggleSelectAll = () => {
+        if (selectedIds.length === questions.length && questions.length > 0) {
+            setSelectedIds([])
+        } else {
+            setSelectedIds(questions.map((q) => q.id))
+        }
+    }
+
+    const toggleSelect = (id: string) => {
+        setSelectedIds((prev) =>
+            prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+        )
+    }
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.length === 0) return
+        if (!confirm(`Bạn có chắc muốn xóa ${selectedIds.length} câu hỏi đã chọn?`)) return
+
+        const toastId = toast.loading('Đang xóa...')
+        try {
+            const res = await fetch(`/api/admin/question-bank`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: selectedIds }),
+            })
+            const data = await res.json()
+
+            if (data.success) {
+                toast.success(`Đã xóa ${selectedIds.length} câu hỏi`, { id: toastId })
+                setSelectedIds([])
+                fetchQuestions()
+            } else {
+                throw new Error(data.error)
+            }
+        } catch (error: any) {
+            toast.error(error.message || 'Xóa thất bại', { id: toastId })
+        }
+    }
 
     const handleDelete = async (id: string) => {
         if (!confirm('Xóa câu hỏi này?')) return
@@ -112,6 +184,15 @@ export default function QuestionBankPage() {
                     </p>
                 </div>
                 <div className="flex gap-2">
+                    {selectedIds.length > 0 && (
+                        <Button
+                            variant="destructive"
+                            onClick={handleBulkDelete}
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Xóa {selectedIds.length} mục
+                        </Button>
+                    )}
                     <Button
                         variant="outline"
                         onClick={handleDownloadTemplate}
@@ -157,34 +238,55 @@ export default function QuestionBankPage() {
                     </div>
                 </div>
                 <Select
-                    value={filters.question_type}
+                    value={filters.question_type || "all"}
                     onValueChange={(val) =>
-                        setFilters({ ...filters, question_type: val })
+                        setFilters({ ...filters, question_type: val === "all" ? "" : val })
                     }
                 >
                     <SelectTrigger className="w-40">
                         <SelectValue placeholder="Loại câu hỏi" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">Tất cả</SelectItem>
+                        <SelectItem value="all">Tất cả</SelectItem>
                         <SelectItem value="reading">Đọc hiểu</SelectItem>
                         <SelectItem value="listening">Nghe hiểu</SelectItem>
                     </SelectContent>
                 </Select>
                 <Select
-                    value={filters.level}
+                    value={filters.level || "all"}
                     onValueChange={(val) =>
-                        setFilters({ ...filters, level: val })
+                        setFilters({ ...filters, level: val === "all" ? "" : val })
                     }
                 >
                     <SelectTrigger className="w-32">
                         <SelectValue placeholder="Level" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">Tất cả</SelectItem>
+                        <SelectItem value="all">Tất cả</SelectItem>
                         {[1, 2, 3, 4, 5, 6].map((l) => (
                             <SelectItem key={l} value={l.toString()}>
                                 Level {l}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Select
+                    value={filters.category_id || "all"}
+                    onValueChange={(val) =>
+                        setFilters({ ...filters, category_id: val === "all" ? "" : val })
+                    }
+                >
+                    <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Lọc theo kho" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Tất cả kho</SelectItem>
+                        {categories.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.id}>
+                                <span className="flex items-center gap-2">
+                                    <span>{cat.icon}</span>
+                                    <span>{cat.name}</span>
+                                </span>
                             </SelectItem>
                         ))}
                     </SelectContent>
@@ -196,6 +298,17 @@ export default function QuestionBankPage() {
                 <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b">
                         <tr>
+                            <th className="px-4 py-3 text-left w-10">
+                                <input
+                                    type="checkbox"
+                                    className="rounded border-gray-300"
+                                    checked={questions.length > 0 && selectedIds.length === questions.length}
+                                    onChange={toggleSelectAll}
+                                />
+                            </th>
+                            <th className="px-4 py-3 text-left font-medium">
+                                Kho
+                            </th>
                             <th className="px-4 py-3 text-left font-medium">
                                 Loại
                             </th>
@@ -220,7 +333,7 @@ export default function QuestionBankPage() {
                         {loading ? (
                             <tr>
                                 <td
-                                    colSpan={6}
+                                    colSpan={8}
                                     className="px-4 py-8 text-center text-muted-foreground"
                                 >
                                     Đang tải...
@@ -229,7 +342,7 @@ export default function QuestionBankPage() {
                         ) : questions.length === 0 ? (
                             <tr>
                                 <td
-                                    colSpan={6}
+                                    colSpan={8}
                                     className="px-4 py-8 text-center text-muted-foreground"
                                 >
                                     Chưa có câu hỏi nào
@@ -239,13 +352,31 @@ export default function QuestionBankPage() {
                             questions.map((q) => (
                                 <tr
                                     key={q.id}
-                                    className="hover:bg-gray-50"
+                                    className={`hover:bg-gray-50 ${selectedIds.includes(q.id) ? 'bg-blue-50/50' : ''}`}
                                 >
+                                    <td className="px-4 py-3">
+                                        <input
+                                            type="checkbox"
+                                            className="rounded border-gray-300"
+                                            checked={selectedIds.includes(q.id)}
+                                            onChange={() => toggleSelect(q.id)}
+                                        />
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {q.category ? (
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-lg">{q.category.icon}</span>
+                                                <span className="text-xs font-medium">{q.category.name}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-gray-400">Chưa phân loại</span>
+                                        )}
+                                    </td>
                                     <td className="px-4 py-3">
                                         <span
                                             className={`px-2 py-1 rounded text-xs font-medium ${q.question_type === 'reading'
-                                                    ? 'bg-blue-100 text-blue-700'
-                                                    : 'bg-purple-100 text-purple-700'
+                                                ? 'bg-blue-100 text-blue-700'
+                                                : 'bg-purple-100 text-purple-700'
                                                 }`}
                                         >
                                             {q.question_type === 'reading'

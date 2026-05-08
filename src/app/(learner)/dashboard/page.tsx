@@ -202,7 +202,7 @@ export default function DashboardPage() {
                                             <CardFooter>
                                                 <Button
                                                     className="w-full gap-2"
-                                                    onClick={() => router.push(`/exam/${exam.id}`)}
+                                                    onClick={() => router.push(`/exam/${exam.id}/start`)}
                                                 >
                                                     <PlayCircle className="w-4 h-4" />
                                                     Vào thi ngay

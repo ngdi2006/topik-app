@@ -8,9 +8,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET(
     request: Request,
-    { params }: { params: { attemptId: string } }
+    context: { params: Promise<{ attemptId: string }> }
 ) {
     try {
+        const params = await context.params
         const supabase = await createClient()
         const {
             data: { user },

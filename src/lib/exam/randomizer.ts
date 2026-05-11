@@ -23,6 +23,35 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 /**
+ * Shuffle options for a question and return mapping
+ * Returns: { shuffledOptions, originalCorrectIndex }
+ */
+function shuffleOptions(question: QuestionBank): {
+    shuffledOptions: any[]
+    shuffledCorrectAnswer: number
+} {
+    // If shuffle_options is false, return original
+    if (question.shuffle_options === false) {
+        return {
+            shuffledOptions: question.options,
+            shuffledCorrectAnswer: question.correct_answer,
+        }
+    }
+
+    // Create array of indices [0, 1, 2, 3]
+    const indices = question.options.map((_, i) => i)
+    const shuffledIndices = shuffleArray(indices)
+
+    // Shuffle options according to shuffled indices
+    const shuffledOptions = shuffledIndices.map((i) => question.options[i])
+
+    // Find new position of correct answer
+    const shuffledCorrectAnswer = shuffledIndices.indexOf(question.correct_answer)
+
+    return { shuffledOptions, shuffledCorrectAnswer }
+}
+
+/**
  * Lấy chu kỳ hiện tại của user cho rule
  */
 async function getCurrentCycle(
@@ -193,11 +222,17 @@ export async function generateRandomQuestionsForUser(
             cycleToUse
         )
 
-        // 2i. Transform sang QuestionSnapshot
+        // 2i. Transform sang QuestionSnapshot với shuffled options
         const snapshots: QuestionSnapshot[] = selected.map((q) => {
             const qb = q as QuestionBank
+
+            // Shuffle options for this question
+            const { shuffledOptions, shuffledCorrectAnswer } = shuffleOptions(qb)
+
             return {
                 ...qb,
+                options: shuffledOptions, // Use shuffled options
+                correct_answer: shuffledCorrectAnswer, // Use new correct answer index
                 rule_id: rule.id,
                 order: globalOrder++,
                 section: rule.question_type === 'listening' ? 'listening' : 'reading',

@@ -122,12 +122,12 @@ export async function POST(
             summary: '',
         }
 
-        try {
-            aiResult = await analyzeWrongQuestions(wrongQuestions)
-        } catch (aiError) {
-            console.error('AI analysis failed:', aiError)
-            // Continue without blocking
-        }
+        // try {
+        //     aiResult = await analyzeWrongQuestions(wrongQuestions)
+        // } catch (aiError) {
+        //     console.error('AI analysis failed:', aiError)
+        //     // Continue without blocking
+        // }
 
         // 7. Save analysis
         const { data: analysis, error: analysisError } = await adminClient
@@ -167,3 +167,5 @@ export async function POST(
             { success: false, error: error.message },
             { status: 500 }
         )
+    }
+}

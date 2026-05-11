@@ -2,206 +2,269 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { CheckCircle2, XCircle, ArrowLeft, Trophy, Clock, Target } from "lucide-react"
+import {
+    ArrowLeft, Trophy, Target, Clock, Loader2,
+    BookOpen, ChevronLeft, ChevronRight, CheckCircle2, XCircle
+} from "lucide-react"
 
 export default function ExamResultPage() {
     const params = useParams()
     const router = useRouter()
     const examId = params.id as string
     const resultId = params.resultId as string
-    const supabase = createClient()
 
     const [result, setResult] = useState<any>(null)
     const [exam, setExam] = useState<any>(null)
     const [questions, setQuestions] = useState<any[]>([])
+    const [answers, setAnswers] = useState<Record<string, number>>({})
     const [isLoading, setIsLoading] = useState(true)
+    const [showAnswers, setShowAnswers] = useState(false)
+    const [currentIndex, setCurrentIndex] = useState(0)
 
     useEffect(() => {
-        const fetchResultData = async () => {
-            if (!resultId || !examId) return;
-            setIsLoading(true);
-
+        const fetchResult = async () => {
+            if (!resultId || !examId) return
+            setIsLoading(true)
             try {
                 const res = await fetch(`/api/exams/${examId}/result/${resultId}`)
                 const data = await res.json()
-
-                if (!res.ok) {
-                    throw new Error(data.error || "Không thể tải báo cáo")
-                }
-
+                if (!res.ok) throw new Error(data.error || "Không thể tải kết quả")
                 setResult(data.result)
                 setExam(data.exam)
                 setQuestions(data.questions || [])
-
-            } catch (error) {
-                console.error("Lỗi lấy kết quả:", error)
+                setAnswers(data.result?.answers || {})
+            } catch (err) {
+                console.error("Result fetch error:", err)
             } finally {
                 setIsLoading(false)
             }
         }
-
-        fetchResultData()
-    }, [resultId, examId, supabase])
+        fetchResult()
+    }, [resultId, examId])
 
     if (isLoading) {
-        return <div className="min-h-screen flex items-center justify-center bg-gray-50/50">Đang tải kết quả thi...</div>
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="text-center">
+                    <Loader2 className="w-10 h-10 animate-spin text-blue-500 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm">Đang tải kết quả...</p>
+                </div>
+            </div>
+        )
     }
 
     if (!result || !exam) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50/50 space-y-4">
-                <p>Không tìm thấy kết quả thi.</p>
+            <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-50">
+                <p className="text-gray-600">Không tìm thấy kết quả thi.</p>
                 <Button onClick={() => router.push('/dashboard')}>Về trang chủ</Button>
             </div>
         )
     }
 
-    // Determine grade color
+    const percentage = result.total_points > 0
+        ? Math.round((result.score / result.total_points) * 100)
+        : 0
+
     let gradeColor = "text-red-500"
-    let bgGrade = "bg-red-50"
-    let borderGrade = "border-red-200"
-    if (result.score >= 80) {
+    let bgGrade = "from-red-50 to-red-100"
+    let borderGrade = "border-red-300"
+    let emoji = "😓"
+    if (percentage >= 80) {
         gradeColor = "text-green-600"
-        bgGrade = "bg-green-50"
-        borderGrade = "border-green-200"
-    } else if (result.score >= 50) {
+        bgGrade = "from-green-50 to-emerald-100"
+        borderGrade = "border-green-300"
+        emoji = "🎉"
+    } else if (percentage >= 50) {
         gradeColor = "text-yellow-600"
-        bgGrade = "bg-yellow-50"
-        borderGrade = "border-yellow-200"
+        bgGrade = "from-yellow-50 to-amber-100"
+        borderGrade = "border-yellow-300"
+        emoji = "👍"
     }
 
-    return (
-        <div className="min-h-screen bg-muted/20 pb-12">
-            {/* Header */}
-            <header className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard')}>
-                        <ArrowLeft className="w-5 h-5" />
-                    </Button>
-                    <h1 className="font-bold text-lg text-primary">Kết quả bài thi</h1>
+    // ===== Answer Review =====
+    if (showAnswers && questions.length > 0) {
+        const q = questions[currentIndex]
+        const userAnswerIndex = answers[q.id]
+        const hasAnswered = userAnswerIndex !== undefined && userAnswerIndex !== null
+        const isCorrect = hasAnswered && Number(userAnswerIndex) === Number(q.correct_answer)
+        const options = Array.isArray(q.options) ? q.options : []
+        const isImageUrl = (url: string) =>
+            typeof url === 'string' && (url.startsWith('http') || /\.(png|jpe?g|gif|webp)$/i.test(url)) && url.length < 500
+
+        return (
+            <div className="min-h-screen bg-gray-50">
+                <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
+                    <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => setShowAnswers(false)} className="p-2 rounded-lg hover:bg-gray-100">
+                                <ChevronLeft className="w-5 h-5" />
+                            </button>
+                            <div>
+                                <h1 className="font-bold text-gray-900">Xem đáp án</h1>
+                                <p className="text-xs text-gray-500">{exam.title}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm text-gray-500">{currentIndex + 1} / {questions.length}</span>
+                            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                {isCorrect ? '✓ Đúng' : '✗ Sai'}
+                            </span>
+                        </div>
+                    </div>
                 </div>
-            </header>
 
-            <main className="max-w-4xl mx-auto mt-8 px-4 sm:px-6 space-y-8">
-                {/* Score Summary Card */}
-                <Card className={`border-2 ${borderGrade} shadow-md overflow-hidden`}>
-                    <div className={`${bgGrade} p-6 sm:p-10 text-center flex flex-col items-center justify-center`}>
-                        <Trophy className={`w-16 h-16 ${gradeColor} mb-4`} />
-                        <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-gray-800">{exam.title}</h2>
-                        <p className="text-muted-foreground mb-8">Hoàn thành vào {new Date(result.created_at).toLocaleDateString('vi-VN')}</p>
-
-                        <div className="flex flex-wrap justify-center gap-8 sm:gap-16 w-full">
-                            <div className="flex flex-col items-center">
-                                <span className="text-sm text-gray-500 font-medium mb-1 uppercase tracking-wider">Điểm Tổng</span>
-                                <div className={`text-6xl font-black ${gradeColor}`}>
-                                    {result.score}
-                                </div>
-                                <span className="text-sm text-gray-500 mt-1">/ 100</span>
+                <div className="max-w-5xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <div className="lg:col-span-3">
+                        <Card className="p-6">
+                            <div className="mb-4 flex items-center gap-2">
+                                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
+                                    Câu {currentIndex + 1}
+                                </span>
+                                {isCorrect ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <XCircle className="w-5 h-5 text-red-500" />}
                             </div>
 
-                            <div className="flex flex-col gap-4 text-left border-l pl-8 sm:pl-16 border-gray-200">
-                                <div className="flex items-center gap-3">
-                                    <Target className="w-5 h-5 text-blue-500" />
-                                    <div>
-                                        <p className="text-lg font-bold text-gray-800">{result.total_correct} / {exam.total_questions}</p>
-                                        <p className="text-xs text-muted-foreground uppercase">Câu đúng</p>
-                                    </div>
+                            {q.passage && (
+                                <div className="mb-5 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-400">
+                                    <div className="prose prose-sm max-w-none text-gray-800" dangerouslySetInnerHTML={{ __html: q.passage }} />
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <Clock className="w-5 h-5 text-orange-500" />
-                                    <div>
-                                        <p className="text-lg font-bold text-gray-800">
-                                            {Math.floor(result.time_taken / 60)} phút {result.time_taken % 60} giây
-                                        </p>
-                                        <p className="text-xs text-muted-foreground uppercase">Thời gian làm bài</p>
-                                    </div>
+                            )}
+                            {q.question_image_url && (
+                                <div className="mb-4 flex justify-center">
+                                    <img src={q.question_image_url} alt="Question" className="max-h-60 w-auto object-contain rounded-lg border shadow-sm" />
                                 </div>
+                            )}
+                            <div className="mb-6">
+                                <div className="prose prose-sm max-w-none text-gray-900 text-base" dangerouslySetInnerHTML={{ __html: q.question_text }} />
+                            </div>
+
+                            <div className="space-y-3">
+                                {options.map((optItem: any, idx: number) => {
+                                    const optContent = typeof optItem === 'string' ? optItem : (optItem?.content || '')
+                                    const optType = typeof optItem === 'object' ? optItem?.type : 'text'
+                                    const isImg = optType === 'image' || isImageUrl(optContent)
+                                    const isUserChoice = userAnswerIndex === idx
+                                    const isActualCorrect = idx === Number(q.correct_answer)
+                                    let cls = 'border-gray-200 bg-white'
+                                    if (isActualCorrect) cls = 'border-green-500 bg-green-50'
+                                    else if (isUserChoice && !isCorrect) cls = 'border-red-500 bg-red-50'
+                                    return (
+                                        <div key={idx} className={`p-4 rounded-lg border-2 ${cls} flex items-start gap-3`}>
+                                            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+                                                ${isActualCorrect ? 'bg-green-500 text-white' : isUserChoice && !isCorrect ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-700'}`}>
+                                                {idx + 1}
+                                            </div>
+                                            <div className="flex-1">
+                                                {isImg
+                                                    ? <img src={optContent} alt={`Option ${idx + 1}`} className="max-h-32 object-contain rounded" />
+                                                    : <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: optContent }} />
+                                                }
+                                            </div>
+                                            <div className="flex-shrink-0 flex flex-col gap-1">
+                                                {isUserChoice && <span className="text-xs font-bold bg-gray-200 text-gray-700 px-2 py-0.5 rounded">Của bạn</span>}
+                                                {isActualCorrect && !isUserChoice && <span className="text-xs font-bold bg-green-200 text-green-800 px-2 py-0.5 rounded">Đáp án</span>}
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+
+                            {!hasAnswered && <p className="mt-4 text-sm text-red-500 italic">Bạn đã bỏ trống câu hỏi này!</p>}
+
+                            <div className="flex items-center justify-between mt-8 pt-5 border-t">
+                                <Button variant="outline" onClick={() => setCurrentIndex(p => Math.max(0, p - 1))} disabled={currentIndex === 0}>
+                                    <ChevronLeft className="w-4 h-4 mr-2" /> Câu trước
+                                </Button>
+                                <Button onClick={() => setCurrentIndex(p => Math.min(questions.length - 1, p + 1))} disabled={currentIndex === questions.length - 1}>
+                                    Câu sau <ChevronRight className="w-4 h-4 ml-2" />
+                                </Button>
+                            </div>
+                        </Card>
+                    </div>
+
+                    <div className="lg:col-span-1">
+                        <Card className="p-4 sticky top-20">
+                            <h3 className="font-semibold mb-3 pb-2 border-b text-sm">Danh sách câu</h3>
+                            <div className="grid grid-cols-5 lg:grid-cols-4 gap-2 max-h-96 overflow-y-auto pb-1">
+                                {questions.map((question, idx) => {
+                                    const uAns = answers[question.id]
+                                    const hasAns = uAns !== undefined && uAns !== null
+                                    const isOk = hasAns && Number(uAns) === Number(question.correct_answer)
+                                    return (
+                                        <button key={question.id} onClick={() => setCurrentIndex(idx)}
+                                            className={`aspect-square rounded-lg font-semibold text-xs transition-all
+                                                ${idx === currentIndex ? 'ring-2 ring-offset-1 ring-blue-400 bg-blue-500 text-white'
+                                                    : isOk ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                                    : hasAns ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                                                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                                            {idx + 1}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                            <div className="mt-4 pt-3 border-t space-y-1.5">
+                                <div className="flex items-center gap-2 text-xs text-gray-600"><span className="w-4 h-4 rounded bg-green-100 inline-block"></span> Đúng</div>
+                                <div className="flex items-center gap-2 text-xs text-gray-600"><span className="w-4 h-4 rounded bg-red-100 inline-block"></span> Sai</div>
+                                <div className="flex items-center gap-2 text-xs text-gray-600"><span className="w-4 h-4 rounded bg-gray-100 inline-block"></span> Bỏ trống</div>
+                            </div>
+                            <Button variant="outline" className="w-full mt-4 text-sm" onClick={() => router.push('/dashboard')}>
+                                Về trang chủ
+                            </Button>
+                        </Card>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    // ===== Score Summary =====
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+            <header className="bg-white border-b px-6 py-4 flex items-center gap-4 shadow-sm">
+                <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard')}>
+                    <ArrowLeft className="w-5 h-5" />
+                </Button>
+                <h1 className="font-bold text-lg text-primary">Kết quả bài thi</h1>
+            </header>
+
+            <main className="max-w-md mx-auto pt-12 px-4 space-y-4">
+                <Card className={`border-2 ${borderGrade} overflow-hidden shadow-xl`}>
+                    <div className={`bg-gradient-to-br ${bgGrade} p-8 text-center`}>
+                        <div className="text-5xl mb-3">{emoji}</div>
+                        <h2 className="text-xl font-bold text-gray-700 mb-1">{exam.title}</h2>
+                        <p className="text-sm text-gray-500 mb-6">
+                            {new Date(result.created_at).toLocaleDateString('vi-VN', { dateStyle: 'full' })}
+                        </p>
+
+                        <div className="mb-6">
+                            <div className={`text-7xl font-black ${gradeColor} leading-none`}>{result.score}</div>
+                            <div className="text-gray-500 text-sm mt-1">/ {result.total_points} điểm · {percentage}%</div>
+                        </div>
+
+                        <div className="flex justify-center gap-8">
+                            <div className="text-center">
+                                <div className="text-2xl font-bold text-green-600">{result.correct_count}</div>
+                                <div className="text-xs text-gray-500 uppercase">Câu đúng</div>
+                            </div>
+                            <div className="w-px bg-gray-300"></div>
+                            <div className="text-center">
+                                <div className="text-2xl font-bold text-red-500">{result.wrong_count}</div>
+                                <div className="text-xs text-gray-500 uppercase">Câu sai</div>
                             </div>
                         </div>
                     </div>
                 </Card>
 
-                {/* Detailed Review Section */}
-                <div>
-                    <h3 className="text-xl font-bold mb-6 text-gray-800">Xem lại bài làm</h3>
-                    <div className="space-y-6">
-                        {questions.map((q, idx) => {
-                            const userAnswerIndex = result.answers[q.id]
-                            const hasAnswered = userAnswerIndex !== undefined && userAnswerIndex !== null
-                            const userAnswerText = hasAnswered ? q.options[userAnswerIndex] : null
-
-                            // Check if correct index
-                            const isCorrect = hasAnswered &&
-                                q.correct_answer !== undefined && q.correct_answer !== null &&
-                                Number(userAnswerIndex) === Number(q.correct_answer)
-
-                            return (
-                                <Card key={q.id} className={`border-l-4 shadow-sm ${isCorrect ? 'border-l-green-500' : 'border-l-red-500'}`}>
-                                    <CardContent className="p-6">
-                                        <div className="flex gap-4">
-                                            <div className="mt-1">
-                                                {isCorrect ? (
-                                                    <CheckCircle2 className="w-6 h-6 text-green-500" />
-                                                ) : (
-                                                    <XCircle className="w-6 h-6 text-red-500" />
-                                                )}
-                                            </div>
-                                            <div className="flex-1 space-y-4">
-                                                <h4 className="text-lg font-semibold text-gray-900">
-                                                    <span className="mr-2 text-primary">{idx + 1}.</span>
-                                                    {q.question_text}
-                                                </h4>
-
-                                                {q.passage && (
-                                                    <div className="bg-muted/50 p-4 rounded text-sm text-gray-700">
-                                                        {q.passage}
-                                                    </div>
-                                                )}
-
-                                                <div className="grid sm:grid-cols-2 gap-3">
-                                                    {Array.isArray(q.options) && q.options.map((opt: string, optIdx: number) => {
-                                                        const isUserChoice = userAnswerIndex === optIdx
-                                                        const isActualCorrect = q.correct_answer !== undefined && q.correct_answer !== null &&
-                                                            optIdx === Number(q.correct_answer)
-
-                                                        let optClass = "border-gray-200 bg-white"
-                                                        if (isActualCorrect) {
-                                                            optClass = "border-green-500 bg-green-50 text-green-900 font-medium"
-                                                        } else if (isUserChoice && !isCorrect) {
-                                                            optClass = "border-red-500 bg-red-50 text-red-900"
-                                                        }
-
-                                                        return (
-                                                            <div key={optIdx} className={`p-3 rounded-md border-2 ${optClass} flex items-center gap-3`}>
-                                                                <span className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-xs font-bold border shadow-sm">
-                                                                    {['1', '2', '3', '4'][optIdx] || (optIdx + 1)}
-                                                                </span>
-                                                                <span className="flex-1">{opt}</span>
-                                                                {isUserChoice && <span className="text-xs font-bold bg-gray-200 px-2 py-1 rounded">Của bạn</span>}
-                                                                {isActualCorrect && !isUserChoice && <span className="text-xs font-bold bg-green-200 text-green-800 px-2 py-1 rounded">Đáp án</span>}
-                                                            </div>
-                                                        )
-                                                    })}
-                                                </div>
-
-                                                {!hasAnswered && (
-                                                    <p className="text-sm text-red-500 italic mt-2">Bạn đã bỏ trống câu hỏi này!</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            )
-                        })}
-                    </div>
-                </div>
-
-                <div className="flex justify-center pt-8">
-                    <Button size="lg" onClick={() => router.push('/dashboard')}>
-                        Trở về trang chủ
+                <div className="flex flex-col gap-3">
+                    {questions.length > 0 && (
+                        <Button size="lg" className="w-full bg-blue-600 hover:bg-blue-700 shadow-md" onClick={() => setShowAnswers(true)}>
+                            <BookOpen className="w-5 h-5 mr-2" /> Xem đáp án
+                        </Button>
+                    )}
+                    <Button size="lg" variant="outline" className="w-full" onClick={() => router.push('/dashboard')}>
+                        Về trang chủ
                     </Button>
                 </div>
             </main>

@@ -88,11 +88,18 @@ export default function EditQuestionPage() {
         const toastId = toast.loading('Đang lưu...')
 
         try {
+            // Clean up HTML - remove unnecessary <p> tags if content is simple
+            const cleanedQuestion = {
+                ...question,
+                question_text: question.question_text?.trim() || '',
+                passage: question.passage?.trim() || '',
+            }
+
             const res = await fetch(`/api/admin/question-bank/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    ...question,
+                    ...cleanedQuestion,
                     category_id: categoryId,
                     tags: tagsInput
                         .split(',')

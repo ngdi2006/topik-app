@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { UserNav } from "@/components/shared/UserNav"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { CalendarDays, Clock, Award, ChevronLeft, Search } from "lucide-react"
+import { CalendarDays, Clock, Award, ChevronLeft, Search, CheckCircle2, XCircle, BookOpen } from "lucide-react"
 
 export default function HistoryPage() {
     const router = useRouter()
@@ -26,9 +26,11 @@ export default function HistoryPage() {
                 setIsLoading(false)
             }
         }
-
         fetchHistory()
     }, [])
+
+    const examHistory = history.filter(r => r.type === 'exam')
+    const milestoneHistory = history.filter(r => r.type === 'milestone')
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -40,104 +42,176 @@ export default function HistoryPage() {
                     </Button>
                     <div className="font-bold text-xl text-primary">Lịch sử làm bài</div>
                 </div>
-                <div className="flex items-center gap-4">
-                    <UserNav />
-                </div>
+                <UserNav />
             </header>
 
             <main className="flex-1 p-6 md:p-10 max-w-5xl mx-auto w-full">
+                {/* Title + Stats */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight text-gray-900">Báo cáo quá trình luyện thi</h1>
-                        <p className="text-muted-foreground mt-2">Xem lại thẻ báo cáo, điểm số và bài thi bạn đã hoàn thành để tối ưu quá trình học.</p>
+                        <p className="text-muted-foreground mt-2">Xem lại điểm số và bài thi bạn đã hoàn thành.</p>
                     </div>
                     <div className="bg-white px-4 py-2 border rounded-full flex items-center shadow-sm">
                         <Award className="w-5 h-5 text-yellow-500 mr-2" />
-                        <span className="font-semibold text-gray-700">Đã hoàn tất: <span className="text-primary">{history.length}</span> bài</span>
+                        <span className="font-semibold text-gray-700">
+                            Đã hoàn tất: <span className="text-primary">{examHistory.length}</span> bài
+                        </span>
                     </div>
                 </div>
 
+                {/* Exam Attempts */}
                 <Card className="shadow-sm border-gray-200">
-                    <CardHeader className="bg-white border-b sticky top-0 md:rounded-t-xl z-0">
+                    <CardHeader className="bg-white border-b rounded-t-xl">
                         <CardTitle className="text-lg flex items-center gap-2">
                             <Clock className="w-5 h-5 text-blue-500" />
-                            Dòng thời gian kết quả test TOPIK
+                            Lịch sử làm bài thi TOPIK
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
                         {isLoading ? (
                             <div className="py-20 text-center text-muted-foreground space-y-3">
                                 <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent flex mx-auto rounded-full"></div>
-                                <p>Đang tải dữ liệu báo cáo...</p>
+                                <p>Đang tải dữ liệu...</p>
                             </div>
-                        ) : history.length === 0 ? (
+                        ) : examHistory.length === 0 ? (
                             <div className="py-24 text-center">
                                 <div className="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                                     <Search className="w-8 h-8 text-gray-400" />
                                 </div>
                                 <h3 className="text-lg font-semibold text-gray-800">Chưa có bản ghi nào</h3>
-                                <p className="text-muted-foreground mt-2 max-w-sm mx-auto">Bạn chưa hoàn thành bài thi nào. Vui lòng chuyển tới Dashboard để bắt đầu làm bài test đầu tiên nhé.</p>
-                                <Button className="mt-6" onClick={() => router.push('/dashboard')}>Bắt đầu thi ngay</Button>
+                                <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
+                                    Bạn chưa hoàn thành bài thi nào. Vui lòng chuyển tới Dashboard để bắt đầu!
+                                </p>
+                                <Button className="mt-6" onClick={() => router.push('/dashboard')}>
+                                    Bắt đầu thi ngay
+                                </Button>
                             </div>
                         ) : (
                             <div className="divide-y divide-gray-100">
-                                {history.map((record) => (
-                                    <div key={record.id} className="p-6 sm:p-8 hover:bg-blue-50/50 transition duration-200 group bg-white">
-                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                            <div className="flex-1 space-y-3">
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
-                                                        ${record.exams?.level === 'TOPIK I' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}
-                                                    `}>
-                                                        {record.exams?.level || "Không rõ Cấp độ"}
-                                                    </span>
-                                                    <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                                                        Phần thi: {record.exams?.part_type || "Reading"}
-                                                    </span>
+                                {examHistory.map((record) => {
+                                    const examTitle = (record.exams as any)?.title || "Đề thi không xác định"
+                                    const examLevel = (record.exams as any)?.level || ""
+                                    const examId = (record.exams as any)?.id
+
+                                    // score here is percentage 0-100
+                                    const pct = record.score
+                                    let scoreColor = "text-red-600"
+                                    let scoreBg = "bg-red-50"
+                                    if (pct >= 80) { scoreColor = "text-green-600"; scoreBg = "bg-green-50" }
+                                    else if (pct >= 50) { scoreColor = "text-yellow-600"; scoreBg = "bg-yellow-50" }
+
+                                    const completedDate = new Date(record.created_at).toLocaleDateString("vi-VN", {
+                                        weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
+                                        hour: '2-digit', minute: '2-digit'
+                                    })
+                                    const minutesTaken = Math.floor((record.time_taken || 0) / 60)
+                                    const secondsTaken = (record.time_taken || 0) % 60
+
+                                    return (
+                                        <div key={record.id} className="p-5 sm:p-6 hover:bg-blue-50/40 transition-colors group">
+                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                <div className="flex-1 space-y-2">
+                                                    {/* Level & attempt badge */}
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        {/* Level badge hidden as requested */}
+                                                        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
+                                                            Lần {record.attempt_number || 1}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Title */}
+                                                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-700 transition-colors leading-snug">
+                                                        {examTitle}
+                                                    </h3>
+
+                                                    {/* Meta */}
+                                                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <CalendarDays className="w-4 h-4 text-gray-400" />
+                                                            {completedDate}
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Clock className="w-4 h-4 text-gray-400" />
+                                                            {minutesTaken} phút {secondsTaken} giây
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Correct/Wrong count */}
+                                                    <div className="flex items-center gap-4 text-sm">
+                                                        <span className="flex items-center gap-1 text-green-600 font-medium">
+                                                            <CheckCircle2 className="w-4 h-4" />
+                                                            {record.total_correct} đúng
+                                                        </span>
+                                                        <span className="flex items-center gap-1 text-red-500 font-medium">
+                                                            <XCircle className="w-4 h-4" />
+                                                            {record.wrong_count} sai
+                                                        </span>
+                                                        <span className="text-gray-400">
+                                                            ({record.raw_score}/{record.total_points} điểm)
+                                                        </span>
+                                                    </div>
                                                 </div>
 
-                                                <h3 className="text-xl font-bold text-gray-900 leading-snug group-hover:text-blue-700 transition-colors">
-                                                    {record.exams?.title || "Đề thi không xác định"}
-                                                </h3>
-
-                                                <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-gray-500">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <CalendarDays className="w-4 h-4 text-gray-400" />
-                                                        {new Date(record.created_at).toLocaleDateString("vi-VN", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                {/* Score + Action */}
+                                                <div className={`flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-4
+                                                    border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6 min-w-[120px]`}>
+                                                    <div className={`text-center px-4 py-2 rounded-xl ${scoreBg}`}>
+                                                        <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-0.5">Kết quả</p>
+                                                        <div className={`text-4xl font-black ${scoreColor} leading-none`}>
+                                                            {pct}<span className="text-base font-semibold text-gray-400">%</span>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <Clock className="w-4 h-4 text-gray-400" />
-                                                        {record.type === 'milestone' ? 'Hoàn thành' : `Thời gian đã làm: ${Math.floor((record.time_taken || 0) / 60)} phút ${(record.time_taken || 0) % 60} giây`}
-                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="hover:bg-blue-50 hover:border-blue-300 gap-2"
+                                                        onClick={() => examId && router.push(`/exam/${examId}/result/${record.id}`)}
+                                                        disabled={!examId}
+                                                    >
+                                                        <BookOpen className="w-4 h-4" />
+                                                        Xem đáp án
+                                                    </Button>
                                                 </div>
-                                            </div>
-
-                                            <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-4 border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6">
-                                                <div className="text-center md:text-right">
-                                                    <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Điểm số</p>
-                                                    <div className="text-3xl font-black text-primary">
-                                                        {record.score}<span className="text-lg text-gray-400 font-semibold">/100</span>
-                                                    </div>
-                                                    {record.type !== 'milestone' && (
-                                                        <p className="text-sm font-medium text-green-600 mt-1">
-                                                            Đúng {record.total_correct} câu
-                                                        </p>
-                                                    )}
-                                                </div>
-                                                <Button
-                                                    className="shadow-sm hover:shadow-md transition-all"
-                                                    onClick={() => record.type === 'milestone' ? alert('Tính năng xem chi tiết chữa bài Mốc đang được AI biên soạn, sẽ ra mắt sớm!') : router.push(`/exam/${record.exams?.id}/result/${record.id}`)}
-                                                >
-                                                    Xem chi tiết
-                                                </Button>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                             </div>
                         )}
                     </CardContent>
                 </Card>
+
+                {/* Milestone History (if any) */}
+                {milestoneHistory.length > 0 && (
+                    <Card className="shadow-sm border-gray-200 mt-8">
+                        <CardHeader className="bg-white border-b rounded-t-xl">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <Award className="w-5 h-5 text-orange-500" />
+                                Lịch sử kiểm tra Mốc
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <div className="divide-y divide-gray-100">
+                                {milestoneHistory.map((record) => (
+                                    <div key={record.id} className="p-5 flex items-center justify-between">
+                                        <div>
+                                            <h3 className="font-semibold text-gray-900">{record.exams?.title}</h3>
+                                            <p className="text-sm text-gray-500 mt-1">
+                                                <CalendarDays className="w-4 h-4 inline mr-1" />
+                                                {new Date(record.created_at).toLocaleDateString("vi-VN")}
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-2xl font-black text-orange-600">{record.score}</div>
+                                            <p className="text-xs text-gray-400">điểm</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
             </main>
         </div>
     )

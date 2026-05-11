@@ -15,7 +15,8 @@ export default function ReadingPage() {
     const examId = params.id as string
     const attemptId = searchParams.get('attemptId')
 
-    const [questions, setQuestions] = useState<any[]>([])
+    const [questions, setQuestions] = useState<any[]>([]) // Only reading questions for display
+    const [allQuestions, setAllQuestions] = useState<any[]>([]) // All questions (reading + listening) for sidebar
     const [currentIndex, setCurrentIndex] = useState(0)
     const [answers, setAnswers] = useState<Record<string, number>>({})
     const [timeLeft, setTimeLeft] = useState(0)
@@ -52,6 +53,8 @@ export default function ReadingPage() {
                 )
                 setHasListening(listeningQuestions.length > 0)
 
+                // Set all questions for sidebar (reading + listening)
+                setAllQuestions(data.attempt.questions)
                 setQuestions(readingQuestions)
                 setExam(data.exam)
                 setTimeLeft((data.exam.reading_duration || 40) * 60)
@@ -149,6 +152,8 @@ export default function ReadingPage() {
 
     const currentQuestion = questions[currentIndex]
     const answeredCount = Object.keys(answers).length
+    const readingQuestionsCount = questions.length
+    const allAnsweredReading = answeredCount === readingQuestionsCount
 
     if (isLoading) {
         return (
@@ -357,28 +362,43 @@ export default function ReadingPage() {
                         <Card className="p-4 sticky top-24 flex flex-col max-h-[calc(100vh-6rem)]">
                             <Button
                                 onClick={handleNext}
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || !allAnsweredReading}
                                 className={`w-full mb-4 shadow-sm font-semibold ${hasListening ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'}`}
                             >
                                 {isSubmitting ? 'Đang lưu...' : (hasListening ? 'Chuyển sang Nghe hiểu →' : 'Nộp bài ngay')}
                             </Button>
-                            
+
                             <h3 className="font-semibold mb-3 pb-2 border-b">Danh sách câu hỏi</h3>
                             <div className="grid grid-cols-5 lg:grid-cols-4 gap-2 overflow-y-auto pr-1 pb-2">
-                                {questions.map((q, idx) => (
-                                    <button
-                                        key={q.id}
-                                        onClick={() => setCurrentIndex(idx)}
-                                        className={`aspect-square rounded-lg font-semibold text-sm transition-all ${idx === currentIndex
-                                            ? 'bg-blue-500 text-white ring-2 ring-blue-300'
-                                            : answers[q.id] !== undefined
-                                                ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                {allQuestions.map((q, idx) => {
+                                    const isReading = q.section === 'reading'
+                                    const readingIdx = isReading ? questions.findIndex(rq => rq.id === q.id) : -1
+                                    const isCurrentQuestion = isReading && readingIdx === currentIndex
+                                    const isAnswered = answers[q.id] !== undefined
+
+                                    return (
+                                        <button
+                                            key={q.id}
+                                            onClick={() => {
+                                                if (isReading && readingIdx !== -1) {
+                                                    setCurrentIndex(readingIdx)
+                                                }
+                                            }}
+                                            disabled={!isReading}
+                                            className={`aspect-square rounded-lg font-semibold text-sm transition-all ${
+                                                isCurrentQuestion
+                                                    ? 'bg-blue-500 text-white ring-2 ring-blue-300'
+                                                    : isReading && isAnswered
+                                                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                                        : isReading
+                                                            ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                            : 'bg-gray-50 text-gray-400 cursor-not-allowed'
                                             }`}
-                                    >
-                                        {idx + 1}
-                                    </button>
-                                ))}
+                                        >
+                                            {idx + 1}
+                                        </button>
+                                    )
+                                })}
                             </div>
                         </Card>
                     </div>

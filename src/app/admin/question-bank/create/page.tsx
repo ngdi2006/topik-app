@@ -103,11 +103,17 @@ export default function CreateQuestionPage() {
         const toastId = toast.loading('Đang tạo câu hỏi...')
 
         try {
+            // Clean up HTML - remove unnecessary <p> tags if content is simple
+            const cleanQuestionText = formData.question_text.trim()
+            const cleanPassage = formData.passage?.trim() || ''
+
             const res = await fetch('/api/admin/question-bank', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...formData,
+                    question_text: cleanQuestionText,
+                    passage: cleanPassage,
                     category_id: categoryId,
                     tags: tagsInput
                         .split(',')

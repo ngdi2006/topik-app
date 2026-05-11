@@ -17,21 +17,18 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
         const adminAuthClient = createAdminClient()
 
-        // 1. Lấy Result
-        const { data: resultData, error: resultError } = await adminAuthClient
-            .from('exam_results')
+        // 1. Fetch Attempt
+        const { data: attemptData, error: attemptError } = await adminAuthClient
+            .from('exam_attempts')
             .select('*')
             .eq('id', resultId)
             .single()
 
-        if (resultError || !resultData) {
+        if (attemptError || !attemptData) {
             return NextResponse.json({ error: 'Không tìm thấy kết quả làm bài' }, { status: 404 })
         }
 
-        // Bảo mật: Học viên chỉ xem được bài của mình (Admin có thể xem bất kỳ)
-        // Check database user details if necessary, but simply matching IDs ensures standard security
-        if (resultData.user_id !== user.id) {
-            // However, we allow admins to view it.
+        if (attemptData.user_id !== user.id) {
             const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
             if (!profile || profile.role === 'learner') {
                 return NextResponse.json({ error: 'Bạn không có quyền xem kết quả này' }, { status: 403 })
@@ -49,21 +46,39 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
             return NextResponse.json({ error: 'Không tìm thấy thông tin bài thi' }, { status: 404 })
         }
 
-        // 3. Fetch Questions Full Options
-        const { data: questionsData, error: qError } = await adminAuthClient
-            .from('questions')
+        // 3. Fetch Answers
+        const { data: answersData, error: answersError } = await adminAuthClient
+            .from('exam_answers')
             .select('*')
-            .eq('exam_id', examId)
-            .order('order_index', { ascending: true })
+            .eq('attempt_id', resultId)
 
-        if (qError) {
-            return NextResponse.json({ error: 'Không tải được danh sách câu hỏi gốc' }, { status: 500 })
+        const answersMap: Record<string, number> = {}
+        if (answersData) {
+            answersData.forEach((ans: any) => {
+                if (ans.selected_option !== null && ans.selected_option !== undefined) {
+                    answersMap[ans.question_id] = ans.selected_option
+                }
+            })
+        }
+
+        // Calculate time taken in seconds
+        const startedAt = new Date(attemptData.started_at).getTime()
+        const completedAt = attemptData.completed_at ? new Date(attemptData.completed_at).getTime() : Date.now()
+        const timeTaken = Math.floor((completedAt - startedAt) / 1000)
+
+        // Map to expected format for the frontend
+        const resultFormatted = {
+            ...attemptData,
+            total_correct: attemptData.correct_count,
+            time_taken: timeTaken,
+            answers: answersMap,
+            created_at: attemptData.completed_at || attemptData.started_at
         }
 
         return NextResponse.json({
-            result: resultData,
+            result: resultFormatted,
             exam: examData,
-            questions: questionsData || []
+            questions: attemptData.questions_snapshot || []
         }, { status: 200 })
 
     } catch (error: any) {

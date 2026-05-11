@@ -7,14 +7,13 @@ import { useUserStore } from "@/store/userStore"
 import { Button } from "@/components/ui/button"
 import { UserNav } from "@/components/shared/UserNav"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Clock, PlayCircle, CalendarDays, Award } from "lucide-react"
+import { Clock, PlayCircle } from "lucide-react"
 
 export default function DashboardPage() {
     const router = useRouter()
     const supabase = createClient()
     const { user, role, setUser, setRole, isLoading, setIsLoading } = useUserStore()
     const [exams, setExams] = useState<any[]>([])
-    const [history, setHistory] = useState<any[]>([])
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -33,20 +32,11 @@ export default function DashboardPage() {
             }
 
             try {
-                // Fetch available exams & history via bypass API
-                const [examsRes, historyRes] = await Promise.all([
-                    fetch('/api/exams'),
-                    fetch('/api/learner/history')
-                ])
-
+                // Fetch available exams
+                const examsRes = await fetch('/api/exams')
                 if (examsRes.ok) {
                     const latestExams = await examsRes.json()
                     setExams(latestExams)
-                }
-
-                if (historyRes.ok) {
-                    const historyData = await historyRes.json()
-                    setHistory(historyData.slice(0, 5))
                 }
             } catch (error) {
                 console.error("Lỗi lấy dữ liệu dashboard:", error)
@@ -179,10 +169,7 @@ export default function DashboardPage() {
                                         <Card key={exam.id} className="hover:border-primary/50 transition-colors flex flex-col">
                                             <CardHeader className="pb-3">
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${exam.level === 'TOPIK I' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-                                                        }`}>
-                                                        {exam.level}
-                                                    </span>
+                                                    {/* Level badge hidden as requested */}
                                                     {exam.is_ai_generated && (
                                                         <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-800 flex items-center gap-1">
                                                             ✨ AI Gen
@@ -214,46 +201,7 @@ export default function DashboardPage() {
                             )}
                         </div>
 
-                        {/* Recent History */}
-                        <div>
-                            <h2 className="text-xl font-semibold mb-4 mt-8">Lịch sử gần đây</h2>
 
-                            {history.length === 0 ? (
-                                <div className="border rounded-md p-8 text-center text-muted-foreground bg-muted/10">
-                                    Chưa có dữ liệu làm bài thi. Hãy chọn một đề thi phía trên để bắt đầu!
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {history.map((record: any) => (
-                                        <Card key={record.id} className="hover:border-primary/50 transition-colors">
-                                            <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                                <div className="flex-1">
-                                                    <h3 className="font-semibold text-lg line-clamp-1">{record.exams?.title || "Đề thi không xác định"}</h3>
-                                                    <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mt-2">
-                                                        <div className="flex items-center gap-1">
-                                                            <CalendarDays className="w-4 h-4" />
-                                                            {new Date(record.created_at).toLocaleDateString("vi-VN")}
-                                                        </div>
-                                                        <div className="flex items-center gap-1 font-medium text-primary">
-                                                            <Award className="w-4 h-4" />
-                                                            Đạt {record.score}/100 điểm
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => record.type === 'milestone' ? alert('Tính năng xem chi tiết chữa bài Mốc đang được AI biên soạn, sẽ ra mắt sớm!') : router.push(`/exam/${record.exams?.id}/result/${record.id}`)}
-                                                    className="w-full sm:w-auto hover:bg-primary/5"
-                                                >
-                                                    Xem lại kết quả
-                                                </Button>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
 
                     </div>
                 </main>

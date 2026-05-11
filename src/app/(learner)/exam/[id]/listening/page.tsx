@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -15,7 +15,8 @@ export default function ListeningPage() {
     const examId = params.id as string
     const attemptId = searchParams.get('attemptId')
 
-    const [questions, setQuestions] = useState<any[]>([])
+    const [questions, setQuestions] = useState<any[]>([]) // Only listening questions for display
+    const [allQuestions, setAllQuestions] = useState<any[]>([]) // All questions (reading + listening) for sidebar
     const [currentIndex, setCurrentIndex] = useState(0)
     const [answers, setAnswers] = useState<Record<string, number>>({})
     const [timeLeft, setTimeLeft] = useState(0) // Tổng thời gian Nghe
@@ -63,6 +64,8 @@ export default function ListeningPage() {
                 )
                 setReadingCount(readingQuestions.length)
 
+                // Set all questions for sidebar (reading + listening)
+                setAllQuestions(data.attempt.questions)
                 setQuestions(listeningQuestions)
                 setExam(data.exam)
                 setTimeLeft((data.exam.listening_duration || 30) * 60)
@@ -94,87 +97,7 @@ export default function ListeningPage() {
         return () => clearInterval(timer)
     }, [timeLeft, isLoading])
 
-    // Auto-play audio when question changes
-    useEffect(() => {
-        if (questions.length === 0 || isLoading) return
-
-        const currentQ = questions[currentIndex]
-        if (!currentQ) return
-
-        setAudioEnded(false)
-
-        // Clear previous timer
-        if (questionTimerRef.current) {
-            clearInterval(questionTimerRef.current)
-        }
-
-        // Auto-play audio
-        if (currentQ.audio_url && audioRef.current) {
-            audioRef.current.src = currentQ.audio_url
-            audioRef.current.play().then(() => {
-                setAudioPlaying(true)
-            }).catch((err) => {
-                console.error('Audio play error:', err)
-                // If audio fails to play, start countdown immediately
-                startQuestionTimer(currentQ)
-            })
-        } else {
-            // No audio - start countdown immediately
-            startQuestionTimer(currentQ)
-        }
-    }, [currentIndex, questions, isLoading])
-
-    const startQuestionTimer = (question: any) => {
-        const timeLimit = question.time_per_question || 15
-        setQuestionTimeLeft(timeLimit)
-
-        questionTimerRef.current = setInterval(() => {
-            setQuestionTimeLeft((prev) => {
-                if (prev <= 1) {
-                    if (questionTimerRef.current) {
-                        clearInterval(questionTimerRef.current)
-                    }
-                    handleNextQuestion()
-                    return 0
-                }
-                return prev - 1
-            })
-        }, 1000)
-    }
-
-    const handleAudioEnded = () => {
-        setAudioPlaying(false)
-        setAudioEnded(true)
-        const currentQ = questions[currentIndex]
-        if (currentQ) {
-            startQuestionTimer(currentQ)
-        }
-    }
-
-    const handleAnswerSelect = (optionIndex: number) => {
-        const currentQ = questions[currentIndex]
-        if (!currentQ) return
-
-        setAnswers((prev) => ({
-            ...prev,
-            [currentQ.id]: optionIndex,
-        }))
-    }
-
-    const handleNextQuestion = () => {
-        if (questionTimerRef.current) {
-            clearInterval(questionTimerRef.current)
-        }
-
-        if (currentIndex >= questions.length - 1) {
-            // Last question - submit all
-            handleSubmitAll()
-        } else {
-            setCurrentIndex((prev) => prev + 1)
-        }
-    }
-
-    const handleSubmitAll = async () => {
+    const handleSubmitAll = useCallback(async () => {
         if (isSubmitting) return
         setIsSubmitting(true)
 
@@ -209,7 +132,80 @@ export default function ListeningPage() {
             toast.error(error.message || 'Lỗi nộp bài')
             setIsSubmitting(false)
         }
+    }, [isSubmitting, questions, answers, examId, attemptId, router])
+
+    const startQuestionTimer = useCallback((question: any, questionIndex: number) => {
+        const timeLimit = question.time_per_question || 15
+        setQuestionTimeLeft(timeLimit)
+
+        questionTimerRef.current = setInterval(() => {
+            setQuestionTimeLeft((prev) => {
+                if (prev <= 1) {
+                    if (questionTimerRef.current) {
+                        clearInterval(questionTimerRef.current)
+                    }
+
+                    // Chỉ chuyển câu, KHÔNG nộp bài
+                    // Nộp bài chỉ xảy ra khi hết thời gian TỔNG (trong useEffect timeLeft)
+                    if (questionIndex < questions.length - 1) {
+                        setCurrentIndex(questionIndex + 1)
+                    }
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+    }, [questions.length])
+
+    const handleAudioEnded = () => {
+        setAudioPlaying(false)
+        setAudioEnded(true)
+        const currentQ = questions[currentIndex]
+        if (currentQ) {
+            startQuestionTimer(currentQ, currentIndex)
+        }
     }
+
+    const handleAnswerSelect = (optionIndex: number) => {
+        const currentQ = questions[currentIndex]
+        if (!currentQ) return
+
+        setAnswers((prev) => ({
+            ...prev,
+            [currentQ.id]: optionIndex,
+        }))
+    }
+
+    // Auto-play audio when question changes
+    useEffect(() => {
+        if (questions.length === 0 || isLoading) return
+
+        const currentQ = questions[currentIndex]
+        if (!currentQ) return
+
+        setAudioEnded(false)
+
+        // Clear previous timer
+        if (questionTimerRef.current) {
+            clearInterval(questionTimerRef.current)
+        }
+
+        // Auto-play audio
+        if (currentQ.audio_url && audioRef.current) {
+            audioRef.current.src = currentQ.audio_url
+            audioRef.current.play().then(() => {
+                setAudioPlaying(true)
+            }).catch((err) => {
+                console.error('Audio play error:', err)
+                // If audio fails to play, start countdown immediately
+                startQuestionTimer(currentQ, currentIndex)
+            })
+        } else {
+            // No audio - start countdown immediately
+            startQuestionTimer(currentQ, currentIndex)
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentIndex, questions, isLoading])
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60)
@@ -260,7 +256,6 @@ export default function ListeningPage() {
     }
 
     const options = getOptions(currentQuestion)
-    const answeredCount = Object.keys(answers).length
     const isLastQuestion = currentIndex === questions.length - 1
 
     return (
@@ -316,136 +311,172 @@ export default function ListeningPage() {
                 </div>
             </div>
 
-            <div className="max-w-4xl mx-auto px-4 py-6">
-                <Card className="p-6">
-                    {/* Audio Status */}
-                    {audioPlaying && (
-                        <div className="mb-6 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
-                            <div className="flex items-center gap-3">
-                                <div className="relative">
-                                    <Volume2 className="w-6 h-6 text-blue-600" />
-                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-ping"></div>
-                                </div>
-                                <p className="text-blue-700 font-medium">
-                                    🎧 Đang phát audio... Hãy lắng nghe
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Question Time Countdown */}
-                    {audioEnded && questionTimeLeft > 0 && (
-                        <div className="mb-6 p-4 bg-orange-50 rounded-lg border-l-4 border-orange-500">
-                            <div className="flex items-center justify-between">
-                                <p className="text-orange-700 font-medium">
-                                    ⏱️ Thời gian trả lời câu này:
-                                </p>
-                                <div className="text-3xl font-bold text-orange-600 font-mono">
-                                    {questionTimeLeft}s
-                                </div>
-                            </div>
-                            {/* Progress bar */}
-                            <div className="mt-3 w-full bg-orange-200 rounded-full h-2">
-                                <div
-                                    className="bg-orange-500 h-2 rounded-full transition-all duration-1000"
-                                    style={{
-                                        width: `${(questionTimeLeft / (currentQuestion.time_per_question || 15)) * 100}%`,
-                                    }}
-                                ></div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Question Number */}
-                    <div className="mb-6">
-                        <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
-                            Câu {readingCount + currentIndex + 1}
-                        </span>
-                    </div>
-
-                    {/* Question Image */}
-                    {currentQuestion.question_image_url && (
-                        <div className="mb-4 flex justify-center">
-                            <img
-                                src={currentQuestion.question_image_url}
-                                alt="Question"
-                                className="max-h-72 w-auto object-contain rounded-lg border shadow-sm"
-                            />
-                        </div>
-                    )}
-
-                    {/* Question Text */}
-                    <div className="mb-6">
-                        <div
-                            className="prose prose-sm max-w-none text-lg text-gray-900"
-                            dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }}
-                        />
-                    </div>
-
-                    {/* Options - Only enabled after audio ends */}
-                    <div className="space-y-3">
-                        {options.length === 0 ? (
-                            <div className="p-4 bg-yellow-50 text-yellow-700 rounded-lg">
-                                ⚠️ Câu hỏi này chưa có đáp án trong hệ thống
-                            </div>
-                        ) : (
-                            options.map((opt: any, idx: number) => {
-                                const isSelected = answers[currentQuestion.id] === idx
-                                const optionText = typeof opt === 'string' ? opt : opt.content || opt.text || ''
-                                const isImg = opt.type === 'image' || isImageUrl(optionText)
-
-                                return (
-                                    <button
-                                        key={idx}
-                                        onClick={() => handleAnswerSelect(idx)}
-                                        className={`w-full text-left p-4 rounded-lg border-2 transition-all ${isSelected
-                                            ? 'border-purple-500 bg-purple-50'
-                                            : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                                            }`}
-                                    >
-                                        <div className="flex items-start gap-3">
-                                            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-semibold mt-0.5 ${isSelected
-                                                ? 'bg-purple-500 text-white'
-                                                : 'bg-gray-200 text-gray-700'
-                                                }`}>
-                                                {idx + 1}
-                                            </div>
-                                            <div className="flex-1">
-                                                {isImg ? (
-                                                    <img 
-                                                        src={optionText} 
-                                                        alt={`Option ${idx + 1}`} 
-                                                        className="max-h-40 w-auto rounded border shadow-sm" 
-                                                    />
-                                                ) : (
-                                                    <div
-                                                        className="prose prose-sm max-w-none text-gray-900"
-                                                        dangerouslySetInnerHTML={{ __html: optionText }}
-                                                    />
-                                                )}
-                                            </div>
+            <div className="max-w-7xl mx-auto px-4 py-6">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    {/* Main Question Area */}
+                    <div className="lg:col-span-3">
+                        <Card className="p-6">
+                            {/* Audio Status */}
+                            {audioPlaying && (
+                                <div className="mb-6 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                                    <div className="flex items-center gap-3">
+                                        <div className="relative">
+                                            <Volume2 className="w-6 h-6 text-blue-600" />
+                                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-ping"></div>
                                         </div>
-                                    </button>
-                                )
-                            })
-                        )}
+                                        <p className="text-blue-700 font-medium">
+                                            🎧 Đang phát audio... Hãy lắng nghe
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Question Time Countdown */}
+                            {audioEnded && questionTimeLeft > 0 && (
+                                <div className="mb-6 p-4 bg-orange-50 rounded-lg border-l-4 border-orange-500">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-orange-700 font-medium">
+                                            ⏱️ Thời gian trả lời câu này:
+                                        </p>
+                                        <div className="text-3xl font-bold text-orange-600 font-mono">
+                                            {questionTimeLeft}s
+                                        </div>
+                                    </div>
+                                    {/* Progress bar */}
+                                    <div className="mt-3 w-full bg-orange-200 rounded-full h-2">
+                                        <div
+                                            className="bg-orange-500 h-2 rounded-full transition-all duration-1000"
+                                            style={{
+                                                width: `${(questionTimeLeft / (currentQuestion.time_per_question || 15)) * 100}%`,
+                                            }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Question Number */}
+                            <div className="mb-6">
+                                <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
+                                    Câu {readingCount + currentIndex + 1}
+                                </span>
+                            </div>
+
+                            {/* Question Image */}
+                            {currentQuestion.question_image_url && (
+                                <div className="mb-4 flex justify-center">
+                                    <img
+                                        src={currentQuestion.question_image_url}
+                                        alt="Question"
+                                        className="max-h-72 w-auto object-contain rounded-lg border shadow-sm"
+                                    />
+                                </div>
+                            )}
+
+                            {/* Question Text */}
+                            <div className="mb-6">
+                                <div
+                                    className="prose prose-sm max-w-none text-lg text-gray-900"
+                                    dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }}
+                                />
+                            </div>
+
+                            {/* Options - Only enabled after audio ends */}
+                            <div className="space-y-3">
+                                {options.length === 0 ? (
+                                    <div className="p-4 bg-yellow-50 text-yellow-700 rounded-lg">
+                                        ⚠️ Câu hỏi này chưa có đáp án trong hệ thống
+                                    </div>
+                                ) : (
+                                    options.map((opt: any, idx: number) => {
+                                        const isSelected = answers[currentQuestion.id] === idx
+                                        const optionText = typeof opt === 'string' ? opt : opt.content || opt.text || ''
+                                        const isImg = opt.type === 'image' || isImageUrl(optionText)
+
+                                        return (
+                                            <button
+                                                key={idx}
+                                                onClick={() => handleAnswerSelect(idx)}
+                                                className={`w-full text-left p-4 rounded-lg border-2 transition-all ${isSelected
+                                                    ? 'border-purple-500 bg-purple-50'
+                                                    : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+                                                    }`}
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-semibold mt-0.5 ${isSelected
+                                                        ? 'bg-purple-500 text-white'
+                                                        : 'bg-gray-200 text-gray-700'
+                                                        }`}>
+                                                        {idx + 1}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        {isImg ? (
+                                                            <img
+                                                                src={optionText}
+                                                                alt={`Option ${idx + 1}`}
+                                                                className="max-h-40 w-auto rounded border shadow-sm"
+                                                            />
+                                                        ) : (
+                                                            <div
+                                                                className="prose prose-sm max-w-none text-gray-900"
+                                                                dangerouslySetInnerHTML={{ __html: optionText }}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        )
+                                    })
+                                )}
+                            </div>
+
+                            {/* Action Button - chỉ hiển thị nút Nộp Bài ở câu cuối */}
+                            {isLastQuestion && (
+                                <div className="mt-8 pt-6 border-t flex justify-end">
+                                    <Button
+                                        onClick={handleSubmitAll}
+                                        disabled={isSubmitting}
+                                        size="lg"
+                                        className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                                    >
+                                        <Send className="w-4 h-4 mr-2" />
+                                        {isSubmitting ? 'Đang nộp bài...' : 'Nộp Bài'}
+                                    </Button>
+                                </div>
+                            )}
+                        </Card>
                     </div>
 
-                    {/* Action Button - chỉ hiển thị nút Nộp Bài ở câu cuối */}
-                    {isLastQuestion && (
-                        <div className="mt-8 pt-6 border-t flex justify-end">
-                            <Button
-                                onClick={handleSubmitAll}
-                                disabled={isSubmitting}
-                                size="lg"
-                                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-                            >
-                                <Send className="w-4 h-4 mr-2" />
-                                {isSubmitting ? 'Đang nộp bài...' : 'Nộp Bài'}
-                            </Button>
-                        </div>
-                    )}
-                </Card>
+                    {/* Question List Sidebar */}
+                    <div className="lg:col-span-1">
+                        <Card className="p-4 sticky top-24 flex flex-col max-h-[calc(100vh-6rem)]">
+                            <h3 className="font-semibold mb-3 pb-2 border-b">Danh sách câu hỏi</h3>
+                            <div className="grid grid-cols-5 lg:grid-cols-4 gap-2 overflow-y-auto pr-1 pb-2">
+                                {allQuestions.map((q, idx) => {
+                                    const isListening = q.section === 'listening'
+                                    const listeningIdx = isListening ? questions.findIndex(lq => lq.id === q.id) : -1
+                                    const isCurrentQuestion = isListening && listeningIdx === currentIndex
+                                    const isAnswered = answers[q.id] !== undefined
+
+                                    return (
+                                        <button
+                                            key={q.id}
+                                            disabled
+                                            className={`aspect-square rounded-lg font-semibold text-sm transition-all cursor-not-allowed ${
+                                                isCurrentQuestion
+                                                    ? 'bg-purple-500 text-white ring-2 ring-purple-300'
+                                                    : isAnswered
+                                                        ? 'bg-green-100 text-green-700'
+                                                        : 'bg-gray-100 text-gray-700'
+                                            }`}
+                                        >
+                                            {idx + 1}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </Card>
+                    </div>
+                </div>
             </div>
         </div>
     )

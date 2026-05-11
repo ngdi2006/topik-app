@@ -11,26 +11,36 @@ export async function GET() {
 
         const adminSupabase = createAdminClient()
 
-        // 1. Fetch Exam Results
-        const examPromise = adminSupabase
-            .from('exam_results')
+        // Fetch completed exam attempts (new system)
+        const { data: attempts, error: attemptsError } = await adminSupabase
+            .from('exam_attempts')
             .select(`
                 id,
+                exam_id,
                 score,
-                total_correct,
-                time_taken,
-                created_at,
+                total_points,
+                correct_count,
+                wrong_count,
+                status,
+                started_at,
+                completed_at,
+                attempt_number,
                 exams (
                     id,
                     title,
                     level,
-                    part_type
+                    total_questions,
+                    duration
                 )
             `)
             .eq('user_id', user.id)
+            .eq('status', 'completed')
+            .order('completed_at', { ascending: false })
 
-        // 2. Fetch Milestone Results
-        const milestonePromise = adminSupabase
+        if (attemptsError) throw attemptsError
+
+        // Fetch Milestone Results (keep existing)
+        const { data: milestoneData, error: milestoneError } = await adminSupabase
             .from('milestone_results')
             .select(`
                 id,
@@ -45,14 +55,34 @@ export async function GET() {
             `)
             .eq('user_id', user.id)
 
-        const [examRes, milestoneRes] = await Promise.all([examPromise, milestonePromise])
+        if (milestoneError) {
+            console.warn('Milestone fetch error (ignored):', milestoneError)
+        }
 
-        if (examRes.error) throw examRes.error
-        if (milestoneRes.error) throw milestoneRes.error
+        const mappedAttempts = (attempts || []).map(a => {
+            const startedAt = new Date(a.started_at).getTime()
+            const completedAt = a.completed_at ? new Date(a.completed_at).getTime() : Date.now()
+            const timeTaken = Math.floor((completedAt - startedAt) / 1000)
+            const percentage = a.total_points > 0
+                ? Math.round((a.score / a.total_points) * 100)
+                : 0
 
-        const mappedExams = (examRes.data || []).map(e => ({ ...e, type: 'exam' }))
+            return {
+                id: a.id,
+                score: percentage,            // percentage 0-100 for display
+                raw_score: a.score,           // actual score points
+                total_points: a.total_points,
+                total_correct: a.correct_count,
+                wrong_count: a.wrong_count,
+                time_taken: timeTaken,
+                created_at: a.completed_at || a.started_at,
+                attempt_number: a.attempt_number,
+                type: 'exam',
+                exams: a.exams,
+            }
+        })
 
-        const mappedMilestones = (milestoneRes.data || []).map(m => ({
+        const mappedMilestones = (milestoneData || []).map(m => ({
             id: m.id,
             score: m.total_score,
             total_correct: m.qa_reports ? Object.keys(m.qa_reports).length : 0,
@@ -61,17 +91,19 @@ export async function GET() {
             type: 'milestone',
             exams: {
                 id: (m.milestones as any)?.id,
-                title: (m.milestones as any)?.title || "Kiểm tra Mốc",
+                title: (m.milestones as any)?.title || 'Kiểm tra Mốc',
                 level: `Mốc ${(m.milestones as any)?.level}`,
-                part_type: 'Speaking AI'
-            }
+                part_type: 'Speaking AI',
+            },
         }))
 
-        // Merge and Sort
-        const combined = [...mappedExams, ...mappedMilestones].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        // Merge and sort by date descending
+        const combined = [...mappedAttempts, ...mappedMilestones]
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
         return NextResponse.json(combined)
     } catch (error: any) {
+        console.error('History API error:', error)
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 }

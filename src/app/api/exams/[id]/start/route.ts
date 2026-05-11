@@ -36,11 +36,12 @@ export async function POST(
             .from('exams')
             .select('*')
             .eq('id', params.id)
+            .eq('status', 'Published')
             .single()
 
         if (examError || !exam) {
             return NextResponse.json(
-                { success: false, error: 'Đề thi không tồn tại' },
+                { success: false, error: 'Đề thi trống hoặc không tồn tại' },
                 { status: 404 }
             )
         }

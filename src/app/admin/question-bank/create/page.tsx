@@ -259,7 +259,7 @@ export default function CreateQuestionPage() {
                         <div className="space-y-2">
                             <Label>Đoạn văn (tùy chọn)</Label>
                             <RichTextEditor
-                                value={formData.passage}
+                                value={formData.passage || ''}
                                 onChange={(value) =>
                                     setFormData({
                                         ...formData,

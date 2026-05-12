@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,7 +28,7 @@ interface Category {
     is_active: boolean
 }
 
-export default function CreateQuestionPage() {
+function CreateQuestionForm() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const preSelectedCategoryId = searchParams.get('category_id')
@@ -412,5 +412,13 @@ export default function CreateQuestionPage() {
                 </div>
             </form>
         </div>
+    )
+}
+
+export default function CreateQuestionPage() {
+    return (
+        <Suspense fallback={<div className="flex justify-center p-8">Đang tải...</div>}>
+            <CreateQuestionForm />
+        </Suspense>
     )
 }

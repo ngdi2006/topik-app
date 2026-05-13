@@ -94,9 +94,6 @@ export default function ExamStartPage() {
                         <h1 className="text-3xl font-bold text-gray-900 mb-2">
                             {exam.title}
                         </h1>
-                        <div className="inline-block px-4 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                            {exam.level}
-                        </div>
                     </div>
 
                     {/* Exam Info */}

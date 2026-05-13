@@ -169,12 +169,6 @@ export default function DashboardPage() {
                                         <Card key={exam.id} className="hover:border-primary/50 transition-colors flex flex-col">
                                             <CardHeader className="pb-3">
                                                 <div className="flex justify-between items-start mb-2">
-                                                    {/* Level badge */}
-                                                    {exam.level && (
-                                                        <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-orange-100 text-orange-800">
-                                                            {exam.level}
-                                                        </span>
-                                                    )}
                                                     {exam.is_ai_generated && (
                                                         <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-800 flex items-center gap-1">
                                                             ✨ AI Gen

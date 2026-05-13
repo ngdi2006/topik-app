@@ -353,54 +353,53 @@ export default function ReadingPage() {
                             </div>
 
                             {/* Options */}
-                            <div className="pl-10 mt-8">
+                            <div className="mt-8">
                                 {options.length === 0 ? (
                                     <div className="p-4 bg-yellow-50 text-yellow-700 rounded-lg">
                                         ⚠️ Câu hỏi này chưa có đáp án trong hệ thống
                                     </div>
                                 ) : (
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-2 gap-4">
                                         {options.map((opt: any, idx: number) => {
                                             const isSelected = answers[currentQuestion.id] === idx
                                             const optionText = typeof opt === 'string' ? opt : opt.content || opt.text || ''
                                             const isImg = opt.type === 'image' || isImageUrl(optionText)
 
                                             return (
-                                                <div key={idx} className="relative">
-                                                    {/* Option number outside the box */}
-                                                    <div className="absolute -left-9 top-1/2 -translate-y-1/2">
-                                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold ${isSelected
-                                                            ? 'bg-blue-500 text-white'
-                                                            : 'bg-gray-300 text-gray-600'
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => handleAnswerSelect(currentQuestion.id, idx)}
+                                                    className={`relative w-full min-h-[120px] text-left p-6 pt-8 rounded-2xl border-2 transition-all ${isSelected
+                                                        ? 'border-blue-500 bg-blue-50'
+                                                        : 'border-gray-300 hover:border-blue-300 bg-white hover:bg-gray-50'
+                                                        }`}
+                                                >
+                                                    {/* Option number at top-left corner */}
+                                                    <div className="absolute -top-4 left-4">
+                                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold border-2 ${isSelected
+                                                            ? 'bg-blue-500 text-white border-blue-500'
+                                                            : 'bg-white text-gray-700 border-gray-400'
                                                             }`}>
                                                             {idx + 1}
                                                         </div>
                                                     </div>
 
-                                                    {/* Answer button */}
-                                                    <button
-                                                        onClick={() => handleAnswerSelect(currentQuestion.id, idx)}
-                                                        className={`w-full h-full min-h-[120px] text-left p-4 rounded-xl border-2 transition-all ${isSelected
-                                                            ? 'border-blue-500 bg-blue-50'
-                                                            : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-                                                            }`}
-                                                    >
-                                                        <div className="flex items-center justify-center h-full">
-                                                            {isImg ? (
-                                                                <img
-                                                                    src={optionText}
-                                                                    alt={`Option ${idx + 1}`}
-                                                                    className="max-h-28 w-auto rounded border shadow-sm"
-                                                                />
-                                                            ) : (
-                                                                <div
-                                                                    className="prose prose-sm max-w-none text-gray-900 w-full"
-                                                                    dangerouslySetInnerHTML={{ __html: optionText }}
-                                                                />
-                                                            )}
-                                                        </div>
-                                                    </button>
-                                                </div>
+                                                    {/* Answer content */}
+                                                    <div className="flex items-center h-full">
+                                                        {isImg ? (
+                                                            <img
+                                                                src={optionText}
+                                                                alt={`Option ${idx + 1}`}
+                                                                className="max-h-28 w-auto rounded border shadow-sm mx-auto"
+                                                            />
+                                                        ) : (
+                                                            <div
+                                                                className="prose prose-sm max-w-none text-gray-900 w-full"
+                                                                dangerouslySetInnerHTML={{ __html: optionText }}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                </button>
                                             )
                                         })}
                                     </div>

@@ -24,6 +24,7 @@ export default function ListeningPage() {
     const [questionTimeLeft, setQuestionTimeLeft] = useState(0) // Thời gian cho câu hiện tại
     const [audioPlaying, setAudioPlaying] = useState(false)
     const [audioEnded, setAudioEnded] = useState(false)
+    const [audioError, setAudioError] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [exam, setExam] = useState<any>(null)
@@ -243,6 +244,7 @@ export default function ListeningPage() {
         if (!currentQ) return
 
         setAudioEnded(false)
+        setAudioError(false)
 
         // Clear previous timer
         if (questionTimerRef.current) {
@@ -252,13 +254,20 @@ export default function ListeningPage() {
         // Auto-play audio
         if (currentQ.audio_url && audioRef.current) {
             audioRef.current.src = currentQ.audio_url
-            audioRef.current.play().then(() => {
-                setAudioPlaying(true)
-            }).catch((err) => {
-                console.error('Audio play error:', err)
-                // If audio fails to play, start countdown immediately
-                startQuestionTimer(currentQ, currentIndex)
-            })
+            audioRef.current.load() // Preload audio
+
+            // Try to play
+            const playPromise = audioRef.current.play()
+
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    setAudioPlaying(true)
+                }).catch((err) => {
+                    console.error('Audio play error:', err)
+                    setAudioError(true)
+                    // Don't start timer yet - wait for user to manually play
+                })
+            }
         } else {
             // No audio - start countdown immediately
             startQuestionTimer(currentQ, currentIndex)
@@ -325,6 +334,8 @@ export default function ListeningPage() {
                 onEnded={handleAudioEnded}
                 onPlay={() => setAudioPlaying(true)}
                 onPause={() => setAudioPlaying(false)}
+                preload="auto"
+                playsInline
                 className="hidden"
             />
 
@@ -375,6 +386,37 @@ export default function ListeningPage() {
                     {/* Main Question Area */}
                     <div className="lg:col-span-3">
                         <Card className="p-6">
+                            {/* Audio Error - Manual Play Button */}
+                            {audioError && !audioPlaying && !audioEnded && (
+                                <div className="mb-6 p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <Volume2 className="w-6 h-6 text-yellow-600" />
+                                            <p className="text-yellow-700 font-medium">
+                                                Nhấn nút để phát audio
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                if (audioRef.current) {
+                                                    audioRef.current.play().then(() => {
+                                                        setAudioPlaying(true)
+                                                        setAudioError(false)
+                                                    }).catch((err) => {
+                                                        console.error('Manual play error:', err)
+                                                        toast.error('Không thể phát audio. Vui lòng kiểm tra lại.')
+                                                    })
+                                                }
+                                            }}
+                                            className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-semibold flex items-center gap-2"
+                                        >
+                                            <Volume2 className="w-5 h-5" />
+                                            Phát Audio
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Audio Status */}
                             {audioPlaying && (
                                 <div className="mb-6 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">

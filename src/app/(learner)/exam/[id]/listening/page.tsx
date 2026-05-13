@@ -487,51 +487,57 @@ export default function ListeningPage() {
                             </div>
 
                             {/* Options */}
-                            <div className="space-y-4">
+                            <div className="pl-10">
                                 {options.length === 0 ? (
                                     <div className="p-4 bg-yellow-50 text-yellow-700 rounded-lg">
                                         ⚠️ Câu hỏi này chưa có đáp án trong hệ thống
                                     </div>
                                 ) : (
-                                    options.map((opt: any, idx: number) => {
-                                        const isSelected = answers[currentQuestion.id] === idx
-                                        const optionText = typeof opt === 'string' ? opt : opt.content || opt.text || ''
-                                        const isImg = opt.type === 'image' || isImageUrl(optionText)
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {options.map((opt: any, idx: number) => {
+                                            const isSelected = answers[currentQuestion.id] === idx
+                                            const optionText = typeof opt === 'string' ? opt : opt.content || opt.text || ''
+                                            const isImg = opt.type === 'image' || isImageUrl(optionText)
 
-                                        return (
-                                            <button
-                                                key={idx}
-                                                onClick={() => handleAnswerSelect(idx)}
-                                                className={`w-full text-left p-5 rounded-xl border-2 transition-all relative ${isSelected
-                                                    ? 'border-purple-500 bg-purple-50'
-                                                    : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                                                    }`}
-                                            >
-                                                <div className="flex items-start gap-4">
-                                                    <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${isSelected
-                                                        ? 'bg-purple-500 text-white'
-                                                        : 'bg-gray-300 text-gray-600'
-                                                        }`}>
-                                                        {idx + 1}
+                                            return (
+                                                <div key={idx} className="relative">
+                                                    {/* Option number outside the box */}
+                                                    <div className="absolute -left-9 top-1/2 -translate-y-1/2">
+                                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold ${isSelected
+                                                            ? 'bg-purple-500 text-white'
+                                                            : 'bg-gray-300 text-gray-600'
+                                                            }`}>
+                                                            {idx + 1}
+                                                        </div>
                                                     </div>
-                                                    <div className="flex-1 pt-0.5">
-                                                        {isImg ? (
-                                                            <img
-                                                                src={optionText}
-                                                                alt={`Option ${idx + 1}`}
-                                                                className="max-h-40 w-auto rounded border shadow-sm"
-                                                            />
-                                                        ) : (
-                                                            <div
-                                                                className="prose prose-base max-w-none text-gray-900"
-                                                                dangerouslySetInnerHTML={{ __html: optionText }}
-                                                            />
-                                                        )}
-                                                    </div>
+
+                                                    {/* Answer button */}
+                                                    <button
+                                                        onClick={() => handleAnswerSelect(idx)}
+                                                        className={`w-full h-full min-h-[120px] text-left p-4 rounded-xl border-2 transition-all ${isSelected
+                                                            ? 'border-purple-500 bg-purple-50'
+                                                            : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+                                                            }`}
+                                                    >
+                                                        <div className="flex items-center justify-center h-full">
+                                                            {isImg ? (
+                                                                <img
+                                                                    src={optionText}
+                                                                    alt={`Option ${idx + 1}`}
+                                                                    className="max-h-28 w-auto rounded border shadow-sm"
+                                                                />
+                                                            ) : (
+                                                                <div
+                                                                    className="prose prose-sm max-w-none text-gray-900 w-full"
+                                                                    dangerouslySetInnerHTML={{ __html: optionText }}
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    </button>
                                                 </div>
-                                            </button>
-                                        )
-                                    })
+                                            )
+                                        })}
+                                    </div>
                                 )}
                             </div>
                         </Card>

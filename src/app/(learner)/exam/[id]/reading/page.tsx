@@ -343,14 +343,14 @@ export default function ReadingPage() {
                                     disabled={currentIndex === 0}
                                 >
                                     <ChevronLeft className="w-4 h-4 mr-2" />
-                                    Câu trước
+                                    이전
                                 </Button>
 
                                 <Button
                                     onClick={() => setCurrentIndex((prev) => Math.min(questions.length - 1, prev + 1))}
                                     disabled={currentIndex === questions.length - 1}
                                 >
-                                    Câu sau
+                                    다음
                                     <ChevronRight className="w-4 h-4 ml-2" />
                                 </Button>
                             </div>
@@ -367,7 +367,7 @@ export default function ReadingPage() {
                                     disabled={isSubmitting}
                                     className={`w-full mb-4 shadow-sm font-semibold ${hasListening ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'}`}
                                 >
-                                    {isSubmitting ? 'Đang lưu...' : (hasListening ? '듣기로 이동 →' : 'Nộp bài ngay')}
+                                    {isSubmitting ? 'Đang lưu...' : (hasListening ? 'Chuyển Nghe' : 'Nộp bài ngay')}
                                 </Button>
                             )}
 

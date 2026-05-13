@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { UserNav } from "@/components/shared/UserNav"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { CalendarDays, Clock, Award, ChevronLeft, Search, CheckCircle2, XCircle, BookOpen } from "lucide-react"
+import { CalendarDays, Clock, Award, ChevronLeft, Search, CheckCircle2, XCircle } from "lucide-react"
 
 export default function HistoryPage() {
     const router = useRouter()
@@ -65,7 +65,7 @@ export default function HistoryPage() {
                     <CardHeader className="bg-white border-b rounded-t-xl">
                         <CardTitle className="text-lg flex items-center gap-2">
                             <Clock className="w-5 h-5 text-blue-500" />
-                            Lịch sử làm bài thi TOPIK
+                            Lịch sử làm bài
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -92,7 +92,6 @@ export default function HistoryPage() {
                                 {examHistory.map((record) => {
                                     const examTitle = (record.exams as any)?.title || "Đề thi không xác định"
                                     const examLevel = (record.exams as any)?.level || ""
-                                    const examId = (record.exams as any)?.id
 
                                     // score here is percentage 0-100
                                     const pct = record.score
@@ -147,7 +146,7 @@ export default function HistoryPage() {
                                                             <XCircle className="w-4 h-4" />
                                                             {record.wrong_count} sai
                                                         </span>
-                                                        <span className="text-gray-400">
+                                                        <span className="text-lg font-bold text-gray-700">
                                                             ({record.raw_score}/{record.total_points} điểm)
                                                         </span>
                                                     </div>
@@ -156,22 +155,12 @@ export default function HistoryPage() {
                                                 {/* Score + Action */}
                                                 <div className={`flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-4
                                                     border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6 min-w-[120px]`}>
-                                                    <div className={`text-center px-4 py-2 rounded-xl ${scoreBg}`}>
-                                                        <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-0.5">Kết quả</p>
-                                                        <div className={`text-4xl font-black ${scoreColor} leading-none`}>
-                                                            {pct}<span className="text-base font-semibold text-gray-400">%</span>
+                                                    <div className={`text-center px-6 py-4 rounded-xl ${scoreBg}`}>
+                                                        <p className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-1">Kết quả</p>
+                                                        <div className={`text-5xl font-black ${scoreColor} leading-none`}>
+                                                            {pct}<span className="text-xl font-semibold text-gray-400">%</span>
                                                         </div>
                                                     </div>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="hover:bg-blue-50 hover:border-blue-300 gap-2"
-                                                        onClick={() => examId && router.push(`/exam/${examId}/result/${record.id}`)}
-                                                        disabled={!examId}
-                                                    >
-                                                        <BookOpen className="w-4 h-4" />
-                                                        Xem đáp án
-                                                    </Button>
                                                 </div>
                                             </div>
                                         </div>

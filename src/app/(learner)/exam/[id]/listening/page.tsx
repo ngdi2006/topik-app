@@ -509,8 +509,8 @@ export default function ListeningPage() {
                                                         }`}
                                                 >
                                                     {/* Option number at top-left corner */}
-                                                    <div className="absolute -top-4 left-4">
-                                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold border-2 ${isSelected
+                                                    <div className="absolute -top-3 left-4">
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-base font-bold border-2 ${isSelected
                                                             ? 'bg-purple-500 text-white border-purple-500'
                                                             : 'bg-white text-gray-700 border-gray-400'
                                                             }`}>

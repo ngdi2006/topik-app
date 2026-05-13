@@ -278,7 +278,7 @@ export default function ListeningPage() {
                         </div>
                         <div>
                             <h1 className="text-xl font-bold text-gray-900">
-                                Phần Nghe Hiểu
+                                듣기
                             </h1>
                             <p className="text-sm text-gray-600">
                                 {exam?.title}
@@ -290,7 +290,7 @@ export default function ListeningPage() {
                         <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 text-gray-400">
                             <Clock className="w-5 h-5" />
                             <div>
-                                <p className="text-xs">Đọc</p>
+                                <p className="text-xs">읽기</p>
                                 <span className="text-xl font-bold font-mono">
                                     00:00
                                 </span>
@@ -301,7 +301,7 @@ export default function ListeningPage() {
                             }`}>
                             <Clock className="w-5 h-5" />
                             <div>
-                                <p className="text-xs">Nghe</p>
+                                <p className="text-xs">듣기</p>
                                 <span className="text-xl font-bold font-mono">
                                     {formatTime(timeLeft)}
                                 </span>
@@ -428,28 +428,26 @@ export default function ListeningPage() {
                                     })
                                 )}
                             </div>
-
-                            {/* Action Button - chỉ hiển thị nút Nộp Bài ở câu cuối */}
-                            {isLastQuestion && (
-                                <div className="mt-8 pt-6 border-t flex justify-end">
-                                    <Button
-                                        onClick={handleSubmitAll}
-                                        disabled={isSubmitting}
-                                        size="lg"
-                                        className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-                                    >
-                                        <Send className="w-4 h-4 mr-2" />
-                                        {isSubmitting ? 'Đang nộp bài...' : 'Nộp Bài'}
-                                    </Button>
-                                </div>
-                            )}
                         </Card>
                     </div>
 
                     {/* Question List Sidebar */}
                     <div className="lg:col-span-1">
                         <Card className="p-4 sticky top-24 flex flex-col max-h-[calc(100vh-6rem)]">
-                            <h3 className="font-semibold mb-3 pb-2 border-b">Danh sách câu hỏi</h3>
+                            {/* Nút Nộp Bài - chỉ hiển thị ở câu cuối */}
+                            {isLastQuestion && (
+                                <Button
+                                    onClick={handleSubmitAll}
+                                    disabled={isSubmitting}
+                                    size="lg"
+                                    className="w-full mb-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                                >
+                                    <Send className="w-4 h-4 mr-2" />
+                                    {isSubmitting ? 'Đang nộp bài...' : 'Nộp Bài'}
+                                </Button>
+                            )}
+
+                            <h3 className="font-semibold mb-3 pb-2 border-b text-center">Danh sách câu hỏi</h3>
                             <div className="grid grid-cols-5 lg:grid-cols-4 gap-2 overflow-y-auto pr-1 pb-2">
                                 {allQuestions.map((q, idx) => {
                                     const isListening = q.section === 'listening'

@@ -453,23 +453,9 @@ export default function ListeningPage() {
 
                             {/* Question Time Countdown */}
                             {audioEnded && questionTimeLeft > 0 && (
-                                <div className="mb-6 p-4 bg-orange-50 rounded-lg border-l-4 border-orange-500">
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-orange-700 font-medium">
-                                            ⏱️ Thời gian trả lời câu này:
-                                        </p>
-                                        <div className="text-3xl font-bold text-orange-600 font-mono">
-                                            {questionTimeLeft}s
-                                        </div>
-                                    </div>
-                                    {/* Progress bar */}
-                                    <div className="mt-3 w-full bg-orange-200 rounded-full h-2">
-                                        <div
-                                            className="bg-orange-500 h-2 rounded-full transition-all duration-1000"
-                                            style={{
-                                                width: `${(questionTimeLeft / (currentQuestion.time_per_question || 15)) * 100}%`,
-                                            }}
-                                        ></div>
+                                <div className="mb-6 flex items-center justify-center">
+                                    <div className="text-6xl font-black text-orange-600 font-mono">
+                                        {questionTimeLeft}
                                     </div>
                                 </div>
                             )}
@@ -500,8 +486,8 @@ export default function ListeningPage() {
                                 />
                             </div>
 
-                            {/* Options - Only enabled after audio ends */}
-                            <div className="space-y-3">
+                            {/* Options */}
+                            <div className="space-y-4">
                                 {options.length === 0 ? (
                                     <div className="p-4 bg-yellow-50 text-yellow-700 rounded-lg">
                                         ⚠️ Câu hỏi này chưa có đáp án trong hệ thống
@@ -516,19 +502,19 @@ export default function ListeningPage() {
                                             <button
                                                 key={idx}
                                                 onClick={() => handleAnswerSelect(idx)}
-                                                className={`w-full text-left p-4 rounded-lg border-2 transition-all ${isSelected
+                                                className={`w-full text-left p-5 rounded-xl border-2 transition-all relative ${isSelected
                                                     ? 'border-purple-500 bg-purple-50'
                                                     : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
                                                     }`}
                                             >
-                                                <div className="flex items-start gap-3">
-                                                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-semibold mt-0.5 ${isSelected
+                                                <div className="flex items-start gap-4">
+                                                    <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${isSelected
                                                         ? 'bg-purple-500 text-white'
-                                                        : 'bg-gray-200 text-gray-700'
+                                                        : 'bg-gray-300 text-gray-600'
                                                         }`}>
                                                         {idx + 1}
                                                     </div>
-                                                    <div className="flex-1">
+                                                    <div className="flex-1 pt-0.5">
                                                         {isImg ? (
                                                             <img
                                                                 src={optionText}
@@ -537,7 +523,7 @@ export default function ListeningPage() {
                                                             />
                                                         ) : (
                                                             <div
-                                                                className="prose prose-sm max-w-none text-gray-900"
+                                                                className="prose prose-base max-w-none text-gray-900"
                                                                 dangerouslySetInnerHTML={{ __html: optionText }}
                                                             />
                                                         )}

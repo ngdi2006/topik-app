@@ -3,7 +3,7 @@
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { CheckCircle, Headphones, AlertTriangle } from 'lucide-react'
+import { CheckCircle, Headphones } from 'lucide-react'
 
 export default function TransitionPage() {
     const params = useParams()
@@ -55,44 +55,10 @@ export default function TransitionPage() {
                         </div>
                         <div className="flex-1">
                             <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                                Phần Nghe Hiểu
+                                Phần nghe hiểu
                             </h2>
-                            <p className="text-gray-700 mb-4">
-                                Bạn sẽ nghe audio cho mỗi câu hỏi. Audio chỉ phát 1 lần duy nhất.
-                            </p>
-                            <ul className="space-y-2 text-sm text-gray-600">
-                                <li className="flex items-start gap-2">
-                                    <span className="text-purple-600 font-bold">•</span>
-                                    <span>Audio tự động phát khi câu hỏi hiển thị</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-purple-600 font-bold">•</span>
-                                    <span>Sau khi audio kết thúc, bạn có thời gian đếm ngược để trả lời</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-purple-600 font-bold">•</span>
-                                    <span>Hệ thống tự động chuyển câu khi hết giờ</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-purple-600 font-bold">•</span>
-                                    <span><strong>Không thể quay lại câu đã làm</strong></span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Warning */}
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-                    <div className="flex items-start gap-3">
-                        <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                            <h3 className="font-semibold text-yellow-900 mb-1">
-                                Lưu ý quan trọng:
-                            </h3>
-                            <p className="text-sm text-yellow-800">
-                                Sau khi bắt đầu phần nghe, bạn không thể tạm dừng hoặc quay lại.
-                                Hãy đảm bảo bạn đã sẵn sàng và môi trường xung quanh yên tĩnh.
+                            <p className="text-gray-700">
+                                Không thể quay lại câu đã làm
                             </p>
                         </div>
                     </div>

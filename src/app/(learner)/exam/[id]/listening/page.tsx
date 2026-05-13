@@ -19,6 +19,7 @@ export default function ListeningPage() {
     const [allQuestions, setAllQuestions] = useState<any[]>([]) // All questions (reading + listening) for sidebar
     const [currentIndex, setCurrentIndex] = useState(0)
     const [answers, setAnswers] = useState<Record<string, number>>({})
+    const [readingAnswers, setReadingAnswers] = useState<Record<string, number>>({}) // Store reading answers
     const [timeLeft, setTimeLeft] = useState(0) // Tổng thời gian Nghe
     const [questionTimeLeft, setQuestionTimeLeft] = useState(0) // Thời gian cho câu hiện tại
     const [audioPlaying, setAudioPlaying] = useState(false)
@@ -63,6 +64,17 @@ export default function ListeningPage() {
                     (q: any) => q.section === 'reading'
                 )
                 setReadingCount(readingQuestions.length)
+
+                // Load saved reading answers
+                if (data.attempt.answers && data.attempt.answers.length > 0) {
+                    const savedReadingAnswers: Record<string, number> = {}
+                    data.attempt.answers.forEach((a: any) => {
+                        if (a.section === 'reading' && a.selected_option !== null) {
+                            savedReadingAnswers[a.question_id] = a.selected_option
+                        }
+                    })
+                    setReadingAnswers(savedReadingAnswers)
+                }
 
                 // Set all questions for sidebar (reading + listening)
                 setAllQuestions(data.attempt.questions)
@@ -453,7 +465,9 @@ export default function ListeningPage() {
                                     const isListening = q.section === 'listening'
                                     const listeningIdx = isListening ? questions.findIndex(lq => lq.id === q.id) : -1
                                     const isCurrentQuestion = isListening && listeningIdx === currentIndex
-                                    const isAnswered = answers[q.id] !== undefined
+                                    const isAnswered = isListening
+                                        ? answers[q.id] !== undefined
+                                        : readingAnswers[q.id] !== undefined
 
                                     return (
                                         <button

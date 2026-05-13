@@ -100,15 +100,34 @@ export default function ListeningPage() {
             if (!allowNavigation) {
                 e.preventDefault()
                 e.returnValue = '' // Chrome requires returnValue to be set
+                return ''
+            }
+        }
+
+        // Intercept F5 key to redirect instead of reload
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+                if (!allowNavigation) {
+                    e.preventDefault()
+                    const confirmLeave = window.confirm(
+                        'Bạn có chắc muốn rời khỏi bài thi không? Tiến trình của bạn sẽ bị mất.'
+                    )
+                    if (confirmLeave) {
+                        setAllowNavigation(true)
+                        router.push('/dashboard')
+                    }
+                }
             }
         }
 
         window.addEventListener('beforeunload', handleBeforeUnload)
+        window.addEventListener('keydown', handleKeyDown)
 
         return () => {
             window.removeEventListener('beforeunload', handleBeforeUnload)
+            window.removeEventListener('keydown', handleKeyDown)
         }
-    }, [allowNavigation])
+    }, [allowNavigation, router])
 
     // Prevent browser back/forward navigation during exam
     useEffect(() => {

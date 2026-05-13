@@ -28,6 +28,7 @@ export default function ListeningPage() {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [exam, setExam] = useState<any>(null)
     const [readingCount, setReadingCount] = useState(0)
+    const [allowNavigation, setAllowNavigation] = useState(false)
 
     const audioRef = useRef<HTMLAudioElement | null>(null)
     const questionTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -92,6 +93,22 @@ export default function ListeningPage() {
         fetchAttempt()
     }, [attemptId, examId, router])
 
+    // Prevent page reload/close during exam
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (!allowNavigation) {
+                e.preventDefault()
+                e.returnValue = '' // Chrome requires returnValue to be set
+            }
+        }
+
+        window.addEventListener('beforeunload', handleBeforeUnload)
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload)
+        }
+    }, [allowNavigation])
+
     // Total time countdown
     useEffect(() => {
         if (timeLeft <= 0 || isLoading) return
@@ -112,6 +129,7 @@ export default function ListeningPage() {
     const handleSubmitAll = useCallback(async () => {
         if (isSubmitting) return
         setIsSubmitting(true)
+        setAllowNavigation(true) // Allow navigation when submitting
 
         if (questionTimerRef.current) {
             clearInterval(questionTimerRef.current)

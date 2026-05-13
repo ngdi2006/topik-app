@@ -24,6 +24,7 @@ export default function ReadingPage() {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [exam, setExam] = useState<any>(null)
     const [hasListening, setHasListening] = useState(false)
+    const [allowNavigation, setAllowNavigation] = useState(false)
 
     // Fetch attempt data
     useEffect(() => {
@@ -80,6 +81,22 @@ export default function ReadingPage() {
         fetchAttempt()
     }, [attemptId, examId, router])
 
+    // Prevent page reload/close during exam
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (!allowNavigation) {
+                e.preventDefault()
+                e.returnValue = '' // Chrome requires returnValue to be set
+            }
+        }
+
+        window.addEventListener('beforeunload', handleBeforeUnload)
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload)
+        }
+    }, [allowNavigation])
+
     // Timer countdown
     useEffect(() => {
         if (timeLeft <= 0 || isLoading) return
@@ -107,6 +124,7 @@ export default function ReadingPage() {
     const handleNext = async () => {
         if (isSubmitting) return
         setIsSubmitting(true)
+        setAllowNavigation(true) // Allow navigation when submitting
 
         try {
             // Save reading answers

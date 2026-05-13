@@ -479,7 +479,7 @@ export default function ListeningPage() {
                             )}
 
                             {/* Question Text */}
-                            <div className="mb-6">
+                            <div className="mb-8">
                                 <div
                                     className="prose prose-sm max-w-none text-lg text-gray-900"
                                     dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }}
@@ -487,7 +487,7 @@ export default function ListeningPage() {
                             </div>
 
                             {/* Options */}
-                            <div className="pl-10">
+                            <div className="pl-10 mt-8">
                                 {options.length === 0 ? (
                                     <div className="p-4 bg-yellow-50 text-yellow-700 rounded-lg">
                                         ⚠️ Câu hỏi này chưa có đáp án trong hệ thống

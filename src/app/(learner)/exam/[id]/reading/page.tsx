@@ -345,7 +345,7 @@ export default function ReadingPage() {
                             )}
 
                             {/* Question Text */}
-                            <div className="mb-6">
+                            <div className="mb-8">
                                 <div
                                     className="prose prose-sm max-w-none text-lg text-gray-900"
                                     dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }}
@@ -353,51 +353,57 @@ export default function ReadingPage() {
                             </div>
 
                             {/* Options */}
-                            <div className="space-y-3">
+                            <div className="pl-10 mt-8">
                                 {options.length === 0 ? (
                                     <div className="p-4 bg-yellow-50 text-yellow-700 rounded-lg">
                                         ⚠️ Câu hỏi này chưa có đáp án trong hệ thống
                                     </div>
                                 ) : (
-                                    options.map((opt: any, idx: number) => {
-                                        const isSelected = answers[currentQuestion.id] === idx
-                                        const optionText = typeof opt === 'string' ? opt : opt.content || opt.text || ''
-                                        const isImg = opt.type === 'image' || isImageUrl(optionText)
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {options.map((opt: any, idx: number) => {
+                                            const isSelected = answers[currentQuestion.id] === idx
+                                            const optionText = typeof opt === 'string' ? opt : opt.content || opt.text || ''
+                                            const isImg = opt.type === 'image' || isImageUrl(optionText)
 
-                                        return (
-                                            <button
-                                                key={idx}
-                                                onClick={() => handleAnswerSelect(currentQuestion.id, idx)}
-                                                className={`w-full text-left p-4 rounded-lg border-2 transition-all ${isSelected
-                                                    ? 'border-blue-500 bg-blue-50'
-                                                    : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-                                                    }`}
-                                            >
-                                                <div className="flex items-start gap-3">
-                                                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-semibold mt-0.5 ${isSelected
-                                                        ? 'bg-blue-500 text-white'
-                                                        : 'bg-gray-200 text-gray-700'
-                                                        }`}>
-                                                        {idx + 1}
+                                            return (
+                                                <div key={idx} className="relative">
+                                                    {/* Option number outside the box */}
+                                                    <div className="absolute -left-9 top-1/2 -translate-y-1/2">
+                                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold ${isSelected
+                                                            ? 'bg-blue-500 text-white'
+                                                            : 'bg-gray-300 text-gray-600'
+                                                            }`}>
+                                                            {idx + 1}
+                                                        </div>
                                                     </div>
-                                                    <div className="flex-1">
-                                                        {isImg ? (
-                                                            <img 
-                                                                src={optionText} 
-                                                                alt={`Option ${idx + 1}`} 
-                                                                className="max-h-40 w-auto rounded border shadow-sm" 
-                                                            />
-                                                        ) : (
-                                                            <div
-                                                                className="prose prose-sm max-w-none text-gray-900"
-                                                                dangerouslySetInnerHTML={{ __html: optionText }}
-                                                            />
-                                                        )}
-                                                    </div>
+
+                                                    {/* Answer button */}
+                                                    <button
+                                                        onClick={() => handleAnswerSelect(currentQuestion.id, idx)}
+                                                        className={`w-full h-full min-h-[120px] text-left p-4 rounded-xl border-2 transition-all ${isSelected
+                                                            ? 'border-blue-500 bg-blue-50'
+                                                            : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                                                            }`}
+                                                    >
+                                                        <div className="flex items-center justify-center h-full">
+                                                            {isImg ? (
+                                                                <img
+                                                                    src={optionText}
+                                                                    alt={`Option ${idx + 1}`}
+                                                                    className="max-h-28 w-auto rounded border shadow-sm"
+                                                                />
+                                                            ) : (
+                                                                <div
+                                                                    className="prose prose-sm max-w-none text-gray-900 w-full"
+                                                                    dangerouslySetInnerHTML={{ __html: optionText }}
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    </button>
                                                 </div>
-                                            </button>
-                                        )
-                                    })
+                                            )
+                                        })}
+                                    </div>
                                 )}
                             </div>
 

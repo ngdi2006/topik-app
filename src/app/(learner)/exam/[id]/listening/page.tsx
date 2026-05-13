@@ -109,6 +109,35 @@ export default function ListeningPage() {
         }
     }, [allowNavigation])
 
+    // Prevent browser back/forward navigation during exam
+    useEffect(() => {
+        if (allowNavigation) return
+
+        // Push a dummy state to prevent back navigation
+        window.history.pushState(null, '', window.location.href)
+
+        const handlePopState = () => {
+            if (!allowNavigation) {
+                const confirmLeave = window.confirm(
+                    'Bạn có chắc muốn rời khỏi bài thi không? Tiến trình của bạn sẽ bị mất.'
+                )
+                if (confirmLeave) {
+                    setAllowNavigation(true)
+                    router.push('/dashboard')
+                } else {
+                    // Push state again to prevent navigation
+                    window.history.pushState(null, '', window.location.href)
+                }
+            }
+        }
+
+        window.addEventListener('popstate', handlePopState)
+
+        return () => {
+            window.removeEventListener('popstate', handlePopState)
+        }
+    }, [allowNavigation, router])
+
     // Total time countdown
     useEffect(() => {
         if (timeLeft <= 0 || isLoading) return

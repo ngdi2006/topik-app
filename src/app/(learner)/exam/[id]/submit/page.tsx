@@ -185,7 +185,7 @@ function ScoreDisplay({
                                                     <img src={optContent} alt={`Option ${idx + 1}`} className="max-h-32 object-contain rounded" />
                                                 ) : (
                                                     <div
-                                                        className="prose prose-sm max-w-none text-gray-900"
+                                                        className="prose prose-sm max-w-none text-gray-900 [&_u]:underline [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic"
                                                         dangerouslySetInnerHTML={{ __html: optContent }}
                                                     />
                                                 )}

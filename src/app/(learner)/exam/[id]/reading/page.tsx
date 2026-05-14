@@ -399,7 +399,7 @@ export default function ReadingPage() {
                                                             />
                                                         ) : (
                                                             <div
-                                                                className="prose prose-sm max-w-none text-gray-900 w-full"
+                                                                className="prose prose-sm max-w-none text-gray-900 w-full [&_u]:underline [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic"
                                                                 dangerouslySetInnerHTML={{ __html: optionText }}
                                                             />
                                                         )}

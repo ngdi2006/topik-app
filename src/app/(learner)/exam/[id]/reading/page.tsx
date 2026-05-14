@@ -323,69 +323,34 @@ export default function ReadingPage() {
                                 </span>
                             </div>
 
-                            {/* Question content with conditional positioning */}
-                            {currentQuestion.question_position === 'below' ? (
-                                <>
-                                    {/* Passage FIRST */}
-                                    {currentQuestion.passage && (
-                                        <div className="mb-6 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
-                                            <div
-                                                className="prose prose-sm max-w-none text-gray-800"
-                                                dangerouslySetInnerHTML={{ __html: currentQuestion.passage }}
-                                            />
-                                        </div>
-                                    )}
+                            {/* Question content - Question Text always first */}
+                            {/* Question Text - Always at the top */}
+                            <div className="mb-8">
+                                <div
+                                    className="prose prose-sm max-w-none text-lg text-gray-900"
+                                    dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }}
+                                />
+                            </div>
 
-                                    {/* Question Image */}
-                                    {currentQuestion.question_image_url && (
-                                        <div className="mb-4 flex justify-center">
-                                            <img
-                                                src={currentQuestion.question_image_url}
-                                                alt="Question"
-                                                className="max-h-72 w-auto object-contain rounded-lg border shadow-sm"
-                                            />
-                                        </div>
-                                    )}
+                            {/* Question Image */}
+                            {currentQuestion.question_image_url && (
+                                <div className="mb-4 flex justify-center">
+                                    <img
+                                        src={currentQuestion.question_image_url}
+                                        alt="Question"
+                                        className="max-h-72 w-auto object-contain rounded-lg border shadow-sm"
+                                    />
+                                </div>
+                            )}
 
-                                    {/* Question Text SECOND */}
-                                    <div className="mb-8">
-                                        <div
-                                            className="prose prose-sm max-w-none text-lg text-gray-900"
-                                            dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }}
-                                        />
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    {/* Question Text FIRST (default) */}
-                                    <div className="mb-8">
-                                        <div
-                                            className="prose prose-sm max-w-none text-lg text-gray-900"
-                                            dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }}
-                                        />
-                                    </div>
-
-                                    {/* Question Image */}
-                                    {currentQuestion.question_image_url && (
-                                        <div className="mb-4 flex justify-center">
-                                            <img
-                                                src={currentQuestion.question_image_url}
-                                                alt="Question"
-                                                className="max-h-72 w-auto object-contain rounded-lg border shadow-sm"
-                                            />
-                                        </div>
-                                    )}
-
-                                    {/* Passage SECOND */}
-                                    {currentQuestion.passage && (
-                                        <div className="mb-6 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
-                                            <div
-                                                className="prose prose-sm max-w-none text-gray-800"
-                                                dangerouslySetInnerHTML={{ __html: currentQuestion.passage }}
-                                            />
-                                        </div>
-                                    )}
-                                </>
+                            {/* Passage - Always after question and image */}
+                            {currentQuestion.passage && (
+                                <div className="mb-6 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
+                                    <div
+                                        className="prose prose-sm max-w-none text-gray-800"
+                                        dangerouslySetInnerHTML={{ __html: currentQuestion.passage }}
+                                    />
+                                </div>
                             )}
 
                             {/* Options */}

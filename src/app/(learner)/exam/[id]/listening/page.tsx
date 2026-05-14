@@ -453,8 +453,8 @@ export default function ListeningPage() {
 
                             {/* Question Time Countdown */}
                             {audioEnded && questionTimeLeft > 0 && (
-                                <div className="mb-6 flex items-center justify-center">
-                                    <div className="text-6xl font-black text-orange-600 font-mono">
+                                <div className="mb-6 flex items-start justify-end">
+                                    <div className="text-4xl font-black text-orange-600 font-mono scale [0.6] origin-top-right">
                                         {questionTimeLeft}
                                     </div>
                                 </div>
@@ -539,11 +539,10 @@ export default function ListeningPage() {
                                         ⚠️ Câu hỏi này chưa có đáp án trong hệ thống
                                     </div>
                                 ) : (
-                                    <div className={`grid gap-4 ${
-                                        options.length === 2 ? 'grid-cols-1 max-w-2xl mx-auto' :
+                                    <div className={`grid gap-4 ${options.length === 2 ? 'grid-cols-1 max-w-2xl mx-auto' :
                                         options.length === 3 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' :
-                                        'grid-cols-2'
-                                    }`}>
+                                            'grid-cols-2'
+                                        }`}>
                                         {options.map((opt: any, idx: number) => {
                                             const isSelected = answers[currentQuestion.id] === idx
                                             const optionText = typeof opt === 'string' ? opt : opt.content || opt.text || ''
@@ -622,13 +621,12 @@ export default function ListeningPage() {
                                         <button
                                             key={q.id}
                                             disabled
-                                            className={`aspect-square rounded-lg font-semibold text-sm transition-all cursor-not-allowed ${
-                                                isCurrentQuestion
-                                                    ? 'bg-purple-500 text-white ring-2 ring-purple-300'
-                                                    : isAnswered
-                                                        ? 'bg-green-100 text-green-700'
-                                                        : 'bg-gray-100 text-gray-700'
-                                            }`}
+                                            className={`aspect-square rounded-lg font-semibold text-sm transition-all cursor-not-allowed ${isCurrentQuestion
+                                                ? 'bg-purple-500 text-white ring-2 ring-purple-300'
+                                                : isAnswered
+                                                    ? 'bg-green-100 text-green-700'
+                                                    : 'bg-gray-100 text-gray-700'
+                                                }`}
                                         >
                                             {idx + 1}
                                         </button>

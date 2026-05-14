@@ -254,6 +254,22 @@ function CreateQuestionForm() {
                         </div>
                     </div>
 
+                    {/* Question Text */}
+                    <div className="space-y-2">
+                        <Label>Câu hỏi *</Label>
+                        <RichTextEditor
+                            value={formData.question_text}
+                            onChange={(value) =>
+                                setFormData({
+                                    ...formData,
+                                    question_text: value,
+                                })
+                            }
+                            placeholder="Nhập nội dung câu hỏi..."
+                            minHeight="150px"
+                        />
+                    </div>
+
                     {/* Passage (optional for reading) */}
                     {formData.question_type === 'reading' && (
                         <div className="space-y-2">
@@ -271,22 +287,6 @@ function CreateQuestionForm() {
                             />
                         </div>
                     )}
-
-                    {/* Question Text */}
-                    <div className="space-y-2">
-                        <Label>Câu hỏi *</Label>
-                        <RichTextEditor
-                            value={formData.question_text}
-                            onChange={(value) =>
-                                setFormData({
-                                    ...formData,
-                                    question_text: value,
-                                })
-                            }
-                            placeholder="Nhập nội dung câu hỏi..."
-                            minHeight="150px"
-                        />
-                    </div>
 
                     {/* Question Image (optional) */}
                     <div className="space-y-2">

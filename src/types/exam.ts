@@ -128,6 +128,7 @@ export interface ExamAttempt {
     total_points: number;
     correct_count: number;
     wrong_count: number;
+    blank_count: number;
 
     attempt_number: number;
     status: AttemptStatus;
@@ -329,6 +330,7 @@ export interface GradingResult {
     total_points: number;
     correct_count: number;
     wrong_count: number;
+    blank_count: number;
     percentage: number;
     details: {
         question_id: string;

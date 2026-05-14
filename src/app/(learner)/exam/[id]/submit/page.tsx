@@ -317,7 +317,7 @@ function ScoreDisplay({
                             <div className="w-px bg-gray-300"></div>
                             <div className="text-center">
                                 <div className="text-2xl font-bold text-gray-600">
-                                    {(result.questions_snapshot || []).length - result.correct_count - result.wrong_count}
+                                    {result.blank_count || 0}
                                 </div>
                                 <div className="text-xs text-gray-500 uppercase">Bỏ trống</div>
                             </div>

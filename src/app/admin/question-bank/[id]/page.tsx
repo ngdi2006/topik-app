@@ -238,6 +238,19 @@ export default function EditQuestionPage() {
                         </div>
                     </div>
 
+                    {/* Question Text */}
+                    <div className="space-y-2">
+                        <Label>Câu hỏi *</Label>
+                        <Textarea
+                            rows={3}
+                            value={question.question_text}
+                            onChange={(e) =>
+                                setQuestion({ ...question, question_text: e.target.value })
+                            }
+                            required
+                        />
+                    </div>
+
                     {/* Passage */}
                     {question.question_type === 'reading' && (
                         <div className="space-y-2">
@@ -251,19 +264,6 @@ export default function EditQuestionPage() {
                             />
                         </div>
                     )}
-
-                    {/* Question Text */}
-                    <div className="space-y-2">
-                        <Label>Câu hỏi *</Label>
-                        <Textarea
-                            rows={3}
-                            value={question.question_text}
-                            onChange={(e) =>
-                                setQuestion({ ...question, question_text: e.target.value })
-                            }
-                            required
-                        />
-                    </div>
 
                     {/* Question Image */}
                     <div className="space-y-2">

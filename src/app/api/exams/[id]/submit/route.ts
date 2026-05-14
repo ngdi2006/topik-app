@@ -99,6 +99,7 @@ export async function POST(
                 total_points: result.total_points,
                 correct_count: result.correct_count,
                 wrong_count: result.wrong_count,
+                blank_count: result.blank_count,
                 status: 'completed',
                 completed_at: new Date().toISOString(),
             })
@@ -156,6 +157,7 @@ export async function POST(
                 total_points: result.total_points,
                 correct_count: result.correct_count,
                 wrong_count: result.wrong_count,
+                blank_count: result.blank_count,
                 percentage: Math.round((result.score / result.total_points) * 10000) / 100,
             },
             attempt_id: attemptId,

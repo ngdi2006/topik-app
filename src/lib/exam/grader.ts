@@ -12,11 +12,13 @@ export function gradeExam(
     let totalPoints = 0
     let correctCount = 0
     let wrongCount = 0
+    let blankCount = 0
     const details: GradingResult['details'] = []
 
     for (const question of questions) {
         const userAnswer = answers[question.id]
-        const isCorrect = userAnswer === question.correct_answer
+        const hasAnswered = userAnswer !== undefined && userAnswer !== null
+        const isCorrect = hasAnswered && userAnswer === question.correct_answer
 
         // Tính điểm cho câu này (ưu tiên points_override từ rule)
         const pointsPossible = question.points_override ?? question.points
@@ -27,8 +29,10 @@ export function gradeExam(
 
         if (isCorrect) {
             correctCount++
-        } else {
+        } else if (hasAnswered) {
             wrongCount++
+        } else {
+            blankCount++
         }
 
         details.push({
@@ -46,6 +50,7 @@ export function gradeExam(
         total_points: totalPoints,
         correct_count: correctCount,
         wrong_count: wrongCount,
+        blank_count: blankCount,
         percentage,
         details,
     }

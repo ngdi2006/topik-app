@@ -380,7 +380,7 @@ export default function ListeningPage() {
                             <Clock className="w-5 h-5" />
                             <div>
                                 <p className="text-xs">읽기</p>
-                                <span className="text-xl font-bold font-mono">
+                                <span className="text-xl font-bold font-mono tabular-nums">
                                     00:00
                                 </span>
                             </div>
@@ -391,7 +391,7 @@ export default function ListeningPage() {
                             <Clock className="w-5 h-5" />
                             <div>
                                 <p className="text-xs">듣기</p>
-                                <span className="text-xl font-bold font-mono">
+                                <span className="text-xl font-bold font-mono tabular-nums">
                                     {formatTime(timeLeft)}
                                 </span>
                             </div>
@@ -454,7 +454,7 @@ export default function ListeningPage() {
                             {/* Question Time Countdown */}
                             {audioEnded && questionTimeLeft > 0 && (
                                 <div className="mb-6 flex items-start justify-end">
-                                    <div className="text-4xl font-black text-orange-600 font-mono scale [0.6] origin-top-right">
+                                    <div className="text-4xl font-black text-orange-600 font-mono tabular-nums">
                                         {questionTimeLeft}
                                     </div>
                                 </div>

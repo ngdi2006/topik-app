@@ -291,7 +291,7 @@ export default function ReadingPage() {
                             <Clock className="w-5 h-5" />
                             <div>
                                 <p className="text-xs">읽기</p>
-                                <span className="text-xl font-bold font-mono">
+                                <span className="text-xl font-bold font-mono tabular-nums">
                                     {formatTime(timeLeft)}
                                 </span>
                             </div>
@@ -302,7 +302,7 @@ export default function ReadingPage() {
                                 <Clock className="w-5 h-5" />
                                 <div>
                                     <p className="text-xs">듣기</p>
-                                    <span className="text-xl font-bold font-mono">
+                                    <span className="text-xl font-bold font-mono tabular-nums">
                                         {formatTime((exam?.listening_duration || 30) * 60)}
                                     </span>
                                 </div>

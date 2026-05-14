@@ -468,38 +468,7 @@ export default function ListeningPage() {
                             </div>
 
                             {/* Question content with conditional positioning */}
-                            {currentQuestion.question_position === 'above' ? (
-                                <>
-                                    {/* Question Text FIRST */}
-                                    <div className="mb-8">
-                                        <div
-                                            className="prose prose-sm max-w-none text-lg text-gray-900"
-                                            dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }}
-                                        />
-                                    </div>
-
-                                    {/* Question Image */}
-                                    {currentQuestion.question_image_url && (
-                                        <div className="mb-4 flex justify-center">
-                                            <img
-                                                src={currentQuestion.question_image_url}
-                                                alt="Question"
-                                                className="max-h-72 w-auto object-contain rounded-lg border shadow-sm"
-                                            />
-                                        </div>
-                                    )}
-
-                                    {/* Passage SECOND (if exists) */}
-                                    {currentQuestion.passage && (
-                                        <div className="mb-6 p-4 bg-gray-50 rounded-lg border-l-4 border-purple-500">
-                                            <div
-                                                className="prose prose-sm max-w-none text-gray-800"
-                                                dangerouslySetInnerHTML={{ __html: currentQuestion.passage }}
-                                            />
-                                        </div>
-                                    )}
-                                </>
-                            ) : (
+                            {currentQuestion.question_position === 'below' ? (
                                 <>
                                     {/* Passage FIRST (if exists) */}
                                     {currentQuestion.passage && (
@@ -529,6 +498,37 @@ export default function ListeningPage() {
                                             dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }}
                                         />
                                     </div>
+                                </>
+                            ) : (
+                                <>
+                                    {/* Question Text FIRST (default) */}
+                                    <div className="mb-8">
+                                        <div
+                                            className="prose prose-sm max-w-none text-lg text-gray-900"
+                                            dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }}
+                                        />
+                                    </div>
+
+                                    {/* Question Image */}
+                                    {currentQuestion.question_image_url && (
+                                        <div className="mb-4 flex justify-center">
+                                            <img
+                                                src={currentQuestion.question_image_url}
+                                                alt="Question"
+                                                className="max-h-72 w-auto object-contain rounded-lg border shadow-sm"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Passage SECOND (if exists) */}
+                                    {currentQuestion.passage && (
+                                        <div className="mb-6 p-4 bg-gray-50 rounded-lg border-l-4 border-purple-500">
+                                            <div
+                                                className="prose prose-sm max-w-none text-gray-800"
+                                                dangerouslySetInnerHTML={{ __html: currentQuestion.passage }}
+                                            />
+                                        </div>
+                                    )}
                                 </>
                             )}
 

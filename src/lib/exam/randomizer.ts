@@ -151,9 +151,10 @@ export async function generateRandomQuestionsForUser(
     // 2. Xử lý từng rule
     for (const rule of rules as any[]) {
         // 2a. Lấy tất cả câu hỏi match với rule từ kho
+        // JOIN với category để lấy shuffle_options của category
         let query = supabase
             .from('question_bank')
-            .select('*')
+            .select('*, question_categories!inner(shuffle_options)')
             .eq('question_type', rule.question_type)
 
         // Filter by category (nếu có)
@@ -224,7 +225,12 @@ export async function generateRandomQuestionsForUser(
 
         // 2i. Transform sang QuestionSnapshot với shuffled options
         const snapshots: QuestionSnapshot[] = selected.map((q) => {
-            const qb = q as QuestionBank
+            // Category shuffle_options ưu tiên hơn question shuffle_options
+            const categoryShuffle = (q as any).question_categories?.shuffle_options
+            const qb = {
+                ...q,
+                shuffle_options: categoryShuffle !== undefined ? categoryShuffle : q.shuffle_options,
+            } as QuestionBank
 
             // Shuffle options for this question
             const { shuffledOptions, shuffledCorrectAnswer } = shuffleOptions(qb)

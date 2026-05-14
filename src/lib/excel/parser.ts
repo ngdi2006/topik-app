@@ -77,15 +77,17 @@ function validateRow(row: any, rowNumber: number): ExcelImportResult {
         { num: 4, content: option4 },
     ].filter(opt => opt.content)
 
-    // Validate correct_answer only if there are options
+    // Validate minimum options
+    if (optionsArray.length < 2) {
+        errors.push('Phải có ít nhất 2 đáp án')
+    }
+
+    // Validate correct_answer (1-4)
     const correctAnswer = parseInt(String(normalized['correct_answer'] || ''))
-    if (optionsArray.length > 0) {
-        // Has options - validate correct_answer
-        if (!correctAnswer || isNaN(correctAnswer)) {
-            errors.push('Thiếu correct_answer')
-        } else if (correctAnswer < 1 || correctAnswer > optionsArray.length) {
-            errors.push(`correct_answer phải từ 1-${optionsArray.length}`)
-        }
+    if (!correctAnswer || isNaN(correctAnswer)) {
+        errors.push('Thiếu correct_answer')
+    } else if (correctAnswer < 1 || correctAnswer > optionsArray.length) {
+        errors.push(`correct_answer phải từ 1-${optionsArray.length}`)
     }
 
     // Validate audio_url for listening

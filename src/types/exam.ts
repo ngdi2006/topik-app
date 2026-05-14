@@ -114,6 +114,7 @@ export interface QuestionSnapshot extends QuestionBank {
     order: number;
     section: string;
     points_override?: number; // từ rule.points_per_question
+    time_per_question?: number; // từ rule.time_per_question (listening only)
 }
 
 export interface ExamAttempt {

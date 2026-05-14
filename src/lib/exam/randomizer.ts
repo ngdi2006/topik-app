@@ -246,6 +246,10 @@ export async function generateRandomQuestionsForUser(
                     rule.points_per_question > 0
                         ? rule.points_per_question
                         : undefined,
+                time_per_question:
+                    rule.question_type === 'listening' && rule.time_per_question
+                        ? rule.time_per_question
+                        : undefined,
             }
         })
 

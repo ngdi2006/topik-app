@@ -23,10 +23,11 @@ export interface QuestionBank {
 
     passage?: string | null;
     question_text: string;
+    question_position?: 'above' | 'below';
     question_image_url?: string | null;
     audio_url?: string | null;
 
-    options: QuestionOption[]; // 4 items
+    options: QuestionOption[]; // 2-4 items
     correct_answer: number; // 0-3
     shuffle_options: boolean;
 
@@ -43,6 +44,7 @@ export interface QuestionBankCreate {
     level: number;
     passage?: string;
     question_text: string;
+    question_position?: 'above' | 'below';
     question_image_url?: string;
     audio_url?: string;
     options: QuestionOption[];

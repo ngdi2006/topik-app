@@ -88,6 +88,7 @@ export async function PUT(request: Request) {
                 shuffle_options: q.shuffle_options ?? true,
                 points: q.points ?? 1,
                 tags: q.tags || [],
+                question_position: q.question_position || 'below',
             })
         }
 

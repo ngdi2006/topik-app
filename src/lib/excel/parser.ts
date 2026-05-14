@@ -3,7 +3,19 @@
 // =====================================================================
 
 import * as XLSX from 'xlsx'
+import DOMPurify from 'isomorphic-dompurify'
 import type { ExcelImportResult, QuestionBankCreate } from '@/types/exam'
+
+function sanitizeHtml(content: string): string {
+    if (!content || typeof content !== 'string') return content
+
+    const clean = DOMPurify.sanitize(content, {
+        ALLOWED_TAGS: ['u', 'b', 'i', 'strong', 'em', 'br', 'span'],
+        ALLOWED_ATTR: ['style']
+    })
+
+    return clean
+}
 
 export function parseExcelBuffer(buffer: ArrayBuffer): ExcelImportResult[] {
     const workbook = XLSX.read(buffer, { type: 'array' })
@@ -57,16 +69,25 @@ function validateRow(row: any, rowNumber: number): ExcelImportResult {
     const option3 = String(normalized['option_3'] || '').trim()
     const option4 = String(normalized['option_4'] || '').trim()
 
-    if (!option1 || !option2 || !option3 || !option4) {
-        errors.push('Phải có đủ 4 đáp án (option_1, option_2, option_3, option_4)')
+    // Collect non-empty options
+    const optionsArray = [
+        { num: 1, content: option1 },
+        { num: 2, content: option2 },
+        { num: 3, content: option3 },
+        { num: 4, content: option4 },
+    ].filter(opt => opt.content)
+
+    // Validate minimum options
+    if (optionsArray.length < 2) {
+        errors.push('Phải có ít nhất 2 đáp án')
     }
 
     // Validate correct_answer (1-4)
     const correctAnswer = parseInt(String(normalized['correct_answer'] || ''))
     if (!correctAnswer || isNaN(correctAnswer)) {
         errors.push('Thiếu correct_answer')
-    } else if (correctAnswer < 1 || correctAnswer > 4) {
-        errors.push('correct_answer phải từ 1-4')
+    } else if (correctAnswer < 1 || correctAnswer > optionsArray.length) {
+        errors.push(`correct_answer phải từ 1-${optionsArray.length}`)
     }
 
     // Validate audio_url for listening
@@ -86,6 +107,12 @@ function validateRow(row: any, rowNumber: number): ExcelImportResult {
         ? tagsStr.split(',').map((t: string) => t.trim()).filter(Boolean)
         : []
 
+    // Parse question_position
+    const questionPosition = String(normalized['question_position'] || 'below').toLowerCase().trim()
+    if (!['above', 'below', ''].includes(questionPosition)) {
+        errors.push('question_position phải là "above" hoặc "below"')
+    }
+
     if (errors.length > 0) {
         return {
             row: rowNumber,
@@ -101,17 +128,16 @@ function validateRow(row: any, rowNumber: number): ExcelImportResult {
         category_name: categoryName, // Will be converted to category_id in import route
         question_type: questionType as 'reading' | 'listening',
         level,
-        passage: String(normalized['passage'] || '').trim() || undefined,
-        question_text: questionText,
+        passage: sanitizeHtml(String(normalized['passage'] || '').trim()) || undefined,
+        question_text: sanitizeHtml(questionText),
+        question_position: questionPosition || 'below',
         question_image_url:
             String(normalized['question_image_url'] || '').trim() || undefined,
         audio_url: audioUrl || undefined,
-        options: [
-            { type: isImage(option1) ? 'image' : 'text', content: option1 },
-            { type: isImage(option2) ? 'image' : 'text', content: option2 },
-            { type: isImage(option3) ? 'image' : 'text', content: option3 },
-            { type: isImage(option4) ? 'image' : 'text', content: option4 },
-        ],
+        options: optionsArray.map(opt => ({
+            type: isImage(opt.content) ? 'image' : 'text',
+            content: sanitizeHtml(opt.content)
+        })),
         correct_answer: correctAnswer - 1, // Convert 1-4 → 0-3
         shuffle_options: true,
         points: points >= 0 ? points : 1,

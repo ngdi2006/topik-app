@@ -467,24 +467,70 @@ export default function ListeningPage() {
                                 </span>
                             </div>
 
-                            {/* Question Image */}
-                            {currentQuestion.question_image_url && (
-                                <div className="mb-4 flex justify-center">
-                                    <img
-                                        src={currentQuestion.question_image_url}
-                                        alt="Question"
-                                        className="max-h-72 w-auto object-contain rounded-lg border shadow-sm"
-                                    />
-                                </div>
-                            )}
+                            {/* Question content with conditional positioning */}
+                            {currentQuestion.question_position === 'above' ? (
+                                <>
+                                    {/* Question Text FIRST */}
+                                    <div className="mb-8">
+                                        <div
+                                            className="prose prose-sm max-w-none text-lg text-gray-900"
+                                            dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }}
+                                        />
+                                    </div>
 
-                            {/* Question Text */}
-                            <div className="mb-8">
-                                <div
-                                    className="prose prose-sm max-w-none text-lg text-gray-900"
-                                    dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }}
-                                />
-                            </div>
+                                    {/* Question Image */}
+                                    {currentQuestion.question_image_url && (
+                                        <div className="mb-4 flex justify-center">
+                                            <img
+                                                src={currentQuestion.question_image_url}
+                                                alt="Question"
+                                                className="max-h-72 w-auto object-contain rounded-lg border shadow-sm"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Passage SECOND (if exists) */}
+                                    {currentQuestion.passage && (
+                                        <div className="mb-6 p-4 bg-gray-50 rounded-lg border-l-4 border-purple-500">
+                                            <div
+                                                className="prose prose-sm max-w-none text-gray-800"
+                                                dangerouslySetInnerHTML={{ __html: currentQuestion.passage }}
+                                            />
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    {/* Passage FIRST (if exists) */}
+                                    {currentQuestion.passage && (
+                                        <div className="mb-6 p-4 bg-gray-50 rounded-lg border-l-4 border-purple-500">
+                                            <div
+                                                className="prose prose-sm max-w-none text-gray-800"
+                                                dangerouslySetInnerHTML={{ __html: currentQuestion.passage }}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Question Image */}
+                                    {currentQuestion.question_image_url && (
+                                        <div className="mb-4 flex justify-center">
+                                            <img
+                                                src={currentQuestion.question_image_url}
+                                                alt="Question"
+                                                className="max-h-72 w-auto object-contain rounded-lg border shadow-sm"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Question Text SECOND */}
+                                    <div className="mb-8">
+                                        <div
+                                            className="prose prose-sm max-w-none text-lg text-gray-900"
+                                            dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }}
+                                        />
+                                    </div>
+                                </>
+                            )}
 
                             {/* Options */}
                             <div className="mt-8">
@@ -493,7 +539,11 @@ export default function ListeningPage() {
                                         ⚠️ Câu hỏi này chưa có đáp án trong hệ thống
                                     </div>
                                 ) : (
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className={`grid gap-4 ${
+                                        options.length === 2 ? 'grid-cols-1 max-w-2xl mx-auto' :
+                                        options.length === 3 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' :
+                                        'grid-cols-2'
+                                    }`}>
                                         {options.map((opt: any, idx: number) => {
                                             const isSelected = answers[currentQuestion.id] === idx
                                             const optionText = typeof opt === 'string' ? opt : opt.content || opt.text || ''

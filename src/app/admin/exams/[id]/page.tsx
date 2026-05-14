@@ -75,6 +75,7 @@ export default function AdminExamBuilderPage() {
         reading_duration: 70,
         listening_duration: 60,
         status: 'Draft',
+        display_order: 0,
     })
 
     // Rule Modal state
@@ -102,6 +103,7 @@ export default function AdminExamBuilderPage() {
                     reading_duration: data.data.reading_duration || 70,
                     listening_duration: data.data.listening_duration || 60,
                     status: data.data.status || 'Draft',
+                    display_order: data.data.display_order || 0,
                 })
             }
         } catch (error) {
@@ -366,6 +368,25 @@ export default function AdminExamBuilderPage() {
                                     <SelectItem value="Published">Xuất bản</SelectItem>
                                 </SelectContent>
                             </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Thứ tự hiển thị</Label>
+                            <Input
+                                type="number"
+                                min={0}
+                                value={metaForm.display_order}
+                                onChange={(e) =>
+                                    setMetaForm({
+                                        ...metaForm,
+                                        display_order: parseInt(e.target.value) || 0,
+                                    })
+                                }
+                                placeholder="0"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Số nhỏ hiển thị trước. VD: 1 = đầu tiên, 2 = thứ hai...
+                            </p>
                         </div>
 
                         {/* Stats */}

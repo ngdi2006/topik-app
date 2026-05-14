@@ -8,6 +8,7 @@ export async function GET() {
             .from('exams')
             .select('*')
             .eq('status', 'Published')
+            .order('display_order', { ascending: true })
             .order('created_at', { ascending: false })
             .limit(6)
 

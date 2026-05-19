@@ -40,7 +40,7 @@ export interface Lesson {
   lessonNumber: number
   titleKorean: string
   titleVietnamese: string
-  description: string
+  description: string | null
   vocabulary: LessonVocabulary[]
   grammar: LessonGrammar[]
   conversations: LessonConversation[]

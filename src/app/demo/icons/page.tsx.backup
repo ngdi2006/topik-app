@@ -1,0 +1,317 @@
+'use client';
+
+import React, { useState } from 'react';
+import { iconConfig } from '@/config/icons.config';
+import * as Icons from '@/components/icons/AllIcons';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from 'sonner';
+
+// Icon metadata
+const iconMetadata = [
+    // Navigation
+    { name: 'HomeIcon', component: Icons.HomeIcon, category: 'navigation', description: 'Home icon' },
+    { name: 'MenuIcon', component: Icons.MenuIcon, category: 'navigation', description: 'Menu hamburger icon' },
+    { name: 'SearchIcon', component: Icons.SearchIcon, category: 'navigation', description: 'Search icon' },
+    { name: 'ArrowLeftIcon', component: Icons.ArrowLeftIcon, category: 'navigation', description: 'Back arrow' },
+    { name: 'ArrowRightIcon', component: Icons.ArrowRightIcon, category: 'navigation', description: 'Forward arrow' },
+    { name: 'SettingsIcon', component: Icons.SettingsIcon, category: 'navigation', description: 'Settings gear' },
+
+    // Actions
+    { name: 'PlayIcon', component: Icons.PlayIcon, category: 'actions', description: 'Play button' },
+    { name: 'PauseIcon', component: Icons.PauseIcon, category: 'actions', description: 'Pause button' },
+    { name: 'RecordIcon', component: Icons.RecordIcon, category: 'actions', description: 'Record button' },
+    { name: 'SaveIcon', component: Icons.SaveIcon, category: 'actions', description: 'Save icon' },
+    { name: 'DeleteIcon', component: Icons.DeleteIcon, category: 'actions', description: 'Delete/trash icon' },
+    { name: 'EditIcon', component: Icons.EditIcon, category: 'actions', description: 'Edit/pencil icon' },
+    { name: 'AddIcon', component: Icons.AddIcon, category: 'actions', description: 'Add/plus icon' },
+
+    // Status
+    { name: 'SuccessIcon', component: Icons.SuccessIcon, category: 'status', description: 'Success checkmark' },
+    { name: 'ErrorIcon', component: Icons.ErrorIcon, category: 'status', description: 'Error X mark' },
+    { name: 'WarningIcon', component: Icons.WarningIcon, category: 'status', description: 'Warning triangle' },
+    { name: 'InfoIcon', component: Icons.InfoIcon, category: 'status', description: 'Information icon' },
+    { name: 'PendingIcon', component: Icons.PendingIcon, category: 'status', description: 'Pending/clock icon' },
+
+    // Education
+    { name: 'SpeakingIcon', component: Icons.SpeakingIcon, category: 'education', description: 'Speaking/microphone' },
+    { name: 'ListeningIcon', component: Icons.ListeningIcon, category: 'education', description: 'Listening/headphones' },
+    { name: 'ReadingIcon', component: Icons.ReadingIcon, category: 'education', description: 'Reading/book' },
+    { name: 'WritingIcon', component: Icons.WritingIcon, category: 'education', description: 'Writing/pen' },
+    { name: 'TopikLevel1Icon', component: Icons.TopikLevel1Icon, category: 'education', description: 'TOPIK Level 1 badge' },
+    { name: 'TopikLevel2Icon', component: Icons.TopikLevel2Icon, category: 'education', description: 'TOPIK Level 2 badge' },
+    { name: 'TopikLevel3Icon', component: Icons.TopikLevel3Icon, category: 'education', description: 'TOPIK Level 3 badge' },
+    { name: 'TopikLevel4Icon', component: Icons.TopikLevel4Icon, category: 'education', description: 'TOPIK Level 4 badge' },
+    { name: 'TopikLevel5Icon', component: Icons.TopikLevel5Icon, category: 'education', description: 'TOPIK Level 5 badge' },
+    { name: 'TopikLevel6Icon', component: Icons.TopikLevel6Icon, category: 'education', description: 'TOPIK Level 6 badge' },
+    { name: 'KoreanFlagIcon', component: Icons.KoreanFlagIcon, category: 'education', description: 'Korean flag' },
+
+    // User
+    { name: 'UserIcon', component: Icons.UserIcon, category: 'user', description: 'User profile' },
+    { name: 'LoginIcon', component: Icons.LoginIcon, category: 'user', description: 'Login icon' },
+    { name: 'LogoutIcon', component: Icons.LogoutIcon, category: 'user', description: 'Logout icon' },
+    { name: 'AdminIcon', component: Icons.AdminIcon, category: 'user', description: 'Admin shield' },
+
+    // Media
+    { name: 'AudioIcon', component: Icons.AudioIcon, category: 'media', description: 'Audio/speaker' },
+    { name: 'ImageIcon', component: Icons.ImageIcon, category: 'media', description: 'Image/photo' },
+    { name: 'VideoIcon', component: Icons.VideoIcon, category: 'media', description: 'Video camera' },
+    { name: 'FileIcon', component: Icons.FileIcon, category: 'media', description: 'File document' },
+
+    // Misc
+    { name: 'ClockIcon', component: Icons.ClockIcon, category: 'misc', description: 'Clock/time' },
+    { name: 'CalendarIcon', component: Icons.CalendarIcon, category: 'misc', description: 'Calendar/date' },
+    { name: 'TrophyIcon', component: Icons.TrophyIcon, category: 'misc', description: 'Trophy/achievement' },
+    { name: 'StarIcon', component: Icons.StarIcon, category: 'misc', description: 'Star outline' },
+    { name: 'StarFilledIcon', component: Icons.StarFilledIcon, category: 'misc', description: 'Star filled' },
+];
+
+export default function IconDemoPage() {
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedSize, setSelectedSize] = useState<keyof typeof iconConfig.sizes>('md');
+    const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+    const filteredIcons = iconMetadata.filter((icon) => {
+        const matchesSearch = icon.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            icon.description.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesCategory = selectedCategory === 'all' || icon.category === selectedCategory;
+        return matchesSearch && matchesCategory;
+    });
+
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text);
+        toast.success('Đã copy code!');
+    };
+
+    return (
+        <div className="min-h-screen bg-background p-8">
+            <div className="max-w-7xl mx-auto space-y-8">
+                {/* Header */}
+                <div className="space-y-4">
+                    <h1 className="text-4xl font-bold">TOPIK Icon System</h1>
+                    <p className="text-muted-foreground text-lg">
+                        Hệ thống icon đồng bộ cho ứng dụng TOPIK - {iconMetadata.length} icons
+                    </p>
+                </div>
+
+                {/* Color Palette */}
+                <Card className="p-6">
+                    <h2 className="text-2xl font-bold mb-4">Bảng màu</h2>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        {Object.entries(iconConfig.colors).map(([name, color]) => (
+                            <div key={name} className="space-y-2">
+                                <div
+                                    className="w-full h-20 rounded-lg border-2 border-border"
+                                    style={{ backgroundColor: color }}
+                                />
+                                <div className="text-sm">
+                                    <div className="font-medium">{name}</div>
+                                    <div className="text-muted-foreground font-mono text-xs">{color}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </Card>
+
+                {/* Size Reference */}
+                <Card className="p-6">
+                    <h2 className="text-2xl font-bold mb-4">Kích thước</h2>
+                    <div className="flex items-end gap-8">
+                        {Object.entries(iconConfig.sizes).map(([size, px]) => (
+                            <div key={size} className="flex flex-col items-center gap-2">
+                                <Icons.StarFilledIcon size={size as any} color={iconConfig.colors.topikRed} />
+                                <div className="text-sm text-center">
+                                    <div className="font-medium">{size}</div>
+                                    <div className="text-muted-foreground">{px}px</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </Card>
+
+                {/* Icon Gallery */}
+                <Card className="p-6">
+                    <div className="space-y-6">
+                        <div className="flex flex-col md:flex-row gap-4">
+                            <div className="flex-1">
+                                <Input
+                                    placeholder="Tìm kiếm icon..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full"
+                                />
+                            </div>
+                            <div className="flex gap-2">
+                                <select
+                                    value={selectedCategory}
+                                    onChange={(e) => setSelectedCategory(e.target.value)}
+                                    className="px-4 py-2 rounded-md border border-input bg-background"
+                                >
+                                    <option value="all">Tất cả</option>
+                                    <option value="navigation">Navigation</option>
+                                    <option value="actions">Actions</option>
+                                    <option value="status">Status</option>
+                                    <option value="education">Education</option>
+                                    <option value="user">User</option>
+                                    <option value="media">Media</option>
+                                    <option value="misc">Misc</option>
+                                </select>
+                                <select
+                                    value={selectedSize}
+                                    onChange={(e) => setSelectedSize(e.target.value as any)}
+                                    className="px-4 py-2 rounded-md border border-input bg-background"
+                                >
+                                    {Object.keys(iconConfig.sizes).map((size) => (
+                                        <option key={size} value={size}>
+                                            {size}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                            {filteredIcons.map((icon) => {
+                                const IconComponent = icon.component;
+                                return (
+                                    <Card
+                                        key={icon.name}
+                                        className="p-4 hover:shadow-lg transition-shadow cursor-pointer group"
+                                        onClick={() => copyToClipboard(`<${icon.name} />`)}
+                                    >
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="p-4 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors">
+                                                <IconComponent size={selectedSize} />
+                                            </div>
+                                            <div className="text-center">
+                                                <div className="text-sm font-medium truncate w-full">
+                                                    {icon.name.replace('Icon', '')}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {icon.category}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                );
+                            })}
+                        </div>
+
+                        {filteredIcons.length === 0 && (
+                            <div className="text-center py-12 text-muted-foreground">
+                                Không tìm thấy icon nào
+                            </div>
+                        )}
+                    </div>
+                </Card>
+
+                {/* Usage Examples */}
+                <Card className="p-6">
+                    <h2 className="text-2xl font-bold mb-4">Ví dụ sử dụng</h2>
+                    <Tabs defaultValue="basic" className="w-full">
+                        <TabsList>
+                            <TabsTrigger value="basic">Cơ bản</TabsTrigger>
+                            <TabsTrigger value="buttons">Buttons</TabsTrigger>
+                            <TabsTrigger value="colors">Màu sắc</TabsTrigger>
+                            <TabsTrigger value="sizes">Kích thước</TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="basic" className="space-y-4">
+                            <div className="p-4 bg-muted rounded-lg">
+                                <div className="flex items-center gap-4">
+                                    <Icons.HomeIcon />
+                                    <Icons.SearchIcon />
+                                    <Icons.SettingsIcon />
+                                    <Icons.UserIcon />
+                                </div>
+                            </div>
+                            <pre className="p-4 bg-muted rounded-lg text-sm overflow-x-auto">
+                                {`import { HomeIcon, SearchIcon } from '@/components/icons/AllIcons';
+
+<HomeIcon />
+<SearchIcon size="lg" />
+<SettingsIcon color="#bf1f2b" />`}
+                            </pre>
+                        </TabsContent>
+
+                        <TabsContent value="buttons" className="space-y-4">
+                            <div className="p-4 bg-muted rounded-lg flex gap-2">
+                                <Button>
+                                    <Icons.PlayIcon size="sm" />
+                                    Play
+                                </Button>
+                                <Button variant="secondary">
+                                    <Icons.SaveIcon size="sm" />
+                                    Save
+                                </Button>
+                                <Button variant="destructive">
+                                    <Icons.DeleteIcon size="sm" />
+                                    Delete
+                                </Button>
+                            </div>
+                            <pre className="p-4 bg-muted rounded-lg text-sm overflow-x-auto">
+                                {`<Button>
+  <PlayIcon size="sm" />
+  Play
+</Button>`}
+                            </pre>
+                        </TabsContent>
+
+                        <TabsContent value="colors" className="space-y-4">
+                            <div className="p-4 bg-muted rounded-lg">
+                                <div className="flex items-center gap-4">
+                                    <Icons.SpeakingIcon size="xl" />
+                                    <Icons.ListeningIcon size="xl" />
+                                    <Icons.ReadingIcon size="xl" />
+                                    <Icons.WritingIcon size="xl" />
+                                </div>
+                            </div>
+                            <pre className="p-4 bg-muted rounded-lg text-sm overflow-x-auto">
+                                {`<SpeakingIcon color="#bf1f2b" />
+<ListeningIcon color="#8B5CF6" />
+<ReadingIcon color="#04004d" />
+<WritingIcon color="#10B981" />`}
+                            </pre>
+                        </TabsContent>
+
+                        <TabsContent value="sizes" className="space-y-4">
+                            <div className="p-4 bg-muted rounded-lg">
+                                <div className="flex items-end gap-4">
+                                    <Icons.TrophyIcon size="xs" />
+                                    <Icons.TrophyIcon size="sm" />
+                                    <Icons.TrophyIcon size="md" />
+                                    <Icons.TrophyIcon size="lg" />
+                                    <Icons.TrophyIcon size="xl" />
+                                    <Icons.TrophyIcon size="2xl" />
+                                </div>
+                            </div>
+                            <pre className="p-4 bg-muted rounded-lg text-sm overflow-x-auto">
+                                {`<TrophyIcon size="xs" />  // 12px
+<TrophyIcon size="sm" />  // 16px
+<TrophyIcon size="md" />  // 20px (default)
+<TrophyIcon size="lg" />  // 24px
+<TrophyIcon size="xl" />  // 32px
+<TrophyIcon size="2xl" /> // 48px`}
+                            </pre>
+                        </TabsContent>
+                    </Tabs>
+                </Card>
+
+                {/* TOPIK Levels Showcase */}
+                <Card className="p-6">
+                    <h2 className="text-2xl font-bold mb-4">TOPIK Level Badges</h2>
+                    <div className="flex items-center gap-6 p-4 bg-muted rounded-lg">
+                        <Icons.TopikLevel1Icon size="2xl" />
+                        <Icons.TopikLevel2Icon size="2xl" />
+                        <Icons.TopikLevel3Icon size="2xl" />
+                        <Icons.TopikLevel4Icon size="2xl" />
+                        <Icons.TopikLevel5Icon size="2xl" />
+                        <Icons.TopikLevel6Icon size="2xl" />
+                    </div>
+                </Card>
+            </div>
+        </div>
+    );
+}

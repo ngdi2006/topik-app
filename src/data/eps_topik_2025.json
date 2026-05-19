@@ -1,0 +1,373 @@
+{
+  "lessons": [
+    {
+      "lesson_number": 1,
+      "chapter": 1,
+      "title_korean": "자기소개",
+      "title_vietnamese": "Tự giới thiệu",
+      "description": "Học cách giới thiệu bản thân, quốc tịch và nghề nghiệp.",
+      "is_published": true,
+      "vocabulary": [
+        {
+          "word": "이름",
+          "romanization": "ireum",
+          "meaning": "tên",
+          "example": "제 이름은 민수입니다.",
+          "exampleMeaning": "Tên tôi là Minsu."
+        },
+        {
+          "word": "나라",
+          "romanization": "nara",
+          "meaning": "quốc gia",
+          "example": "저는 베트남 나라에서 왔습니다.",
+          "exampleMeaning": "Tôi đến từ Việt Nam."
+        },
+        {
+          "word": "회사",
+          "romanization": "hoesa",
+          "meaning": "công ty",
+          "example": "저는 회사에서 일합니다.",
+          "exampleMeaning": "Tôi làm việc ở công ty."
+        },
+        {
+          "word": "학생",
+          "romanization": "haksaeng",
+          "meaning": "học sinh, sinh viên",
+          "example": "저는 학생입니다.",
+          "exampleMeaning": "Tôi là sinh viên."
+        },
+        {
+          "word": "선생님",
+          "romanization": "seonsaengnim",
+          "meaning": "giáo viên",
+          "example": "김 선생님은 한국어를 가르칩니다.",
+          "exampleMeaning": "Thầy Kim dạy tiếng Hàn."
+        },
+        {
+          "word": "친구",
+          "romanization": "chingu",
+          "meaning": "bạn bè",
+          "example": "이 사람은 제 친구입니다.",
+          "exampleMeaning": "Người này là bạn tôi."
+        }
+      ],
+      "grammar": [
+        {
+          "pattern": "N은/는",
+          "explanation": "Trợ từ chủ đề, dùng để giới thiệu chủ đề của câu",
+          "usage": "Dùng 은 sau phụ âm, 는 sau nguyên âm",
+          "examples": [
+            { "korean": "저는 학생입니다.", "vietnamese": "Tôi là sinh viên." },
+            { "korean": "이름은 민수입니다.", "vietnamese": "Tên là Minsu." }
+          ]
+        },
+        {
+          "pattern": "N입니다/입니까?",
+          "explanation": "Vị ngữ danh từ lịch sự (khẳng định/nghi vấn)",
+          "usage": "Dùng trong văn nói trang trọng, lịch sự",
+          "examples": [
+            { "korean": "저는 베트남 사람입니다.", "vietnamese": "Tôi là người Việt Nam." },
+            { "korean": "학생입니까?", "vietnamese": "Bạn là sinh viên à?" }
+          ]
+        }
+      ],
+      "conversations": [
+        {
+          "title": "Gặp gỡ lần đầu",
+          "context": "Hai người gặp nhau lần đầu tại công ty",
+          "lines": [
+            { "speaker": "민수", "korean": "안녕하세요? 저는 민수입니다.", "vietnamese": "Xin chào. Tôi là Minsu." },
+            { "speaker": "투안", "korean": "안녕하세요? 저는 투안입니다. 베트남 사람입니다.", "vietnamese": "Xin chào. Tôi là Tuấn. Tôi là người Việt Nam." },
+            { "speaker": "민수", "korean": "반갑습니다. 회사원입니까?", "vietnamese": "Rất vui được gặp bạn. Bạn là nhân viên công ty à?" },
+            { "speaker": "투안", "korean": "네, 회사원입니다.", "vietnamese": "Vâng, tôi là nhân viên công ty." }
+          ]
+        }
+      ],
+      "culture": [
+        {
+          "title": "Văn hóa chào hỏi Hàn Quốc",
+          "content": "Người Hàn Quốc rất coi trọng việc chào hỏi. Khi gặp lần đầu, họ thường cúi đầu nhẹ và nói \"안녕하세요?\" (Xin chào). Trong môi trường công việc, việc sử dụng ngôn ngữ trang trọng là rất quan trọng."
+        }
+      ],
+      "ai_speaking_scenarios": [
+        {
+          "scenario_title": "Giới thiệu bản thân tại công ty mới",
+          "scenario_title_korean": "새 회사에서 자기소개하기",
+          "context": "Bạn vừa bắt đầu làm việc tại một nhà máy ở Hàn Quốc. Đồng nghiệp người Hàn muốn làm quen với bạn.",
+          "system_prompt": "Bạn là một đồng nghiệp người Hàn Quốc tên 김민수 (Kim Minsu), 30 tuổi, làm việc tại nhà máy sản xuất. Bạn thân thiện và muốn làm quen với nhân viên mới đến từ Việt Nam. Hãy nói chuyện bằng tiếng Hàn đơn giản (cấp độ TOPIK I). Sử dụng thể 존댓말 (kính ngữ). Khi người dùng mắc lỗi ngữ pháp, hãy nhẹ nhàng sửa và giải thích bằng tiếng Việt trong ngoặc. Hướng dẫn họ tự giới thiệu tên, quốc tịch, nghề nghiệp.",
+          "sample_dialogue": [
+            { "speaker": "AI", "korean": "안녕하세요! 새로 오신 분이시죠? 반갑습니다!", "vietnamese": "Xin chào! Bạn là người mới đến phải không? Rất vui được gặp bạn!" },
+            { "speaker": "User", "korean": "네, 안녕하세요. 저는 [이름]입니다.", "vietnamese": "Vâng, xin chào. Tôi là [tên]." },
+            { "speaker": "AI", "korean": "어느 나라에서 왔습니까?", "vietnamese": "Bạn đến từ nước nào?" },
+            { "speaker": "User", "korean": "저는 베트남에서 왔습니다.", "vietnamese": "Tôi đến từ Việt Nam." }
+          ],
+          "difficulty_level": 1,
+          "is_published": true
+        },
+        {
+          "scenario_title": "Làm quen với bạn cùng phòng ký túc xá",
+          "scenario_title_korean": "기숙사 룸메이트와 인사하기",
+          "context": "Bạn vừa đến ký túc xá của công ty. Bạn cùng phòng là người Hàn Quốc muốn biết thêm về bạn.",
+          "system_prompt": "Bạn là 이준호 (Lee Junho), 25 tuổi, bạn cùng phòng ký túc xá tại nhà máy. Bạn tò mò và thân thiện, muốn hỏi về quê quán, tuổi, sở thích của người mới. Dùng tiếng Hàn đơn giản cấp TOPIK I, thể 존댓말. Khi người dùng trả lời đúng hãy khen ngợi. Khi sai hãy sửa nhẹ nhàng.",
+          "sample_dialogue": [
+            { "speaker": "AI", "korean": "안녕하세요! 저는 이준호입니다. 같은 방을 쓰게 되었네요!", "vietnamese": "Xin chào! Tôi là Lee Junho. Chúng ta ở chung phòng rồi nhé!" },
+            { "speaker": "User", "korean": "안녕하세요, 반갑습니다. 저는 [이름]입니다.", "vietnamese": "Xin chào, rất vui được gặp anh. Tôi là [tên]." },
+            { "speaker": "AI", "korean": "몇 살입니까?", "vietnamese": "Bạn bao nhiêu tuổi?" },
+            { "speaker": "User", "korean": "저는 스물다섯 살입니다.", "vietnamese": "Tôi 25 tuổi." }
+          ],
+          "difficulty_level": 1,
+          "is_published": true
+        }
+      ]
+    },
+    {
+      "lesson_number": 2,
+      "chapter": 1,
+      "title_korean": "일상생활",
+      "title_vietnamese": "Sinh hoạt hàng ngày",
+      "description": "Học từ vựng và cách diễn đạt về sinh hoạt hàng ngày.",
+      "is_published": true,
+      "vocabulary": [
+        {
+          "word": "아침",
+          "romanization": "achim",
+          "meaning": "buổi sáng",
+          "example": "아침에 운동합니다.",
+          "exampleMeaning": "Tôi tập thể dục vào buổi sáng."
+        },
+        {
+          "word": "점심",
+          "romanization": "jeomsim",
+          "meaning": "bữa trưa",
+          "example": "점심을 먹습니다.",
+          "exampleMeaning": "Tôi ăn trưa."
+        },
+        {
+          "word": "저녁",
+          "romanization": "jeonyeok",
+          "meaning": "bữa tối, buổi tối",
+          "example": "저녁에 친구를 만납니다.",
+          "exampleMeaning": "Tôi gặp bạn vào buổi tối."
+        },
+        {
+          "word": "일하다",
+          "romanization": "ilhada",
+          "meaning": "làm việc",
+          "example": "회사에서 일합니다.",
+          "exampleMeaning": "Tôi làm việc ở công ty."
+        },
+        {
+          "word": "쉬다",
+          "romanization": "swida",
+          "meaning": "nghỉ ngơi",
+          "example": "주말에 집에서 쉽니다.",
+          "exampleMeaning": "Tôi nghỉ ngơi ở nhà vào cuối tuần."
+        },
+        {
+          "word": "공부하다",
+          "romanization": "gongbuhada",
+          "meaning": "học tập",
+          "example": "도서관에서 한국어를 공부합니다.",
+          "exampleMeaning": "Tôi học tiếng Hàn ở thư viện."
+        }
+      ],
+      "grammar": [
+        {
+          "pattern": "V-습니다/ㅂ니다",
+          "explanation": "Vị ngữ động từ lịch sự (thể trang trọng)",
+          "usage": "Dùng 습니다 sau phụ âm, ㅂ니다 sau nguyên âm",
+          "examples": [
+            { "korean": "저는 회사에서 일합니다.", "vietnamese": "Tôi làm việc ở công ty." },
+            { "korean": "한국어를 공부합니다.", "vietnamese": "Tôi học tiếng Hàn." }
+          ]
+        },
+        {
+          "pattern": "N에서",
+          "explanation": "Trợ từ chỉ địa điểm diễn ra hành động",
+          "usage": "Dùng sau danh từ chỉ địa điểm",
+          "examples": [
+            { "korean": "회사에서 일합니다.", "vietnamese": "Làm việc ở công ty." },
+            { "korean": "식당에서 밥을 먹습니다.", "vietnamese": "Ăn cơm ở nhà hàng." }
+          ]
+        }
+      ],
+      "conversations": [
+        {
+          "title": "Nói về lịch trình hàng ngày",
+          "context": "Hai đồng nghiệp nói chuyện về công việc",
+          "lines": [
+            { "speaker": "투안", "korean": "민수 씨, 매일 몇 시에 일어납니까?", "vietnamese": "Anh Minsu, hàng ngày anh dậy lúc mấy giờ?" },
+            { "speaker": "민수", "korean": "저는 아침 6시에 일어납니다. 투안 씨는요?", "vietnamese": "Tôi dậy lúc 6 giờ sáng. Còn anh Tuấn?" },
+            { "speaker": "투안", "korean": "저는 7시에 일어납니다. 그리고 8시에 회사에 갑니다.", "vietnamese": "Tôi dậy lúc 7 giờ. Và đi công ty lúc 8 giờ." },
+            { "speaker": "민수", "korean": "점심은 어디에서 먹습니까?", "vietnamese": "Anh ăn trưa ở đâu?" },
+            { "speaker": "투안", "korean": "회사 식당에서 먹습니다.", "vietnamese": "Tôi ăn ở căng tin công ty." }
+          ]
+        }
+      ],
+      "culture": [
+        {
+          "title": "Giờ làm việc tại Hàn Quốc",
+          "content": "Giờ làm việc tiêu chuẩn tại Hàn Quốc thường là từ 9 giờ sáng đến 6 giờ chiều. Nhiều công ty có căng tin nội bộ phục vụ bữa trưa cho nhân viên. Văn hóa làm việc chăm chỉ và trách nhiệm cao được đánh giá cao."
+        }
+      ],
+      "ai_speaking_scenarios": [
+        {
+          "scenario_title": "Kể về một ngày làm việc của bạn",
+          "scenario_title_korean": "나의 하루 이야기하기",
+          "context": "Giờ nghỉ trưa tại căng tin công ty. Đồng nghiệp người Hàn hỏi về lịch trình hàng ngày của bạn.",
+          "system_prompt": "Bạn là 박지영 (Park Jiyoung), nữ đồng nghiệp 28 tuổi tại nhà máy. Đang ăn trưa cùng và muốn hỏi về lịch trình hàng ngày của người mới. Hỏi về: mấy giờ dậy, ăn sáng gì, đi làm bằng gì, sau giờ làm làm gì. Dùng tiếng Hàn đơn giản cấp TOPIK I, thể 존댓말. Khuyến khích người dùng dùng 'V-습니다/ㅂ니다' và 'N에서'. Sửa lỗi nhẹ nhàng.",
+          "sample_dialogue": [
+            { "speaker": "AI", "korean": "오늘 아침에 몇 시에 일어났습니까?", "vietnamese": "Sáng nay bạn dậy lúc mấy giờ?" },
+            { "speaker": "User", "korean": "6시에 일어났습니다.", "vietnamese": "Tôi dậy lúc 6 giờ." },
+            { "speaker": "AI", "korean": "아침을 먹었습니까? 뭘 먹었습니까?", "vietnamese": "Bạn đã ăn sáng chưa? Ăn gì?" },
+            { "speaker": "User", "korean": "네, 빵을 먹었습니다.", "vietnamese": "Vâng, tôi đã ăn bánh mì." }
+          ],
+          "difficulty_level": 1,
+          "is_published": true
+        },
+        {
+          "scenario_title": "Hỏi đường đến siêu thị gần nhà",
+          "scenario_title_korean": "근처 슈퍼마켓 가는 길 묻기",
+          "context": "Cuối tuần, bạn muốn đi siêu thị mua đồ dùng cá nhân. Bạn hỏi đường một người Hàn Quốc.",
+          "system_prompt": "Bạn là một người dân địa phương thân thiện, 35 tuổi. Người dùng hỏi đường đến siêu thị gần nhất. Hãy chỉ đường bằng tiếng Hàn đơn giản: đi thẳng, rẽ trái/phải, gần/xa. Dùng cấp TOPIK I, thể 존댓말. Nếu người dùng hỏi thêm về giờ mở cửa hoặc có bán gì, hãy trả lời.",
+          "sample_dialogue": [
+            { "speaker": "User", "korean": "저기요, 근처에 슈퍼마켓이 있습니까?", "vietnamese": "Xin lỗi, gần đây có siêu thị không ạ?" },
+            { "speaker": "AI", "korean": "네, 있습니다. 이 길로 쭉 가세요.", "vietnamese": "Vâng, có. Bạn đi thẳng đường này." },
+            { "speaker": "User", "korean": "멀어요?", "vietnamese": "Xa không ạ?" },
+            { "speaker": "AI", "korean": "아니요, 걸어서 5분 걸립니다.", "vietnamese": "Không, đi bộ khoảng 5 phút." }
+          ],
+          "difficulty_level": 2,
+          "is_published": true
+        }
+      ]
+    },
+    {
+      "lesson_number": 3,
+      "chapter": 1,
+      "title_korean": "쇼핑",
+      "title_vietnamese": "Mua sắm",
+      "description": "Học cách hỏi giá, mua hàng và thanh toán.",
+      "is_published": true,
+      "vocabulary": [
+        {
+          "word": "가게",
+          "romanization": "gage",
+          "meaning": "cửa hàng",
+          "example": "이 가게에서 옷을 삽니다.",
+          "exampleMeaning": "Tôi mua quần áo ở cửa hàng này."
+        },
+        {
+          "word": "돈",
+          "romanization": "don",
+          "meaning": "tiền",
+          "example": "돈이 얼마 있습니까?",
+          "exampleMeaning": "Bạn có bao nhiêu tiền?"
+        },
+        {
+          "word": "사다",
+          "romanization": "sada",
+          "meaning": "mua",
+          "example": "과일을 삽니다.",
+          "exampleMeaning": "Tôi mua trái cây."
+        },
+        {
+          "word": "팔다",
+          "romanization": "palda",
+          "meaning": "bán",
+          "example": "이 가게는 신발을 팝니다.",
+          "exampleMeaning": "Cửa hàng này bán giày."
+        },
+        {
+          "word": "비싸다",
+          "romanization": "bissada",
+          "meaning": "đắt",
+          "example": "이 옷은 너무 비쌉니다.",
+          "exampleMeaning": "Quần áo này quá đắt."
+        },
+        {
+          "word": "싸다",
+          "romanization": "ssada",
+          "meaning": "rẻ",
+          "example": "이 가방은 쌉니다.",
+          "exampleMeaning": "Cái túi này rẻ."
+        },
+        {
+          "word": "얼마",
+          "romanization": "eolma",
+          "meaning": "bao nhiêu (tiền)",
+          "example": "이것은 얼마입니까?",
+          "exampleMeaning": "Cái này bao nhiêu tiền?"
+        }
+      ],
+      "grammar": [
+        {
+          "pattern": "N을/를",
+          "explanation": "Trợ từ tân ngữ",
+          "usage": "Dùng 을 sau phụ âm, 를 sau nguyên âm",
+          "examples": [
+            { "korean": "빵을 삽니다.", "vietnamese": "Mua bánh mì." },
+            { "korean": "물을 마십니다.", "vietnamese": "Uống nước." }
+          ]
+        },
+        {
+          "pattern": "A-습니다/ㅂ니다",
+          "explanation": "Vị ngữ tính từ lịch sự",
+          "usage": "Dùng để diễn tả tính chất, trạng thái",
+          "examples": [
+            { "korean": "이 옷은 예쁩니다.", "vietnamese": "Quần áo này đẹp." },
+            { "korean": "날씨가 좋습니다.", "vietnamese": "Thời tiết tốt." }
+          ]
+        }
+      ],
+      "conversations": [
+        {
+          "title": "Mua đồ ở cửa hàng",
+          "context": "Khách hàng mua quần áo tại cửa hàng",
+          "lines": [
+            { "speaker": "손님", "korean": "이 티셔츠는 얼마입니까?", "vietnamese": "Áo phông này bao nhiêu tiền?" },
+            { "speaker": "점원", "korean": "2만 원입니다.", "vietnamese": "20,000 won ạ." },
+            { "speaker": "손님", "korean": "좀 비쌉니다. 더 싼 것 있습니까?", "vietnamese": "Hơi đắt. Có cái nào rẻ hơn không?" },
+            { "speaker": "점원", "korean": "네, 이것은 1만 5천 원입니다.", "vietnamese": "Vâng, cái này 15,000 won ạ." },
+            { "speaker": "손님", "korean": "좋습니다. 이것으로 주세요.", "vietnamese": "Được. Cho tôi cái này." }
+          ]
+        }
+      ],
+      "culture": [
+        {
+          "title": "Văn hóa mua sắm tại Hàn Quốc",
+          "content": "Tại Hàn Quốc, bạn có thể mua sắm ở siêu thị, cửa hàng tiện lợi (편의점), chợ truyền thống (시장), hoặc trung tâm thương mại. Giá cả thường cố định ở siêu thị và cửa hàng, nhưng có thể thương lượng ở chợ truyền thống. Thẻ tín dụng được chấp nhận rộng rãi."
+        }
+      ],
+      "ai_speaking_scenarios": [
+        {
+          "scenario_title": "Mua quần áo tại cửa hàng",
+          "scenario_title_korean": "옷 가게에서 쇼핑하기",
+          "context": "Bạn đến cửa hàng quần áo muốn mua một chiếc áo. Nhân viên bán hàng sẽ giúp bạn.",
+          "system_prompt": "Bạn là nhân viên bán hàng tại một cửa hàng quần áo ở Hàn Quốc, tên 최수진 (Choi Sujin), 26 tuổi. Khách hàng là lao động Việt Nam muốn mua quần áo. Hãy giới thiệu sản phẩm, nói giá tiền, gợi ý size. Dùng tiếng Hàn đơn giản cấp TOPIK I, thể 존댓말. Giá tiền dùng đơn vị 원. Khuyến khích người dùng dùng 'N을/를' và 'A-습니다/ㅂ니다'. Sửa lỗi nhẹ nhàng khi cần.",
+          "sample_dialogue": [
+            { "speaker": "AI", "korean": "어서 오세요! 무엇을 찾으십니까?", "vietnamese": "Xin chào! Bạn đang tìm gì ạ?" },
+            { "speaker": "User", "korean": "티셔츠를 사고 싶습니다.", "vietnamese": "Tôi muốn mua áo phông." },
+            { "speaker": "AI", "korean": "이 티셔츠는 어떻습니까? 2만 원입니다.", "vietnamese": "Chiếc áo phông này thế nào? Giá 20,000 won." },
+            { "speaker": "User", "korean": "좀 비쌉니다. 더 싼 것 있습니까?", "vietnamese": "Hơi đắt. Có cái rẻ hơn không?" }
+          ],
+          "difficulty_level": 2,
+          "is_published": true
+        },
+        {
+          "scenario_title": "Mua đồ ăn ở cửa hàng tiện lợi",
+          "scenario_title_korean": "편의점에서 물건 사기",
+          "context": "Bạn vào cửa hàng tiện lợi (편의점) gần ký túc xá để mua đồ ăn vặt và nước uống.",
+          "system_prompt": "Bạn là nhân viên cửa hàng tiện lợi (편의점) tên 강하늘 (Kang Haneul), 22 tuổi. Khách hàng là lao động Việt Nam mua đồ ăn nhẹ. Hãy giúp tính tiền, hỏi có cần túi không, có thẻ thành viên không. Dùng tiếng Hàn cấp TOPIK I. Nói giá tiền rõ ràng. Sửa lỗi phát âm/ngữ pháp nhẹ nhàng.",
+          "sample_dialogue": [
+            { "speaker": "AI", "korean": "어서 오세요!", "vietnamese": "Xin chào!" },
+            { "speaker": "User", "korean": "이 김밥은 얼마입니까?", "vietnamese": "Cuộn kimbap này bao nhiêu?" },
+            { "speaker": "AI", "korean": "2,500원입니다. 다른 것도 필요합니까?", "vietnamese": "2,500 won ạ. Bạn cần gì nữa không?" },
+            { "speaker": "User", "korean": "물도 주세요.", "vietnamese": "Cho tôi thêm nước." }
+          ],
+          "difficulty_level": 1,
+          "is_published": true
+        }
+      ]
+    }
+  ]
+}

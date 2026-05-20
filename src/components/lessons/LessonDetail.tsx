@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useLessonStore } from '@/store/lessonStore'
 import { Lesson, LessonSection } from '@/types/lesson'
 import { ArrowLeft, CheckCircle2, Volume2 } from 'lucide-react'
+import { VocabularyLearning } from './VocabularyLearning'
 
 interface LessonDetailProps {
   lesson: Lesson
@@ -57,38 +58,10 @@ export function LessonDetail({ lesson, onBack }: LessonDetailProps) {
 
         {/* Từ vựng */}
         <TabsContent value="vocabulary" className="space-y-4 mt-4">
-          <div className="grid gap-3">
-            {lesson.vocabulary.map((item, idx) => (
-              <Card key={idx}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg font-bold">{item.word}</span>
-                        <span className="text-sm text-muted-foreground">({item.romanization})</span>
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                          <Volume2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                      <p className="text-sm font-medium text-emerald-700">{item.meaning}</p>
-                      <div className="text-sm text-muted-foreground mt-2">
-                        <p className="italic">{item.example}</p>
-                        <p>{item.exampleMeaning}</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          {!completed.includes('vocabulary') && (
-            <Button
-              className="w-full bg-emerald-600 hover:bg-emerald-700"
-              onClick={() => handleComplete('vocabulary')}
-            >
-              Hoàn thành phần Từ vựng
-            </Button>
-          )}
+          <VocabularyLearning
+            vocabulary={lesson.vocabulary}
+            onComplete={!completed.includes('vocabulary') ? () => handleComplete('vocabulary') : undefined}
+          />
         </TabsContent>
 
         {/* Ngữ pháp */}

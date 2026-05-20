@@ -22,7 +22,7 @@ export function VocabularyLearning({ vocabulary, onComplete }: VocabularyLearnin
   const [mode, setMode] = useState<'list' | 'flashcard'>('list')
 
   const currentWord = vocabList[currentIndex]
-  const progress = Math.round((masteredWords.size / vocabList.length) * 100)
+  const progress = vocabList.length > 0 ? Math.round((masteredWords.size / vocabList.length) * 100) : 0
 
   const handleNext = () => {
     if (currentIndex < vocabList.length - 1) {
@@ -73,6 +73,25 @@ export function VocabularyLearning({ vocabulary, onComplete }: VocabularyLearnin
 
   // Flashcard Mode
   if (mode === 'flashcard') {
+    // Guard: check if vocabulary list is empty or currentWord is undefined
+    if (!vocabList.length || !currentWord) {
+      return (
+        <div className="space-y-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setMode('list')}
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" />
+            Chế độ danh sách
+          </Button>
+          <Card className="p-8 text-center text-muted-foreground">
+            <p>Không có từ vựng để hiển thị</p>
+          </Card>
+        </div>
+      )
+    }
+
     return (
       <div className="space-y-4">
         {/* Controls */}

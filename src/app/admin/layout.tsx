@@ -1,9 +1,11 @@
 'use client'
 
 import Link from "next/link"
-import { Shield, Users, FileText, Settings, LayoutDashboard, BookOpen, Menu, X, GraduationCap, Target, CreditCard } from "lucide-react"
-import { AdminUserNav } from "@/components/admin/AdminUserNav"
+import { Shield, Users, FileText, Settings, LayoutDashboard, BookOpen, Menu, X, GraduationCap, Target, CreditCard, Package } from "lucide-react"
+import dynamic from "next/dynamic"
 import { useState } from "react"
+
+const AdminUserNav = dynamic(() => import("@/components/admin/AdminUserNav").then(mod => mod.AdminUserNav), { ssr: false })
 
 export default function AdminLayout({
     children,
@@ -113,6 +115,14 @@ export default function AdminLayout({
                     >
                         <CreditCard className="w-5 h-5 mr-3" />
                         Thanh Toán
+                    </Link>
+                    <Link
+                        href="/admin/payment-packages"
+                        className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                        onClick={() => setSidebarOpen(false)}
+                    >
+                        <Package className="w-5 h-5 mr-3" />
+                        Gói thanh toán
                     </Link>
                     <Link
                         href="/admin/settings"

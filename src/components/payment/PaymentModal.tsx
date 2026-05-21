@@ -3,9 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Loader2, CheckCircle2, Copy, QrCode } from 'lucide-react'
+import { Loader2, CheckCircle2, Copy } from 'lucide-react'
 import Image from 'next/image'
 
 interface PaymentPackage {
@@ -101,7 +99,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="text-2xl">
                         {selectedPackage ? 'Thanh toán' : 'Mua lượt làm bài'}
@@ -119,123 +117,86 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                     </div>
                 ) : selectedPackage && qrCodeUrl ? (
                     // Payment QR Screen
-                    <div className="space-y-6">
-                        <Card className="border-primary/20 bg-primary/5">
-                            <CardHeader>
-                                <CardTitle className="text-lg">Thông tin gói đã chọn</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-2">
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Gói:</span>
-                                    <span className="font-semibold">{selectedPackage.package_name}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Số lượt:</span>
-                                    <span className="font-semibold">{selectedPackage.credits} lượt</span>
-                                </div>
-                                <div className="flex justify-between text-lg">
-                                    <span className="text-muted-foreground">Tổng tiền:</span>
-                                    <span className="font-bold text-primary">
-                                        {formatPrice(selectedPackage.price_vnd)}
-                                    </span>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <div className="grid md:grid-cols-2 gap-6">
-                            {/* QR Code */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-base flex items-center gap-2">
-                                        <QrCode className="w-4 h-4" />
-                                        Quét mã QR
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="flex justify-center">
-                                    <Image
-                                        src={qrCodeUrl}
-                                        alt="QR Code"
-                                        width={250}
-                                        height={250}
-                                        className="border rounded-lg"
-                                    />
-                                </CardContent>
-                            </Card>
-
-                            {/* Bank Info */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-base">Thông tin chuyển khoản</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Ngân hàng</p>
-                                        <p className="font-semibold">{bankInfo?.bank_name}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Số tài khoản</p>
-                                        <div className="flex items-center gap-2">
-                                            <p className="font-semibold">{bankInfo?.account_no}</p>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-6 w-6 p-0"
-                                                onClick={() => copyToClipboard(bankInfo?.account_no)}
-                                            >
-                                                <Copy className="w-3 h-3" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Chủ tài khoản</p>
-                                        <p className="font-semibold">{bankInfo?.account_name}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Số tiền</p>
-                                        <div className="flex items-center gap-2">
-                                            <p className="font-semibold text-primary">
-                                                {formatPrice(bankInfo?.amount)}
-                                            </p>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-6 w-6 p-0"
-                                                onClick={() => copyToClipboard(bankInfo?.amount.toString())}
-                                            >
-                                                <Copy className="w-3 h-3" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Nội dung chuyển khoản</p>
-                                        <div className="flex items-center gap-2">
-                                            <p className="font-semibold text-red-600">{transactionCode}</p>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-6 w-6 p-0"
-                                                onClick={() => copyToClipboard(transactionCode || '')}
-                                            >
-                                                <Copy className="w-3 h-3" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-4 py-3">
+                            <div className="text-sm">
+                                <span className="text-muted-foreground">{selectedPackage.package_name}</span>
+                                <span className="mx-2 text-muted-foreground">·</span>
+                                <span className="text-muted-foreground">{selectedPackage.credits} lượt</span>
+                            </div>
+                            <span className="text-lg font-bold text-primary">
+                                {formatPrice(selectedPackage.price_vnd)}
+                            </span>
                         </div>
 
-                        <Card className="border-amber-500/50 bg-amber-50">
-                            <CardContent className="pt-4">
-                                <p className="text-sm text-amber-800">
-                                    <strong>Lưu ý quan trọng:</strong>
-                                </p>
-                                <ul className="text-sm text-amber-700 mt-2 space-y-1 list-disc list-inside">
-                                    <li>Vui lòng chuyển khoản <strong>ĐÚNG số tiền</strong> và <strong>ĐÚNG nội dung</strong></li>
-                                    <li>Sau khi chuyển khoản, hệ thống sẽ tự động xác nhận trong vòng 5-10 phút</li>
-                                    <li>Nếu quá 30 phút chưa được kích hoạt, vui lòng liên hệ admin</li>
-                                </ul>
-                            </CardContent>
-                        </Card>
+                        <div className="flex flex-col items-center gap-4 rounded-lg border p-4">
+                            <Image
+                                src={qrCodeUrl}
+                                alt="QR Code thanh toán"
+                                width={200}
+                                height={200}
+                                className="rounded-lg"
+                            />
+                            <p className="text-xs text-muted-foreground">Quét mã QR bằng app ngân hàng</p>
+                        </div>
+
+                        <div className="rounded-lg border divide-y text-sm">
+                            <div className="flex items-center justify-between px-4 py-2.5">
+                                <span className="text-muted-foreground">Ngân hàng</span>
+                                <span className="font-medium">{bankInfo?.bank_name}</span>
+                            </div>
+                            <div className="flex items-center justify-between px-4 py-2.5">
+                                <span className="text-muted-foreground">Số tài khoản</span>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-medium">{bankInfo?.account_no}</span>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-6 p-0"
+                                        onClick={() => copyToClipboard(bankInfo?.account_no)}
+                                    >
+                                        <Copy className="w-3 h-3" />
+                                    </Button>
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between px-4 py-2.5">
+                                <span className="text-muted-foreground">Chủ TK</span>
+                                <span className="font-medium">{bankInfo?.account_name}</span>
+                            </div>
+                            <div className="flex items-center justify-between px-4 py-2.5">
+                                <span className="text-muted-foreground">Số tiền</span>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-primary">{formatPrice(bankInfo?.amount)}</span>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-6 p-0"
+                                        onClick={() => copyToClipboard(bankInfo?.amount.toString())}
+                                    >
+                                        <Copy className="w-3 h-3" />
+                                    </Button>
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between px-4 py-2.5">
+                                <span className="text-muted-foreground">Nội dung CK</span>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-red-600 text-xs break-all">{transactionCode}</span>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-6 p-0 shrink-0"
+                                        onClick={() => copyToClipboard(transactionCode || '')}
+                                    >
+                                        <Copy className="w-3 h-3" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800 space-y-1">
+                            <p>Chuyển khoản <strong>đúng số tiền</strong> và <strong>đúng nội dung</strong>.</p>
+                            <p>Hệ thống tự động xác nhận trong 5-10 phút. Quá 30 phút vui lòng liên hệ admin.</p>
+                        </div>
 
                         <div className="flex gap-3">
                             <Button variant="outline" onClick={handleBack} className="flex-1">

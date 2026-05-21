@@ -17,6 +17,7 @@ export default function ExamStartPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [isStarting, setIsStarting] = useState(false)
     const [accessInfo, setAccessInfo] = useState<any>(null)
+    const [accessLoaded, setAccessLoaded] = useState(false)
     const [paymentModalOpen, setPaymentModalOpen] = useState(false)
 
     useEffect(() => {
@@ -33,7 +34,7 @@ export default function ExamStartPage() {
                     return
                 }
 
-                // Check access - free exams bypass credit check
+                // Check access
                 if (examData.data.is_free) {
                     setAccessInfo({
                         can_access: true,
@@ -47,12 +48,11 @@ export default function ExamStartPage() {
                     if (accessRes.ok) {
                         const accessData = await accessRes.json()
                         setAccessInfo(accessData)
-
-                        if (!accessData.can_access) {
-                            toast.error(accessData.message)
-                        }
+                    } else {
+                        setAccessInfo({ can_access: false, user_credits: 0, previous_attempts: [], message: 'Không thể kiểm tra quyền truy cập' })
                     }
                 }
+                setAccessLoaded(true)
             } catch (error) {
                 toast.error('Lỗi tải đề thi')
             } finally {
@@ -131,7 +131,12 @@ export default function ExamStartPage() {
                             {exam.is_free && (
                                 <Badge className="bg-emerald-500">Miễn phí</Badge>
                             )}
-                            {!accessInfo?.can_access && !exam.is_free && (
+                            {accessLoaded && !exam.is_free && accessInfo?.can_access && accessInfo?.debug?.totalAttempts < exam.free_attempts && (
+                                <Badge className="bg-emerald-500 gap-1">
+                                    Lượt miễn phí
+                                </Badge>
+                            )}
+                            {accessLoaded && !accessInfo?.can_access && !exam.is_free && (
                                 <Badge variant="destructive" className="gap-1">
                                     <Coins className="w-3 h-3" />
                                     Cần mua lượt
@@ -141,10 +146,15 @@ export default function ExamStartPage() {
                         <h1 className="text-3xl font-bold text-gray-900 mb-2">
                             {exam.title}
                         </h1>
-                        {accessInfo && !exam.is_free && (
+                        {accessLoaded && !exam.is_free && accessInfo?.can_access && accessInfo?.debug?.totalAttempts < exam.free_attempts && (
+                            <p className="text-sm text-emerald-600 font-medium">
+                                Bạn còn {exam.free_attempts - (accessInfo?.debug?.totalAttempts || 0)} lượt miễn phí
+                            </p>
+                        )}
+                        {accessLoaded && !exam.is_free && !(accessInfo?.debug?.totalAttempts < exam.free_attempts) && (
                             <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
                                 <Coins className="w-4 h-4" />
-                                Bạn còn {accessInfo.user_credits} lượt làm bài
+                                Bạn còn {accessInfo?.user_credits || 0} lượt làm bài
                             </p>
                         )}
                         {exam.is_free && (
@@ -182,7 +192,7 @@ export default function ExamStartPage() {
                     </div>
 
                     {/* Access Warning - only show for paid exams without access */}
-                    {!exam.is_free && !accessInfo?.can_access && (
+                    {accessLoaded && !exam.is_free && !accessInfo?.can_access && (
                         <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6">
                             <div className="flex">
                                 <AlertCircle className="w-5 h-5 text-amber-600 mr-3 flex-shrink-0 mt-0.5" />
@@ -241,11 +251,13 @@ export default function ExamStartPage() {
                                 </>
                             )}
                         </Button>
-                        <p className="text-sm text-gray-500 mt-4">
-                            {exam.is_free || accessInfo?.can_access
-                                ? 'Nhấn nút để bắt đầu. Bạn sẽ không thể tạm dừng sau khi bắt đầu.'
-                                : 'Vui lòng mua lượt làm bài để tiếp tục'}
-                        </p>
+                        {accessLoaded && (
+                            <p className="text-sm text-gray-500 mt-4">
+                                {exam.is_free || accessInfo?.can_access
+                                    ? 'Nhấn nút để bắt đầu. Bạn sẽ không thể tạm dừng sau khi bắt đầu.'
+                                    : 'Vui lòng mua lượt làm bài để tiếp tục'}
+                            </p>
+                        )}
                     </div>
                 </div>
 

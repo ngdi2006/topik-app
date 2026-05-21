@@ -29,13 +29,13 @@ export async function GET(
             return NextResponse.json({ error: 'Exam not found' }, { status: 404 })
         }
 
-        // Get user credits
+        // Get user credits (may not exist for new users)
         const { data: creditsData } = await supabase
             .from('user_exam_credits')
             .select('remaining_credits')
             .eq('user_id', user.id)
-            .single()
-        
+            .maybeSingle()
+
         const userCredits = creditsData?.remaining_credits || 0
 
         // Free exams: always accessible, no need for credit check

@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Clock, BookOpen, Headphones, AlertCircle } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Clock, BookOpen, Headphones, AlertCircle, Coins, ShoppingCart } from 'lucide-react'
 import { toast } from 'sonner'
+import { PaymentModal } from '@/components/payment/PaymentModal'
 
 export default function ExamStartPage() {
     const params = useParams()
@@ -14,17 +16,42 @@ export default function ExamStartPage() {
     const [exam, setExam] = useState<any>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isStarting, setIsStarting] = useState(false)
+    const [accessInfo, setAccessInfo] = useState<any>(null)
+    const [paymentModalOpen, setPaymentModalOpen] = useState(false)
 
     useEffect(() => {
-        const fetchExam = async () => {
+        const fetchData = async () => {
             try {
-                const res = await fetch(`/api/admin/exams/${examId}`)
-                const data = await res.json()
-                if (data.success) {
-                    setExam(data.data)
+                // Fetch exam details
+                const examRes = await fetch(`/api/admin/exams/${examId}`)
+                const examData = await examRes.json()
+                if (examData.success) {
+                    setExam(examData.data)
                 } else {
                     toast.error('Không tìm thấy đề thi')
-                    router.push('/learner/dashboard')
+                    router.push('/dashboard')
+                    return
+                }
+
+                // Check access - free exams bypass credit check
+                if (examData.data.is_free) {
+                    setAccessInfo({
+                        can_access: true,
+                        exam: { id: examData.data.id, title: examData.data.title, is_free: true },
+                        user_credits: 0,
+                        previous_attempts: [],
+                        message: 'Đề thi miễn phí - không giới hạn lượt'
+                    })
+                } else {
+                    const accessRes = await fetch(`/api/exams/${examId}/check-access`)
+                    if (accessRes.ok) {
+                        const accessData = await accessRes.json()
+                        setAccessInfo(accessData)
+
+                        if (!accessData.can_access) {
+                            toast.error(accessData.message)
+                        }
+                    }
                 }
             } catch (error) {
                 toast.error('Lỗi tải đề thi')
@@ -33,14 +60,23 @@ export default function ExamStartPage() {
             }
         }
 
-        if (examId) fetchExam()
+        if (examId) fetchData()
     }, [examId, router])
 
     const handleStartExam = async () => {
+        // Free exams: skip credit check
+        const canStart = exam.is_free || accessInfo?.can_access
+
+        if (!canStart) {
+            setPaymentModalOpen(true)
+            return
+        }
+
         setIsStarting(true)
         const toastId = toast.loading('Đang chuẩn bị đề thi...')
 
         try {
+            // Start exam (will consume credit internally)
             const res = await fetch(`/api/exams/${examId}/start`, {
                 method: 'POST',
             })
@@ -91,9 +127,31 @@ export default function ExamStartPage() {
                 {/* Header */}
                 <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
                     <div className="text-center mb-6">
+                        <div className="flex items-center justify-center gap-2 mb-3">
+                            {exam.is_free && (
+                                <Badge className="bg-emerald-500">Miễn phí</Badge>
+                            )}
+                            {!accessInfo?.can_access && !exam.is_free && (
+                                <Badge variant="destructive" className="gap-1">
+                                    <Coins className="w-3 h-3" />
+                                    Cần mua lượt
+                                </Badge>
+                            )}
+                        </div>
                         <h1 className="text-3xl font-bold text-gray-900 mb-2">
                             {exam.title}
                         </h1>
+                        {accessInfo && !exam.is_free && (
+                            <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+                                <Coins className="w-4 h-4" />
+                                Bạn còn {accessInfo.user_credits} lượt làm bài
+                            </p>
+                        )}
+                        {exam.is_free && (
+                            <p className="text-sm text-emerald-600 font-medium">
+                                Đề thi miễn phí - Không giới hạn lượt làm bài
+                            </p>
+                        )}
                     </div>
 
                     {/* Exam Info */}
@@ -122,6 +180,28 @@ export default function ExamStartPage() {
                             </p>
                         </div>
                     </div>
+
+                    {/* Access Warning - only show for paid exams without access */}
+                    {!exam.is_free && !accessInfo?.can_access && (
+                        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6">
+                            <div className="flex">
+                                <AlertCircle className="w-5 h-5 text-amber-600 mr-3 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <h3 className="font-semibold text-amber-900 mb-2">
+                                        {accessInfo?.message || 'Bạn cần mua lượt làm bài'}
+                                    </h3>
+                                    <Button
+                                        size="sm"
+                                        className="gap-2"
+                                        onClick={() => setPaymentModalOpen(true)}
+                                    >
+                                        <ShoppingCart className="w-4 h-4" />
+                                        Mua lượt làm bài
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Instructions */}
                     <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
@@ -157,12 +237,14 @@ export default function ExamStartPage() {
                                 </>
                             ) : (
                                 <>
-                                    Bắt Đầu Làm Bài
+                                    {exam.is_free || accessInfo?.can_access ? 'Bắt Đầu Làm Bài' : 'Mua lượt để làm bài'}
                                 </>
                             )}
                         </Button>
                         <p className="text-sm text-gray-500 mt-4">
-                            Nhấn nút để bắt đầu. Bạn sẽ không thể tạm dừng sau khi bắt đầu.
+                            {exam.is_free || accessInfo?.can_access
+                                ? 'Nhấn nút để bắt đầu. Bạn sẽ không thể tạm dừng sau khi bắt đầu.'
+                                : 'Vui lòng mua lượt làm bài để tiếp tục'}
                         </p>
                     </div>
                 </div>
@@ -171,13 +253,22 @@ export default function ExamStartPage() {
                 <div className="text-center">
                     <Button
                         variant="ghost"
-                        onClick={() => router.push('/learner/dashboard')}
+                        onClick={() => router.push('/dashboard')}
                         disabled={isStarting}
                     >
                         ← Quay lại Dashboard
                     </Button>
                 </div>
             </div>
+
+            <PaymentModal
+                open={paymentModalOpen}
+                onClose={() => setPaymentModalOpen(false)}
+                onSuccess={() => {
+                    setPaymentModalOpen(false)
+                    window.location.reload()
+                }}
+            />
         </div>
     )
 }

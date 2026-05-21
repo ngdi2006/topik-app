@@ -25,14 +25,16 @@ export async function GET(request: Request) {
         const { error } = await supabase.auth.exchangeCodeForSession(code)
 
         if (!error) {
-            // Determine redirect destination, ưu tiên forwarded host nếu deploy phía sau proxy
             const forwardedHost = request.headers.get('x-forwarded-host')
             const isLocalEnv = process.env.NODE_ENV === 'development'
+            const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
 
             if (isLocalEnv) {
                 return NextResponse.redirect(`${origin}${next}`)
             } else if (forwardedHost) {
                 return NextResponse.redirect(`https://${forwardedHost}${next}`)
+            } else if (siteUrl) {
+                return NextResponse.redirect(`${siteUrl}${next}`)
             } else {
                 return NextResponse.redirect(`${origin}${next}`)
             }

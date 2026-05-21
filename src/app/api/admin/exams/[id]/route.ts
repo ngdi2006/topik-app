@@ -42,6 +42,9 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
         if (body.total_questions !== undefined) updatePayload.total_questions = body.total_questions
         if (body.status !== undefined) updatePayload.status = body.status
         if (body.display_order !== undefined) updatePayload.display_order = body.display_order
+        if (body.is_free !== undefined) updatePayload.is_free = body.is_free
+        if (body.free_attempts !== undefined) updatePayload.free_attempts = body.free_attempts
+        if (body.credits_required !== undefined) updatePayload.credits_required = body.credits_required
 
         const { data: updatedExam, error } = await adminAuthClient
             .from('exams')

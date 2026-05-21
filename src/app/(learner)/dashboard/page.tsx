@@ -7,9 +7,11 @@ import { useUserStore } from "@/store/userStore"
 import { Button } from "@/components/ui/button"
 import { UserNav } from "@/components/shared/UserNav"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Lock } from "lucide-react"
 import { LessonList } from "@/components/lessons/LessonList"
 import { PracticeHub } from "@/components/practice/PracticeHub"
+import { PaymentModal } from "@/components/payment/PaymentModal"
 
 type ActiveMenu = 'bai-hoc' | 'luyen-tap' | 'thi-thu' | 'ai-chat' | 'kiem-tra'
 
@@ -19,6 +21,9 @@ export default function DashboardPage() {
     const { user, role, setUser, setRole, isLoading, setIsLoading } = useUserStore()
     const [exams, setExams] = useState<any[]>([])
     const [activeMenu, setActiveMenu] = useState<ActiveMenu | null>(null)
+    const [userCredits, setUserCredits] = useState<number>(0)
+    const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+    const [checkingAccess, setCheckingAccess] = useState<string | null>(null)
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -51,6 +56,45 @@ export default function DashboardPage() {
         fetchUserData()
     }, [supabase, setUser, setRole, setIsLoading])
 
+    useEffect(() => {
+        if (activeMenu === 'thi-thu') {
+            fetchCredits()
+        }
+    }, [activeMenu])
+
+    const fetchCredits = async () => {
+        try {
+            const res = await fetch('/api/payment/credits')
+            if (res.ok) {
+                const data = await res.json()
+                setUserCredits(data.remaining_credits ?? 0)
+            }
+        } catch {
+            // ignore
+        }
+    }
+
+    const handleStartExam = async (examId: string) => {
+        setCheckingAccess(examId)
+        try {
+            const res = await fetch(`/api/exams/${examId}/check-access`)
+            if (!res.ok) {
+                router.push(`/exam/${examId}/start`)
+                return
+            }
+            const data = await res.json()
+            if (data.can_access) {
+                router.push(`/exam/${examId}/start`)
+            } else {
+                setPaymentModalOpen(true)
+            }
+        } catch {
+            router.push(`/exam/${examId}/start`)
+        } finally {
+            setCheckingAccess(null)
+        }
+    }
+
     if (isLoading) {
         return <div className="flex h-screen items-center justify-center">Đang tải dữ liệu...</div>
     }
@@ -59,7 +103,7 @@ export default function DashboardPage() {
         <div className="min-h-screen flex flex-col">
             {/* Header */}
             <header className="border-b bg-white px-6 py-4 flex items-center justify-between sticky top-0 z-10">
-                <div className="font-bold text-xl text-primary">LUYỆN NÓI CÙNG KOREA LINK</div>
+                <div className="font-bold text-xl text-primary">THI THỬ EPS-TOPIK CÙNG KOREA LINK</div>
                 <div className="flex items-center gap-4">
                     <UserNav />
                 </div>
@@ -218,10 +262,28 @@ export default function DashboardPage() {
                         {/* THI THỬ */}
                         {activeMenu === 'thi-thu' && (
                             <>
-                                <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-                                    <FileText className="w-8 h-8 text-primary" />
-                                    Thi Thử
-                                </h1>
+                                <div className="flex items-center justify-between">
+                                    <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+                                        <FileText className="w-8 h-8 text-primary" />
+                                        Thi Thử
+                                    </h1>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-lg border border-primary/20">
+                                            <Coins className="w-5 h-5 text-primary" />
+                                            <span className="font-semibold text-primary">{userCredits} lượt</span>
+                                        </div>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="gap-2"
+                                            onClick={() => setPaymentModalOpen(true)}
+                                        >
+                                            <ShoppingCart className="w-4 h-4" />
+                                            Mua thêm
+                                        </Button>
+                                    </div>
+                                </div>
+
                                 <div>
                                     <div className="flex items-center justify-between mb-4">
                                         <h2 className="text-xl font-semibold">Đề thi gợi ý cho bạn</h2>
@@ -237,11 +299,16 @@ export default function DashboardPage() {
                                                 <Card key={exam.id} className="hover:border-primary/50 transition-colors flex flex-col">
                                                     <CardHeader className="pb-3">
                                                         <div className="flex justify-between items-start mb-2">
-                                                            {exam.is_ai_generated && (
-                                                                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-800 flex items-center gap-1">
-                                                                    ✨ AI Gen
-                                                                </span>
-                                                            )}
+                                                            <div className="flex gap-2">
+                                                                {exam.is_free && (
+                                                                    <Badge className="bg-emerald-500">Miễn phí</Badge>
+                                                                )}
+                                                                {exam.is_ai_generated && (
+                                                                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-800 flex items-center gap-1">
+                                                                        ✨ AI Gen
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                         <CardTitle className="text-lg line-clamp-2 leading-tight">
                                                             {exam.title}
@@ -256,10 +323,11 @@ export default function DashboardPage() {
                                                     <CardFooter>
                                                         <Button
                                                             className="w-full gap-2"
-                                                            onClick={() => router.push(`/exam/${exam.id}/start`)}
+                                                            onClick={() => handleStartExam(exam.id)}
+                                                            disabled={checkingAccess === exam.id}
                                                         >
                                                             <PlayCircle className="w-4 h-4" />
-                                                            Vào thi ngay
+                                                            {checkingAccess === exam.id ? 'Đang kiểm tra...' : 'Vào thi ngay'}
                                                         </Button>
                                                     </CardFooter>
                                                 </Card>
@@ -267,6 +335,15 @@ export default function DashboardPage() {
                                         </div>
                                     )}
                                 </div>
+
+                                <PaymentModal
+                                    open={paymentModalOpen}
+                                    onClose={() => setPaymentModalOpen(false)}
+                                    onSuccess={() => {
+                                        setPaymentModalOpen(false)
+                                        fetchCredits()
+                                    }}
+                                />
                             </>
                         )}
 

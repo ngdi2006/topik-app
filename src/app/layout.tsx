@@ -8,7 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "LUYỆN NÓI CÙNG KOREA LINK",
+  title: "THI THỬ EPS-TOPIK CÙNG KOREA LINK",
   description: "Nền tảng học tiếng Hàn và đánh giá năng lực tích hợp AI",
 };
 

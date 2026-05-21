@@ -76,6 +76,9 @@ export default function AdminExamBuilderPage() {
         listening_duration: 60,
         status: 'Draft',
         display_order: 0,
+        is_free: false,
+        free_attempts: 1,
+        credits_required: 1,
     })
 
     // Rule Modal state
@@ -104,6 +107,9 @@ export default function AdminExamBuilderPage() {
                     listening_duration: data.data.listening_duration || 60,
                     status: data.data.status || 'Draft',
                     display_order: data.data.display_order || 0,
+                    is_free: data.data.is_free ?? false,
+                    free_attempts: data.data.free_attempts ?? 1,
+                    credits_required: data.data.credits_required ?? 1,
                 })
             }
         } catch (error) {
@@ -387,6 +393,66 @@ export default function AdminExamBuilderPage() {
                             <p className="text-xs text-muted-foreground">
                                 Số nhỏ hiển thị trước. VD: 1 = đầu tiên, 2 = thứ hai...
                             </p>
+                        </div>
+
+                        <div className="space-y-3 border-t pt-4">
+                            <h4 className="font-semibold text-sm">Chính sách lượt thi</h4>
+
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={metaForm.is_free}
+                                    onChange={(e) =>
+                                        setMetaForm({
+                                            ...metaForm,
+                                            is_free: e.target.checked,
+                                        })
+                                    }
+                                    className="rounded border-gray-300"
+                                />
+                                <span className="text-sm font-medium">✅ Đề thi miễn phí (không giới hạn lượt)</span>
+                            </label>
+
+                            {!metaForm.is_free && (
+                                <>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="space-y-2">
+                                            <Label className="text-xs">🎁 Miễn phí (lần)</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                value={metaForm.free_attempts}
+                                                onChange={(e) =>
+                                                    setMetaForm({
+                                                        ...metaForm,
+                                                        free_attempts: Math.max(0, parseInt(e.target.value) || 0),
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-xs">💰 Phí làm lại (lượt)</Label>
+                                            <Input
+                                                type="number"
+                                                min={1}
+                                                value={metaForm.credits_required}
+                                                onChange={(e) =>
+                                                    setMetaForm({
+                                                        ...metaForm,
+                                                        credits_required: Math.max(1, parseInt(e.target.value) || 1),
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        {metaForm.free_attempts > 0
+                                            ? `💡 ${metaForm.free_attempts} lần đầu miễn phí → từ lần ${metaForm.free_attempts + 1} mất ${metaForm.credits_required} lượt/lần`
+                                            : `💡 Luôn mất ${metaForm.credits_required} lượt/lần (không miễn phí)`
+                                        }
+                                    </p>
+                                </>
+                            )}
                         </div>
 
                         {/* Stats */}

@@ -27,7 +27,7 @@ export default async function AdminDashboardPage() {
             <div>
                 <h2 className="text-2xl font-bold tracking-tight">Overview</h2>
                 <p className="text-muted-foreground">
-                    Thống kê tổng quan hệ thống LUYỆN NÓI CÙNG KOREA LINK.
+                    Thống kê tổng quan hệ thống THI THỬ EPS-TOPIK CÙNG KOREA LINK.
                 </p>
             </div>
 

@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(Get-ChildItem -Path \"e:\\\\TOPIK-IBT\\\\topik-app\" -Recurse -Filter \"*migration*\" -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)"
     ]
   }
 }

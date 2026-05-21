@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Loader2, CheckCircle2, Copy } from 'lucide-react'
+import { toast } from 'sonner'
 import Image from 'next/image'
 
 interface PaymentPackage {
@@ -27,12 +28,52 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     const [bankInfo, setBankInfo] = useState<any>(null)
     const [transactionCode, setTransactionCode] = useState<string | null>(null)
     const [processingPayment, setProcessingPayment] = useState(false)
+    const [paymentComplete, setPaymentComplete] = useState(false)
+    const pollingRef = useRef<NodeJS.Timeout | null>(null)
+
+    const stopPolling = useCallback(() => {
+        if (pollingRef.current) {
+            clearInterval(pollingRef.current)
+            pollingRef.current = null
+        }
+    }, [])
+
+    const startPolling = useCallback((code: string) => {
+        stopPolling()
+        pollingRef.current = setInterval(async () => {
+            try {
+                const res = await fetch('/api/payment/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ transaction_code: code })
+                })
+                if (!res.ok) return
+                const data = await res.json()
+                if (data.status === 'completed') {
+                    stopPolling()
+                    setPaymentComplete(true)
+                    toast.success('Thanh toán thành công!')
+                    setTimeout(() => {
+                        onSuccess?.()
+                        handleClose()
+                    }, 2500)
+                }
+            } catch {}
+        }, 5000)
+    }, [stopPolling, onSuccess])
+
+    useEffect(() => {
+        return () => stopPolling()
+    }, [stopPolling])
 
     useEffect(() => {
         if (open) {
             fetchPackages()
+            setPaymentComplete(false)
+        } else {
+            stopPolling()
         }
-    }, [open])
+    }, [open, stopPolling])
 
     const fetchPackages = async () => {
         try {
@@ -65,6 +106,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                 setQrCodeUrl(data.qr_code_url)
                 setBankInfo(data.bank_info)
                 setTransactionCode(data.transaction.transaction_code)
+                startPolling(data.transaction.transaction_code)
             } else {
                 alert('Không thể tạo giao dịch. Vui lòng thử lại.')
                 setSelectedPackage(null)
@@ -84,10 +126,22 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     }
 
     const handleBack = () => {
+        stopPolling()
         setSelectedPackage(null)
         setQrCodeUrl(null)
         setBankInfo(null)
         setTransactionCode(null)
+        setPaymentComplete(false)
+    }
+
+    const handleClose = () => {
+        stopPolling()
+        setSelectedPackage(null)
+        setQrCodeUrl(null)
+        setBankInfo(null)
+        setTransactionCode(null)
+        setPaymentComplete(false)
+        onClose()
     }
 
     const formatPrice = (price: number) => {
@@ -98,8 +152,15 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     }
 
     return (
-        <Dialog open={open} onOpenChange={onClose}>
+        <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+                {paymentComplete && (
+                    <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-lg">
+                        <CheckCircle2 className="w-16 h-16 text-emerald-500 mb-4" />
+                        <h3 className="text-xl font-bold text-emerald-600 mb-2">Thanh toán thành công!</h3>
+                        <p className="text-sm text-muted-foreground">Đang cập nhật số lượt...</p>
+                    </div>
+                )}
                 <DialogHeader>
                     <DialogTitle className="text-2xl">
                         {selectedPackage ? 'Thanh toán' : 'Mua lượt làm bài'}
@@ -193,16 +254,16 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                             </div>
                         </div>
 
-                        <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800 space-y-1">
-                            <p>Chuyển khoản <strong>đúng số tiền</strong> và <strong>đúng nội dung</strong>.</p>
-                            <p>Hệ thống tự động xác nhận trong 5-10 phút. Quá 30 phút vui lòng liên hệ admin.</p>
+                        <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-xs text-emerald-800 flex items-center gap-2">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                            <p>Đang chờ xác nhận... Hệ thống sẽ tự động kích hoạt sau khi chuyển khoản.</p>
                         </div>
 
                         <div className="flex gap-3">
                             <Button variant="outline" onClick={handleBack} className="flex-1">
                                 Chọn gói khác
                             </Button>
-                            <Button onClick={onClose} className="flex-1">
+                            <Button onClick={handleClose} className="flex-1">
                                 Đã chuyển khoản
                             </Button>
                         </div>

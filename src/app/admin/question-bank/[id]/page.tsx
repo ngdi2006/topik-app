@@ -354,6 +354,28 @@ export default function EditQuestionPage() {
                             />
                         </div>
                     </div>
+
+                    <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                        <input
+                            type="checkbox"
+                            id="isFree"
+                            checked={tagsInput.split(',').map(t => t.trim()).includes('free')}
+                            onChange={(e) => {
+                                const currentTags = tagsInput.split(',').map(t => t.trim()).filter(Boolean)
+                                if (e.target.checked) {
+                                    if (!currentTags.includes('free')) {
+                                        setTagsInput([...currentTags, 'free'].join(', '))
+                                    }
+                                } else {
+                                    setTagsInput(currentTags.filter(t => t !== 'free').join(', '))
+                                }
+                            }}
+                            className="rounded border-emerald-300"
+                        />
+                        <label htmlFor="isFree" className="text-sm font-medium text-emerald-800 cursor-pointer">
+                            Đánh dấu câu miễn phí (tự động thêm tag "free")
+                        </label>
+                    </div>
                 </div>
 
                 <div className="flex justify-end gap-3">

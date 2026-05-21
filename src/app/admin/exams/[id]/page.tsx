@@ -29,6 +29,9 @@ import {
     Headphones,
     AlertCircle,
     CheckCircle,
+    Gift,
+    Search,
+    X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -55,6 +58,22 @@ interface Rule {
     available_count?: number
     is_sufficient?: boolean
     category?: Category
+}
+
+interface FreeQuestion {
+    id: string
+    exam_id: string
+    question_bank_id: string
+    question_type: 'reading' | 'listening'
+    order_index: number
+    question_bank: {
+        id: string
+        question_type: string
+        category_id: string
+        level: number
+        question_text: string
+        audio_url?: string
+    }
 }
 
 export default function AdminExamBuilderPage() {
@@ -93,6 +112,15 @@ export default function AdminExamBuilderPage() {
         time_per_question: 15,
         section_name: '',
     })
+
+    // Free Questions state
+    const [freeQuestions, setFreeQuestions] = useState<FreeQuestion[]>([])
+    const [isFreeQuestionsLoading, setIsFreeQuestionsLoading] = useState(false)
+    const [isAddFreeModalOpen, setIsAddFreeModalOpen] = useState(false)
+    const [questionPool, setQuestionPool] = useState<any[]>([])
+    const [poolLoading, setPoolLoading] = useState(false)
+    const [poolFilter, setPoolFilter] = useState({ type: 'all', search: '', freeOnly: false })
+    const [selectedPoolIds, setSelectedPoolIds] = useState<string[]>([])
 
     const fetchExam = async () => {
         try {
@@ -141,10 +169,85 @@ export default function AdminExamBuilderPage() {
         }
     }
 
+    const fetchFreeQuestions = async () => {
+        try {
+            setIsFreeQuestionsLoading(true)
+            const res = await fetch(`/api/admin/exams/${examId}/free-questions`)
+            const data = await res.json()
+            if (Array.isArray(data)) {
+                setFreeQuestions(data)
+            }
+        } catch (error) {
+            console.error('Lỗi tải câu hỏi miễn phí')
+        } finally {
+            setIsFreeQuestionsLoading(false)
+        }
+    }
+
+    const fetchQuestionPool = async () => {
+        try {
+            setPoolLoading(true)
+            const res = await fetch('/api/admin/question-bank?pageSize=500')
+            const data = await res.json()
+            if (data.success) {
+                setQuestionPool(data.data || [])
+            }
+        } catch (error) {
+            console.error('Lỗi tải kho câu hỏi')
+        } finally {
+            setPoolLoading(false)
+        }
+    }
+
+    const handleAddFreeQuestions = async () => {
+        if (selectedPoolIds.length === 0) {
+            toast.error('Vui lòng chọn ít nhất 1 câu hỏi')
+            return
+        }
+        const toastId = toast.loading('Đang thêm...')
+        try {
+            const res = await fetch(`/api/admin/exams/${examId}/free-questions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question_ids: selectedPoolIds })
+            })
+            const data = await res.json()
+            if (res.ok) {
+                toast.success(`Đã thêm ${selectedPoolIds.length} câu hỏi!`, { id: toastId })
+                setSelectedPoolIds([])
+                setIsAddFreeModalOpen(false)
+                fetchFreeQuestions()
+            } else {
+                throw new Error(data.error || 'Lỗi thêm câu hỏi')
+            }
+        } catch (error: any) {
+            toast.error(error.message, { id: toastId })
+        }
+    }
+
+    const handleRemoveFreeQuestion = async (questionBankId: string) => {
+        const toastId = toast.loading('Đang xóa...')
+        try {
+            const res = await fetch(
+                `/api/admin/exams/${examId}/free-questions?question_id=${questionBankId}`,
+                { method: 'DELETE' }
+            )
+            if (res.ok) {
+                toast.success('Đã xóa', { id: toastId })
+                fetchFreeQuestions()
+            } else {
+                const data = await res.json()
+                throw new Error(data.error)
+            }
+        } catch (error: any) {
+            toast.error(error.message, { id: toastId })
+        }
+    }
+
     useEffect(() => {
         const init = async () => {
             setIsLoading(true)
-            await Promise.all([fetchExam(), fetchRules(), fetchCategories()])
+            await Promise.all([fetchExam(), fetchRules(), fetchCategories(), fetchFreeQuestions()])
             setIsLoading(false)
         }
         if (examId) init()
@@ -563,8 +666,201 @@ export default function AdminExamBuilderPage() {
                             </div>
                         )}
                     </div>
+                    {/* Free Questions Section */}
+                    <div className="bg-white border rounded-xl p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <Gift className="w-5 h-5 text-emerald-600" />
+                                <h3 className="font-bold text-lg">
+                                    Câu Hỏi Miễn Phí Cố Định
+                                </h3>
+                                <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                                    {freeQuestions.length} câu
+                                </span>
+                            </div>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                    setIsAddFreeModalOpen(true)
+                                    fetchQuestionPool()
+                                }}
+                            >
+                                <Plus className="w-4 h-4 mr-1" /> Thêm câu
+                            </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-3">
+                            Chọn câu hỏi cố định cho lượt miễn phí. Nếu để trống, lượt miễn phí sẽ dùng câu random như bình thường.
+                        </p>
+
+                        {isFreeQuestionsLoading ? (
+                            <div className="text-center py-8 text-muted-foreground">Đang tải...</div>
+                        ) : freeQuestions.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                                Chưa có câu cố định. Lượt miễn phí sẽ dùng câu hỏi random.
+                            </div>
+                        ) : (
+                            <div className="space-y-1.5">
+                                {freeQuestions
+                                    .sort((a, b) => {
+                                        // Reading first, then listening
+                                        if (a.question_type === 'reading' && b.question_type === 'listening') return -1
+                                        if (a.question_type === 'listening' && b.question_type === 'reading') return 1
+                                        return a.order_index - b.order_index
+                                    })
+                                    .map((fq, idx) => (
+                                    <div
+                                        key={fq.id}
+                                        className="flex items-center justify-between px-3 py-2 rounded-lg border bg-gray-50 text-sm"
+                                    >
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <span className="px-1.5 py-0.5 bg-white rounded text-xs font-mono shrink-0">
+                                                #{idx + 1}
+                                            </span>
+                                            <span className={`px-1.5 py-0.5 rounded text-xs shrink-0 ${
+                                                fq.question_type === 'reading'
+                                                    ? 'bg-blue-100 text-blue-700'
+                                                    : 'bg-purple-100 text-purple-700'
+                                            }`}>
+                                                {fq.question_type === 'reading' ? 'Đọc' : 'Nghe'}
+                                            </span>
+                                            <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-xs shrink-0">
+                                                Lv.{fq.question_bank?.level}
+                                            </span>
+                                            <span className="truncate text-muted-foreground">
+                                                {fq.question_bank?.question_text?.substring(0, 80)}
+                                                {(fq.question_bank?.question_text?.length || 0) > 80 ? '...' : ''}
+                                            </span>
+                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 shrink-0 text-red-500 hover:text-red-700"
+                                            onClick={() => handleRemoveFreeQuestion(fq.question_bank_id)}
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                <div className="flex gap-4 pt-2 text-xs text-muted-foreground">
+                                    <span>📖 Đọc: {freeQuestions.filter(q => q.question_type === 'reading').length} câu</span>
+                                    <span>🎧 Nghe: {freeQuestions.filter(q => q.question_type === 'listening').length} câu</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
+
+            {/* Add Free Questions Modal */}
+            <Dialog open={isAddFreeModalOpen} onOpenChange={setIsAddFreeModalOpen}>
+                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Chọn câu hỏi cho lượt miễn phí</DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-3">
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Tìm câu hỏi..."
+                                    value={poolFilter.search}
+                                    onChange={(e) => setPoolFilter({ ...poolFilter, search: e.target.value })}
+                                    className="pl-9"
+                                />
+                            </div>
+                            <Select
+                                value={poolFilter.type}
+                                onValueChange={(val) => setPoolFilter({ ...poolFilter, type: val })}
+                            >
+                                <SelectTrigger className="w-[140px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Tất cả</SelectItem>
+                                    <SelectItem value="reading">Đọc hiểu</SelectItem>
+                                    <SelectItem value="listening">Nghe hiểu</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <button
+                                onClick={() => setPoolFilter({ ...poolFilter, freeOnly: !poolFilter.freeOnly })}
+                                className={`flex items-center gap-1.5 px-3 py-2 rounded-md border text-sm font-medium transition-colors whitespace-nowrap ${
+                                    poolFilter.freeOnly
+                                        ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
+                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                <Gift className="w-3.5 h-3.5" />
+                                Chỉ câu Free
+                            </button>
+                        </div>
+
+                        {selectedPoolIds.length > 0 && (
+                            <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                                <span className="text-sm text-emerald-800">
+                                    Đã chọn <strong>{selectedPoolIds.length}</strong> câu
+                                </span>
+                                <Button size="sm" onClick={handleAddFreeQuestions}>
+                                    Thêm {selectedPoolIds.length} câu
+                                </Button>
+                            </div>
+                        )}
+
+                        {poolLoading ? (
+                            <div className="text-center py-8 text-muted-foreground">Đang tải kho câu hỏi...</div>
+                        ) : (
+                            <div className="border rounded-lg divide-y max-h-[50vh] overflow-y-auto">
+                                {questionPool
+                                    .filter(q => {
+                                        if (poolFilter.type !== 'all' && q.question_type !== poolFilter.type) return false
+                                        if (poolFilter.search && !q.question_text?.toLowerCase().includes(poolFilter.search.toLowerCase())) return false
+                                        if (poolFilter.freeOnly && !q.tags?.includes('free')) return false
+                                        // Exclude already-added questions
+                                        if (freeQuestions.some(fq => fq.question_bank_id === q.id)) return false
+                                        return true
+                                    })
+                                    .map((q: any) => (
+                                        <label
+                                            key={q.id}
+                                            className="flex items-start gap-3 px-3 py-2.5 hover:bg-gray-50 cursor-pointer"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedPoolIds.includes(q.id)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setSelectedPoolIds([...selectedPoolIds, q.id])
+                                                    } else {
+                                                        setSelectedPoolIds(selectedPoolIds.filter(id => id !== q.id))
+                                                    }
+                                                }}
+                                                className="mt-1 rounded border-gray-300"
+                                            />
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-1.5 mb-1">
+                                                    <span className={`px-1.5 py-0.5 rounded text-xs ${
+                                                        q.question_type === 'reading'
+                                                            ? 'bg-blue-100 text-blue-700'
+                                                            : 'bg-purple-100 text-purple-700'
+                                                    }`}>
+                                                        {q.question_type === 'reading' ? 'Đọc' : 'Nghe'}
+                                                    </span>
+                                                    <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-xs">
+                                                        Lv.{q.level}
+                                                    </span>
+                                                </div>
+                                                <p className="text-sm text-gray-700 line-clamp-2">
+                                                    {q.question_text}
+                                                </p>
+                                            </div>
+                                        </label>
+                                    ))}
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {/* Rule Form Modal */}
             <Dialog open={isRuleModalOpen} onOpenChange={setIsRuleModalOpen}>

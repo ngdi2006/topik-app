@@ -45,23 +45,6 @@ export async function POST(
             )
         }
 
-        // Generate random questions
-        const questions = await generateRandomQuestionsForUser(
-            adminClient,
-            user.id,
-            params.id
-        )
-
-        if (!questions || questions.length === 0) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    error: 'Không thể tạo bộ câu hỏi. Vui lòng kiểm tra cấu hình đề thi.',
-                },
-                { status: 400 }
-            )
-        }
-
         // Determine if user has free attempts or needs to consume credits
         const { count: attemptCount } = await adminClient
             .from('exam_attempts')
@@ -86,17 +69,16 @@ export async function POST(
                 .select('remaining_credits, used_credits')
                 .eq('user_id', user.id)
                 .single()
-            
+
             const remaining = creditsData?.remaining_credits || 0
             const currentUsed = creditsData?.used_credits || 0
-            
+
             if (remaining >= creditsRequired) {
-                // Consume credits
                 const { error: deductError } = await adminClient
                     .from('user_exam_credits')
                     .update({ used_credits: currentUsed + creditsRequired })
                     .eq('user_id', user.id)
-                
+
                 if (!deductError) {
                     canStart = true
                 }
@@ -110,9 +92,27 @@ export async function POST(
             )
         }
 
+        // Generate questions (fixed for free attempts if configured, random otherwise)
+        const questions = await generateRandomQuestionsForUser(
+            adminClient,
+            user.id,
+            params.id,
+            isFreeAttempt
+        )
+
+        if (!questions || questions.length === 0) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Không thể tạo bộ câu hỏi. Vui lòng kiểm tra cấu hình đề thi.',
+                },
+                { status: 400 }
+            )
+        }
+
         const attemptNumber = totalAttempts + 1
 
-        // Create attempt row directly with all required columns
+        // Create attempt row
         const { data: attemptRow, error: attemptError } = await adminClient
             .from('exam_attempts')
             .insert({
@@ -128,7 +128,6 @@ export async function POST(
 
         if (attemptError || !attemptRow) {
              console.error("Insert error:", attemptError)
-             // Rollback credits if needed
              throw new Error('Không thể tạo phiên làm bài')
         }
 
@@ -137,7 +136,7 @@ export async function POST(
             attempt: {
                 id: attemptRow.id,
                 exam_id: attemptRow.exam_id,
-                questions: questions, // full snapshot to client
+                questions: questions,
                 started_at: attemptRow.started_at,
                 attempt_number: attemptNumber,
             },

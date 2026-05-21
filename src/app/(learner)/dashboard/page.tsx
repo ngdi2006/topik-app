@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { useUserStore } from "@/store/userStore"
@@ -105,8 +106,10 @@ export default function DashboardPage() {
         <div className="min-h-screen flex bg-[#f4f6f8]">
             {/* Sidebar (Desktop) */}
             <aside className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 overflow-hidden bg-[#2B64CE] text-white flex-col hidden md:flex h-screen sticky top-0 shrink-0 shadow-lg z-30`}>
-                <div className="h-[72px] flex items-center px-6 font-bold text-xl border-b border-white/10 shrink-0 whitespace-nowrap">
-                    KOREA LINK
+                <div className="h-[72px] flex items-center justify-center border-b border-white/10 shrink-0 whitespace-nowrap">
+                    <div className="relative w-64 h-20 mr-5 mt-5">
+                        <Image src="/logo.png" alt="Korea Link" fill className="object-contain" priority />
+                    </div>
                 </div>
                 <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 w-64">
                     <Button
@@ -158,27 +161,29 @@ export default function DashboardPage() {
                 <header className="h-[72px] border-b bg-white px-4 md:px-6 flex items-center justify-between sticky top-0 z-20 shrink-0">
                     <div className="flex items-center gap-3">
                         {/* Mobile Hamburger */}
-                        <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="text-gray-600 hover:bg-gray-100 md:hidden" 
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-gray-600 hover:bg-gray-100 md:hidden"
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         >
                             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                         </Button>
-                        
+
                         {/* Desktop Hamburger */}
-                        <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="text-gray-600 hover:bg-gray-100 hidden md:flex" 
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-gray-600 hover:bg-gray-100 hidden md:flex"
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                         >
                             <Menu className="w-6 h-6" />
                         </Button>
 
-                        <div className="font-bold text-lg text-[#2B64CE] md:hidden">KOREA LINK</div>
-                    
+                        <div className="md:hidden relative w-32 h-8 mr-1">
+                            <Image src="/logomobile.png" alt="Korea Link" fill className="object-contain" priority />
+                        </div>
+
                         <div className="hidden md:flex items-center text-xl font-bold text-gray-800 ml-2">
                             {activeMenu === 'bai-hoc' && 'Bài học'}
                             {activeMenu === 'luyen-tap' && 'Luyện Tập'}
@@ -298,6 +303,25 @@ export default function DashboardPage() {
                                                 onClick={() => setActiveMenu('luyen-tap')}
                                             >
                                                 Luyện tập ngay
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
+
+                                    <Card className="border-primary/20 bg-primary/5 hover:border-primary/50 transition-colors">
+                                        <CardHeader>
+                                            <CardTitle className="text-primary flex items-center gap-2">
+                                                <FileText className="w-5 h-5" />
+                                                Thi Thử
+                                            </CardTitle>
+                                            <CardDescription>Làm đề thi thử EPS-TOPIK theo cấu trúc đề thi thật</CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <Button
+                                                variant="default"
+                                                className="w-full"
+                                                onClick={() => setActiveMenu('thi-thu')}
+                                            >
+                                                Vào thi thử
                                             </Button>
                                         </CardContent>
                                     </Card>

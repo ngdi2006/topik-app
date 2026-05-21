@@ -18,6 +18,7 @@ import {
     Edit,
     Trash2,
     FileSpreadsheet,
+    Gift,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -45,6 +46,7 @@ export default function QuestionBankPage() {
         level: '',
         search: '',
         category_id: '',
+        freeOnly: false,
     })
     const [page, setPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
@@ -78,6 +80,7 @@ export default function QuestionBankPage() {
                 ...(filters.level && { level: filters.level }),
                 ...(filters.search && { search: filters.search }),
                 ...(filters.category_id && { category_id: filters.category_id }),
+                ...(filters.freeOnly && { tag: 'free' }),
             })
 
             const res = await fetch(`/api/admin/question-bank?${params}`)
@@ -138,6 +141,35 @@ export default function QuestionBankPage() {
         }
     }
 
+    const handleBulkToggleFree = async (action: 'add' | 'remove') => {
+        if (selectedIds.length === 0) return
+
+        const toastId = toast.loading(action === 'add' ? 'Đang gắn mác...' : 'Đang bỏ mác...')
+        try {
+            const res = await fetch(`/api/admin/question-bank`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: selectedIds, tag: 'free', action }),
+            })
+            const data = await res.json()
+
+            if (data.success) {
+                toast.success(
+                    action === 'add'
+                        ? `Đã gắn mác Free cho ${selectedIds.length} câu`
+                        : `Đã bỏ mác Free khỏi ${selectedIds.length} câu`,
+                    { id: toastId }
+                )
+                setSelectedIds([])
+                fetchQuestions()
+            } else {
+                throw new Error(data.error)
+            }
+        } catch (error: any) {
+            toast.error(error.message || 'Thao tác thất bại', { id: toastId })
+        }
+    }
+
     const handleDelete = async (id: string) => {
         if (!confirm('Xóa câu hỏi này?')) return
 
@@ -185,13 +217,30 @@ export default function QuestionBankPage() {
                 </div>
                 <div className="flex gap-2">
                     {selectedIds.length > 0 && (
-                        <Button
-                            variant="destructive"
-                            onClick={handleBulkDelete}
-                        >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Xóa {selectedIds.length} mục
-                        </Button>
+                        <>
+                            <Button
+                                variant="outline"
+                                className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                onClick={() => handleBulkToggleFree('add')}
+                            >
+                                <Gift className="w-4 h-4 mr-2" />
+                                Gắn Free
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="border-orange-200 text-orange-700 hover:bg-orange-50"
+                                onClick={() => handleBulkToggleFree('remove')}
+                            >
+                                Bỏ Free
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={handleBulkDelete}
+                            >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Xóa {selectedIds.length}
+                            </Button>
+                        </>
                     )}
                     <Button
                         variant="outline"
@@ -291,6 +340,17 @@ export default function QuestionBankPage() {
                         ))}
                     </SelectContent>
                 </Select>
+                <button
+                    onClick={() => setFilters({ ...filters, freeOnly: !filters.freeOnly })}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-md border text-sm font-medium transition-colors whitespace-nowrap ${
+                        filters.freeOnly
+                            ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
+                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                >
+                    <Gift className="w-3.5 h-3.5" />
+                    Câu Free
+                </button>
             </div>
 
             {/* Table */}
@@ -395,7 +455,12 @@ export default function QuestionBankPage() {
                                     <td className="px-4 py-3">{q.points}</td>
                                     <td className="px-4 py-3">
                                         <div className="flex gap-1 flex-wrap">
-                                            {q.tags?.slice(0, 2).map((tag) => (
+                                            {q.tags?.includes('free') && (
+                                                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-xs font-bold">
+                                                    FREE
+                                                </span>
+                                            )}
+                                            {q.tags?.filter(t => t !== 'free').slice(0, 2).map((tag) => (
                                                 <span
                                                     key={tag}
                                                     className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs"
@@ -403,9 +468,9 @@ export default function QuestionBankPage() {
                                                     {tag}
                                                 </span>
                                             ))}
-                                            {q.tags && q.tags.length > 2 && (
+                                            {q.tags && q.tags.filter(t => t !== 'free').length > 2 && (
                                                 <span className="text-xs text-gray-400">
-                                                    +{q.tags.length - 2}
+                                                    +{q.tags.filter(t => t !== 'free').length - 2}
                                                 </span>
                                             )}
                                         </div>

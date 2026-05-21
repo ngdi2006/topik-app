@@ -127,13 +127,71 @@ async function getAttemptNumber(
 }
 
 /**
+ * Get fixed free questions for an exam (if configured)
+ */
+async function getFixedFreeQuestions(
+    supabase: SupabaseClient,
+    examId: string
+): Promise<QuestionBank[] | null> {
+    const { data, error } = await supabase
+        .from('exam_free_questions')
+        .select(`
+            question_bank_id,
+            order_index,
+            question_bank (*)
+        `)
+        .eq('exam_id', examId)
+        .order('order_index')
+
+    if (error || !data || data.length === 0) {
+        return null
+    }
+
+    // Extract question_bank objects, sort reading first then listening
+    const questions = data.map((item: any) => item.question_bank as QuestionBank)
+    questions.sort((a, b) => {
+        if (a.question_type === 'reading' && b.question_type === 'listening') return -1
+        if (a.question_type === 'listening' && b.question_type === 'reading') return 1
+        return 0
+    })
+    return questions
+}
+
+/**
  * CORE FUNCTION: Generate random questions cho user với non-repeat logic
  */
 export async function generateRandomQuestionsForUser(
     supabase: SupabaseClient,
     userId: string,
-    examId: string
+    examId: string,
+    isFreeAttempt: boolean = false
 ): Promise<QuestionSnapshot[]> {
+    // If this is a free attempt, check for fixed free questions
+    if (isFreeAttempt) {
+        const fixedQuestions = await getFixedFreeQuestions(supabase, examId)
+
+        if (fixedQuestions && fixedQuestions.length > 0) {
+            // Use fixed questions for free attempts
+            const snapshots: QuestionSnapshot[] = fixedQuestions.map((q, idx) => {
+                // Shuffle options for this question
+                const { shuffledOptions, shuffledCorrectAnswer } = shuffleOptions(q)
+
+                return {
+                    ...q,
+                    options: shuffledOptions,
+                    correct_answer: shuffledCorrectAnswer,
+                    rule_id: 'fixed-free', // Special marker for fixed free questions
+                    order: idx,
+                    section: q.question_type === 'listening' ? 'listening' : 'reading',
+                    points_override: undefined,
+                    time_per_question: undefined,
+                }
+            })
+
+            return snapshots
+        }
+        // If no fixed questions configured, fall through to random logic
+    }
     // 1. Lấy tất cả rules của đề thi
     const { data: rules, error: rulesError } = await supabase
         .from('exam_question_rules')

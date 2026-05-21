@@ -30,6 +30,9 @@ export async function GET(request: Request) {
         const categoryId = searchParams.get('category_id')
         if (categoryId) query = query.eq('category_id', categoryId)
 
+        const tag = searchParams.get('tag')
+        if (tag) query = query.contains('tags', [tag])
+
         const from = (page - 1) * pageSize
         const to = from + pageSize - 1
         query = query.range(from, to)
@@ -101,6 +104,49 @@ export async function POST(request: Request) {
         if (error) throw error
 
         return NextResponse.json({ success: true, data }, { status: 201 })
+    } catch (error: any) {
+        return NextResponse.json(
+            { success: false, error: error.message },
+            { status: 500 }
+        )
+    }
+}
+
+// PATCH: Bulk toggle tag
+export async function PATCH(request: Request) {
+    try {
+        const { ids, tag, action } = await request.json()
+
+        if (!Array.isArray(ids) || ids.length === 0 || !tag || !['add', 'remove'].includes(action)) {
+            return NextResponse.json(
+                { success: false, error: 'ids (array), tag (string), action (add|remove) required' },
+                { status: 400 }
+            )
+        }
+
+        const adminClient = createAdminClient()
+
+        const { data: questions, error: fetchError } = await adminClient
+            .from('question_bank')
+            .select('id, tags')
+            .in('id', ids)
+
+        if (fetchError) throw fetchError
+
+        const updates = (questions || []).map((q: any) => {
+            const currentTags: string[] = q.tags || []
+            const newTags = action === 'add'
+                ? currentTags.includes(tag) ? currentTags : [...currentTags, tag]
+                : currentTags.filter((t: string) => t !== tag)
+            return adminClient
+                .from('question_bank')
+                .update({ tags: newTags })
+                .eq('id', q.id)
+        })
+
+        await Promise.all(updates)
+
+        return NextResponse.json({ success: true, updated_count: ids.length })
     } catch (error: any) {
         return NextResponse.json(
             { success: false, error: error.message },

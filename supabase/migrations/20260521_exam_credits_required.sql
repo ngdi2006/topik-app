@@ -9,6 +9,17 @@ ADD COLUMN IF NOT EXISTS credits_required INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE public.exams
 ADD COLUMN IF NOT EXISTS free_attempts INTEGER NOT NULL DEFAULT 1;
 
+-- Add missing columns to exam_attempts
+ALTER TABLE public.exam_attempts ADD COLUMN IF NOT EXISTS is_free_attempt BOOLEAN DEFAULT false;
+ALTER TABLE public.exam_attempts ADD COLUMN IF NOT EXISTS credits_used INT DEFAULT 1;
+ALTER TABLE public.exam_attempts ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.exam_attempts ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.exam_attempts ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+ALTER TABLE public.exam_attempts ADD COLUMN IF NOT EXISTS score DECIMAL(5,2);
+ALTER TABLE public.exam_attempts ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'started';
+ALTER TABLE public.exam_attempts ADD COLUMN IF NOT EXISTS questions_snapshot JSONB;
+ALTER TABLE public.exam_attempts ADD COLUMN IF NOT EXISTS attempt_number INT DEFAULT 1;
+
 -- Add check constraints
 DO $$ BEGIN
     ALTER TABLE public.exams ADD CONSTRAINT exams_credits_required_positive CHECK (credits_required > 0);

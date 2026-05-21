@@ -40,10 +40,10 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ message: 'Not an incoming transfer' }, { status: 200 })
         }
 
-        // Extract transaction code from content (format: TOPIKXXXXXXXXXX)
-        const transactionCodeMatch = payload.transaction_content.match(/TOPIK[A-Z0-9]+/i)
+        // Extract transaction code from content (format: SEVQRXXXXXXXXXX or TOPIKXXXXXXXXXX)
+        const transactionCodeMatch = payload.transaction_content.match(/(SEVQR|TOPIK)[A-Z0-9]+/i)
         if (!transactionCodeMatch) {
-            console.log('No TOPIK transaction code found in content:', payload.transaction_content)
+            console.log('No transaction code found in content:', payload.transaction_content)
             return NextResponse.json({ message: 'No transaction code found' }, { status: 200 })
         }
 

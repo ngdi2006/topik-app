@@ -83,17 +83,18 @@ export async function POST(
             // Need to consume credits
             const { data: creditsData } = await adminClient
                 .from('user_exam_credits')
-                .select('remaining_credits')
+                .select('remaining_credits, used_credits')
                 .eq('user_id', user.id)
                 .single()
             
             const remaining = creditsData?.remaining_credits || 0
+            const currentUsed = creditsData?.used_credits || 0
             
             if (remaining >= creditsRequired) {
                 // Consume credits
                 const { error: deductError } = await adminClient
                     .from('user_exam_credits')
-                    .update({ remaining_credits: remaining - creditsRequired })
+                    .update({ used_credits: currentUsed + creditsRequired })
                     .eq('user_id', user.id)
                 
                 if (!deductError) {
@@ -109,44 +110,26 @@ export async function POST(
             )
         }
 
-        // Create attempt row directly
+        const attemptNumber = totalAttempts + 1
+
+        // Create attempt row directly with all required columns
         const { data: attemptRow, error: attemptError } = await adminClient
             .from('exam_attempts')
             .insert({
                 user_id: user.id,
                 exam_id: params.id,
                 is_free_attempt: isFreeAttempt,
-                status: 'started'
+                status: 'in_progress',
+                questions_snapshot: questions,
+                attempt_number: attemptNumber
             })
             .select()
             .single()
 
         if (attemptError || !attemptRow) {
-             // Rollback credits if needed (omitted for brevity, but ideally we'd restore them)
+             console.error("Insert error:", attemptError)
+             // Rollback credits if needed
              throw new Error('Không thể tạo phiên làm bài')
-        }
-
-        // Get attempt number
-        const { count: finalAttemptCount } = await adminClient
-            .from('exam_attempts')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', user.id)
-            .eq('exam_id', params.id)
-
-        const attemptNumber = finalAttemptCount || 1
-
-        // Update the attempt with questions_snapshot
-        const { error: updateError } = await adminClient
-            .from('exam_attempts')
-            .update({
-                questions_snapshot: questions,
-                attempt_number: attemptNumber,
-                status: 'in_progress'
-            })
-            .eq('id', attemptRow.id)
-
-        if (updateError) {
-             throw new Error('Không thể cập nhật phiên làm bài')
         }
 
         return NextResponse.json({

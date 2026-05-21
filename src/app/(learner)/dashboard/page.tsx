@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { UserNav } from "@/components/shared/UserNav"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Lock } from "lucide-react"
+import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Lock, Menu, X } from "lucide-react"
 import { LessonList } from "@/components/lessons/LessonList"
 import { PracticeHub } from "@/components/practice/PracticeHub"
 import { PaymentModal } from "@/components/payment/PaymentModal"
@@ -24,6 +24,7 @@ export default function DashboardPage() {
     const [userCredits, setUserCredits] = useState<number>(0)
     const [paymentModalOpen, setPaymentModalOpen] = useState(false)
     const [checkingAccess, setCheckingAccess] = useState<string | null>(null)
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -102,12 +103,68 @@ export default function DashboardPage() {
     return (
         <div className="min-h-screen flex flex-col">
             {/* Header */}
-            <header className="border-b bg-white px-6 py-4 flex items-center justify-between sticky top-0 z-10">
-                <div className="font-bold text-xl text-primary">THI THỬ EPS-TOPIK CÙNG KOREA LINK</div>
-                <div className="flex items-center gap-4">
+            <header className="border-b bg-white px-4 md:px-6 py-4 flex items-center justify-between sticky top-0 z-20">
+                <div className="flex items-center gap-2 md:gap-4">
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="md:hidden flex-shrink-0" 
+                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                    >
+                        {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                    </Button>
+                    <div className="font-bold text-lg md:text-xl text-primary leading-tight">THI THỬ EPS-TOPIK CÙNG KOREA LINK</div>
+                </div>
+                <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
                     <UserNav />
                 </div>
             </header>
+
+            {/* Mobile Menu Dropdown */}
+            {isMobileMenuOpen && (
+                <div className="md:hidden border-b bg-white p-4 shadow-md sticky top-[72px] z-10 flex flex-col gap-2">
+                    <Button
+                        variant="ghost"
+                        className={`w-full justify-start font-medium border ${activeMenu === 'bai-hoc' ? 'bg-primary/10 text-primary border-primary/20' : 'border-transparent text-muted-foreground'}`}
+                        onClick={() => { setActiveMenu('bai-hoc'); setIsMobileMenuOpen(false); }}
+                    >
+                        <BookOpen className="w-4 h-4 mr-2" />
+                        Bài học
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className={`w-full justify-start font-medium border ${activeMenu === 'luyen-tap' ? 'bg-primary/10 text-primary border-primary/20' : 'border-transparent text-muted-foreground'}`}
+                        onClick={() => { setActiveMenu('luyen-tap'); setIsMobileMenuOpen(false); }}
+                    >
+                        <Target className="w-4 h-4 mr-2" />
+                        Luyện Tập
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className={`w-full justify-start font-medium border ${activeMenu === 'thi-thu' ? 'bg-primary/10 text-primary border-primary/20' : 'border-transparent text-muted-foreground'}`}
+                        onClick={() => { setActiveMenu('thi-thu'); setIsMobileMenuOpen(false); }}
+                    >
+                        <FileText className="w-4 h-4 mr-2" />
+                        Thi Thử
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className={`w-full justify-start font-medium border ${activeMenu === 'ai-chat' ? 'bg-primary/10 text-primary border-primary/20' : 'border-transparent text-muted-foreground'}`}
+                        onClick={() => { setActiveMenu('ai-chat'); setIsMobileMenuOpen(false); }}
+                    >
+                        <Bot className="w-4 h-4 mr-2" />
+                        Luyện giao tiếp AI
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className={`w-full justify-start font-medium border ${activeMenu === 'kiem-tra' ? 'bg-primary/10 text-primary border-primary/20' : 'border-transparent text-muted-foreground'}`}
+                        onClick={() => { setActiveMenu('kiem-tra'); setIsMobileMenuOpen(false); }}
+                    >
+                        <ClipboardCheck className="w-4 h-4 mr-2" />
+                        Kiểm Tra
+                    </Button>
+                </div>
+            )}
 
             {/* Main Layout */}
             <div className="flex flex-1 overflow-hidden">

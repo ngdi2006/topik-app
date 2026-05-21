@@ -45,11 +45,23 @@ export default function ExamStartPage() {
                     })
                 } else {
                     const accessRes = await fetch(`/api/exams/${examId}/check-access`)
-                    if (accessRes.ok) {
+                    if (!accessRes.ok) {
+                        let errorMsg = 'Không thể kiểm tra quyền truy cập'
+                        try {
+                            const errData = await accessRes.json()
+                            errorMsg = `Lỗi: ${errData.error || errData.message || accessRes.status}`
+                            if (errData.details) errorMsg += ` - ${JSON.stringify(errData.details)}`
+                        } catch (e) {}
+
+                        setAccessInfo({ 
+                            can_access: false, 
+                            user_credits: 0, 
+                            previous_attempts: [], 
+                            message: errorMsg
+                        })
+                    } else {
                         const accessData = await accessRes.json()
                         setAccessInfo(accessData)
-                    } else {
-                        setAccessInfo({ can_access: false, user_credits: 0, previous_attempts: [], message: 'Không thể kiểm tra quyền truy cập' })
                     }
                 }
                 setAccessLoaded(true)

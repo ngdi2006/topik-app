@@ -57,8 +57,8 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Package not found' }, { status: 404 })
         }
 
-        // Generate unique transaction code
-        const transactionCode = `TOPIK${Date.now()}${Math.random().toString(36).substring(2, 7).toUpperCase()}`
+        // Generate unique transaction code (must start with SEVQR for VietinBank API)
+        const transactionCode = `SEVQR${Date.now()}${Math.random().toString(36).substring(2, 7).toUpperCase()}`
 
         // Generate QR code
         const qrCodeUrl = generateBankQR(pkg.price_vnd, transactionCode)

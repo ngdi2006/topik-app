@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -17,20 +18,21 @@ export async function GET(
         }
 
         const { id: examId } = await params
+        const adminClient = createAdminClient()
 
-        // Check if exam exists and get all needed info
-        const { data: exam, error: examError } = await supabase
+        // Check if exam exists and get all needed info using admin client to bypass RLS
+        const { data: exam, error: examError } = await adminClient
             .from('exams')
             .select('id, title, is_free, free_attempts, credits_required')
             .eq('id', examId)
             .single()
 
         if (examError || !exam) {
-            return NextResponse.json({ error: 'Exam not found' }, { status: 404 })
+            return NextResponse.json({ error: 'Exam not found', details: examError }, { status: 404 })
         }
 
         // Get user credits (may not exist for new users)
-        const { data: creditsData } = await supabase
+        const { data: creditsData } = await adminClient
             .from('user_exam_credits')
             .select('remaining_credits')
             .eq('user_id', user.id)
@@ -54,7 +56,7 @@ export async function GET(
         }
 
         // Count previous attempts
-        const { count: attemptCount, error: countError } = await supabase
+        const { count: attemptCount, error: countError } = await adminClient
             .from('exam_attempts')
             .select('*', { count: 'exact', head: true })
             .eq('user_id', user.id)
@@ -74,7 +76,7 @@ export async function GET(
         }
 
         // Get previous attempts
-        const { data: attempts } = await supabase
+        const { data: attempts } = await adminClient
             .from('exam_attempts')
             .select('id, is_free_attempt, created_at')
             .eq('user_id', user.id)
@@ -98,7 +100,7 @@ export async function GET(
     } catch (error: any) {
         console.error('Error checking exam access:', error)
         return NextResponse.json(
-            { error: error.message || 'Failed to check access' },
+            { error: error?.message || 'Failed to check access', stack: error?.stack, full: String(error) },
             { status: 500 }
         )
     }

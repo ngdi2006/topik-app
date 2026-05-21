@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS payment_packages (
     is_active BOOLEAN DEFAULT true,
     display_order INT DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT unique_package_credits UNIQUE (credits)
 );
 
 -- 2. User Exam Credits Table
@@ -71,6 +72,16 @@ CREATE TABLE IF NOT EXISTS exam_attempts (
 ALTER TABLE exams ADD COLUMN IF NOT EXISTS is_free BOOLEAN DEFAULT false;
 ALTER TABLE exams ADD COLUMN IF NOT EXISTS credits_required INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE exams ADD COLUMN IF NOT EXISTS free_attempts INTEGER NOT NULL DEFAULT 1;
+
+ALTER TABLE exam_attempts ADD COLUMN IF NOT EXISTS is_free_attempt BOOLEAN DEFAULT false;
+ALTER TABLE exam_attempts ADD COLUMN IF NOT EXISTS credits_used INT DEFAULT 1;
+ALTER TABLE exam_attempts ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE exam_attempts ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE exam_attempts ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+ALTER TABLE exam_attempts ADD COLUMN IF NOT EXISTS score DECIMAL(5,2);
+ALTER TABLE exam_attempts ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'started';
+ALTER TABLE exam_attempts ADD COLUMN IF NOT EXISTS questions_snapshot JSONB;
+ALTER TABLE exam_attempts ADD COLUMN IF NOT EXISTS attempt_number INT DEFAULT 1;
 
 -- Add check constraints (safe if already exists)
 DO $$ BEGIN
@@ -219,7 +230,7 @@ INSERT INTO payment_packages (package_name, credits, price_vnd, display_order, i
     ('Goi 10 luot', 10, 99000, 1, true),
     ('Goi 20 luot', 20, 189000, 2, true),
     ('Goi 50 luot', 50, 399000, 3, true)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (credits) DO NOTHING;
 
 -- ============================================================
 -- PART 7: Functions (latest version with free_attempts support)

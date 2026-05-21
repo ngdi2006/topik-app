@@ -33,6 +33,7 @@ export default function ListeningPage() {
 
     const audioRef = useRef<HTMLAudioElement | null>(null)
     const questionTimerRef = useRef<NodeJS.Timeout | null>(null)
+    const lastPlayedQuestionIdRef = useRef<string | null>(null)
 
     // Fetch attempt data
     useEffect(() => {
@@ -262,6 +263,10 @@ export default function ListeningPage() {
         const currentQ = questions[currentIndex]
         if (!currentQ) return
 
+        // Prevent double execution in React Strict Mode
+        if (lastPlayedQuestionIdRef.current === currentQ.id) return
+        lastPlayedQuestionIdRef.current = currentQ.id
+
         setAudioEnded(false)
         setAudioError(false)
 
@@ -282,6 +287,10 @@ export default function ListeningPage() {
                 playPromise.then(() => {
                     setAudioPlaying(true)
                 }).catch((err) => {
+                    if (err.name === 'AbortError') {
+                        // Ignore abort error which happens when load() is called again before play() finishes
+                        return;
+                    }
                     console.error('Audio play error:', err)
                     setAudioError(true)
                     // Don't start timer yet - wait for user to manually play
@@ -559,18 +568,16 @@ export default function ListeningPage() {
                     {/* Question List Sidebar */}
                     <div className="lg:col-span-1">
                         <Card className="p-4 sticky top-24 flex flex-col max-h-[calc(100vh-6rem)]">
-                            {/* Nút Nộp Bài - chỉ hiển thị ở câu cuối */}
-                            {isLastQuestion && (
-                                <Button
-                                    onClick={handleSubmitAll}
-                                    disabled={isSubmitting}
-                                    size="lg"
-                                    className="w-full mb-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-                                >
-                                    <Send className="w-4 h-4 mr-2" />
-                                    {isSubmitting ? 'Đang nộp bài...' : 'Nộp Bài'}
-                                </Button>
-                            )}
+                            {/* Nút Nộp Bài - luôn hiển thị */}
+                            <Button
+                                onClick={handleSubmitAll}
+                                disabled={isSubmitting}
+                                size="lg"
+                                className="w-full mb-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                            >
+                                <Send className="w-4 h-4 mr-2" />
+                                {isSubmitting ? 'Đang nộp bài...' : 'Nộp Bài'}
+                            </Button>
 
                             <h3 className="font-semibold mb-3 pb-2 border-b text-center">Danh sách câu hỏi</h3>
                             <div className="grid grid-cols-5 lg:grid-cols-4 gap-2 overflow-y-auto pr-1 pb-2">

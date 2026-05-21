@@ -54,6 +54,7 @@ export async function updateSession(request: NextRequest) {
         !request.nextUrl.pathname.startsWith('/login') &&
         !request.nextUrl.pathname.startsWith('/register') &&
         !request.nextUrl.pathname.startsWith('/api/auth') &&
+        !request.nextUrl.pathname.startsWith('/api/payment/webhook') &&
         request.nextUrl.pathname !== '/'
     ) {
         // no user, redirect to login page

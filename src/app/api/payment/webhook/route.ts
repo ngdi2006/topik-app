@@ -20,10 +20,18 @@ interface SePayWebhookPayload {
 export async function POST(request: NextRequest) {
     try {
         // Verify API key from SePay
-        const apiKey = request.headers.get('x-api-key') || request.headers.get('authorization')?.replace('Bearer ', '')
+        const authHeader = request.headers.get('authorization') || ''
+        const xApiKey = request.headers.get('x-api-key') || ''
+        
+        let apiKey = xApiKey
+        if (!apiKey && authHeader) {
+            // Extract token regardless of prefix (Bearer, Apikey, etc.)
+            const parts = authHeader.split(' ')
+            apiKey = parts.length === 2 ? parts[1] : authHeader
+        }
 
         if (!apiKey || apiKey !== process.env.SEPAY_API_KEY) {
-            console.error('Invalid API key')
+            console.error('Invalid API key received. Expected:', process.env.SEPAY_API_KEY?.substring(0, 5) + '...', 'Got:', apiKey?.substring(0, 5) + '...')
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 

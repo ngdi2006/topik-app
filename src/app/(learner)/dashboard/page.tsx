@@ -25,6 +25,7 @@ export default function DashboardPage() {
     const [paymentModalOpen, setPaymentModalOpen] = useState(false)
     const [checkingAccess, setCheckingAccess] = useState<string | null>(null)
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -58,10 +59,10 @@ export default function DashboardPage() {
     }, [supabase, setUser, setRole, setIsLoading])
 
     useEffect(() => {
-        if (activeMenu === 'thi-thu') {
+        if (user) {
             fetchCredits()
         }
-    }, [activeMenu])
+    }, [user])
 
     const fetchCredits = async () => {
         try {
@@ -101,121 +102,161 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="min-h-screen flex flex-col">
-            {/* Header */}
-            <header className="border-b bg-white px-4 md:px-6 py-4 flex items-center justify-between sticky top-0 z-20">
-                <div className="flex items-center gap-2 md:gap-4">
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="md:hidden flex-shrink-0" 
-                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                    >
-                        {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-                    </Button>
-                    <div className="font-bold text-lg md:text-xl text-primary leading-tight">THI THỬ EPS-TOPIK CÙNG KOREA LINK</div>
+        <div className="min-h-screen flex bg-[#f4f6f8]">
+            {/* Sidebar (Desktop) */}
+            <aside className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 overflow-hidden bg-[#2B64CE] text-white flex-col hidden md:flex h-screen sticky top-0 shrink-0 shadow-lg z-30`}>
+                <div className="h-[72px] flex items-center px-6 font-bold text-xl border-b border-white/10 shrink-0 whitespace-nowrap">
+                    KOREA LINK
                 </div>
-                <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-                    <UserNav />
-                </div>
-            </header>
-
-            {/* Mobile Menu Dropdown */}
-            {isMobileMenuOpen && (
-                <div className="md:hidden border-b bg-white p-4 shadow-md sticky top-[72px] z-10 flex flex-col gap-2">
+                <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 w-64">
                     <Button
                         variant="ghost"
-                        className={`w-full justify-start font-medium border ${activeMenu === 'bai-hoc' ? 'bg-primary/10 text-primary border-primary/20' : 'border-transparent text-muted-foreground'}`}
-                        onClick={() => { setActiveMenu('bai-hoc'); setIsMobileMenuOpen(false); }}
+                        className={`w-full justify-start font-medium border-0 ${activeMenu === 'bai-hoc' ? 'bg-white/15 text-white hover:bg-white/20' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}
+                        onClick={() => setActiveMenu('bai-hoc')}
                     >
-                        <BookOpen className="w-4 h-4 mr-2" />
+                        <BookOpen className="w-4 h-4 mr-3" />
                         Bài học
                     </Button>
                     <Button
                         variant="ghost"
-                        className={`w-full justify-start font-medium border ${activeMenu === 'luyen-tap' ? 'bg-primary/10 text-primary border-primary/20' : 'border-transparent text-muted-foreground'}`}
-                        onClick={() => { setActiveMenu('luyen-tap'); setIsMobileMenuOpen(false); }}
+                        className={`w-full justify-start font-medium border-0 ${activeMenu === 'luyen-tap' ? 'bg-white/15 text-white hover:bg-white/20' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}
+                        onClick={() => setActiveMenu('luyen-tap')}
                     >
-                        <Target className="w-4 h-4 mr-2" />
+                        <Target className="w-4 h-4 mr-3" />
                         Luyện Tập
                     </Button>
                     <Button
                         variant="ghost"
-                        className={`w-full justify-start font-medium border ${activeMenu === 'thi-thu' ? 'bg-primary/10 text-primary border-primary/20' : 'border-transparent text-muted-foreground'}`}
-                        onClick={() => { setActiveMenu('thi-thu'); setIsMobileMenuOpen(false); }}
+                        className={`w-full justify-start font-medium border-0 ${activeMenu === 'thi-thu' ? 'bg-white/15 text-white hover:bg-white/20' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}
+                        onClick={() => setActiveMenu('thi-thu')}
                     >
-                        <FileText className="w-4 h-4 mr-2" />
+                        <FileText className="w-4 h-4 mr-3" />
                         Thi Thử
                     </Button>
                     <Button
                         variant="ghost"
-                        className={`w-full justify-start font-medium border ${activeMenu === 'ai-chat' ? 'bg-primary/10 text-primary border-primary/20' : 'border-transparent text-muted-foreground'}`}
-                        onClick={() => { setActiveMenu('ai-chat'); setIsMobileMenuOpen(false); }}
+                        className={`w-full justify-start font-medium border-0 ${activeMenu === 'ai-chat' ? 'bg-white/15 text-white hover:bg-white/20' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}
+                        onClick={() => setActiveMenu('ai-chat')}
                     >
-                        <Bot className="w-4 h-4 mr-2" />
+                        <Bot className="w-4 h-4 mr-3" />
                         Luyện giao tiếp AI
                     </Button>
                     <Button
                         variant="ghost"
-                        className={`w-full justify-start font-medium border ${activeMenu === 'kiem-tra' ? 'bg-primary/10 text-primary border-primary/20' : 'border-transparent text-muted-foreground'}`}
-                        onClick={() => { setActiveMenu('kiem-tra'); setIsMobileMenuOpen(false); }}
+                        className={`w-full justify-start font-medium border-0 ${activeMenu === 'kiem-tra' ? 'bg-white/15 text-white hover:bg-white/20' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}
+                        onClick={() => setActiveMenu('kiem-tra')}
                     >
-                        <ClipboardCheck className="w-4 h-4 mr-2" />
+                        <ClipboardCheck className="w-4 h-4 mr-3" />
                         Kiểm Tra
                     </Button>
-                </div>
-            )}
+                </nav>
+            </aside>
 
-            {/* Main Layout */}
-            <div className="flex flex-1 overflow-hidden">
-                {/* Sidebar */}
-                <aside className="w-64 border-r bg-muted/20 p-4 hidden md:block">
-                    <nav className="space-y-2">
+            {/* Main Area */}
+            <div className="flex-1 flex flex-col min-w-0">
+                {/* Header */}
+                <header className="h-[72px] border-b bg-white px-4 md:px-6 flex items-center justify-between sticky top-0 z-20 shrink-0">
+                    <div className="flex items-center gap-3">
+                        {/* Mobile Hamburger */}
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-gray-600 hover:bg-gray-100 md:hidden" 
+                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                        >
+                            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                        </Button>
+                        
+                        {/* Desktop Hamburger */}
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-gray-600 hover:bg-gray-100 hidden md:flex" 
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                        >
+                            <Menu className="w-6 h-6" />
+                        </Button>
+
+                        <div className="font-bold text-lg text-[#2B64CE] md:hidden">KOREA LINK</div>
+                    
+                        <div className="hidden md:flex items-center text-xl font-bold text-gray-800 ml-2">
+                            {activeMenu === 'bai-hoc' && 'Bài học'}
+                            {activeMenu === 'luyen-tap' && 'Luyện Tập'}
+                            {activeMenu === 'thi-thu' && 'Thi Thử'}
+                            {activeMenu === 'ai-chat' && 'Luyện giao tiếp AI'}
+                            {activeMenu === 'kiem-tra' && 'Kiểm Tra'}
+                            {!activeMenu && 'Tổng quan'}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 md:gap-4 ml-auto">
+                        <div className="flex items-center gap-2 md:gap-3 mr-1 md:mr-2">
+                            <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-100">
+                                <Coins className="w-4 h-4 text-blue-600" />
+                                <span className="font-semibold text-blue-600 text-sm">{userCredits} <span className="hidden md:inline">lượt</span></span>
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1.5 md:gap-2 border-blue-200 text-blue-700 hover:bg-blue-50 px-2 md:px-3"
+                                onClick={() => setPaymentModalOpen(true)}
+                            >
+                                <ShoppingCart className="w-4 h-4" />
+                                <span className="hidden md:inline">Mua thêm</span>
+                            </Button>
+                        </div>
+                        <UserNav />
+                    </div>
+                </header>
+
+                {/* Mobile Menu Dropdown */}
+                {isMobileMenuOpen && (
+                    <div className="md:hidden border-b bg-white p-4 shadow-md sticky top-[72px] z-10 flex flex-col gap-1">
                         <Button
                             variant="ghost"
-                            className={`w-full justify-start font-medium border ${activeMenu === 'bai-hoc' ? 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 hover:text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted'}`}
-                            onClick={() => setActiveMenu('bai-hoc')}
+                            className={`w-full justify-start font-medium border-0 ${activeMenu === 'bai-hoc' ? 'bg-blue-50 text-[#2B64CE]' : 'text-gray-600 hover:bg-gray-100'}`}
+                            onClick={() => { setActiveMenu('bai-hoc'); setIsMobileMenuOpen(false); }}
                         >
-                            <BookOpen className="w-4 h-4 mr-2" />
+                            <BookOpen className="w-4 h-4 mr-3" />
                             Bài học
                         </Button>
                         <Button
                             variant="ghost"
-                            className={`w-full justify-start font-medium border ${activeMenu === 'luyen-tap' ? 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 hover:text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted'}`}
-                            onClick={() => setActiveMenu('luyen-tap')}
+                            className={`w-full justify-start font-medium border-0 ${activeMenu === 'luyen-tap' ? 'bg-blue-50 text-[#2B64CE]' : 'text-gray-600 hover:bg-gray-100'}`}
+                            onClick={() => { setActiveMenu('luyen-tap'); setIsMobileMenuOpen(false); }}
                         >
-                            <Target className="w-4 h-4 mr-2" />
+                            <Target className="w-4 h-4 mr-3" />
                             Luyện Tập
                         </Button>
                         <Button
                             variant="ghost"
-                            className={`w-full justify-start font-medium border ${activeMenu === 'thi-thu' ? 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 hover:text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted'}`}
-                            onClick={() => setActiveMenu('thi-thu')}
+                            className={`w-full justify-start font-medium border-0 ${activeMenu === 'thi-thu' ? 'bg-blue-50 text-[#2B64CE]' : 'text-gray-600 hover:bg-gray-100'}`}
+                            onClick={() => { setActiveMenu('thi-thu'); setIsMobileMenuOpen(false); }}
                         >
-                            <FileText className="w-4 h-4 mr-2" />
+                            <FileText className="w-4 h-4 mr-3" />
                             Thi Thử
                         </Button>
                         <Button
                             variant="ghost"
-                            className={`w-full justify-start font-medium border ${activeMenu === 'ai-chat' ? 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 hover:text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted'}`}
-                            onClick={() => setActiveMenu('ai-chat')}
+                            className={`w-full justify-start font-medium border-0 ${activeMenu === 'ai-chat' ? 'bg-blue-50 text-[#2B64CE]' : 'text-gray-600 hover:bg-gray-100'}`}
+                            onClick={() => { setActiveMenu('ai-chat'); setIsMobileMenuOpen(false); }}
                         >
-                            <Bot className="w-4 h-4 mr-2" />
+                            <Bot className="w-4 h-4 mr-3" />
                             Luyện giao tiếp AI
                         </Button>
                         <Button
                             variant="ghost"
-                            className={`w-full justify-start font-medium border ${activeMenu === 'kiem-tra' ? 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 hover:text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted'}`}
-                            onClick={() => setActiveMenu('kiem-tra')}
+                            className={`w-full justify-start font-medium border-0 ${activeMenu === 'kiem-tra' ? 'bg-blue-50 text-[#2B64CE]' : 'text-gray-600 hover:bg-gray-100'}`}
+                            onClick={() => { setActiveMenu('kiem-tra'); setIsMobileMenuOpen(false); }}
                         >
-                            <ClipboardCheck className="w-4 h-4 mr-2" />
+                            <ClipboardCheck className="w-4 h-4 mr-3" />
                             Kiểm Tra
                         </Button>
-                    </nav>
-                </aside>
+                    </div>
+                )}
 
                 {/* Content */}
-                <main className="flex-1 p-6 overflow-y-auto">
+                <main className="flex-1 p-4 md:p-6 overflow-y-auto bg-[#f4f6f8]">
                     <div className="max-w-4xl mx-auto space-y-6">
 
                         {/* Default view - no menu selected */}
@@ -319,32 +360,9 @@ export default function DashboardPage() {
                         {/* THI THỬ */}
                         {activeMenu === 'thi-thu' && (
                             <>
-                                <div className="flex items-center justify-between">
-                                    <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-                                        <FileText className="w-8 h-8 text-primary" />
-                                        Thi Thử
-                                    </h1>
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-lg border border-primary/20">
-                                            <Coins className="w-5 h-5 text-primary" />
-                                            <span className="font-semibold text-primary">{userCredits} lượt</span>
-                                        </div>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="gap-2"
-                                            onClick={() => setPaymentModalOpen(true)}
-                                        >
-                                            <ShoppingCart className="w-4 h-4" />
-                                            Mua thêm
-                                        </Button>
-                                    </div>
-                                </div>
-
                                 <div>
-                                    <div className="flex items-center justify-between mb-4">
+                                    <div className="mb-4">
                                         <h2 className="text-xl font-semibold">Đề thi gợi ý cho bạn</h2>
-                                        <Button variant="link" className="text-primary">Xem tất cả</Button>
                                     </div>
                                     {exams.length === 0 ? (
                                         <div className="border rounded-md p-8 text-center text-muted-foreground bg-muted/10">

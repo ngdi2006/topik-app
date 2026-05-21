@@ -370,37 +370,30 @@ export default function ListeningPage() {
             {/* Header */}
             <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-purple-100 rounded-lg">
-                            <Headphones className="w-6 h-6 text-purple-600" />
+                    <div className="flex items-center gap-2">
+                        <div className="p-1.5 md:p-2 bg-purple-100 rounded-lg">
+                            <Headphones className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
                         </div>
-                        <div>
-                            <h1 className="text-xl font-bold text-gray-900">
-                                듣기
-                            </h1>
-                            <p className="text-sm text-gray-600">
-                                {exam?.title}
-                            </p>
-                        </div>
+                        <span className="text-base md:text-xl font-black text-purple-700 tracking-tighter">KOREA LINK</span>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 md:gap-2 ml-auto">
                         {/* Timer Đọc - đã dừng */}
-                        <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 text-gray-400">
-                            <Clock className="w-5 h-5" />
-                            <div>
-                                <p className="text-xs">읽기</p>
-                                <span className="text-xl font-bold font-mono tabular-nums">
+                        <div className="flex items-center gap-1 md:gap-1.5 px-2 md:px-4 py-1 md:py-2 rounded-lg bg-gray-100 text-gray-400">
+                            <Clock className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                            <div className="text-center">
+                                <p className="text-[9px] md:text-[10px] leading-none mb-0.5">읽기</p>
+                                <span className="text-xs md:text-base font-medium font-mono tabular-nums">
                                     00:00
                                 </span>
                             </div>
                         </div>
                         {/* Timer Nghe - đang chạy */}
-                        <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${timeLeft < 300 ? 'bg-red-100 text-red-700 animate-pulse' : 'bg-purple-100 text-purple-700'
+                        <div className={`flex items-center gap-1 md:gap-1.5 px-2 md:px-4 py-1 md:py-2 rounded-lg ${timeLeft < 300 ? 'bg-red-100 text-red-700 animate-pulse' : 'bg-purple-100 text-purple-700'
                             }`}>
-                            <Clock className="w-5 h-5" />
-                            <div>
-                                <p className="text-xs">듣기</p>
-                                <span className="text-xl font-bold font-mono tabular-nums">
+                            <Clock className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                            <div className="text-center">
+                                <p className="text-[9px] md:text-[10px] leading-none mb-0.5">듣기</p>
+                                <span className="text-xs md:text-base font-medium font-mono tabular-nums">
                                     {formatTime(timeLeft)}
                                 </span>
                             </div>
@@ -526,16 +519,16 @@ export default function ListeningPage() {
                                                 <button
                                                     key={idx}
                                                     onClick={() => handleAnswerSelect(idx)}
-                                                    className={`relative w-full min-h-[120px] text-left p-6 pt-8 rounded-2xl border-2 transition-all ${isSelected
-                                                        ? 'border-purple-500 bg-purple-50'
-                                                        : 'border-gray-300 hover:border-purple-300 bg-white hover:bg-gray-50'
+                                                    className={`relative w-full min-h-[70px] md:min-h-[120px] text-left p-3 md:p-6 pt-6 md:pt-8 rounded-lg md:rounded-2xl border transition-all ${isSelected
+                                                        ? 'border-purple-400 bg-purple-50'
+                                                        : 'border-gray-200 hover:border-purple-300 bg-white hover:bg-gray-50'
                                                         }`}
                                                 >
                                                     {/* Option number at top-left corner */}
-                                                    <div className="absolute -top-3 left-4">
-                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-base font-bold border-2 ${isSelected
+                                                    <div className="absolute -top-2.5 left-3 md:-top-3 md:left-4">
+                                                        <div className={`w-5 h-5 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] md:text-base font-medium md:font-bold border ${isSelected
                                                             ? 'bg-purple-500 text-white border-purple-500'
-                                                            : 'bg-white text-gray-700 border-gray-400'
+                                                            : 'bg-white text-gray-500 border-gray-200'
                                                             }`}>
                                                             {idx + 1}
                                                         </div>
@@ -593,7 +586,7 @@ export default function ListeningPage() {
                                         <button
                                             key={q.id}
                                             disabled
-                                            className={`aspect-square rounded-lg font-semibold text-sm transition-all cursor-not-allowed ${isCurrentQuestion
+                                            className={`aspect-square rounded-md font-medium text-xs transition-all cursor-not-allowed ${isCurrentQuestion
                                                 ? 'bg-purple-500 text-white ring-2 ring-purple-300'
                                                 : isAnswered
                                                     ? 'bg-green-100 text-green-700'

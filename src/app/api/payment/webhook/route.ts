@@ -6,15 +6,19 @@ interface SePayWebhookPayload {
     id: string
     gateway: string
     transaction_date: string
-    account_number: string
+    account_number?: string
     sub_account?: string
-    amount_in: number
-    amount_out: number
-    accumulated: number
-    code: string
-    transaction_content: string
-    reference_number: string
-    body: string
+    amount_in?: number
+    amount_out?: number
+    transferAmount?: number
+    transferType?: string
+    accumulated?: number
+    code?: string
+    transaction_content?: string
+    content?: string
+    reference_number?: string
+    referenceCode?: string
+    body?: string
 }
 
 export async function POST(request: NextRequest) {
@@ -37,21 +41,26 @@ export async function POST(request: NextRequest) {
 
         const payload: SePayWebhookPayload = await request.json()
 
+        // Support both v1 and v2 payload formats from SePay
+        const amount = payload.amount_in !== undefined ? payload.amount_in : (payload.transferAmount || 0)
+        const content = payload.transaction_content || payload.content || ''
+        const transferType = payload.transferType || (payload.amount_in !== undefined && payload.amount_in > 0 ? 'in' : 'out')
+
         console.log('SePay webhook received:', {
             id: payload.id,
-            amount: payload.amount_in,
-            content: payload.transaction_content
+            amount: amount,
+            content: content
         })
 
         // Only process incoming transfers
-        if (payload.amount_in <= 0) {
+        if (amount <= 0 || (payload.transferType && payload.transferType !== 'in')) {
             return NextResponse.json({ message: 'Not an incoming transfer' }, { status: 200 })
         }
 
         // Extract transaction code from content (format: SEVQRXXXXXXXXXX or TOPIKXXXXXXXXXX)
-        const transactionCodeMatch = payload.transaction_content.match(/(SEVQR|TOPIK)[A-Z0-9]+/i)
+        const transactionCodeMatch = content.match(/(SEVQR|TOPIK)[A-Z0-9]+/i)
         if (!transactionCodeMatch) {
-            console.log('No transaction code found in content:', payload.transaction_content)
+            console.log('No transaction code found in content:', content)
             return NextResponse.json({ message: 'No transaction code found' }, { status: 200 })
         }
 
@@ -75,11 +84,11 @@ export async function POST(request: NextRequest) {
         }
 
         // Verify amount matches (allow ±1000 VND tolerance for rounding)
-        const amountDiff = Math.abs(payload.amount_in - transaction.amount_vnd)
+        const amountDiff = Math.abs(amount - transaction.amount_vnd)
         if (amountDiff > 1000) {
             console.error('Amount mismatch:', {
                 expected: transaction.amount_vnd,
-                received: payload.amount_in,
+                received: amount,
                 diff: amountDiff
             })
             return NextResponse.json({ message: 'Amount mismatch' }, { status: 200 })

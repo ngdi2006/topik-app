@@ -171,6 +171,12 @@ export default function ReadingPage() {
 
     const handleNext = async () => {
         if (isSubmitting) return
+
+        if (!hasListening) {
+            const confirmed = window.confirm('Bạn muốn nộp bài? Sau khi đồng ý, hệ thống sẽ kết thúc bài thi và tính điểm.')
+            if (!confirmed) return
+        }
+
         setIsSubmitting(true)
         setAllowNavigation(true) // Allow navigation when submitting
 

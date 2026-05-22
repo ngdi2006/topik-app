@@ -164,20 +164,20 @@ export default function DashboardPage() {
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="text-gray-600 hover:bg-gray-100 md:hidden"
+                            className="text-gray-600 hover:bg-gray-100 md:hidden w-10 h-10"
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         >
-                            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                            {isMobileMenuOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
                         </Button>
 
                         {/* Desktop Hamburger */}
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="text-gray-600 hover:bg-gray-100 hidden md:flex"
+                            className="text-gray-600 hover:bg-gray-100 hidden md:flex w-10 h-10"
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                         >
-                            <Menu className="w-6 h-6" />
+                            <Menu className="w-7 h-7" />
                         </Button>
 
                         <div className="md:hidden relative w-32 h-8 mr-1">

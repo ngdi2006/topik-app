@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Search, Plus, UserCog, Trash2, History } from "lucide-react"
+import { Search, Plus, Coins, Trash2, History } from "lucide-react"
 import { toast } from "sonner"
 import {
     Dialog,
@@ -20,9 +20,35 @@ interface UserProfile {
     email: string
     role: string
     groupName: string
+    remainingCredits: number
     status: string
     joinedAt: string
 }
+
+type HistoryRecord = {
+    id: string
+    score: number
+    total_correct: number
+    created_at: string
+    exams?: {
+        level?: string
+        title?: string
+    }
+}
+
+const initialGrantForm = {
+    credits: '',
+    notes: '',
+}
+
+const formatCredits = (credits: number) => `${credits} lượt`
+
+const isErrorWithMessage = (error: unknown): error is Error => error instanceof Error
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+    isErrorWithMessage(error) ? error.message : fallback
+
+const isPositiveInteger = (value: string) => /^[1-9]\d*$/.test(value)
 
 export default function AdminUsersPage() {
     const [users, setUsers] = useState<UserProfile[]>([])
@@ -39,25 +65,27 @@ export default function AdminUsersPage() {
         groupName: ''
     })
 
-    // History Dialog State
+    const [isGrantDialogOpen, setIsGrantDialogOpen] = useState(false)
+    const [selectedUserForCredits, setSelectedUserForCredits] = useState<UserProfile | null>(null)
+    const [grantForm, setGrantForm] = useState(initialGrantForm)
+    const [isGrantingCredits, setIsGrantingCredits] = useState(false)
+
     const [isHistoryOpen, setIsHistoryOpen] = useState(false)
-    const [selectedUserHistory, setSelectedUserHistory] = useState<any[]>([])
+    const [selectedUserHistory, setSelectedUserHistory] = useState<HistoryRecord[]>([])
     const [isFetchingHistory, setIsFetchingHistory] = useState(false)
     const [selectedUserName, setSelectedUserName] = useState("")
 
-    // Fetch Users from API
     const fetchUsers = async () => {
         setIsLoading(true)
         try {
             const res = await fetch('/api/admin/users')
-            if (!res.ok) {
-                const error = await res.json()
-                throw new Error(error.error || "Failed to fetch users")
-            }
             const data = await res.json()
-            setUsers(data.users)
-        } catch (error: any) {
-            toast.error(error.message)
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to fetch users")
+            }
+            setUsers(Array.isArray(data.users) ? data.users : [])
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Không thể tải danh sách người dùng'))
         } finally {
             setIsLoading(false)
         }
@@ -67,7 +95,18 @@ export default function AdminUsersPage() {
         fetchUsers()
     }, [])
 
-    // Fetch User History
+    const closeGrantDialog = () => {
+        setIsGrantDialogOpen(false)
+        setSelectedUserForCredits(null)
+        setGrantForm(initialGrantForm)
+    }
+
+    const openGrantDialog = (user: UserProfile) => {
+        setSelectedUserForCredits(user)
+        setGrantForm(initialGrantForm)
+        setIsGrantDialogOpen(true)
+    }
+
     const handleViewHistory = async (userId: string, userName: string) => {
         setIsHistoryOpen(true)
         setSelectedUserName(userName)
@@ -79,33 +118,32 @@ export default function AdminUsersPage() {
             const data = await res.json()
             if (!res.ok) throw new Error(data.error)
 
-            setSelectedUserHistory(data.history || [])
-        } catch (error: any) {
-            toast.error(error.message || "Lỗi tải lịch sử thi")
+            setSelectedUserHistory(Array.isArray(data.history) ? data.history : [])
+        } catch (error) {
+            toast.error(getErrorMessage(error, "Lỗi tải lịch sử thi"))
         } finally {
             setIsFetchingHistory(false)
         }
     }
 
-    // Delete User
     const handleDelete = async (userId: string) => {
         if (!confirm("Bạn có chắc chắn muốn xóa vĩnh viễn người dùng này?")) return
 
         const loadingToast = toast.loading("Đang xóa người dùng...")
         try {
             const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' })
+            const data = await res.json().catch(() => null)
             if (!res.ok) {
-                const error = await res.json()
-                throw new Error(error.error || "Lỗi xóa dữ liệu")
+                const message = data && typeof data.error === 'string' ? data.error : "Lỗi xóa dữ liệu"
+                throw new Error(message)
             }
             toast.success("Xóa người dùng thành công", { id: loadingToast })
             setUsers(users.filter((u) => u.id !== userId))
-        } catch (error: any) {
-            toast.error(error.message, { id: loadingToast })
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Lỗi xóa dữ liệu'), { id: loadingToast })
         }
     }
 
-    // Create User
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!formData.name || !formData.email || !formData.password) {
@@ -122,26 +160,25 @@ export default function AdminUsersPage() {
                 body: JSON.stringify(formData)
             })
 
+            const data = await res.json().catch(() => null)
             if (!res.ok) {
-                const errorData = await res.json()
-                throw new Error(errorData.error || "Lỗi tạo tài khoản")
+                const message = data && typeof data.error === 'string' ? data.error : "Lỗi tạo tài khoản"
+                throw new Error(message)
             }
 
             toast.success("Tạo tài khoản thành công!", { id: toastId })
             setIsAddDialogOpen(false)
             setFormData({ name: '', email: '', password: '', role: 'learner', groupName: '' })
-            fetchUsers() // Refresh list
-        } catch (error: any) {
-            toast.error(error.message, { id: toastId })
+            fetchUsers()
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Lỗi tạo tài khoản'), { id: toastId })
         } finally {
             setIsSubmitting(false)
         }
     }
 
-    // Update Group Name Inline
     const handleChangeGroup = async (userId: string, newGroup: string) => {
-        const previousUsers = [...users];
-        // Optimistic UI Update
+        const previousUsers = [...users]
         setUsers(users.map(u => u.id === userId ? { ...u, groupName: newGroup } : u))
 
         try {
@@ -150,18 +187,18 @@ export default function AdminUsersPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ groupName: newGroup })
             })
+            const data = await res.json().catch(() => null)
             if (!res.ok) {
-                const error = await res.json()
-                throw new Error(error.error || "Lỗi cập nhật nhóm")
+                const message = data && typeof data.error === 'string' ? data.error : "Lỗi cập nhật nhóm"
+                throw new Error(message)
             }
             toast.success("Cập nhật nhóm thành công")
-        } catch (error: any) {
-            toast.error(error.message)
-            setUsers(previousUsers) // Revert on fail
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Lỗi cập nhật nhóm'))
+            setUsers(previousUsers)
         }
     }
 
-    // Update Role
     const handleChangeRole = async (userId: string, newRole: string) => {
         if (!confirm(`Xác nhận đổi quyền người dùng này thành ${newRole.toUpperCase()}?`)) return
 
@@ -172,19 +209,56 @@ export default function AdminUsersPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ role: newRole })
             })
+            const data = await res.json().catch(() => null)
             if (!res.ok) {
-                const error = await res.json()
-                throw new Error(error.error || "Lỗi cập nhật")
+                const message = data && typeof data.error === 'string' ? data.error : "Lỗi cập nhật"
+                throw new Error(message)
             }
             toast.success("Cập nhật quyền thành công", { id: loadingToast })
-            // Update local state
             setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u))
-        } catch (error: any) {
-            toast.error(error.message, { id: loadingToast })
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Lỗi cập nhật quyền'), { id: loadingToast })
         }
     }
 
-    // Filter users
+    const handleGrantCredits = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!selectedUserForCredits) return
+
+        if (!isPositiveInteger(grantForm.credits)) {
+            toast.error('Vui lòng nhập số lượt là số nguyên dương')
+            return
+        }
+
+        setIsGrantingCredits(true)
+        const toastId = toast.loading('Đang cộng lượt...')
+
+        try {
+            const res = await fetch(`/api/admin/users/${selectedUserForCredits.id}/credits`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    credits: Number(grantForm.credits),
+                    notes: grantForm.notes,
+                })
+            })
+
+            const data = await res.json().catch(() => null)
+            if (!res.ok) {
+                const message = data && typeof data.error === 'string' ? data.error : 'Không thể cộng lượt'
+                throw new Error(message)
+            }
+
+            toast.success(`Đã cộng ${grantForm.credits} lượt cho ${selectedUserForCredits.name}`, { id: toastId })
+            closeGrantDialog()
+            fetchUsers()
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Không thể cộng lượt'), { id: toastId })
+        } finally {
+            setIsGrantingCredits(false)
+        }
+    }
+
     const filteredUsers = users.filter(user =>
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -224,6 +298,7 @@ export default function AdminUsersPage() {
                             <th className="px-6 py-4 font-medium">Email</th>
                             <th className="px-6 py-4 font-medium">Vai trò</th>
                             <th className="px-6 py-4 font-medium">Nhóm/Lớp</th>
+                            <th className="px-6 py-4 font-medium">Lượt</th>
                             <th className="px-6 py-4 font-medium">Trạng thái</th>
                             <th className="px-6 py-4 font-medium">Ngày tham gia</th>
                             <th className="px-6 py-4 font-medium text-right">Thao tác</th>
@@ -232,13 +307,13 @@ export default function AdminUsersPage() {
                     <tbody className="divide-y divide-gray-200">
                         {isLoading ? (
                             <tr>
-                                <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
+                                <td colSpan={8} className="px-6 py-8 text-center text-muted-foreground">
                                     Đang tải dữ liệu...
                                 </td>
                             </tr>
                         ) : filteredUsers.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
+                                <td colSpan={8} className="px-6 py-8 text-center text-muted-foreground">
                                     Không tìm thấy dữ liệu nào phù hợp.
                                 </td>
                             </tr>
@@ -279,14 +354,23 @@ export default function AdminUsersPage() {
                                             }}
                                         />
                                     </td>
+                                    <td className="px-6 py-4 font-medium text-blue-700">{formatCredits(user.remainingCredits)}</td>
                                     <td className="px-6 py-4">
-                                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${user.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                                            }`}>
+                                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${user.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                                             {user.status}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-gray-500">{user.joinedAt}</td>
                                     <td className="px-6 py-4 text-right space-x-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => openGrantDialog(user)}
+                                            className="h-8 w-8 text-amber-600 bg-amber-50"
+                                            title="Cộng lượt"
+                                        >
+                                            <Coins className="w-4 h-4" />
+                                        </Button>
                                         <Button
                                             variant="ghost"
                                             size="icon"
@@ -313,7 +397,6 @@ export default function AdminUsersPage() {
                 </table>
             </div>
 
-            {/* Dialog Create User */}
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
@@ -388,7 +471,51 @@ export default function AdminUsersPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Dialog View User History */}
+            <Dialog open={isGrantDialogOpen} onOpenChange={(open) => !open && closeGrantDialog()}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Cộng lượt cho người dùng</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleGrantCredits} className="space-y-4 py-4">
+                        <div className="space-y-1 text-sm">
+                            <p className="font-medium text-gray-900">{selectedUserForCredits?.name}</p>
+                            <p className="text-muted-foreground">{selectedUserForCredits?.email}</p>
+                            <p className="text-blue-700 font-medium">Hiện có: {formatCredits(selectedUserForCredits?.remainingCredits ?? 0)}</p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="grantCredits">Số lượt cộng thêm</Label>
+                            <Input
+                                id="grantCredits"
+                                type="number"
+                                min={1}
+                                step={1}
+                                placeholder="VD: 5"
+                                value={grantForm.credits}
+                                onChange={(e) => setGrantForm({ ...grantForm, credits: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="grantNotes">Ghi chú (Tùy chọn)</Label>
+                            <Input
+                                id="grantNotes"
+                                placeholder="VD: Tặng thêm lượt cho học viên"
+                                value={grantForm.notes}
+                                onChange={(e) => setGrantForm({ ...grantForm, notes: e.target.value })}
+                            />
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={closeGrantDialog}>
+                                Hủy
+                            </Button>
+                            <Button type="submit" disabled={isGrantingCredits}>
+                                {isGrantingCredits ? 'Đang cộng...' : 'Cộng lượt'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
             <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
                 <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
@@ -430,7 +557,6 @@ export default function AdminUsersPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-
         </div>
     )
 }

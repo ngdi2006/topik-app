@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
-export async function GET(request: Request) {
+export async function GET() {
     try {
         // 1. Authentication & Authorization Check
         const supabase = await createClient()
@@ -30,15 +30,24 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: profilesError.message }, { status: 500 })
         }
 
+        const { data: credits, error: creditsError } = await adminAuthClient
+            .from('user_exam_credits')
+            .select('user_id, remaining_credits')
+        if (creditsError) {
+            return NextResponse.json({ error: creditsError.message }, { status: 500 })
+        }
+
         // 3. Mapping data
         const result = usersData.users.map(u => {
             const prof = profiles.find(p => p.id === u.id)
+            const credit = credits.find(c => c.user_id === u.id)
             return {
                 id: u.id,
                 email: u.email,
                 name: prof?.full_name || u.user_metadata?.full_name || 'Học viên',
                 role: prof?.role || 'learner',
                 groupName: prof?.group_name || '',
+                remainingCredits: credit?.remaining_credits ?? 0,
                 status: 'Active',
                 joinedAt: new Date(u.created_at).toISOString().split('T')[0]
             }
@@ -48,8 +57,9 @@ export async function GET(request: Request) {
         result.sort((a, b) => new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime())
 
         return NextResponse.json({ users: result }, { status: 200 })
-    } catch (e: any) {
-        return NextResponse.json({ error: e.message || "Internal Server Error" }, { status: 500 })
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Internal Server Error"
+        return NextResponse.json({ error: message }, { status: 500 })
     }
 }
 
@@ -101,7 +111,8 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ success: true, user: newUser.user }, { status: 200 })
 
-    } catch (e: any) {
-        return NextResponse.json({ error: e.message || "Internal Server Error" }, { status: 500 })
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Internal Server Error"
+        return NextResponse.json({ error: message }, { status: 500 })
     }
 }

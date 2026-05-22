@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 export function OnlineSupportWidget() {
     const pathname = usePathname()
 
-    if (pathname?.startsWith('/admin')) {
+    if (pathname !== '/dashboard') {
         return null
     }
 

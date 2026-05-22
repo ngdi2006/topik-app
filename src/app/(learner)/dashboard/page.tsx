@@ -23,6 +23,7 @@ type Exam = {
     total_questions: number
     is_free?: boolean
     is_ai_generated?: boolean
+    description?: string
 }
 
 type LearnerMenuSetting = {
@@ -362,9 +363,7 @@ export default function DashboardPage() {
                         {activeMenu === 'thi-thu' && activeMenuItem && (
                             <>
                                 <div>
-                                    <div className="mb-4">
-                                        <h2 className="text-xl font-semibold">Đề thi gợi ý cho bạn</h2>
-                                    </div>
+
                                     {exams.length === 0 ? (
                                         <div className="border rounded-md p-8 text-center text-muted-foreground bg-muted/10">
                                             Hệ thống đang cập nhật đề thi. Vui lòng quay lại sau!
@@ -390,11 +389,23 @@ export default function DashboardPage() {
                                                             {exam.title}
                                                         </CardTitle>
                                                     </CardHeader>
-                                                    <CardContent className="pb-3 flex-1 text-sm text-muted-foreground space-y-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <Clock className="w-4 h-4" />
-                                                            <span>{exam.duration} phút - {exam.total_questions} câu hỏi</span>
+                                                    <CardContent className="pb-3 flex-1 text-sm text-muted-foreground space-y-3">
+                                                        <div className="flex items-center gap-2 font-medium text-slate-700">
+                                                            <Clock className="w-4 h-4 text-blue-500" />
+                                                            <span>{exam.duration} phút • {exam.total_questions} câu hỏi</span>
                                                         </div>
+                                                        <div className="text-sm text-slate-600 line-clamp-2 leading-relaxed">
+                                                            {exam.description || 'Đề thi bám sát cấu trúc chuẩn EPS-TOPIK mới nhất, giúp bạn đánh giá chính xác năng lực và tự tin chinh phục kỳ thi thật! 🚀'}
+                                                        </div>
+                                                        {!exam.is_free && (
+                                                            <div className="flex items-center justify-between bg-blue-50 p-2.5 rounded-lg border border-blue-100">
+                                                                <span className="text-xs font-semibold text-blue-800">Lượt thi hiện tại của bạn:</span>
+                                                                <Badge variant="secondary" className="bg-white border-blue-200 text-blue-700 shadow-sm">
+                                                                    <Coins className="w-3.5 h-3.5 mr-1.5 text-yellow-500" /> 
+                                                                    {userCredits} lượt
+                                                                </Badge>
+                                                            </div>
+                                                        )}
                                                     </CardContent>
                                                     <CardFooter>
                                                         <Button

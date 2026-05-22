@@ -11,6 +11,14 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
+import { MediaUploader } from '@/components/admin/MediaUploader'
+import {
     Plus,
     Search,
     Download,
@@ -19,6 +27,7 @@ import {
     Trash2,
     FileSpreadsheet,
     Gift,
+    Music,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -34,6 +43,7 @@ interface Category {
 
 interface QuestionWithCategory extends QuestionBank {
     category?: Category
+    category_id?: string | null
 }
 
 export default function QuestionBankPage() {
@@ -51,6 +61,68 @@ export default function QuestionBankPage() {
     const [page, setPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
     const [selectedIds, setSelectedIds] = useState<string[]>([])
+    const [audioModalQuestion, setAudioModalQuestion] = useState<QuestionWithCategory | null>(null)
+    const [audioUrl, setAudioUrl] = useState('')
+    const [savingAudio, setSavingAudio] = useState(false)
+
+    const closeAudioModal = () => {
+        setAudioModalQuestion(null)
+        setAudioUrl('')
+    }
+
+    const openAudioModal = (question: QuestionWithCategory) => {
+        setAudioModalQuestion(question)
+        setAudioUrl(question.audio_url || '')
+    }
+
+    const handleSaveAudio = async () => {
+        if (!audioModalQuestion) return
+        if (!audioUrl) {
+            toast.error('Vui lòng upload file audio mới')
+            return
+        }
+
+        setSavingAudio(true)
+        const toastId = toast.loading('Đang lưu audio...')
+
+        try {
+            const res = await fetch(`/api/admin/question-bank/${audioModalQuestion.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...audioModalQuestion,
+                    audio_url: audioUrl,
+                }),
+            })
+            const data = await res.json()
+
+            if (!data.success) {
+                throw new Error(data.error || 'Cập nhật audio thất bại')
+            }
+
+            setQuestions((prev) =>
+                prev.map((question) =>
+                    question.id === audioModalQuestion.id
+                        ? { ...question, audio_url: data.data.audio_url }
+                        : question
+                )
+            )
+            toast.success('Đã cập nhật audio', { id: toastId })
+            closeAudioModal()
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Cập nhật audio thất bại'
+            toast.error(message, { id: toastId })
+        } finally {
+            setSavingAudio(false)
+        }
+    }
+
+    const handleGoToEdit = () => {
+        if (!audioModalQuestion) return
+        const id = audioModalQuestion.id
+        closeAudioModal()
+        router.push(`/admin/question-bank/${id}`)
+    }
 
     useEffect(() => {
         fetchCategories()
@@ -477,6 +549,17 @@ export default function QuestionBankPage() {
                                     </td>
                                     <td className="px-4 py-3 text-right">
                                         <div className="flex justify-end gap-2">
+                                            {q.question_type === 'listening' && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-purple-600"
+                                                    onClick={() => openAudioModal(q)}
+                                                    title="Thay audio"
+                                                >
+                                                    <Music className="w-4 h-4" />
+                                                </Button>
+                                            )}
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -530,6 +613,68 @@ export default function QuestionBankPage() {
                     </Button>
                 </div>
             )}
+
+            <Dialog
+                open={!!audioModalQuestion}
+                onOpenChange={(open) => {
+                    if (!open) closeAudioModal()
+                }}
+            >
+                <DialogContent className="sm:max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>Thay file audio</DialogTitle>
+                    </DialogHeader>
+
+                    {audioModalQuestion && (
+                        <div className="space-y-4">
+                            <div className="space-y-1">
+                                <p className="text-sm font-medium">Câu hỏi</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {audioModalQuestion.question_text}
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <p className="text-sm font-medium">Audio mới</p>
+                                <MediaUploader
+                                    type="audio"
+                                    currentUrl={audioUrl}
+                                    onUploadComplete={setAudioUrl}
+                                    folder="audio"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter className="gap-2 sm:justify-between">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleGoToEdit}
+                            disabled={!audioModalQuestion}
+                        >
+                            Mở trang sửa đầy đủ
+                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={closeAudioModal}
+                                disabled={savingAudio}
+                            >
+                                Hủy
+                            </Button>
+                            <Button
+                                type="button"
+                                onClick={handleSaveAudio}
+                                disabled={savingAudio || !audioUrl}
+                            >
+                                {savingAudio ? 'Đang lưu...' : 'Lưu audio'}
+                            </Button>
+                        </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

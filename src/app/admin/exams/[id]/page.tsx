@@ -732,14 +732,25 @@ export default function AdminExamBuilderPage() {
                                                 {(fq.question_bank?.question_text?.length || 0) > 80 ? '...' : ''}
                                             </span>
                                         </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 shrink-0 text-red-500 hover:text-red-700"
-                                            onClick={() => handleRemoveFreeQuestion(fq.question_bank_id)}
-                                        >
-                                            <X className="w-3.5 h-3.5" />
-                                        </Button>
+                                        <div className="flex gap-1 shrink-0">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7"
+                                                onClick={() => router.push(`/admin/question-bank/${fq.question_bank_id}`)}
+                                                title="Sửa câu hỏi"
+                                            >
+                                                <Edit className="w-3.5 h-3.5" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 text-red-500 hover:text-red-700"
+                                                onClick={() => handleRemoveFreeQuestion(fq.question_bank_id)}
+                                            >
+                                                <X className="w-3.5 h-3.5" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 ))}
                                 <div className="flex gap-4 pt-2 text-xs text-muted-foreground">
@@ -849,6 +860,19 @@ export default function AdminExamBuilderPage() {
                                                     <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-xs">
                                                         Lv.{q.level}
                                                     </span>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-6 px-2 text-xs"
+                                                        onClick={(event) => {
+                                                            event.preventDefault()
+                                                            event.stopPropagation()
+                                                            router.push(`/admin/question-bank/${q.id}`)
+                                                        }}
+                                                    >
+                                                        Sửa
+                                                    </Button>
                                                 </div>
                                                 <p className="text-sm text-gray-700 line-clamp-2">
                                                     {q.question_text}

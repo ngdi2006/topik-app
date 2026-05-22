@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -9,24 +9,100 @@ import { Button } from "@/components/ui/button"
 import { UserNav } from "@/components/shared/UserNav"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Lock, Menu, X } from "lucide-react"
+import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X } from "lucide-react"
 import { LessonList } from "@/components/lessons/LessonList"
 import { PracticeHub } from "@/components/practice/PracticeHub"
 import { PaymentModal } from "@/components/payment/PaymentModal"
 
 type ActiveMenu = 'bai-hoc' | 'luyen-tap' | 'thi-thu' | 'ai-chat' | 'kiem-tra'
 
+type Exam = {
+    id: string
+    title: string
+    duration: number
+    total_questions: number
+    is_free?: boolean
+    is_ai_generated?: boolean
+}
+
+type LearnerMenuSetting = {
+    key: ActiveMenu
+    label: string
+    is_enabled: boolean
+    sort_order: number
+}
+
+type LearnerMenuMeta = {
+    label: string
+    Icon: typeof BookOpen
+    description: string
+    buttonText: string
+    highlight?: boolean
+}
+
+const learnerMenuMeta: Record<ActiveMenu, LearnerMenuMeta> = {
+    'bai-hoc': {
+        label: 'Bài học',
+        Icon: BookOpen,
+        description: 'Học từ vựng, ngữ pháp và hội thoại theo giáo trình EPS-TOPIK',
+        buttonText: 'Vào học',
+    },
+    'luyen-tap': {
+        label: 'Luyện Tập',
+        Icon: Target,
+        description: 'Flashcard, ngữ pháp, trắc nghiệm nhanh theo bài học',
+        buttonText: 'Luyện tập ngay',
+    },
+    'thi-thu': {
+        label: 'Thi Thử',
+        Icon: FileText,
+        description: 'Làm đề thi thử EPS-TOPIK theo cấu trúc đề thi thật',
+        buttonText: 'Vào thi thử',
+    },
+    'ai-chat': {
+        label: 'Luyện giao tiếp AI',
+        Icon: Bot,
+        description: 'Đóng vai và thực hành tiếng Hàn với Giáo viên AI',
+        buttonText: 'Khám phá kịch bản',
+        highlight: true,
+    },
+    'kiem-tra': {
+        label: 'Kiểm Tra',
+        Icon: ClipboardCheck,
+        description: 'Kiểm tra phát âm, từ vựng và phản xạ giao tiếp theo tiến độ học',
+        buttonText: 'Vào Thi Thực Hành',
+        highlight: true,
+    },
+}
+
+const fallbackMenuSettings: LearnerMenuSetting[] = Object.entries(learnerMenuMeta).map(([key, meta], index) => ({
+    key: key as ActiveMenu,
+    label: meta.label,
+    is_enabled: true,
+    sort_order: index + 1,
+}))
+
 export default function DashboardPage() {
     const router = useRouter()
     const supabase = createClient()
-    const { user, role, setUser, setRole, isLoading, setIsLoading } = useUserStore()
-    const [exams, setExams] = useState<any[]>([])
+    const { user, setUser, setRole, isLoading, setIsLoading } = useUserStore()
+    const [exams, setExams] = useState<Exam[]>([])
+    const [enabledMenuSettings, setEnabledMenuSettings] = useState<LearnerMenuSetting[]>(fallbackMenuSettings)
     const [activeMenu, setActiveMenu] = useState<ActiveMenu | null>(null)
     const [userCredits, setUserCredits] = useState<number>(0)
     const [paymentModalOpen, setPaymentModalOpen] = useState(false)
     const [checkingAccess, setCheckingAccess] = useState<string | null>(null)
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+
+    const enabledMenuItems = useMemo(
+        () => enabledMenuSettings
+            .filter((item) => item.is_enabled && item.key in learnerMenuMeta)
+            .map((item) => ({ ...item, ...learnerMenuMeta[item.key] })),
+        [enabledMenuSettings]
+    )
+
+    const activeMenuItem = activeMenu ? enabledMenuItems.find((item) => item.key === activeMenu) : null
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -44,10 +120,21 @@ export default function DashboardPage() {
             }
 
             try {
-                const examsRes = await fetch('/api/exams')
+                const [examsRes, menuRes] = await Promise.all([
+                    fetch('/api/exams'),
+                    fetch('/api/learner/dashboard-menu'),
+                ])
+
                 if (examsRes.ok) {
                     const latestExams = await examsRes.json()
                     setExams(latestExams)
+                }
+
+                if (menuRes.ok) {
+                    const menuItems = await menuRes.json()
+                    if (Array.isArray(menuItems) && menuItems.length > 0) {
+                        setEnabledMenuSettings(menuItems)
+                    }
                 }
             } catch (error) {
                 console.error("Lỗi lấy dữ liệu dashboard:", error)
@@ -64,6 +151,12 @@ export default function DashboardPage() {
             fetchCredits()
         }
     }, [user])
+
+    useEffect(() => {
+        if (activeMenu && !enabledMenuItems.some((item) => item.key === activeMenu)) {
+            setActiveMenu(null)
+        }
+    }, [activeMenu, enabledMenuItems])
 
     const fetchCredits = async () => {
         try {
@@ -98,6 +191,56 @@ export default function DashboardPage() {
         }
     }
 
+    const renderMenuButton = (item: (typeof enabledMenuItems)[number], onClick?: () => void) => {
+        const Icon = item.Icon
+
+        return (
+            <Button
+                key={item.key}
+                variant="ghost"
+                className={`w-full justify-start font-medium border-0 ${activeMenu === item.key ? 'bg-white/15 text-white hover:bg-white/20' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}
+                onClick={() => {
+                    setActiveMenu(item.key)
+                    onClick?.()
+                }}
+            >
+                <Icon className="w-4 h-4 mr-3" />
+                {item.label}
+            </Button>
+        )
+    }
+
+    const renderOverviewCard = (item: (typeof enabledMenuItems)[number]) => {
+        const Icon = item.Icon
+
+        return (
+            <Card key={item.key} className="border-primary/20 bg-primary/5 hover:border-primary/50 transition-colors">
+                <CardHeader>
+                    <CardTitle className="text-primary flex items-center gap-2">
+                        <Icon className="w-5 h-5" />
+                        {item.label}
+                        {item.highlight && (
+                            <span className="relative flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                            </span>
+                        )}
+                    </CardTitle>
+                    <CardDescription>{item.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Button
+                        variant="default"
+                        className="w-full"
+                        onClick={() => setActiveMenu(item.key)}
+                    >
+                        {item.buttonText}
+                    </Button>
+                </CardContent>
+            </Card>
+        )
+    }
+
     if (isLoading) {
         return <div className="flex h-screen items-center justify-center">Đang tải dữ liệu...</div>
     }
@@ -106,52 +249,13 @@ export default function DashboardPage() {
         <div className="min-h-screen flex bg-[#f4f6f8]">
             {/* Sidebar (Desktop) */}
             <aside className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 overflow-hidden bg-[#2B64CE] text-white flex-col hidden md:flex h-screen sticky top-0 shrink-0 shadow-lg z-30`}>
-                <div className="h-[72px] flex items-center justify-center border-b border-white/10 shrink-0 whitespace-nowrap">
-                    <div className="relative w-64 h-20 mr-5 mt-5">
-                        <Image src="/logo.png" alt="Korea Link" fill className="object-contain" priority />
+                <div className="h-[72px] flex items-center justify-center border-b border-white/10 shrink-0">
+                    <div className="relative w-52 h-16 mr-5 mt-5">
+                        <Image src="/logo.png" alt="" fill className="object-contain" priority unoptimized={true} />
                     </div>
                 </div>
                 <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 w-64">
-                    <Button
-                        variant="ghost"
-                        className={`w-full justify-start font-medium border-0 ${activeMenu === 'bai-hoc' ? 'bg-white/15 text-white hover:bg-white/20' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}
-                        onClick={() => setActiveMenu('bai-hoc')}
-                    >
-                        <BookOpen className="w-4 h-4 mr-3" />
-                        Bài học
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className={`w-full justify-start font-medium border-0 ${activeMenu === 'luyen-tap' ? 'bg-white/15 text-white hover:bg-white/20' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}
-                        onClick={() => setActiveMenu('luyen-tap')}
-                    >
-                        <Target className="w-4 h-4 mr-3" />
-                        Luyện Tập
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className={`w-full justify-start font-medium border-0 ${activeMenu === 'thi-thu' ? 'bg-white/15 text-white hover:bg-white/20' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}
-                        onClick={() => setActiveMenu('thi-thu')}
-                    >
-                        <FileText className="w-4 h-4 mr-3" />
-                        Thi Thử
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className={`w-full justify-start font-medium border-0 ${activeMenu === 'ai-chat' ? 'bg-white/15 text-white hover:bg-white/20' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}
-                        onClick={() => setActiveMenu('ai-chat')}
-                    >
-                        <Bot className="w-4 h-4 mr-3" />
-                        Luyện giao tiếp AI
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className={`w-full justify-start font-medium border-0 ${activeMenu === 'kiem-tra' ? 'bg-white/15 text-white hover:bg-white/20' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}
-                        onClick={() => setActiveMenu('kiem-tra')}
-                    >
-                        <ClipboardCheck className="w-4 h-4 mr-3" />
-                        Kiểm Tra
-                    </Button>
+                    {enabledMenuItems.map((item) => renderMenuButton(item))}
                 </nav>
             </aside>
 
@@ -161,36 +265,39 @@ export default function DashboardPage() {
                 <header className="h-[72px] border-b bg-white px-4 md:px-6 flex items-center justify-between sticky top-0 z-20 shrink-0">
                     <div className="flex items-center gap-3">
                         {/* Mobile Hamburger */}
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-gray-600 hover:bg-gray-100 md:hidden w-10 h-10"
+                        <button
+                            className="text-gray-600 hover:text-gray-900 md:hidden transition-colors"
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         >
-                            {isMobileMenuOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
-                        </Button>
+                            {isMobileMenuOpen ? (
+                                <X className="w-10 h-10" />
+                            ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10">
+                                    <line x1="2" x2="16" y1="6" y2="6" />
+                                    <line x1="2" x2="22" y1="12" y2="12" />
+                                    <line x1="2" x2="16" y1="18" y2="18" />
+                                </svg>
+                            )}
+                        </button>
 
                         {/* Desktop Hamburger */}
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-gray-600 hover:bg-gray-100 hidden md:flex w-10 h-10"
+                        <button
+                            className="text-gray-600 hover:text-gray-900 hidden md:block transition-colors"
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                         >
-                            <Menu className="w-7 h-7" />
-                        </Button>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10">
+                                <line x1="2" x2="16" y1="6" y2="6" />
+                                <line x1="2" x2="22" y1="12" y2="12" />
+                                <line x1="2" x2="16" y1="18" y2="18" />
+                            </svg>
+                        </button>
 
                         <div className="md:hidden relative w-32 h-8 mr-1">
                             <Image src="/logomobile.png" alt="Korea Link" fill className="object-contain" priority />
                         </div>
 
                         <div className="hidden md:flex items-center text-xl font-bold text-gray-800 ml-2">
-                            {activeMenu === 'bai-hoc' && 'Bài học'}
-                            {activeMenu === 'luyen-tap' && 'Luyện Tập'}
-                            {activeMenu === 'thi-thu' && 'Thi Thử'}
-                            {activeMenu === 'ai-chat' && 'Luyện giao tiếp AI'}
-                            {activeMenu === 'kiem-tra' && 'Kiểm Tra'}
-                            {!activeMenu && 'Tổng quan'}
+                            {activeMenuItem?.label ?? 'Tổng quan'}
                         </div>
                     </div>
 
@@ -216,47 +323,18 @@ export default function DashboardPage() {
 
                 {/* Mobile Menu Dropdown */}
                 {isMobileMenuOpen && (
-                    <div className="md:hidden border-b bg-white p-4 shadow-md sticky top-[72px] z-10 flex flex-col gap-1">
-                        <Button
-                            variant="ghost"
-                            className={`w-full justify-start font-medium border-0 ${activeMenu === 'bai-hoc' ? 'bg-blue-50 text-[#2B64CE]' : 'text-gray-600 hover:bg-gray-100'}`}
-                            onClick={() => { setActiveMenu('bai-hoc'); setIsMobileMenuOpen(false); }}
+                    <div className="md:hidden border-b border-white/10 bg-[#2B64CE] p-4 shadow-md sticky top-[72px] z-10 flex flex-col gap-1 text-white">
+                        {enabledMenuItems.map((item) => renderMenuButton(item, () => setIsMobileMenuOpen(false)))}
+                        <a
+                            href="tel:0965577882"
+                            className="mt-3 flex items-center justify-between rounded-lg border border-white/25 px-4 py-3 text-white/95"
                         >
-                            <BookOpen className="w-4 h-4 mr-3" />
-                            Bài học
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            className={`w-full justify-start font-medium border-0 ${activeMenu === 'luyen-tap' ? 'bg-blue-50 text-[#2B64CE]' : 'text-gray-600 hover:bg-gray-100'}`}
-                            onClick={() => { setActiveMenu('luyen-tap'); setIsMobileMenuOpen(false); }}
-                        >
-                            <Target className="w-4 h-4 mr-3" />
-                            Luyện Tập
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            className={`w-full justify-start font-medium border-0 ${activeMenu === 'thi-thu' ? 'bg-blue-50 text-[#2B64CE]' : 'text-gray-600 hover:bg-gray-100'}`}
-                            onClick={() => { setActiveMenu('thi-thu'); setIsMobileMenuOpen(false); }}
-                        >
-                            <FileText className="w-4 h-4 mr-3" />
-                            Thi Thử
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            className={`w-full justify-start font-medium border-0 ${activeMenu === 'ai-chat' ? 'bg-blue-50 text-[#2B64CE]' : 'text-gray-600 hover:bg-gray-100'}`}
-                            onClick={() => { setActiveMenu('ai-chat'); setIsMobileMenuOpen(false); }}
-                        >
-                            <Bot className="w-4 h-4 mr-3" />
-                            Luyện giao tiếp AI
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            className={`w-full justify-start font-medium border-0 ${activeMenu === 'kiem-tra' ? 'bg-blue-50 text-[#2B64CE]' : 'text-gray-600 hover:bg-gray-100'}`}
-                            onClick={() => { setActiveMenu('kiem-tra'); setIsMobileMenuOpen(false); }}
-                        >
-                            <ClipboardCheck className="w-4 h-4 mr-3" />
-                            Kiểm Tra
-                        </Button>
+                            <span className="flex items-center gap-2 text-sm font-semibold">
+                                <Phone className="h-4 w-4" />
+                                Hotline hỗ trợ
+                            </span>
+                            <span className="text-sm font-medium">0965577882</span>
+                        </a>
                     </div>
                 )}
 
@@ -269,120 +347,19 @@ export default function DashboardPage() {
                             <>
                                 <h1 className="text-3xl font-bold tracking-tight">Chào mừng trở lại! 👋</h1>
                                 <div className="grid md:grid-cols-2 gap-6">
-                                    <Card className="border-primary/20 bg-primary/5 hover:border-primary/50 transition-colors">
-                                        <CardHeader>
-                                            <CardTitle className="text-primary flex items-center gap-2">
-                                                <BookOpen className="w-5 h-5" />
-                                                Bài học
-                                            </CardTitle>
-                                            <CardDescription>Học từ vựng, ngữ pháp và hội thoại theo giáo trình EPS-TOPIK</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <Button
-                                                variant="default"
-                                                className="w-full"
-                                                onClick={() => setActiveMenu('bai-hoc')}
-                                            >
-                                                Vào học
-                                            </Button>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card className="border-primary/20 bg-primary/5 hover:border-primary/50 transition-colors">
-                                        <CardHeader>
-                                            <CardTitle className="text-primary flex items-center gap-2">
-                                                <Target className="w-5 h-5" />
-                                                Luyện Tập
-                                            </CardTitle>
-                                            <CardDescription>Flashcard, ngữ pháp, trắc nghiệm nhanh theo bài học</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <Button
-                                                variant="default"
-                                                className="w-full"
-                                                onClick={() => setActiveMenu('luyen-tap')}
-                                            >
-                                                Luyện tập ngay
-                                            </Button>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card className="border-primary/20 bg-primary/5 hover:border-primary/50 transition-colors">
-                                        <CardHeader>
-                                            <CardTitle className="text-primary flex items-center gap-2">
-                                                <FileText className="w-5 h-5" />
-                                                Thi Thử
-                                            </CardTitle>
-                                            <CardDescription>Làm đề thi thử EPS-TOPIK theo cấu trúc đề thi thật</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <Button
-                                                variant="default"
-                                                className="w-full"
-                                                onClick={() => setActiveMenu('thi-thu')}
-                                            >
-                                                Vào thi thử
-                                            </Button>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card className="border-primary/20 bg-primary/5 hover:border-primary/50 transition-colors">
-                                        <CardHeader>
-                                            <CardTitle className="text-primary flex items-center gap-2">
-                                                <Bot className="w-5 h-5" />
-                                                Luyện giao tiếp AI
-                                                <span className="relative flex h-3 w-3">
-                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-                                                </span>
-                                            </CardTitle>
-                                            <CardDescription>Đóng vai và thực hành tiếng Hàn với Giáo viên AI</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <Button
-                                                variant="default"
-                                                className="w-full"
-                                                onClick={() => setActiveMenu('ai-chat')}
-                                            >
-                                                Khám phá kịch bản
-                                            </Button>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card className="border-primary/20 bg-primary/5 hover:border-primary/50 transition-colors">
-                                        <CardHeader>
-                                            <CardTitle className="text-primary flex items-center gap-2">
-                                                <ClipboardCheck className="w-5 h-5" />
-                                                Kiểm Tra
-                                                <span className="relative flex h-3 w-3">
-                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-                                                </span>
-                                            </CardTitle>
-                                            <CardDescription>Kiểm tra phát âm, từ vựng và phản xạ giao tiếp theo tiến độ học</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <Button
-                                                variant="default"
-                                                className="w-full"
-                                                onClick={() => setActiveMenu('kiem-tra')}
-                                            >
-                                                Vào Thi Thực Hành
-                                            </Button>
-                                        </CardContent>
-                                    </Card>
+                                    {enabledMenuItems.map((item) => renderOverviewCard(item))}
                                 </div>
                             </>
                         )}
 
                         {/* BÀI HỌC */}
-                        {activeMenu === 'bai-hoc' && <LessonList />}
+                        {activeMenu === 'bai-hoc' && activeMenuItem && <LessonList />}
 
                         {/* LUYỆN TẬP */}
-                        {activeMenu === 'luyen-tap' && <PracticeHub />}
+                        {activeMenu === 'luyen-tap' && activeMenuItem && <PracticeHub />}
 
                         {/* THI THỬ */}
-                        {activeMenu === 'thi-thu' && (
+                        {activeMenu === 'thi-thu' && activeMenuItem && (
                             <>
                                 <div>
                                     <div className="mb-4">
@@ -447,7 +424,7 @@ export default function DashboardPage() {
                         )}
 
                         {/* LUYỆN GIAO TIẾP AI */}
-                        {activeMenu === 'ai-chat' && (
+                        {activeMenu === 'ai-chat' && activeMenuItem && (
                             <>
                                 <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
                                     <Bot className="w-8 h-8 text-primary" />
@@ -479,7 +456,7 @@ export default function DashboardPage() {
                         )}
 
                         {/* KIỂM TRA */}
-                        {activeMenu === 'kiem-tra' && (
+                        {activeMenu === 'kiem-tra' && activeMenuItem && (
                             <>
                                 <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
                                     <ClipboardCheck className="w-8 h-8 text-primary" />

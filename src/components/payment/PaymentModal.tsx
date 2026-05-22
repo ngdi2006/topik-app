@@ -20,12 +20,20 @@ interface PaymentModalProps {
     onSuccess?: () => void
 }
 
+interface BankInfo {
+    bank_name: string
+    account_no: string
+    account_name: string
+    amount: number
+    content: string
+}
+
 export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     const [packages, setPackages] = useState<PaymentPackage[]>([])
     const [loading, setLoading] = useState(true)
     const [selectedPackage, setSelectedPackage] = useState<PaymentPackage | null>(null)
     const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
-    const [bankInfo, setBankInfo] = useState<any>(null)
+    const [bankInfo, setBankInfo] = useState<BankInfo | null>(null)
     const [transactionCode, setTransactionCode] = useState<string | null>(null)
     const [processingPayment, setProcessingPayment] = useState(false)
     const [paymentComplete, setPaymentComplete] = useState(false)
@@ -55,12 +63,18 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                     toast.success('Thanh toán thành công!')
                     setTimeout(() => {
                         onSuccess?.()
-                        handleClose()
+                        stopPolling()
+                        setSelectedPackage(null)
+                        setQrCodeUrl(null)
+                        setBankInfo(null)
+                        setTransactionCode(null)
+                        setPaymentComplete(false)
+                        onClose()
                     }, 2500)
                 }
-            } catch {}
+            } catch { }
         }, 5000)
-    }, [stopPolling, onSuccess])
+    }, [stopPolling, onSuccess, onClose])
 
     useEffect(() => {
         return () => stopPolling()
@@ -201,6 +215,10 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                             <p className="text-xs text-muted-foreground">Quét mã QR bằng app ngân hàng</p>
                         </div>
 
+                        <p className="text-center text-xs text-muted-foreground">
+                            Nếu không mở được app ngân hàng, hãy quét mã QR hoặc sao chép thông tin bên dưới.
+                        </p>
+
                         <div className="rounded-lg border divide-y text-sm">
                             <div className="flex items-center justify-between px-4 py-2.5">
                                 <span className="text-muted-foreground">Ngân hàng</span>
@@ -214,7 +232,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                                         variant="ghost"
                                         size="sm"
                                         className="h-6 w-6 p-0"
-                                        onClick={() => copyToClipboard(bankInfo?.account_no)}
+                                        onClick={() => copyToClipboard(bankInfo?.account_no || '')}
                                     >
                                         <Copy className="w-3 h-3" />
                                     </Button>
@@ -227,12 +245,12 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                             <div className="flex items-center justify-between px-4 py-2.5">
                                 <span className="text-muted-foreground">Số tiền</span>
                                 <div className="flex items-center gap-1.5">
-                                    <span className="font-bold text-primary">{formatPrice(bankInfo?.amount)}</span>
+                                    <span className="font-bold text-primary">{formatPrice(bankInfo?.amount || 0)}</span>
                                     <Button
                                         variant="ghost"
                                         size="sm"
                                         className="h-6 w-6 p-0"
-                                        onClick={() => copyToClipboard(bankInfo?.amount.toString())}
+                                        onClick={() => copyToClipboard(String(bankInfo?.amount || ''))}
                                     >
                                         <Copy className="w-3 h-3" />
                                     </Button>
@@ -263,8 +281,12 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                             <Button variant="outline" onClick={handleBack} className="flex-1">
                                 Chọn gói khác
                             </Button>
-                            <Button onClick={handleClose} className="flex-1">
-                                Đã chuyển khoản
+                            <Button
+                                type="button"
+                                onClick={() => window.open(qrCodeUrl, '_blank', 'noopener,noreferrer')}
+                                className="flex-1"
+                            >
+                                Mở app ngân hàng
                             </Button>
                         </div>
                     </div>
@@ -331,7 +353,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                                                             : 'bg-gray-900 text-white'
                                                     }
                                                 `}>
-                                                    {processingPayment ? 'Đang xử lý...' : 'Chọn gói này'}
+                                                    {processingPayment ? 'Đang xử lý...' : 'Mua gói'}
                                                 </div>
                                             </div>
                                         </div>
@@ -343,7 +365,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                         <div className="flex items-start gap-3 rounded-lg bg-emerald-50 border border-emerald-200 p-3">
                             <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                             <p className="text-sm text-emerald-800">
-                                Mỗi tài khoản được tặng <strong>1 lượt miễn phí</strong> để làm đề thi mẫu.
+                                Mỗi tài khoản được tặng <strong className="font-bold text-red-600">3 lượt miễn phí</strong>.
                             </p>
                         </div>
                     </div>

@@ -55,6 +55,18 @@ export default function RegisterPage() {
     }
 
     const handleGoogleLogin = async () => {
+        // Detect in-app browsers like Zalo, Facebook which block Google Auth
+        const ua = navigator.userAgent || navigator.vendor || (window as any).opera;
+        const isEmbedded = /FBAN|FBAV|Zalo|Instagram|Line|TikTok/i.test(ua);
+        
+        if (isEmbedded) {
+            toast.error("Vui lòng mở bằng trình duyệt (Chrome/Safari) để đăng ký bằng Google", {
+                description: "Nhấn vào dấu 3 chấm góc phải trên cùng và chọn 'Mở bằng trình duyệt' hoặc 'Mở trong Safari'.",
+                duration: 8000,
+            });
+            return;
+        }
+
         setIsLoading(true)
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',

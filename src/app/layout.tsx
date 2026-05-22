@@ -13,6 +13,7 @@ export const metadata: Metadata = {
 };
 
 import { Toaster } from 'sonner';
+import { OnlineSupportWidget } from '@/components/shared/OnlineSupportWidget';
 
 export default function RootLayout({
   children,
@@ -25,6 +26,7 @@ export default function RootLayout({
         className={`${inter.className} antialiased`}
       >
         {children}
+        <OnlineSupportWidget />
         <Toaster richColors position="top-right" />
       </body>
     </html>

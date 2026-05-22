@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npm run *)",
       "Bash(Get-ChildItem -Path \"e:\\\\TOPIK-IBT\\\\topik-app\" -Recurse -Filter \"*migration*\" -Directory)",
-      "Bash(Select-Object -ExpandProperty FullName)"
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(git -C /e/TOPIK-IBT/topik-app status --short --ignore-submodules=none)"
     ]
   }
 }

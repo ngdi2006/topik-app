@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { UserNav } from "@/components/shared/UserNav"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X } from "lucide-react"
+import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles } from "lucide-react"
 import { LessonList } from "@/components/lessons/LessonList"
 import { PracticeHub } from "@/components/practice/PracticeHub"
 import { PaymentModal } from "@/components/payment/PaymentModal"
@@ -24,6 +24,8 @@ type Exam = {
     is_free?: boolean
     is_ai_generated?: boolean
     description?: string
+    free_attempts?: number
+    remaining_free_attempts?: number
 }
 
 type LearnerMenuSetting = {
@@ -399,10 +401,13 @@ export default function DashboardPage() {
                                                         </div>
                                                         {!exam.is_free && (
                                                             <div className="flex items-center justify-between bg-blue-50 p-2.5 rounded-lg border border-blue-100">
-                                                                <span className="text-xs font-semibold text-blue-800">Lượt thi hiện tại của bạn:</span>
+                                                                <span className="text-xs font-semibold text-blue-800 flex items-center gap-1.5">
+                                                                    <Factory className="w-3.5 h-3.5 text-blue-600" />
+                                                                    Lượt thi miễn phí:
+                                                                </span>
                                                                 <Badge variant="secondary" className="bg-white border-blue-200 text-blue-700 shadow-sm">
-                                                                    <Coins className="w-3.5 h-3.5 mr-1.5 text-yellow-500" /> 
-                                                                    {userCredits} lượt
+                                                                    <Sparkles className="w-3.5 h-3.5 mr-1.5 text-yellow-500" /> 
+                                                                    {exam.remaining_free_attempts ?? exam.free_attempts ?? 0} lượt
                                                                 </Badge>
                                                             </div>
                                                         )}

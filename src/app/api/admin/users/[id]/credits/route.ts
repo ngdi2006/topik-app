@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
+type CreditAction = 'add' | 'deduct'
+
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
     try {
         const resolvedParams = await context.params
@@ -9,9 +11,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         const body = await request.json()
         const credits = Number(body.credits)
         const notes = typeof body.notes === 'string' ? body.notes.trim() : ''
+        const action: CreditAction = body.action === 'deduct' ? 'deduct' : 'add'
 
         if (!Number.isInteger(credits) || credits <= 0) {
-            return NextResponse.json({ error: 'Số lượt cộng phải là số nguyên dương' }, { status: 400 })
+            return NextResponse.json({ error: 'Số lượt điều chỉnh phải là số nguyên dương' }, { status: 400 })
         }
 
         const supabase = await createClient()
@@ -29,10 +32,15 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         }
 
         const adminClient = createAdminClient()
-        const { error: creditError } = await adminClient.rpc('increment_user_credits', {
-            p_user_id: userId,
-            p_credits: credits,
-        })
+        const { error: creditError } = action === 'add'
+            ? await adminClient.rpc('increment_user_credits', {
+                p_user_id: userId,
+                p_credits: credits,
+            })
+            : await adminClient.rpc('deduct_user_credits', {
+                p_user_id: userId,
+                p_credits: credits,
+            })
 
         if (creditError) {
             return NextResponse.json({ error: creditError.message }, { status: 500 })
@@ -50,7 +58,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
         return NextResponse.json({
             success: true,
-            message: `Đã cộng ${credits} lượt cho người dùng`,
+            action,
+            message: action === 'add'
+                ? `Đã cộng ${credits} lượt cho người dùng`
+                : `Đã trừ ${credits} lượt của người dùng`,
             notes,
             credits: creditRow,
         })

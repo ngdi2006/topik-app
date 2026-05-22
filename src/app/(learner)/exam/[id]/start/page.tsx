@@ -134,11 +134,11 @@ export default function ExamStartPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 md:py-12 px-4">
             <div className="max-w-3xl mx-auto">
                 {/* Header */}
-                <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
-                    <div className="text-center mb-6">
+                <div className="bg-white rounded-2xl shadow-xl p-5 md:p-8 mb-6">
+                    <div className="text-center mb-4 md:mb-6">
                         <div className="flex items-center justify-center gap-2 mb-3">
                             {exam.is_free && (
                                 <Badge className="bg-emerald-500">Miễn phí</Badge>
@@ -155,7 +155,7 @@ export default function ExamStartPage() {
                                 </Badge>
                             )}
                         </div>
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
                             {exam.title}
                         </h1>
                         {accessLoaded && !exam.is_free && accessInfo?.can_access && accessInfo?.debug?.totalAttempts < exam.free_attempts && (
@@ -177,28 +177,28 @@ export default function ExamStartPage() {
                     </div>
 
                     {/* Exam Info */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                        <div className="bg-blue-50 rounded-lg p-4 text-center">
-                            <Clock className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                            <p className="text-sm text-gray-600 mb-1">Tổng thời gian</p>
-                            <p className="text-2xl font-bold text-gray-900">
-                                {exam.duration} phút
+                    <div className="grid grid-cols-3 gap-2 md:gap-4 mb-6 md:mb-8">
+                        <div className="bg-blue-50 rounded-lg p-3 md:p-4 text-center flex flex-col justify-center">
+                            <Clock className="w-6 h-6 md:w-8 md:h-8 text-blue-600 mx-auto mb-1.5 md:mb-2" />
+                            <p className="text-[11px] md:text-sm text-gray-600 mb-0.5 md:mb-1 leading-tight">Tổng thời gian</p>
+                            <p className="text-base md:text-2xl font-bold text-gray-900">
+                                {exam.duration}p
                             </p>
                         </div>
 
-                        <div className="bg-green-50 rounded-lg p-4 text-center">
-                            <BookOpen className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                            <p className="text-sm text-gray-600 mb-1">Đọc hiểu</p>
-                            <p className="text-2xl font-bold text-gray-900">
-                                {exam.reading_duration || 0} phút
+                        <div className="bg-green-50 rounded-lg p-3 md:p-4 text-center flex flex-col justify-center">
+                            <BookOpen className="w-6 h-6 md:w-8 md:h-8 text-green-600 mx-auto mb-1.5 md:mb-2" />
+                            <p className="text-[11px] md:text-sm text-gray-600 mb-0.5 md:mb-1 leading-tight">Đọc hiểu</p>
+                            <p className="text-base md:text-2xl font-bold text-gray-900">
+                                {exam.reading_duration || 0}p
                             </p>
                         </div>
 
-                        <div className="bg-purple-50 rounded-lg p-4 text-center">
-                            <Headphones className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-                            <p className="text-sm text-gray-600 mb-1">Nghe hiểu</p>
-                            <p className="text-2xl font-bold text-gray-900">
-                                {exam.listening_duration || 0} phút
+                        <div className="bg-purple-50 rounded-lg p-3 md:p-4 text-center flex flex-col justify-center">
+                            <Headphones className="w-6 h-6 md:w-8 md:h-8 text-purple-600 mx-auto mb-1.5 md:mb-2" />
+                            <p className="text-[11px] md:text-sm text-gray-600 mb-0.5 md:mb-1 leading-tight">Nghe hiểu</p>
+                            <p className="text-base md:text-2xl font-bold text-gray-900">
+                                {exam.listening_duration || 0}p
                             </p>
                         </div>
                     </div>
@@ -226,14 +226,14 @@ export default function ExamStartPage() {
                     )}
 
                     {/* Instructions */}
-                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 md:p-4 mb-4 md:mb-6">
                         <div className="flex">
                             <AlertCircle className="w-5 h-5 text-yellow-600 mr-3 flex-shrink-0 mt-0.5" />
                             <div>
-                                <h3 className="font-semibold text-yellow-900 mb-2">
+                                <h3 className="font-semibold text-yellow-900 mb-1.5 md:mb-2 text-sm md:text-base">
                                     Lưu ý quan trọng:
                                 </h3>
-                                <ul className="text-sm text-yellow-800 space-y-1">
+                                <ul className="text-xs md:text-sm text-yellow-800 space-y-1">
                                     <li>• <strong>Phần Đọc hiểu:</strong> Bạn có thể qua lại giữa các câu hỏi</li>
                                     <li>• <strong>Phần Nghe hiểu:</strong> Không được quay lại câu đã làm</li>
                                     <li>• Audio chỉ phát 1 lần duy nhất</li>
@@ -248,7 +248,7 @@ export default function ExamStartPage() {
                     <div className="text-center">
                         <Button
                             size="lg"
-                            className="px-12 py-6 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                            className="w-full md:w-auto px-6 py-4 md:px-12 md:py-6 text-base md:text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                             onClick={handleStartExam}
                             disabled={isStarting}
                         >

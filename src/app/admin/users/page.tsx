@@ -36,10 +36,58 @@ type HistoryRecord = {
     }
 }
 
+type CreditAction = 'add' | 'deduct'
+
 const initialGrantForm = {
+    action: 'add' as CreditAction,
     credits: '',
     notes: '',
 }
+
+const actionLabels: Record<CreditAction, string> = {
+    add: 'Cộng lượt',
+    deduct: 'Trừ lượt',
+}
+
+const actionMessages: Record<CreditAction, string> = {
+    add: 'Đang cộng lượt...',
+    deduct: 'Đang trừ lượt...',
+}
+
+const actionErrorMessages: Record<CreditAction, string> = {
+    add: 'Không thể cộng lượt',
+    deduct: 'Không thể trừ lượt',
+}
+
+const actionSuccessMessages: Record<CreditAction, (credits: string, name: string) => string> = {
+    add: (credits, name) => `Đã cộng ${credits} lượt cho ${name}`,
+    deduct: (credits, name) => `Đã trừ ${credits} lượt của ${name}`,
+}
+
+const actionInputLabels: Record<CreditAction, string> = {
+    add: 'Số lượt cộng thêm',
+    deduct: 'Số lượt cần trừ',
+}
+
+const actionHelperText: Record<CreditAction, string> = {
+    add: 'Nhập số lượt muốn cộng thêm cho người dùng.',
+    deduct: 'Không thể trừ vượt quá số lượt hiện có của người dùng.',
+}
+
+const actionButtonVariants: Record<CreditAction, 'default' | 'destructive'> = {
+    add: 'default',
+    deduct: 'destructive',
+}
+
+const actionButtonClasses: Record<CreditAction, string> = {
+    add: '',
+    deduct: 'bg-red-600 hover:bg-red-700',
+}
+
+const actionTabsClasses = (isActive: boolean) =>
+    isActive
+        ? 'bg-primary text-primary-foreground'
+        : 'bg-muted text-muted-foreground hover:bg-muted/80'
 
 const formatCredits = (credits: number) => `${credits} lượt`
 
@@ -230,30 +278,39 @@ export default function AdminUsersPage() {
             return
         }
 
+        const action = grantForm.action
+        const requestedCredits = Number(grantForm.credits)
+
+        if (action === 'deduct' && requestedCredits > selectedUserForCredits.remainingCredits) {
+            toast.error('Số lượt cần trừ không được vượt quá số lượt hiện có')
+            return
+        }
+
         setIsGrantingCredits(true)
-        const toastId = toast.loading('Đang cộng lượt...')
+        const toastId = toast.loading(actionMessages[action])
 
         try {
             const res = await fetch(`/api/admin/users/${selectedUserForCredits.id}/credits`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    credits: Number(grantForm.credits),
+                    action,
+                    credits: requestedCredits,
                     notes: grantForm.notes,
                 })
             })
 
             const data = await res.json().catch(() => null)
             if (!res.ok) {
-                const message = data && typeof data.error === 'string' ? data.error : 'Không thể cộng lượt'
+                const message = data && typeof data.error === 'string' ? data.error : actionErrorMessages[action]
                 throw new Error(message)
             }
 
-            toast.success(`Đã cộng ${grantForm.credits} lượt cho ${selectedUserForCredits.name}`, { id: toastId })
+            toast.success(actionSuccessMessages[action](grantForm.credits, selectedUserForCredits.name), { id: toastId })
             closeGrantDialog()
             fetchUsers()
         } catch (error) {
-            toast.error(getErrorMessage(error, 'Không thể cộng lượt'), { id: toastId })
+            toast.error(getErrorMessage(error, actionErrorMessages[action]), { id: toastId })
         } finally {
             setIsGrantingCredits(false)
         }
@@ -367,7 +424,7 @@ export default function AdminUsersPage() {
                                             size="icon"
                                             onClick={() => openGrantDialog(user)}
                                             className="h-8 w-8 text-amber-600 bg-amber-50"
-                                            title="Cộng lượt"
+                                            title="Điều chỉnh lượt"
                                         >
                                             <Coins className="w-4 h-4" />
                                         </Button>
@@ -474,7 +531,7 @@ export default function AdminUsersPage() {
             <Dialog open={isGrantDialogOpen} onOpenChange={(open) => !open && closeGrantDialog()}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                        <DialogTitle>Cộng lượt cho người dùng</DialogTitle>
+                        <DialogTitle>Điều chỉnh lượt người dùng</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleGrantCredits} className="space-y-4 py-4">
                         <div className="space-y-1 text-sm">
@@ -482,8 +539,20 @@ export default function AdminUsersPage() {
                             <p className="text-muted-foreground">{selectedUserForCredits?.email}</p>
                             <p className="text-blue-700 font-medium">Hiện có: {formatCredits(selectedUserForCredits?.remainingCredits ?? 0)}</p>
                         </div>
+                        <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
+                            {(['add', 'deduct'] as CreditAction[]).map((action) => (
+                                <button
+                                    key={action}
+                                    type="button"
+                                    onClick={() => setGrantForm({ ...grantForm, action })}
+                                    className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${actionTabsClasses(grantForm.action === action)}`}
+                                >
+                                    {actionLabels[action]}
+                                </button>
+                            ))}
+                        </div>
                         <div className="space-y-2">
-                            <Label htmlFor="grantCredits">Số lượt cộng thêm</Label>
+                            <Label htmlFor="grantCredits">{actionInputLabels[grantForm.action]}</Label>
                             <Input
                                 id="grantCredits"
                                 type="number"
@@ -494,12 +563,15 @@ export default function AdminUsersPage() {
                                 onChange={(e) => setGrantForm({ ...grantForm, credits: e.target.value })}
                                 required
                             />
+                            <p className={`text-xs ${grantForm.action === 'deduct' ? 'text-red-600' : 'text-muted-foreground'}`}>
+                                {actionHelperText[grantForm.action]}
+                            </p>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="grantNotes">Ghi chú (Tùy chọn)</Label>
                             <Input
                                 id="grantNotes"
-                                placeholder="VD: Tặng thêm lượt cho học viên"
+                                placeholder={grantForm.action === 'add' ? 'VD: Tặng thêm lượt cho học viên' : 'VD: Điều chỉnh lại lượt đã cấp'}
                                 value={grantForm.notes}
                                 onChange={(e) => setGrantForm({ ...grantForm, notes: e.target.value })}
                             />
@@ -508,8 +580,13 @@ export default function AdminUsersPage() {
                             <Button type="button" variant="outline" onClick={closeGrantDialog}>
                                 Hủy
                             </Button>
-                            <Button type="submit" disabled={isGrantingCredits}>
-                                {isGrantingCredits ? 'Đang cộng...' : 'Cộng lượt'}
+                            <Button
+                                type="submit"
+                                variant={actionButtonVariants[grantForm.action]}
+                                className={actionButtonClasses[grantForm.action]}
+                                disabled={isGrantingCredits}
+                            >
+                                {isGrantingCredits ? actionMessages[grantForm.action] : actionLabels[grantForm.action]}
                             </Button>
                         </DialogFooter>
                     </form>

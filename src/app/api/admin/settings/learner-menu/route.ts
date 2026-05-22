@@ -2,20 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 
-type AdminSupabaseClient = {
-    auth: {
-        getUser: () => Promise<{ data: { user: { id: string } | null }, error: Error | null }>
-    }
-    from: (table: 'profiles') => {
-        select: (columns: 'role') => {
-            eq: (column: 'id', value: string) => {
-                single: () => Promise<{ data: { role: string } | null }>
-            }
-        }
-    }
-}
 
-async function checkAdmin(supabase: AdminSupabaseClient) {
+
+async function checkAdmin(supabase: any) {
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) return null
 
@@ -32,7 +21,7 @@ async function checkAdmin(supabase: AdminSupabaseClient) {
 export async function GET() {
     try {
         const supabase = await createClient()
-        const user = await checkAdmin(supabase as AdminSupabaseClient)
+        const user = await checkAdmin(supabase)
         if (!user) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
@@ -55,7 +44,7 @@ export async function GET() {
 export async function PATCH(request: NextRequest) {
     try {
         const supabase = await createClient()
-        const user = await checkAdmin(supabase as AdminSupabaseClient)
+        const user = await checkAdmin(supabase)
         if (!user) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }

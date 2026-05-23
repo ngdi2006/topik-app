@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select'
 import { MediaUploader } from '@/components/admin/MediaUploader'
 import { OptionInput } from '@/components/admin/OptionInput'
+import { RichTextEditor } from '@/components/admin/RichTextEditor'
 import { ArrowLeft, Save, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { QuestionBank } from '@/types/exam'
@@ -241,13 +242,13 @@ export default function EditQuestionPage() {
                     {/* Question Text */}
                     <div className="space-y-2">
                         <Label>Câu hỏi *</Label>
-                        <Textarea
-                            rows={3}
-                            value={question.question_text}
-                            onChange={(e) =>
-                                setQuestion({ ...question, question_text: e.target.value })
+                        <RichTextEditor
+                            value={question.question_text || ''}
+                            onChange={(value) =>
+                                setQuestion({ ...question, question_text: value })
                             }
-                            required
+                            placeholder="Nhập nội dung câu hỏi..."
+                            minHeight="150px"
                         />
                     </div>
 
@@ -255,12 +256,13 @@ export default function EditQuestionPage() {
                     {question.question_type === 'reading' && (
                         <div className="space-y-2">
                             <Label>Đoạn văn (tùy chọn)</Label>
-                            <Textarea
-                                rows={4}
+                            <RichTextEditor
                                 value={question.passage || ''}
-                                onChange={(e) =>
-                                    setQuestion({ ...question, passage: e.target.value })
+                                onChange={(value) =>
+                                    setQuestion({ ...question, passage: value })
                                 }
+                                placeholder="Nhập đoạn văn để đọc hiểu..."
+                                minHeight="200px"
                             />
                         </div>
                     )}

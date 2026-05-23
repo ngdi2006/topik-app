@@ -35,6 +35,11 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
+const stripHtml = (html: string | undefined | null) => {
+    if (!html) return ''
+    return html.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').trim()
+}
+
 interface Category {
     id: string
     name: string
@@ -728,8 +733,8 @@ export default function AdminExamBuilderPage() {
                                                 Lv.{fq.question_bank?.level}
                                             </span>
                                             <span className="truncate text-muted-foreground">
-                                                {fq.question_bank?.question_text?.substring(0, 80)}
-                                                {(fq.question_bank?.question_text?.length || 0) > 80 ? '...' : ''}
+                                                {stripHtml(fq.question_bank?.question_text).substring(0, 150)}
+                                                {stripHtml(fq.question_bank?.question_text).length > 150 ? '...' : ''}
                                             </span>
                                         </div>
                                         <div className="flex gap-1 shrink-0">
@@ -875,7 +880,7 @@ export default function AdminExamBuilderPage() {
                                                     </Button>
                                                 </div>
                                                 <p className="text-sm text-gray-700 line-clamp-2">
-                                                    {q.question_text}
+                                                    {stripHtml(q.question_text)}
                                                 </p>
                                             </div>
                                         </label>

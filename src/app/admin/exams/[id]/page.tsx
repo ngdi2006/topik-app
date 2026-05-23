@@ -125,6 +125,7 @@ export default function AdminExamBuilderPage() {
     const [questionPool, setQuestionPool] = useState<any[]>([])
     const [poolLoading, setPoolLoading] = useState(false)
     const [poolFilter, setPoolFilter] = useState({ type: 'all', search: '', freeOnly: false })
+    const [poolPage, setPoolPage] = useState(1)
     const [selectedPoolIds, setSelectedPoolIds] = useState<string[]>([])
 
     const fetchExam = async () => {
@@ -192,7 +193,12 @@ export default function AdminExamBuilderPage() {
     const fetchQuestionPool = async () => {
         try {
             setPoolLoading(true)
-            const res = await fetch('/api/admin/question-bank?pageSize=500')
+            const queryParams = new URLSearchParams({ pageSize: '500' })
+            if (poolFilter.type !== 'all') queryParams.append('question_type', poolFilter.type)
+            if (poolFilter.search) queryParams.append('search', poolFilter.search)
+            if (poolFilter.freeOnly) queryParams.append('tag', 'free')
+
+            const res = await fetch(`/api/admin/question-bank?${queryParams.toString()}`)
             const data = await res.json()
             if (data.success) {
                 setQuestionPool(data.data || [])
@@ -203,6 +209,16 @@ export default function AdminExamBuilderPage() {
             setPoolLoading(false)
         }
     }
+
+    // Server-side fetch when filters change
+    useEffect(() => {
+        if (isAddFreeModalOpen) {
+            const delayDebounceFn = setTimeout(() => {
+                fetchQuestionPool()
+            }, 500)
+            return () => clearTimeout(delayDebounceFn)
+        }
+    }, [poolFilter.type, poolFilter.search, poolFilter.freeOnly, isAddFreeModalOpen])
 
     const handleAddFreeQuestions = async () => {
         if (selectedPoolIds.length === 0) {
@@ -687,8 +703,9 @@ export default function AdminExamBuilderPage() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => {
+                                    setPoolPage(1)
                                     setIsAddFreeModalOpen(true)
-                                    fetchQuestionPool()
+                                    // fetchQuestionPool is now handled by useEffect
                                 }}
                             >
                                 <Plus className="w-4 h-4 mr-1" /> Thêm câu
@@ -782,13 +799,19 @@ export default function AdminExamBuilderPage() {
                                 <Input
                                     placeholder="Tìm câu hỏi..."
                                     value={poolFilter.search}
-                                    onChange={(e) => setPoolFilter({ ...poolFilter, search: e.target.value })}
+                                    onChange={(e) => {
+                                        setPoolFilter({ ...poolFilter, search: e.target.value })
+                                        setPoolPage(1)
+                                    }}
                                     className="pl-9"
                                 />
                             </div>
                             <Select
                                 value={poolFilter.type}
-                                onValueChange={(val) => setPoolFilter({ ...poolFilter, type: val })}
+                                onValueChange={(val) => {
+                                    setPoolFilter({ ...poolFilter, type: val })
+                                    setPoolPage(1)
+                                }}
                             >
                                 <SelectTrigger className="w-[140px]">
                                     <SelectValue />
@@ -800,7 +823,10 @@ export default function AdminExamBuilderPage() {
                                 </SelectContent>
                             </Select>
                             <button
-                                onClick={() => setPoolFilter({ ...poolFilter, freeOnly: !poolFilter.freeOnly })}
+                                onClick={() => {
+                                    setPoolFilter({ ...poolFilter, freeOnly: !poolFilter.freeOnly })
+                                    setPoolPage(1)
+                                }}
                                 className={`flex items-center gap-1.5 px-3 py-2 rounded-md border text-sm font-medium transition-colors whitespace-nowrap ${
                                     poolFilter.freeOnly
                                         ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
@@ -825,68 +851,95 @@ export default function AdminExamBuilderPage() {
 
                         {poolLoading ? (
                             <div className="text-center py-8 text-muted-foreground">Đang tải kho câu hỏi...</div>
-                        ) : (
-                            <div className="border rounded-lg divide-y max-h-[50vh] overflow-y-auto">
-                                {questionPool
-                                    .filter(q => {
-                                        if (poolFilter.type !== 'all' && q.question_type !== poolFilter.type) return false
-                                        if (poolFilter.search && !q.question_text?.toLowerCase().includes(poolFilter.search.toLowerCase())) return false
-                                        if (poolFilter.freeOnly && !q.tags?.includes('free')) return false
-                                        // Exclude already-added questions
-                                        if (freeQuestions.some(fq => fq.question_bank_id === q.id)) return false
-                                        return true
-                                    })
-                                    .map((q: any) => (
-                                        <label
-                                            key={q.id}
-                                            className="flex items-start gap-3 px-3 py-2.5 hover:bg-gray-50 cursor-pointer"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedPoolIds.includes(q.id)}
-                                                onChange={(e) => {
-                                                    if (e.target.checked) {
-                                                        setSelectedPoolIds([...selectedPoolIds, q.id])
-                                                    } else {
-                                                        setSelectedPoolIds(selectedPoolIds.filter(id => id !== q.id))
-                                                    }
-                                                }}
-                                                className="mt-1 rounded border-gray-300"
-                                            />
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-1.5 mb-1">
-                                                    <span className={`px-1.5 py-0.5 rounded text-xs ${
-                                                        q.question_type === 'reading'
-                                                            ? 'bg-blue-100 text-blue-700'
-                                                            : 'bg-purple-100 text-purple-700'
-                                                    }`}>
-                                                        {q.question_type === 'reading' ? 'Đọc' : 'Nghe'}
-                                                    </span>
-                                                    <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-xs">
-                                                        Lv.{q.level}
-                                                    </span>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-6 px-2 text-xs"
-                                                        onClick={(event) => {
-                                                            event.preventDefault()
-                                                            event.stopPropagation()
-                                                            router.push(`/admin/question-bank/${q.id}`)
-                                                        }}
-                                                    >
-                                                        Sửa
-                                                    </Button>
+                        ) : (() => {
+                            const filteredPool = questionPool.filter(q => {
+                                if (poolFilter.type !== 'all' && q.question_type !== poolFilter.type) return false
+                                if (poolFilter.search && !q.question_text?.toLowerCase().includes(poolFilter.search.toLowerCase())) return false
+                                if (poolFilter.freeOnly && !(q.tags || []).some((t: string) => t.toLowerCase() === 'free')) return false
+                                if (freeQuestions.some(fq => fq.question_bank_id === q.id)) return false
+                                return true
+                            })
+                            const POOL_PAGE_SIZE = 10
+                            const totalPages = Math.ceil(filteredPool.length / POOL_PAGE_SIZE) || 1
+                            const paginatedPool = filteredPool.slice((poolPage - 1) * POOL_PAGE_SIZE, poolPage * POOL_PAGE_SIZE)
+
+                            return (
+                                <div className="space-y-4">
+                                    <div className="border rounded-lg divide-y max-h-[50vh] overflow-y-auto">
+                                        {paginatedPool.map((q: any) => (
+                                            <label
+                                                key={q.id}
+                                                className="flex items-start gap-3 px-3 py-2.5 hover:bg-gray-50 cursor-pointer"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedPoolIds.includes(q.id)}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setSelectedPoolIds([...selectedPoolIds, q.id])
+                                                        } else {
+                                                            setSelectedPoolIds(selectedPoolIds.filter(id => id !== q.id))
+                                                        }
+                                                    }}
+                                                    className="mt-1 rounded border-gray-300"
+                                                />
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-1.5 mb-1">
+                                                        <span className={`px-1.5 py-0.5 rounded text-xs ${
+                                                            q.question_type === 'reading'
+                                                                ? 'bg-blue-100 text-blue-700'
+                                                                : 'bg-purple-100 text-purple-700'
+                                                        }`}>
+                                                            {q.question_type === 'reading' ? 'Đọc' : 'Nghe'}
+                                                        </span>
+                                                        <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-xs">
+                                                            Lv.{q.level}
+                                                        </span>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-6 px-2 text-xs"
+                                                            onClick={(event) => {
+                                                                event.preventDefault()
+                                                                event.stopPropagation()
+                                                                router.push(`/admin/question-bank/${q.id}`)
+                                                            }}
+                                                        >
+                                                            Sửa
+                                                        </Button>
+                                                    </div>
+                                                    <p className="text-sm text-gray-700 line-clamp-2">
+                                                        {stripHtml(q.question_text)}
+                                                    </p>
                                                 </div>
-                                                <p className="text-sm text-gray-700 line-clamp-2">
-                                                    {stripHtml(q.question_text)}
-                                                </p>
-                                            </div>
-                                        </label>
-                                    ))}
-                            </div>
-                        )}
+                                            </label>
+                                        ))}
+                                    </div>
+                                    <div className="flex items-center justify-center gap-2 pt-2 pb-1">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setPoolPage(Math.max(1, poolPage - 1))}
+                                            disabled={poolPage === 1}
+                                        >
+                                            Trước
+                                        </Button>
+                                        <span className="text-sm text-muted-foreground px-2">
+                                            Trang {poolPage} / {totalPages}
+                                        </span>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setPoolPage(Math.min(totalPages, poolPage + 1))}
+                                            disabled={poolPage === totalPages}
+                                        >
+                                            Sau
+                                        </Button>
+                                    </div>
+                                </div>
+                            )
+                        })()}
                     </div>
                 </DialogContent>
             </Dialog>

@@ -1,0 +1,325 @@
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import * as XLSX from 'xlsx'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+import { toast } from 'sonner'
+import { Plus, Edit, Trash2, Search, Filter, Upload, Download } from 'lucide-react'
+
+export default function InterviewModuleAdminPage() {
+    const router = useRouter()
+    const [questions, setQuestions] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+    
+    // Filters
+    const [searchQuery, setSearchQuery] = useState('')
+    const [filterCategory, setFilterCategory] = useState('Tất cả')
+    
+    // File upload
+    const fileInputRef = useRef<HTMLInputElement>(null)
+
+    // Settings state
+    const [aiPrompt, setAiPrompt] = useState('')
+    const [savingSettings, setSavingSettings] = useState(false)
+
+    useEffect(() => {
+        fetchQuestions()
+        fetchSettings()
+    }, [])
+
+    const fetchQuestions = async () => {
+        try {
+            const res = await fetch('/api/admin/interview-questions')
+            const data = await res.json()
+            if (data.success) {
+                setQuestions(data.data)
+            }
+        } catch (error) {
+            toast.error('Lỗi tải danh sách câu hỏi')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const fetchSettings = async () => {
+        try {
+            const res = await fetch('/api/admin/system-settings')
+            const data = await res.json()
+            if (data.success && data.data) {
+                setAiPrompt(data.data.ai_global_prompt || '')
+            }
+        } catch (error) {
+            toast.error('Lỗi tải cấu hình')
+        }
+    }
+
+    const handleSaveSettings = async () => {
+        setSavingSettings(true)
+        const toastId = toast.loading('Đang lưu cấu hình...')
+        try {
+            const res = await fetch('/api/admin/system-settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ai_global_prompt: aiPrompt })
+            })
+            const data = await res.json()
+            if (!data.success) throw new Error(data.error)
+            toast.success('Đã lưu cấu hình thành công!', { id: toastId })
+        } catch (error: any) {
+            toast.error(error.message || 'Lỗi khi lưu cấu hình', { id: toastId })
+        } finally {
+            setSavingSettings(false)
+        }
+    }
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('Bạn có chắc chắn muốn xóa câu hỏi này?')) return
+        const toastId = toast.loading('Đang xóa...')
+        try {
+            const res = await fetch(`/api/admin/interview-questions/${id}`, {
+                method: 'DELETE'
+            })
+            const data = await res.json()
+            if (!data.success) throw new Error(data.error)
+            toast.success('Đã xóa câu hỏi!', { id: toastId })
+            fetchQuestions()
+        } catch (error: any) {
+            toast.error(error.message || 'Lỗi khi xóa', { id: toastId })
+        }
+    }
+
+    const handleDownloadTemplate = () => {
+        const templateData = [
+            {
+                "Phân loại": "Khẩu lệnh",
+                "Câu hỏi": "위를 보세요.",
+                "Dịch nghĩa": "Hãy nhìn lên trên.",
+                "Giây đếm ngược": 5,
+                "Link Audio": "",
+                "Gợi ý trả lời": "네, 알겠습니다|네",
+                "Link Ảnh công cụ": "",
+                "ID Ô thả": ""
+            },
+            {
+                "Phân loại": "Sử dụng công cụ",
+                "Câu hỏi": "망치를 오른쪽 아래 선반에 넣으세요.",
+                "Dịch nghĩa": "Hãy đặt búa vào kệ dưới bên phải.",
+                "Giây đếm ngược": 15,
+                "Link Audio": "",
+                "Gợi ý trả lời": "",
+                "Link Ảnh công cụ": "https://cdn-icons-png.flaticon.com/512/2515/2515201.png",
+                "ID Ô thả": "shelf_bottom_right"
+            }
+        ]
+        
+        const ws = XLSX.utils.json_to_sheet(templateData)
+        const wb = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(wb, ws, "Template")
+        XLSX.writeFile(wb, "Template_Phong_Van_Vong_2.xlsx")
+    }
+
+    const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        const reader = new FileReader()
+        reader.onload = async (evt) => {
+            try {
+                const bstr = evt.target?.result
+                const wb = XLSX.read(bstr, { type: 'binary' })
+                const wsname = wb.SheetNames[0]
+                const ws = wb.Sheets[wsname]
+                const data = XLSX.utils.sheet_to_json(ws)
+
+                const formattedData = data.map((row: any) => ({
+                    category: row['Phân loại'] || row['category'] || 'Giao tiếp',
+                    question_text: row['Câu hỏi'] || row['question_text'] || '',
+                    vietnamese_meaning: row['Dịch nghĩa'] || row['vietnamese_meaning'] || '',
+                    countdown_after_audio: parseInt(row['Giây đếm ngược'] || row['countdown_after_audio'] || '5', 10),
+                    question_audio_url: row['Link Audio'] || row['question_audio_url'] || null,
+                    suggested_answers: row['Gợi ý trả lời'] ? (typeof row['Gợi ý trả lời'] === 'string' ? row['Gợi ý trả lời'].split('|').map((s: string) => s.trim()) : row['Gợi ý trả lời']) : null,
+                    target_zone_id: row['ID Ô thả'] || row['target_zone_id'] || null,
+                    tool_image_url: row['Link Ảnh công cụ'] || row['tool_image_url'] || null,
+                })).filter((q: any) => q.question_text)
+
+                if (formattedData.length === 0) {
+                    toast.error('File không chứa dữ liệu hợp lệ')
+                    return
+                }
+
+                const toastId = toast.loading(`Đang import ${formattedData.length} câu hỏi...`)
+                const res = await fetch('/api/admin/interview-questions/bulk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formattedData)
+                })
+
+                const resData = await res.json()
+                if (!resData.success) throw new Error(resData.error)
+                
+                toast.success(`Đã import thành công ${formattedData.length} câu hỏi!`, { id: toastId })
+                fetchQuestions()
+            } catch (err: any) {
+                toast.error('Lỗi khi import: ' + err.message)
+            } finally {
+                if (e.target) e.target.value = ''
+            }
+        }
+        reader.readAsBinaryString(file)
+    }
+
+    return (
+        <div className="max-w-6xl mx-auto space-y-6">
+            <div>
+                <h2 className="text-2xl font-bold">Luyện Phỏng Vấn Vòng 2</h2>
+                <p className="text-muted-foreground">Quản lý câu hỏi và cấu hình AI chấm điểm</p>
+            </div>
+
+            <Tabs defaultValue="questions" className="w-full">
+                <TabsList className="mb-4">
+                    <TabsTrigger value="questions">Danh sách câu hỏi</TabsTrigger>
+                    <TabsTrigger value="settings">Cấu hình AI (Global)</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="questions" className="space-y-4">
+                    <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-lg border">
+                        <div className="flex flex-1 items-center gap-4 w-full md:w-auto">
+                            <div className="relative flex-1 max-w-sm">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                                <Input
+                                    placeholder="Tìm câu hỏi..."
+                                    className="pl-9"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                            <Select value={filterCategory} onValueChange={setFilterCategory}>
+                                <SelectTrigger className="w-[180px]">
+                                    <Filter className="w-4 h-4 mr-2 text-gray-500" />
+                                    <SelectValue placeholder="Phân loại" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Tất cả">Tất cả danh mục</SelectItem>
+                                    <SelectItem value="Khẩu lệnh">Khẩu lệnh</SelectItem>
+                                    <SelectItem value="Giao tiếp">Giao tiếp</SelectItem>
+                                    <SelectItem value="Toán học">Toán học</SelectItem>
+                                    <SelectItem value="Sử dụng công cụ">Sử dụng công cụ</SelectItem>
+                                    <SelectItem value="Xử lý tình huống">Xử lý tình huống</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex gap-2 w-full md:w-auto shrink-0 flex-wrap justify-end">
+                            <Button variant="outline" onClick={handleDownloadTemplate}>
+                                <Download className="w-4 h-4 mr-2" />
+                                Mẫu Excel
+                            </Button>
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                className="hidden" 
+                                accept=".xlsx, .xls"
+                                onChange={handleImportExcel}
+                            />
+                            <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
+                                <Upload className="w-4 h-4 mr-2" />
+                                Import
+                            </Button>
+                            <Button onClick={() => router.push('/admin/interview-module/create')}>
+                                <Plus className="w-4 h-4 mr-2" />
+                                Thêm câu hỏi
+                            </Button>
+                        </div>
+                    </div>
+
+                    {loading ? (
+                        <div className="text-center py-10">Đang tải...</div>
+                    ) : (
+                        <div className="bg-white rounded-lg border overflow-hidden">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-gray-50 border-b">
+                                    <tr>
+                                        <th className="px-6 py-3 font-semibold text-gray-600">Phân loại</th>
+                                        <th className="px-6 py-3 font-semibold text-gray-600">Câu hỏi (Tiếng Hàn)</th>
+                                        <th className="px-6 py-3 font-semibold text-gray-600 text-right">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y">
+                                    {questions
+                                        .filter(q => filterCategory === 'Tất cả' || q.category === filterCategory)
+                                        .filter(q => 
+                                            q.question_text.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                            (q.vietnamese_meaning && q.vietnamese_meaning.toLowerCase().includes(searchQuery.toLowerCase()))
+                                        )
+                                        .map((q) => (
+                                        <tr key={q.id} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                                                    {q.category}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="font-medium">{q.question_text}</div>
+                                                <div className="text-gray-500 text-xs mt-1 line-clamp-1">{q.vietnamese_meaning}</div>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    onClick={() => router.push(`/admin/interview-module/${q.id}`)}
+                                                >
+                                                    <Edit className="w-4 h-4 text-blue-600" />
+                                                </Button>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon"
+                                                    onClick={() => handleDelete(q.id)}
+                                                >
+                                                    <Trash2 className="w-4 h-4 text-red-600" />
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {questions.length === 0 && (
+                                        <tr>
+                                            <td colSpan={3} className="px-6 py-8 text-center text-gray-500">
+                                                Chưa có câu hỏi nào.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </TabsContent>
+
+                <TabsContent value="settings">
+                    <div className="bg-white rounded-lg border p-6 space-y-4">
+                        <div>
+                            <h3 className="font-semibold text-lg">System Prompt & Nguồn tham khảo</h3>
+                            <p className="text-sm text-gray-500 mb-4">
+                                Dữ liệu này sẽ được dùng làm ngữ cảnh (System Prompt) cho AI khi chấm điểm các phần thi phỏng vấn.
+                            </p>
+                        </div>
+                        <Textarea 
+                            rows={15} 
+                            placeholder="Nhập prompt hệ thống và tiêu chí chấm điểm..." 
+                            value={aiPrompt}
+                            onChange={(e) => setAiPrompt(e.target.value)}
+                            className="font-mono text-sm leading-relaxed"
+                        />
+                        <div className="flex justify-end">
+                            <Button onClick={handleSaveSettings} disabled={savingSettings}>
+                                {savingSettings ? 'Đang lưu...' : 'Lưu cấu hình AI'}
+                            </Button>
+                        </div>
+                    </div>
+                </TabsContent>
+            </Tabs>
+        </div>
+    )
+}

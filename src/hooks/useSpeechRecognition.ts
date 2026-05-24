@@ -31,6 +31,7 @@ export function useSpeechRecognition(lang: string = 'ko-KR') {
     const [interimTranscript, setInterimTranscript] = useState("")
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const recognitionRef = useRef<any>(null)
+    const isRecordingRef = useRef(false)
 
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -68,6 +69,7 @@ export function useSpeechRecognition(lang: string = 'ko-KR') {
             recog.onerror = (event: SpeechRecognitionErrorEvent) => {
                 console.warn("Speech recognition error:", event.error)
                 setIsRecording(false)
+                isRecordingRef.current = false
                 if (event.error === 'not-allowed') {
                     alert("Trình duyệt đã chặn Micro. Vui lòng cấp quyền Micro trên thanh địa chỉ URL của Chrome (Biểu tượng ổ khoá) và thử lại nhé!")
                 }
@@ -75,6 +77,7 @@ export function useSpeechRecognition(lang: string = 'ko-KR') {
 
             recog.onend = () => {
                 setIsRecording(false)
+                isRecordingRef.current = false
             }
 
             recognitionRef.current = recog
@@ -82,19 +85,23 @@ export function useSpeechRecognition(lang: string = 'ko-KR') {
     }, [lang])
 
     const startRecording = useCallback(() => {
-        if (!recognitionRef.current) return
+        if (!recognitionRef.current || isRecordingRef.current) return
         try {
+            isRecordingRef.current = true
+            setIsRecording(true)
             setTranscript("")
             setInterimTranscript("")
-            setIsRecording(true)
             recognitionRef.current.start()
         } catch (e) {
-            console.error(e)
+            console.warn("Could not start speech recognition:", e)
+            isRecordingRef.current = false
+            setIsRecording(false)
         }
     }, [])
 
     const stopRecording = useCallback(() => {
         if (!recognitionRef.current) return
+        isRecordingRef.current = false
         setIsRecording(false)
         recognitionRef.current.stop()
     }, [])

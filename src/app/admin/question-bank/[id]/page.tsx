@@ -76,8 +76,8 @@ export default function EditQuestionPage() {
         }
     }
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
+    const handleSubmit = async (e?: React.FormEvent, goToNext: boolean = false) => {
+        if (e) e.preventDefault()
         if (!question) return
 
         if (!categoryId) {
@@ -112,8 +112,20 @@ export default function EditQuestionPage() {
             const data = await res.json()
             if (!data.success) throw new Error(data.error || 'Cập nhật thất bại')
 
-            toast.success('Đã cập nhật câu hỏi!', { id: toastId })
-            router.push('/admin/question-bank')
+            if (goToNext) {
+                const nextRes = await fetch(`/api/admin/question-bank/${id}/next`)
+                const nextData = await nextRes.json()
+                if (nextData.success && nextData.data) {
+                    toast.success('Đã lưu! Chuyển sang câu tiếp theo...', { id: toastId })
+                    router.push(`/admin/question-bank/${nextData.data.id}`)
+                } else {
+                    toast.success('Đã lưu xong câu cuối cùng của kho!', { id: toastId })
+                    router.push('/admin/question-bank')
+                }
+            } else {
+                toast.success('Đã cập nhật câu hỏi!', { id: toastId })
+                router.push('/admin/question-bank')
+            }
         } catch (error: any) {
             toast.error(error.message, { id: toastId })
         } finally {
@@ -412,7 +424,17 @@ export default function EditQuestionPage() {
                     >
                         Hủy
                     </Button>
-                    <Button type="submit" disabled={saving}>
+                    <Button 
+                        type="button" 
+                        variant="secondary" 
+                        onClick={() => handleSubmit(undefined, true)}
+                        disabled={saving}
+                        className="bg-blue-100 text-blue-700 hover:bg-blue-200"
+                    >
+                        <Save className="w-4 h-4 mr-2" />
+                        {saving ? 'Đang lưu...' : 'Lưu & Sửa câu tiếp theo'}
+                    </Button>
+                    <Button type="button" onClick={() => handleSubmit()} disabled={saving}>
                         <Save className="w-4 h-4 mr-2" />
                         {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
                     </Button>

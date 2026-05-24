@@ -9,12 +9,12 @@ import { Button } from "@/components/ui/button"
 import { UserNav } from "@/components/shared/UserNav"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles } from "lucide-react"
+import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles, Mic } from "lucide-react"
 import { LessonList } from "@/components/lessons/LessonList"
 import { PracticeHub } from "@/components/practice/PracticeHub"
 import { PaymentModal } from "@/components/payment/PaymentModal"
 
-type ActiveMenu = 'bai-hoc' | 'luyen-tap' | 'thi-thu' | 'ai-chat' | 'kiem-tra'
+type ActiveMenu = 'bai-hoc' | 'luyen-tap' | 'thi-thu' | 'ai-chat' | 'kiem-tra' | 'phong-van'
 
 type Exam = {
     id: string
@@ -74,6 +74,13 @@ const learnerMenuMeta: Record<ActiveMenu, LearnerMenuMeta> = {
         Icon: ClipboardCheck,
         description: 'Kiểm tra phát âm, từ vựng và phản xạ giao tiếp theo tiến độ học',
         buttonText: 'Vào Thi Thực Hành',
+        highlight: true,
+    },
+    'phong-van': {
+        label: 'Phỏng vấn Vòng 2',
+        Icon: Mic,
+        description: 'Luyện nghe khẩu lệnh, trả lời câu hỏi và sử dụng công cụ',
+        buttonText: 'Vào Luyện Phỏng Vấn',
         highlight: true,
     },
 }
@@ -497,6 +504,38 @@ export default function DashboardPage() {
                                             onClick={() => router.push('/milestones')}
                                         >
                                             Vào Thi Thực Hành
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+                            </>
+                        )}
+
+                        {/* PHỎNG VẤN VÒNG 2 */}
+                        {activeMenu === 'phong-van' && activeMenuItem && (
+                            <>
+                                <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+                                    <Mic className="w-8 h-8 text-primary" />
+                                    Luyện Phỏng Vấn Vòng 2
+                                </h1>
+                                <Card className="border-primary/50 bg-primary/5">
+                                    <CardHeader>
+                                        <CardTitle className="text-primary flex items-center gap-2">
+                                            <Mic className="w-5 h-5" />
+                                            Phỏng Vấn Vòng 2
+                                            <span className="relative flex h-3 w-3">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                                            </span>
+                                        </CardTitle>
+                                        <CardDescription>Thực hành trả lời câu hỏi và kéo thả công cụ theo khẩu lệnh của Giám khảo AI</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <Button
+                                            variant="default"
+                                            className="w-full"
+                                            onClick={() => router.push('/interview-practice')}
+                                        >
+                                            Vào luyện tập ngay
                                         </Button>
                                     </CardContent>
                                 </Card>

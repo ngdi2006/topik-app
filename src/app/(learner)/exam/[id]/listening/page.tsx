@@ -282,7 +282,6 @@ export default function ListeningPage() {
         // Auto-play audio
         if (currentQ.audio_url && audioRef.current) {
             audioRef.current.src = currentQ.audio_url
-            audioRef.current.load() // Preload audio
 
             // Try to play
             const playPromise = audioRef.current.play()

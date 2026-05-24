@@ -7,6 +7,7 @@ const fallbackMenu = [
     { key: 'thi-thu', label: 'Thi Thử', is_enabled: true, sort_order: 3 },
     { key: 'ai-chat', label: 'Luyện giao tiếp AI', is_enabled: true, sort_order: 4 },
     { key: 'kiem-tra', label: 'Kiểm Tra', is_enabled: true, sort_order: 5 },
+    { key: 'phong-van', label: 'Phỏng Vấn V2', is_enabled: true, sort_order: 6 },
 ]
 
 export async function GET() {
@@ -20,7 +21,14 @@ export async function GET() {
 
         if (error) throw error
 
-        return NextResponse.json(data && data.length > 0 ? data : fallbackMenu)
+        let finalData = data && data.length > 0 ? data : fallbackMenu
+
+        // Ensure phong-van is always available for Vòng 2 module
+        if (!finalData.some(m => m.key === 'phong-van')) {
+            finalData.push({ key: 'phong-van', label: 'Phỏng Vấn V2', is_enabled: true, sort_order: 6 })
+        }
+
+        return NextResponse.json(finalData)
     } catch (error) {
         console.error('Error fetching learner dashboard menu:', error)
         return NextResponse.json(fallbackMenu)

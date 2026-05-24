@@ -297,7 +297,8 @@ export default function ListeningPage() {
                     }
                     console.error('Audio play error:', err)
                     setAudioError(true)
-                    // Don't start timer yet - wait for user to manually play
+                    setAudioPlaying(false)
+                    // Don't start timer yet - wait for user to manually play or skip
                 })
             }
         } else {
@@ -366,6 +367,10 @@ export default function ListeningPage() {
                 onEnded={handleAudioEnded}
                 onPlay={() => setAudioPlaying(true)}
                 onPause={() => setAudioPlaying(false)}
+                onError={() => {
+                    setAudioError(true)
+                    setAudioPlaying(false)
+                }}
                 preload="auto"
                 playsInline
                 className="hidden"
@@ -437,6 +442,19 @@ export default function ListeningPage() {
                                         >
                                             <Volume2 className="w-5 h-5" />
                                             Phát Audio
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setAudioError(false)
+                                                setAudioPlaying(false)
+                                                setAudioEnded(true)
+                                                if (currentQuestion) {
+                                                    startQuestionTimer(currentQuestion, currentIndex)
+                                                }
+                                            }}
+                                            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-semibold flex items-center gap-2"
+                                        >
+                                            Bỏ qua Audio
                                         </button>
                                     </div>
                                 </div>

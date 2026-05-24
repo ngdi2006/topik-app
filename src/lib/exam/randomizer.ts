@@ -138,7 +138,7 @@ async function getFixedFreeQuestions(
         .select(`
             question_bank_id,
             order_index,
-            question_bank (*)
+            question_bank (*, question_categories(shuffle_options))
         `)
         .eq('exam_id', examId)
         .order('order_index')
@@ -173,11 +173,18 @@ export async function generateRandomQuestionsForUser(
         if (fixedQuestions && fixedQuestions.length > 0) {
             // Use fixed questions for free attempts
             const snapshots: QuestionSnapshot[] = fixedQuestions.map((q, idx) => {
+                // Category shuffle_options ưu tiên hơn question shuffle_options
+                const categoryShuffle = (q as any).question_categories?.shuffle_options
+                const qb = {
+                    ...q,
+                    shuffle_options: categoryShuffle !== undefined ? categoryShuffle : q.shuffle_options,
+                } as QuestionBank
+
                 // Shuffle options for this question
-                const { shuffledOptions, shuffledCorrectAnswer } = shuffleOptions(q)
+                const { shuffledOptions, shuffledCorrectAnswer } = shuffleOptions(qb)
 
                 return {
-                    ...q,
+                    ...qb,
                     options: shuffledOptions,
                     correct_answer: shuffledCorrectAnswer,
                     rule_id: 'fixed-free', // Special marker for fixed free questions

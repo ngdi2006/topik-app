@@ -30,6 +30,7 @@ export interface QuestionBank {
     options: QuestionOption[]; // 2-4 items
     correct_answer: number; // 0-3
     shuffle_options: boolean;
+    countdown_after_audio?: number | null;
 
     points: number;
     tags: string[];
@@ -50,6 +51,7 @@ export interface QuestionBankCreate {
     options: QuestionOption[];
     correct_answer: number;
     shuffle_options?: boolean;
+    countdown_after_audio?: number | null;
     points?: number;
     tags?: string[];
 }

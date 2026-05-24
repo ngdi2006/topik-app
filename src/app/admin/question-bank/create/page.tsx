@@ -50,6 +50,7 @@ function CreateQuestionForm() {
         ],
         correct_answer: 0,
         shuffle_options: true,
+        countdown_after_audio: 5,
         points: 1,
         tags: [],
     })
@@ -306,20 +307,43 @@ function CreateQuestionForm() {
 
                     {/* Audio (required for listening) */}
                     {formData.question_type === 'listening' && (
-                        <div className="space-y-2">
-                            <Label>File Audio *</Label>
-                            <MediaUploader
-                                type="audio"
-                                currentUrl={formData.audio_url}
-                                onUploadComplete={(url) =>
-                                    setFormData({
-                                        ...formData,
-                                        audio_url: url,
-                                    })
-                                }
-                                folder="audio"
-                            />
-                        </div>
+                        <>
+                            <div className="space-y-2">
+                                <Label>File Audio *</Label>
+                                <MediaUploader
+                                    type="audio"
+                                    currentUrl={formData.audio_url}
+                                    onUploadComplete={(url) =>
+                                        setFormData({
+                                            ...formData,
+                                            audio_url: url,
+                                        })
+                                    }
+                                    folder="audio"
+                                />
+                            </div>
+
+                            {/* Cấu hình đếm ngược riêng cho câu Free Nghe */}
+                            {tagsInput.split(',').map(t => t.trim()).includes('free') && (
+                                <div className="space-y-2 p-4 border rounded-lg bg-blue-50">
+                                    <Label className="text-blue-700">⏱️ Số giây đếm ngược sau khi hết Audio (Chỉ dành cho Câu hỏi Free)</Label>
+                                    <Input
+                                        type="number"
+                                        min="0"
+                                        placeholder="Mặc định: 5"
+                                        value={formData.countdown_after_audio ?? 5}
+                                        onChange={(e) => setFormData({
+                                            ...formData,
+                                            countdown_after_audio: e.target.value ? parseInt(e.target.value) : null
+                                        })}
+                                        className="bg-white max-w-xs"
+                                    />
+                                    <p className="text-xs text-blue-600">
+                                        Đồng hồ sẽ ngừng đếm cho đến khi audio phát xong, sau đó mới bắt đầu đếm ngược số giây này.
+                                    </p>
+                                </div>
+                            )}
+                        </>
                     )}
 
                     {/* 4 Options với hỗ trợ text/image */}

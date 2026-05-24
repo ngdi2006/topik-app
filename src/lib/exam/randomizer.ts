@@ -174,7 +174,8 @@ export async function generateRandomQuestionsForUser(
             // Use fixed questions for free attempts
             const snapshots: QuestionSnapshot[] = fixedQuestions.map((q, idx) => {
                 // Category shuffle_options ưu tiên hơn question shuffle_options
-                const categoryShuffle = (q as any).question_categories?.shuffle_options
+                const cat = (q as any).question_categories
+                const categoryShuffle = Array.isArray(cat) ? cat[0]?.shuffle_options : cat?.shuffle_options
                 const qb = {
                     ...q,
                     shuffle_options: categoryShuffle !== undefined ? categoryShuffle : q.shuffle_options,
@@ -191,7 +192,7 @@ export async function generateRandomQuestionsForUser(
                     order: idx,
                     section: q.question_type === 'listening' ? 'listening' : 'reading',
                     points_override: undefined,
-                    time_per_question: undefined,
+                    time_per_question: q.question_type === 'listening' ? (q.countdown_after_audio ?? 5) : undefined,
                 }
             })
 
@@ -291,7 +292,8 @@ export async function generateRandomQuestionsForUser(
         // 2i. Transform sang QuestionSnapshot với shuffled options
         const snapshots: QuestionSnapshot[] = selected.map((q) => {
             // Category shuffle_options ưu tiên hơn question shuffle_options
-            const categoryShuffle = (q as any).question_categories?.shuffle_options
+            const cat = (q as any).question_categories
+            const categoryShuffle = Array.isArray(cat) ? cat[0]?.shuffle_options : cat?.shuffle_options
             const qb = {
                 ...q,
                 shuffle_options: categoryShuffle !== undefined ? categoryShuffle : q.shuffle_options,

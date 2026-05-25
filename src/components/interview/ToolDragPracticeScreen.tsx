@@ -10,13 +10,16 @@ interface ToolDragPracticeScreenProps {
     onFinish: () => void
 }
 
-const ZONES = [
-    { id: 'shelf_top_left', label: 'Kệ trên (Trái)' },
-    { id: 'shelf_top_right', label: 'Kệ trên (Phải)' },
-    { id: 'shelf_bottom_left', label: 'Kệ dưới (Trái)' },
-    { id: 'shelf_bottom_right', label: 'Kệ dưới (Phải)' },
-    { id: 'toolbox', label: 'Hộp công cụ (Giữa)' },
-]
+const ZONE_LABELS: Record<string, string> = {
+    'shelf_top_left': 'Kệ trên (Trái)',
+    'shelf_bottom_left': 'Kệ dưới (Trái)',
+    'machine_panel': 'Bảng điều khiển / Máy móc',
+    'work_area': 'Khu vực thi công',
+    'toolbox_center': 'Hộp công cụ chung',
+    'special_box': 'Hộp chuyên dụng',
+    'shelf_top_right': 'Kệ trên (Phải)',
+    'shelf_bottom_right': 'Kệ dưới (Phải)'
+}
 
 export function ToolDragPracticeScreen({ questions, onFinish }: ToolDragPracticeScreenProps) {
     const [currentIndex, setCurrentIndex] = useState(0)
@@ -303,8 +306,8 @@ export function ToolDragPracticeScreen({ questions, onFinish }: ToolDragPractice
                             <p className="font-semibold text-gray-700">Lời thoại gốc:</p>
                             <p className="text-lg text-gray-900 font-medium">{currentQ.question_text}</p>
                             <p className="text-gray-600 mt-1">{currentQ.vietnamese_meaning}</p>
-                            <p className="mt-3 text-sm font-semibold text-blue-700">
-                                Vùng đích đúng: {currentQ.target_zone_id}
+                            <p className="mt-3 text-sm md:text-base font-semibold text-blue-700 flex items-center gap-2">
+                                💡 Vị trí cần thả đúng là: <span className="px-3 py-1 bg-blue-100 rounded-lg">{ZONE_LABELS[currentQ.target_zone_id] || currentQ.target_zone_id}</span>
                             </p>
                         </div>
                         <Button size="lg" onClick={handleNext} className="w-full md:w-auto px-10">

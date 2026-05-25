@@ -18,6 +18,17 @@ interface InterviewQuestionFormProps {
 
 const CATEGORIES = ['Khẩu lệnh', 'Giao tiếp', 'Toán học', 'Sử dụng công cụ', 'Xử lý tình huống']
 
+const ZONE_OPTIONS = [
+    { id: 'shelf_top_left', label: 'Kệ trên (Trái)' },
+    { id: 'shelf_bottom_left', label: 'Kệ dưới (Trái)' },
+    { id: 'machine_panel', label: 'Bảng điều khiển / Máy móc' },
+    { id: 'work_area', label: 'Khu vực thi công' },
+    { id: 'toolbox_center', label: 'Hộp công cụ chung' },
+    { id: 'special_box', label: 'Hộp chuyên dụng' },
+    { id: 'shelf_top_right', label: 'Kệ trên (Phải)' },
+    { id: 'shelf_bottom_right', label: 'Kệ dưới (Phải)' }
+]
+
 export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestionFormProps) {
     const router = useRouter()
     const [saving, setSaving] = useState(false)
@@ -209,12 +220,22 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
                             </div>
                             <div className="space-y-2">
                                 <Label>ID Vùng thả chính xác (target_zone_id)</Label>
-                                <Input 
-                                    value={formData.target_zone_id}
-                                    onChange={(e) => setFormData({...formData, target_zone_id: e.target.value})}
-                                    placeholder="Vd: zone_left_hand, zone_table..."
-                                />
-                                <p className="text-xs text-orange-600 mt-1">ID này phải khớp với ID được code ở giao diện thi.</p>
+                                <Select 
+                                    value={formData.target_zone_id} 
+                                    onValueChange={(v) => setFormData({...formData, target_zone_id: v})}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="-- Bấm để chọn vùng thả --" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {ZONE_OPTIONS.map(zone => (
+                                            <SelectItem key={zone.id} value={zone.id}>
+                                                {zone.label} <span className="text-gray-400 text-xs ml-1">({zone.id})</span>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-orange-600 mt-1">Chọn chính xác vùng đích để hệ thống chấm điểm tự động.</p>
                             </div>
                         </div>
                     </div>

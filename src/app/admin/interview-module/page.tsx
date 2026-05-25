@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { Plus, Edit, Trash2, Search, Filter, Upload, Download } from 'lucide-react'
+import { BulkImportModal } from '@/components/admin/BulkImportModal'
 
 export default function InterviewModuleAdminPage() {
     const router = useRouter()
@@ -20,8 +21,8 @@ export default function InterviewModuleAdminPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [filterCategory, setFilterCategory] = useState('Tất cả')
     
-    // File upload
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    // Import Modal state
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false)
 
     // Settings state
     const [aiPrompt, setAiPrompt] = useState('')
@@ -112,7 +113,7 @@ export default function InterviewModuleAdminPage() {
                 "Giây đếm ngược": 15,
                 "Link Audio": "",
                 "Gợi ý trả lời": "",
-                "Link Ảnh công cụ": "https://cdn-icons-png.flaticon.com/512/2515/2515201.png",
+                "Tên File Ảnh": "hammer.png",
                 "ID Ô thả": "shelf_bottom_right"
             }
         ]
@@ -121,56 +122,6 @@ export default function InterviewModuleAdminPage() {
         const wb = XLSX.utils.book_new()
         XLSX.utils.book_append_sheet(wb, ws, "Template")
         XLSX.writeFile(wb, "Template_Phong_Van_Vong_2.xlsx")
-    }
-
-    const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
-        if (!file) return
-
-        const reader = new FileReader()
-        reader.onload = async (evt) => {
-            try {
-                const bstr = evt.target?.result
-                const wb = XLSX.read(bstr, { type: 'binary' })
-                const wsname = wb.SheetNames[0]
-                const ws = wb.Sheets[wsname]
-                const data = XLSX.utils.sheet_to_json(ws)
-
-                const formattedData = data.map((row: any) => ({
-                    category: row['Phân loại'] || row['category'] || 'Giao tiếp',
-                    question_text: row['Câu hỏi'] || row['question_text'] || '',
-                    vietnamese_meaning: row['Dịch nghĩa'] || row['vietnamese_meaning'] || '',
-                    countdown_after_audio: parseInt(row['Giây đếm ngược'] || row['countdown_after_audio'] || '5', 10),
-                    question_audio_url: row['Link Audio'] || row['question_audio_url'] || null,
-                    suggested_answers: row['Gợi ý trả lời'] ? (typeof row['Gợi ý trả lời'] === 'string' ? row['Gợi ý trả lời'].split('|').map((s: string) => s.trim()) : row['Gợi ý trả lời']) : null,
-                    target_zone_id: row['ID Ô thả'] || row['target_zone_id'] || null,
-                    tool_image_url: row['Link Ảnh công cụ'] || row['tool_image_url'] || null,
-                })).filter((q: any) => q.question_text)
-
-                if (formattedData.length === 0) {
-                    toast.error('File không chứa dữ liệu hợp lệ')
-                    return
-                }
-
-                const toastId = toast.loading(`Đang import ${formattedData.length} câu hỏi...`)
-                const res = await fetch('/api/admin/interview-questions/bulk', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formattedData)
-                })
-
-                const resData = await res.json()
-                if (!resData.success) throw new Error(resData.error)
-                
-                toast.success(`Đã import thành công ${formattedData.length} câu hỏi!`, { id: toastId })
-                fetchQuestions()
-            } catch (err: any) {
-                toast.error('Lỗi khi import: ' + err.message)
-            } finally {
-                if (e.target) e.target.value = ''
-            }
-        }
-        reader.readAsBinaryString(file)
     }
 
     return (
@@ -218,16 +169,9 @@ export default function InterviewModuleAdminPage() {
                                 <Download className="w-4 h-4 mr-2" />
                                 Mẫu Excel
                             </Button>
-                            <input 
-                                type="file" 
-                                ref={fileInputRef} 
-                                className="hidden" 
-                                accept=".xlsx, .xls"
-                                onChange={handleImportExcel}
-                            />
-                            <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
+                            <Button variant="secondary" onClick={() => setIsImportModalOpen(true)} className="whitespace-nowrap">
                                 <Upload className="w-4 h-4 mr-2" />
-                                Import
+                                Import Excel (+ Zip Ảnh)
                             </Button>
                             <Button onClick={() => router.push('/admin/interview-module/create')}>
                                 <Plus className="w-4 h-4 mr-2" />
@@ -320,6 +264,12 @@ export default function InterviewModuleAdminPage() {
                     </div>
                 </TabsContent>
             </Tabs>
+
+            <BulkImportModal 
+                isOpen={isImportModalOpen} 
+                onClose={() => setIsImportModalOpen(false)} 
+                onSuccess={fetchQuestions} 
+            />
         </div>
     )
 }

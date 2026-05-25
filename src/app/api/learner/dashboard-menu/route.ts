@@ -8,6 +8,7 @@ const fallbackMenu = [
     { key: 'ai-chat', label: 'Luyện giao tiếp AI', is_enabled: true, sort_order: 4 },
     { key: 'kiem-tra', label: 'Kiểm Tra', is_enabled: true, sort_order: 5 },
     { key: 'phong-van', label: 'Phỏng Vấn V2', is_enabled: true, sort_order: 6 },
+    { key: 'tu-vung-vong-2', label: 'Từ vựng & Biển báo', is_enabled: true, sort_order: 7 },
 ]
 
 export async function GET() {
@@ -26,6 +27,11 @@ export async function GET() {
         // Ensure phong-van is always available for Vòng 2 module
         if (!finalData.some(m => m.key === 'phong-van')) {
             finalData.push({ key: 'phong-van', label: 'Phỏng Vấn V2', is_enabled: true, sort_order: 6 })
+        }
+        
+        // Ensure tu-vung-vong-2 is always available
+        if (!finalData.some(m => m.key === 'tu-vung-vong-2')) {
+            finalData.push({ key: 'tu-vung-vong-2', label: 'Từ vựng & Biển báo', is_enabled: true, sort_order: 7 })
         }
 
         return NextResponse.json(finalData)

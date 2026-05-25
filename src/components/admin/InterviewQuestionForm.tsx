@@ -17,6 +17,7 @@ interface InterviewQuestionFormProps {
 }
 
 const CATEGORIES = ['Khẩu lệnh', 'Giao tiếp', 'Toán học', 'Sử dụng công cụ', 'Xử lý tình huống']
+const INDUSTRIES = ['Sản xuất chế tạo', 'Ngư nghiệp', 'Nông nghiệp', 'Lâm nghiệp', 'Xây dựng', 'Dịch vụ']
 
 const ZONE_OPTIONS = [
     { id: 'shelf_top_left', label: 'Kệ trên (Trái)' },
@@ -33,6 +34,7 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
     const router = useRouter()
     const [saving, setSaving] = useState(false)
     const [formData, setFormData] = useState({
+        industry: initialData?.industry || 'Sản xuất chế tạo',
         category: initialData?.category || 'Khẩu lệnh',
         question_text: initialData?.question_text || '',
         vietnamese_meaning: initialData?.vietnamese_meaning || '',
@@ -122,8 +124,25 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-lg border shadow-sm">
-                <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2 col-span-2 md:col-span-1">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                        <Label>Ngành nghề (Industry) *</Label>
+                        <Select 
+                            value={formData.industry} 
+                            onValueChange={(v) => setFormData({...formData, industry: v})}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Chọn ngành nghề" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {INDUSTRIES.map(ind => (
+                                    <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
                         <Label>Phân loại (Category) *</Label>
                         <Select 
                             value={formData.category} 
@@ -140,7 +159,7 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
                         </Select>
                     </div>
 
-                    <div className="space-y-2 col-span-2 md:col-span-1">
+                    <div className="space-y-2">
                         <Label>Thời gian suy nghĩ (giây) *</Label>
                         <Input 
                             type="number" 

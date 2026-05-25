@@ -6,38 +6,30 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url)
-        const category = searchParams.get('category')
         const industry = searchParams.get('industry')
+        const type = searchParams.get('type')
 
         const supabase = await createClient()
 
         let query = supabase
-            .from('interview_questions')
+            .from('vocabulary_vong2')
             .select('*')
             .order('created_at', { ascending: false })
 
-        if (category) {
-            query = query.eq('category', category)
+        if (industry && industry !== 'ALL') {
+            query = query.eq('industry', industry)
         }
 
-        if (industry) {
-            query = query.eq('industry', industry)
+        if (type) {
+            query = query.eq('type', type)
         }
 
         const { data, error } = await query
 
-        if (error) {
-            throw error
-        }
+        if (error) throw error
 
-        return NextResponse.json({
-            success: true,
-            data: data || [],
-        })
+        return NextResponse.json({ success: true, data: data || [] })
     } catch (error: any) {
-        return NextResponse.json(
-            { success: false, error: error.message },
-            { status: 500 }
-        )
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
 }

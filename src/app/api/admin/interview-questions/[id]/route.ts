@@ -38,6 +38,7 @@ export async function PUT(
         const { data, error } = await adminClient
             .from('interview_questions')
             .update({
+                industry: body.industry,
                 category: body.category,
                 question_text: body.question_text,
                 vietnamese_meaning: body.vietnamese_meaning,

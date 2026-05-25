@@ -5,6 +5,7 @@ export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url)
         const category = searchParams.get('category')
+        const industry = searchParams.get('industry')
         const adminClient = createAdminClient()
 
         let query = adminClient
@@ -14,6 +15,10 @@ export async function GET(request: Request) {
 
         if (category && category !== 'all') {
             query = query.eq('category', category)
+        }
+
+        if (industry && industry !== 'all') {
+            query = query.eq('industry', industry)
         }
 
         const { data, error } = await query
@@ -37,6 +42,7 @@ export async function POST(request: Request) {
         const { data, error } = await adminClient
             .from('interview_questions')
             .insert({
+                industry: body.industry || 'Sản xuất chế tạo',
                 category: body.category,
                 question_text: body.question_text,
                 vietnamese_meaning: body.vietnamese_meaning,

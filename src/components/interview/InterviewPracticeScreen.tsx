@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Mic, Square, Play, Eye, RefreshCw, CheckCircle, XCircle } from 'lucide-react'
+import { Mic, Square, Play, Eye, RefreshCw, CheckCircle, XCircle, ArrowLeft } from 'lucide-react'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { toast } from 'sonner'
 import { FlashcardMode, FillBlankMode, WordSortMode } from './ListenOnlyModes'
@@ -11,9 +11,10 @@ interface InterviewPracticeScreenProps {
     questions: any[]
     mode: 'listen_only' | 'ai_mock'
     onFinish: (answers?: Record<string, string>) => void
+    onBack?: () => void
 }
 
-export function InterviewPracticeScreen({ questions, mode, onFinish }: InterviewPracticeScreenProps) {
+export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: InterviewPracticeScreenProps) {
     const [queue, setQueue] = useState<number[]>(questions.map((_, i) => i))
     const currentQIndex = queue.length > 0 ? queue[0] : null
     const currentQ = currentQIndex !== null ? questions[currentQIndex] : null
@@ -209,6 +210,11 @@ export function InterviewPracticeScreen({ questions, mode, onFinish }: Interview
             {/* Header / Progress */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white p-4 rounded-xl border shadow-sm">
                 <div className="flex flex-wrap items-center gap-2">
+                    {onBack && (
+                        <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0 mr-1" title="Quay lại thiết lập">
+                            <ArrowLeft className="w-5 h-5 text-gray-500" />
+                        </Button>
+                    )}
                     <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs md:text-sm font-semibold">
                         {currentQ.category}
                     </span>

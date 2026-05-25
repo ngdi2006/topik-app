@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 interface ToolDragPracticeScreenProps {
     questions: any[]
     onFinish: () => void
+    onBack?: () => void
 }
 
 const ZONE_LABELS: Record<string, string> = {
@@ -21,7 +22,7 @@ const ZONE_LABELS: Record<string, string> = {
     'shelf_bottom_right': 'Kệ dưới (Phải)'
 }
 
-export function ToolDragPracticeScreen({ questions, onFinish }: ToolDragPracticeScreenProps) {
+export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDragPracticeScreenProps) {
     const [currentIndex, setCurrentIndex] = useState(0)
     const currentQ = questions[currentIndex]
 
@@ -201,9 +202,14 @@ export function ToolDragPracticeScreen({ questions, onFinish }: ToolDragPractice
         <div className="max-w-4xl mx-auto p-4 space-y-6 select-none touch-none">
             <audio ref={audioRef} onPlay={() => setAudioState('playing')} onEnded={handleAudioEnded} onError={() => setAudioState('error')} className="hidden" />
 
-            <div className="flex justify-between items-center bg-white p-4 rounded-xl border shadow-sm">
-                <div>
-                    <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-semibold">
+            <div className="flex justify-between items-center bg-white p-4 rounded-xl border shadow-sm gap-2">
+                <div className="flex items-center gap-3">
+                    {onBack && (
+                        <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0" title="Quay lại thiết lập">
+                            <ArrowLeft className="w-5 h-5 text-gray-500" />
+                        </Button>
+                    )}
+                    <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-semibold whitespace-nowrap">
                         Sử dụng công cụ
                     </span>
                 </div>

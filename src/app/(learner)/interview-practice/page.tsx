@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { InterviewPracticeScreen } from '@/components/interview/InterviewPracticeScreen'
 import { ToolDragPracticeScreen } from '@/components/interview/ToolDragPracticeScreen'
 import { toast } from 'sonner'
-import { Headphones, Bot, ArrowLeft, Wrench } from 'lucide-react'
+import { Headphones, Bot, ArrowLeft, Wrench, Mic, Briefcase, BookOpen, Sparkles } from 'lucide-react'
 
 const CATEGORIES = ['Tất cả', 'Khẩu lệnh', 'Giao tiếp', 'Toán học', 'Xử lý tình huống', 'Sử dụng công cụ']
+const INDUSTRIES = ['Sản xuất chế tạo', 'Ngư nghiệp', 'Nông nghiệp', 'Lâm nghiệp', 'Xây dựng', 'Dịch vụ']
 
 function shuffleArray<T>(array: T[]): T[] {
     const newArr = [...array]
@@ -25,6 +26,7 @@ export default function InterviewPracticePage() {
     const router = useRouter()
     const [step, setStep] = useState<'setup' | 'practice' | 'evaluating' | 'finished'>('setup')
     const [selectedCategory, setSelectedCategory] = useState('Tất cả')
+    const [selectedIndustry, setSelectedIndustry] = useState('Sản xuất chế tạo')
     const [selectedMode, setSelectedMode] = useState<'listen_only' | 'ai_mock'>('listen_only')
     
     const [questions, setQuestions] = useState<any[]>([])
@@ -37,10 +39,10 @@ export default function InterviewPracticePage() {
         try {
             // Lấy danh sách câu hỏi
             const url = selectedCategory === 'Tất cả' 
-                ? '/api/interview-questions' 
-                : `/api/interview-questions?category=${encodeURIComponent(selectedCategory)}`
+                ? `/api/interview-questions?industry=${encodeURIComponent(selectedIndustry)}` 
+                : `/api/interview-questions?category=${encodeURIComponent(selectedCategory)}&industry=${encodeURIComponent(selectedIndustry)}`
             
-            const res = await fetch(url)
+            const res = await fetch(url, { cache: 'no-store' })
             const data = await res.json()
             
             if (!data.success) throw new Error(data.error)
@@ -121,12 +123,14 @@ export default function InterviewPracticePage() {
                     <ToolDragPracticeScreen
                         questions={questions}
                         onFinish={handleFinishPractice}
+                        onBack={() => setStep('setup')}
                     />
                 ) : (
                     <InterviewPracticeScreen 
                         questions={questions} 
                         mode={selectedMode} 
                         onFinish={handleFinishPractice} 
+                        onBack={() => setStep('setup')}
                     />
                 )}
             </div>
@@ -228,92 +232,155 @@ export default function InterviewPracticePage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-            <div className="max-w-3xl mx-auto space-y-6 md:space-y-8">
-                <Button variant="ghost" onClick={() => router.push('/dashboard')} className="mb-2 md:mb-4 -ml-4">
+        <div className="min-h-screen bg-[#f8fafc] relative overflow-hidden flex flex-col">
+            {/* Background elements */}
+            <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-br from-blue-50 via-indigo-50/50 to-emerald-50/50 -z-10" />
+            <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-400/20 rounded-full blur-[100px] -z-10" />
+            <div className="absolute top-40 -left-32 w-80 h-80 bg-emerald-400/20 rounded-full blur-[100px] -z-10" />
+
+            <div className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-8 space-y-8 md:space-y-10 relative z-10">
+                <Button variant="ghost" onClick={() => router.push('/dashboard')} className="mb-2 -ml-4 hover:bg-white/60 transition-colors text-slate-600">
                     <ArrowLeft className="w-4 h-4 mr-2" /> Trở về Dashboard
                 </Button>
 
-                <div className="text-center space-y-2 md:space-y-3">
-                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">Luyện Phỏng Vấn Vòng 2</h1>
-                    <p className="text-gray-600 text-sm md:text-lg">Hệ thống mô phỏng thi phỏng vấn với Giám khảo AI</p>
+                <div className="text-center space-y-3">
+                    <div className="inline-flex items-center justify-center p-3 md:p-4 bg-white rounded-2xl shadow-sm mb-1 border border-slate-100 ring-4 ring-white/50">
+                        <Mic className="w-6 h-6 md:w-8 md:h-8 text-blue-600" />
+                    </div>
+                    <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-700 pb-1 px-2">
+                        Luyện Phỏng Vấn Vòng 2
+                    </h1>
+                    <p className="text-slate-600 text-sm md:text-base font-medium max-w-lg mx-auto px-4">
+                        Hệ thống mô phỏng bài thi phỏng vấn thực tế với Giám khảo AI chuyên nghiệp
+                    </p>
                 </div>
 
-                <Card className="p-5 md:p-10 space-y-6 md:space-y-8 border-none shadow-xl bg-white rounded-2xl">
-                    <div className="space-y-3 md:space-y-4">
-                        <h3 className="text-lg md:text-xl font-semibold text-gray-800">1. Chọn chủ đề luyện tập</h3>
-                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                            <SelectTrigger className="h-12 md:h-14 text-base md:text-lg">
-                                <SelectValue placeholder="Chọn chủ đề" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {CATEGORIES.map(cat => (
-                                    <SelectItem key={cat} value={cat} className="text-base md:text-lg">{cat}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                <Card className="p-4 md:p-8 space-y-6 md:space-y-8 border border-white/60 shadow-2xl bg-white/70 backdrop-blur-xl rounded-2xl md:rounded-[2rem] relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-500" />
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8">
+                        <div className="space-y-2 md:space-y-3">
+                            <h3 className="text-sm md:text-base font-semibold text-slate-800 flex items-center gap-2">
+                                <Briefcase className="w-4 h-4 md:w-5 md:h-5 text-indigo-500" />
+                                1. Chọn ngành nghề thi
+                            </h3>
+                            <Select value={selectedIndustry} onValueChange={setSelectedIndustry}>
+                                <SelectTrigger className="h-12 md:h-14 text-sm md:text-base bg-white/80 border-slate-200 hover:border-indigo-300 transition-colors rounded-xl shadow-sm focus:ring-indigo-500/20">
+                                    <SelectValue placeholder="Chọn ngành nghề" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl">
+                                    {INDUSTRIES.map(ind => (
+                                        <SelectItem key={ind} value={ind} className="text-sm md:text-base py-2 md:py-3 cursor-pointer">{ind}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2 md:space-y-3">
+                            <h3 className="text-sm md:text-base font-semibold text-slate-800 flex items-center gap-2">
+                                <BookOpen className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" />
+                                2. Chọn chủ đề luyện tập
+                            </h3>
+                            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                                <SelectTrigger className="h-12 md:h-14 text-sm md:text-base bg-white/80 border-slate-200 hover:border-emerald-300 transition-colors rounded-xl shadow-sm focus:ring-emerald-500/20">
+                                    <SelectValue placeholder="Chọn chủ đề" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl">
+                                    {CATEGORIES.map(cat => (
+                                        <SelectItem key={cat} value={cat} className="text-sm md:text-base py-2 md:py-3 cursor-pointer">{cat}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
 
+
                     {selectedCategory === 'Sử dụng công cụ' ? (
-                        <div className="space-y-3 md:space-y-4">
-                            <h3 className="text-lg md:text-xl font-semibold text-gray-800">2. Chế độ luyện tập</h3>
-                            <div className="border-2 border-orange-500 bg-orange-50/50 rounded-2xl p-5 md:p-6">
-                                <Wrench className="w-8 h-8 md:w-10 md:h-10 mb-3 md:mb-4 text-orange-500" />
-                                <h4 className="text-base md:text-lg font-bold text-gray-900 mb-2">Thực hành kéo thả công cụ</h4>
-                                <p className="text-gray-500 text-xs md:text-sm">
-                                    Nghe khẩu lệnh từ giám khảo và thực hiện thao tác kéo thả vật phẩm vào đúng vị trí được yêu cầu. Hệ thống sẽ chấm điểm tự động.
-                                </p>
+                        <div className="space-y-2 md:space-y-3 pt-2 border-t border-slate-200/50">
+                            <h3 className="text-sm md:text-base font-semibold text-slate-800 flex items-center gap-2">
+                                <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-orange-500" />
+                                3. Chế độ luyện tập
+                            </h3>
+                            <div className="relative group cursor-default">
+                                <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-2xl blur opacity-20 group-hover:opacity-30 transition-opacity"></div>
+                                <div className="relative border-2 border-orange-400 bg-orange-50/80 rounded-2xl p-4 md:p-6 backdrop-blur-sm">
+                                    <Wrench className="w-8 h-8 md:w-10 md:h-10 mb-3 text-orange-500" />
+                                    <h4 className="text-base md:text-lg font-bold text-slate-900 mb-1">Thực hành kéo thả công cụ</h4>
+                                    <p className="text-slate-600 text-xs md:text-sm leading-relaxed">
+                                        Nghe khẩu lệnh từ giám khảo và thực hiện thao tác kéo thả vật phẩm vào đúng vị trí được yêu cầu. Hệ thống sẽ chấm điểm tự động chính xác.
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     ) : (
-                        <div className="space-y-3 md:space-y-4">
-                            <h3 className="text-lg md:text-xl font-semibold text-gray-800">2. Chọn chế độ luyện tập</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2 md:space-y-3 pt-2 border-t border-slate-200/50">
+                            <h3 className="text-sm md:text-base font-semibold text-slate-800 flex items-center gap-2">
+                                <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-blue-500" />
+                                3. Chọn chế độ luyện tập
+                            </h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-5">
                                 <div 
-                                    className={`cursor-pointer border-2 rounded-2xl p-5 md:p-6 transition-all ${
-                                        selectedMode === 'listen_only' 
-                                        ? 'border-blue-500 bg-blue-50/50' 
-                                        : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'
-                                    }`}
+                                    className={`relative group cursor-pointer transition-all duration-300 ${selectedMode === 'listen_only' ? 'scale-[1.02]' : 'hover:scale-[1.01]'}`}
                                     onClick={() => setSelectedMode('listen_only')}
                                 >
-                                    <Headphones className={`w-8 h-8 md:w-10 md:h-10 mb-3 md:mb-4 ${selectedMode === 'listen_only' ? 'text-blue-500' : 'text-gray-400'}`} />
-                                    <h4 className="text-base md:text-lg font-bold text-gray-900 mb-1 md:mb-2">Chỉ luyện nghe</h4>
-                                    <p className="text-gray-500 text-xs md:text-sm">
-                                        Nghe câu hỏi từ giám khảo, suy nghĩ và tự xem đáp án chuẩn. Phù hợp để làm quen với ngữ điệu.
-                                    </p>
+                                    {selectedMode === 'listen_only' && <div className="absolute inset-0 bg-blue-400 rounded-2xl blur opacity-25"></div>}
+                                    <div className={`relative h-full rounded-2xl p-4 md:p-6 transition-all duration-300 backdrop-blur-sm border-2 ${
+                                        selectedMode === 'listen_only' 
+                                        ? 'border-blue-500 bg-blue-50/90 shadow-lg shadow-blue-500/10' 
+                                        : 'border-slate-200/60 bg-white/60 hover:bg-white hover:border-blue-300 hover:shadow-md'
+                                    }`}>
+                                        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center mb-3 ${selectedMode === 'listen_only' ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-500'} transition-colors`}>
+                                            <Headphones className="w-5 h-5 md:w-6 md:h-6" />
+                                        </div>
+                                        <h4 className="text-base md:text-lg font-bold text-slate-900 mb-1">Chỉ luyện nghe</h4>
+                                        <p className="text-slate-500 text-xs md:text-sm leading-relaxed">
+                                            Nghe câu hỏi từ giám khảo, suy nghĩ và xem đáp án chuẩn. Phù hợp để làm quen với ngữ điệu.
+                                        </p>
+                                    </div>
                                 </div>
 
                                 <div 
-                                    className={`cursor-pointer border-2 rounded-2xl p-5 md:p-6 transition-all ${
-                                        selectedMode === 'ai_mock' 
-                                        ? 'border-emerald-500 bg-emerald-50/50' 
-                                        : 'border-gray-200 hover:border-emerald-200 hover:bg-gray-50'
-                                    }`}
+                                    className={`relative group cursor-pointer transition-all duration-300 ${selectedMode === 'ai_mock' ? 'scale-[1.02]' : 'hover:scale-[1.01]'}`}
                                     onClick={() => setSelectedMode('ai_mock')}
                                 >
-                                    <Bot className={`w-8 h-8 md:w-10 md:h-10 mb-3 md:mb-4 ${selectedMode === 'ai_mock' ? 'text-emerald-500' : 'text-gray-400'}`} />
-                                    <h4 className="text-base md:text-lg font-bold text-gray-900 mb-1 md:mb-2">Thi thử với AI</h4>
-                                    <p className="text-gray-500 text-xs md:text-sm">
-                                        Trả lời trực tiếp qua Micro. AI sẽ phân tích giọng nói, chấm điểm và chỉ ra lỗi sai của bạn.
-                                    </p>
+                                    {selectedMode === 'ai_mock' && <div className="absolute inset-0 bg-emerald-400 rounded-2xl blur opacity-25"></div>}
+                                    <div className={`relative h-full rounded-2xl p-4 md:p-6 transition-all duration-300 backdrop-blur-sm border-2 ${
+                                        selectedMode === 'ai_mock' 
+                                        ? 'border-emerald-500 bg-emerald-50/90 shadow-lg shadow-emerald-500/10' 
+                                        : 'border-slate-200/60 bg-white/60 hover:bg-white hover:border-emerald-300 hover:shadow-md'
+                                    }`}>
+                                        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center mb-3 ${selectedMode === 'ai_mock' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-emerald-100 group-hover:text-emerald-500'} transition-colors`}>
+                                            <Bot className="w-5 h-5 md:w-6 md:h-6" />
+                                        </div>
+                                        <h4 className="text-base md:text-lg font-bold text-slate-900 mb-1">Thi thử với AI</h4>
+                                        <p className="text-slate-500 text-xs md:text-sm leading-relaxed">
+                                            Trả lời trực tiếp qua Micro. AI sẽ phân tích giọng nói, chấm điểm và chỉ ra lỗi sai của bạn.
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    <Button 
-                        size="lg" 
-                        className="w-full h-14 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all"
-                        onClick={handleStart}
-                        disabled={loading}
-                    >
-                        {loading ? 'Đang chuẩn bị...' : (
-                            selectedCategory === 'Sử dụng công cụ' 
-                                ? 'Bắt đầu thực hành' 
-                                : (selectedMode === 'ai_mock' ? 'Bắt đầu thi thử' : 'Bắt đầu luyện tập')
-                        )}
-                    </Button>
+                    <div className="pt-2 md:pt-4">
+                        <Button 
+                            size="lg" 
+                            className="w-full h-12 md:h-14 text-base md:text-lg rounded-xl md:rounded-2xl shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 transition-all hover:-translate-y-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold"
+                            onClick={handleStart}
+                            disabled={loading}
+                        >
+                            {loading ? (
+                                <span className="flex items-center gap-2">
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    Đang chuẩn bị dữ liệu...
+                                </span>
+                            ) : (
+                                selectedCategory === 'Sử dụng công cụ' 
+                                    ? 'Bắt đầu thực hành' 
+                                    : (selectedMode === 'ai_mock' ? 'Bắt đầu thi thử ngay' : 'Bắt đầu luyện tập')
+                            )}
+                        </Button>
+                    </div>
                 </Card>
             </div>
         </div>

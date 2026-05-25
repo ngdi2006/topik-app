@@ -14,7 +14,7 @@ import { LessonList } from "@/components/lessons/LessonList"
 import { PracticeHub } from "@/components/practice/PracticeHub"
 import { PaymentModal } from "@/components/payment/PaymentModal"
 
-type ActiveMenu = 'bai-hoc' | 'luyen-tap' | 'thi-thu' | 'ai-chat' | 'kiem-tra' | 'phong-van'
+type ActiveMenu = 'bai-hoc' | 'luyen-tap' | 'thi-thu' | 'ai-chat' | 'kiem-tra' | 'phong-van' | 'tu-vung-vong-2'
 
 type Exam = {
     id: string
@@ -83,6 +83,13 @@ const learnerMenuMeta: Record<ActiveMenu, LearnerMenuMeta> = {
         buttonText: 'Vào Luyện Phỏng Vấn',
         highlight: true,
     },
+    'tu-vung-vong-2': {
+        label: 'Từ vựng & Biển báo',
+        Icon: ShoppingCart, // using ShoppingCart temp, will change icon maybe Image or FileText
+        description: 'Luyện tập Flashcard, Trắc nghiệm, Ghép chữ, Nhận diện với AI',
+        buttonText: 'Vào Luyện Từ Vựng',
+        highlight: true,
+    },
 }
 
 const fallbackMenuSettings: LearnerMenuSetting[] = Object.entries(learnerMenuMeta).map(([key, meta], index) => ({
@@ -97,7 +104,8 @@ export default function DashboardPage() {
     const supabase = createClient()
     const { user, setUser, setRole, isLoading, setIsLoading } = useUserStore()
     const [exams, setExams] = useState<Exam[]>([])
-    const [enabledMenuSettings, setEnabledMenuSettings] = useState<LearnerMenuSetting[]>(fallbackMenuSettings)
+    const [enabledMenuSettings, setEnabledMenuSettings] = useState<LearnerMenuSetting[]>([])
+    const [isLocalLoading, setIsLocalLoading] = useState(true)
     const [activeMenu, setActiveMenu] = useState<ActiveMenu | null>(null)
     const [userCredits, setUserCredits] = useState<number>(0)
     const [paymentModalOpen, setPaymentModalOpen] = useState(false)
@@ -131,8 +139,8 @@ export default function DashboardPage() {
 
             try {
                 const [examsRes, menuRes] = await Promise.all([
-                    fetch('/api/exams'),
-                    fetch('/api/learner/dashboard-menu'),
+                    fetch('/api/exams', { cache: 'no-store' }),
+                    fetch('/api/learner/dashboard-menu', { cache: 'no-store' }),
                 ])
 
                 if (examsRes.ok) {
@@ -148,9 +156,11 @@ export default function DashboardPage() {
                 }
             } catch (error) {
                 console.error("Lỗi lấy dữ liệu dashboard:", error)
+                setEnabledMenuSettings(fallbackMenuSettings)
             }
 
             setIsLoading(false)
+            setIsLocalLoading(false)
         }
 
         fetchUserData()
@@ -251,8 +261,15 @@ export default function DashboardPage() {
         )
     }
 
-    if (isLoading) {
-        return <div className="flex h-screen items-center justify-center">Đang tải dữ liệu...</div>
+    if (isLoading || isLocalLoading) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-[#f4f6f8]">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                    <p className="text-gray-500 font-medium">Đang tải dữ liệu...</p>
+                </div>
+            </div>
+        )
     }
 
     return (
@@ -434,15 +451,6 @@ export default function DashboardPage() {
                                         </div>
                                     )}
                                 </div>
-
-                                <PaymentModal
-                                    open={paymentModalOpen}
-                                    onClose={() => setPaymentModalOpen(false)}
-                                    onSuccess={() => {
-                                        setPaymentModalOpen(false)
-                                        fetchCredits()
-                                    }}
-                                />
                             </>
                         )}
 
@@ -542,6 +550,46 @@ export default function DashboardPage() {
                             </>
                         )}
 
+                        {/* TỪ VỰNG VÒNG 2 */}
+                        {activeMenu === 'tu-vung-vong-2' && activeMenuItem && (
+                            <>
+                                <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+                                    <activeMenuItem.Icon className="w-8 h-8 text-primary" />
+                                    {activeMenuItem.label}
+                                </h1>
+                                <Card className="border-primary/50 bg-primary/5">
+                                    <CardHeader>
+                                        <CardTitle className="text-primary flex items-center gap-2">
+                                            <activeMenuItem.Icon className="w-5 h-5" />
+                                            {activeMenuItem.label}
+                                            <span className="relative flex h-3 w-3">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                                            </span>
+                                        </CardTitle>
+                                        <CardDescription>{activeMenuItem.description}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <Button
+                                            variant="default"
+                                            className="w-full"
+                                            onClick={() => router.push('/vocabulary-practice')}
+                                        >
+                                            {activeMenuItem.buttonText}
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+                            </>
+                        )}
+
+                        <PaymentModal
+                            open={paymentModalOpen}
+                            onClose={() => setPaymentModalOpen(false)}
+                            onSuccess={() => {
+                                setPaymentModalOpen(false)
+                                fetchCredits()
+                            }}
+                        />
                     </div>
                 </main>
             </div>

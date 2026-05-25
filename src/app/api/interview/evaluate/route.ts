@@ -18,14 +18,18 @@ export async function POST(request: Request) {
             .eq('id', question_id)
             .single()
 
-        // Fetch global prompt
+        // Fetch global prompt and industry prompts
         const { data: settings } = await supabase
             .from('system_settings')
-            .select('ai_global_prompt')
+            .select('ai_global_prompt, industry_prompts')
             .eq('id', 1)
             .single()
 
         // HERE: Integration with OpenAI / AI Engine goes here
+        // Select the prompt based on industry
+        const industry = question?.industry || 'Sản xuất chế tạo';
+        const aiPrompt = settings?.industry_prompts?.[industry] || settings?.ai_global_prompt || 'Bạn là giám khảo...';
+        
         // For now, we simulate an AI evaluation with a mock response
         
         // --- MOCK AI PROCESSING ---

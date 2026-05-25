@@ -32,6 +32,7 @@ export async function PUT(request: Request) {
             .upsert({
                 id: 1,
                 ai_global_prompt: body.ai_global_prompt,
+                industry_prompts: body.industry_prompts,
                 updated_at: new Date().toISOString()
             })
             .select()

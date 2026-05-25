@@ -26,6 +26,15 @@ export default function InterviewModuleAdminPage() {
 
     // Settings state
     const [aiPrompt, setAiPrompt] = useState('')
+    const [industryPrompts, setIndustryPrompts] = useState<Record<string, string>>({
+        "Sản xuất chế tạo": "",
+        "Ngư nghiệp": "",
+        "Nông nghiệp": "",
+        "Lâm nghiệp": "",
+        "Xây dựng": "",
+        "Dịch vụ": ""
+    })
+    const [activeIndustryTab, setActiveIndustryTab] = useState("Sản xuất chế tạo")
     const [savingSettings, setSavingSettings] = useState(false)
 
     useEffect(() => {
@@ -53,6 +62,9 @@ export default function InterviewModuleAdminPage() {
             const data = await res.json()
             if (data.success && data.data) {
                 setAiPrompt(data.data.ai_global_prompt || '')
+                if (data.data.industry_prompts) {
+                    setIndustryPrompts(prev => ({...prev, ...data.data.industry_prompts}))
+                }
             }
         } catch (error) {
             toast.error('Lỗi tải cấu hình')
@@ -66,7 +78,10 @@ export default function InterviewModuleAdminPage() {
             const res = await fetch('/api/admin/system-settings', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ai_global_prompt: aiPrompt })
+                body: JSON.stringify({ 
+                    ai_global_prompt: aiPrompt,
+                    industry_prompts: industryPrompts
+                })
             })
             const data = await res.json()
             if (!data.success) throw new Error(data.error)
@@ -97,6 +112,7 @@ export default function InterviewModuleAdminPage() {
     const handleDownloadTemplate = () => {
         const templateData = [
             {
+                "Ngành nghề": "Sản xuất chế tạo",
                 "Phân loại": "Khẩu lệnh",
                 "Câu hỏi": "위를 보세요.",
                 "Dịch nghĩa": "Hãy nhìn lên trên.",
@@ -107,6 +123,7 @@ export default function InterviewModuleAdminPage() {
                 "ID Ô thả": ""
             },
             {
+                "Ngành nghề": "Ngư nghiệp",
                 "Phân loại": "Sử dụng công cụ",
                 "Câu hỏi": "망치를 오른쪽 아래 선반에 넣으세요.",
                 "Dịch nghĩa": "Hãy đặt búa vào kệ dưới bên phải.",
@@ -134,7 +151,7 @@ export default function InterviewModuleAdminPage() {
             <Tabs defaultValue="questions" className="w-full">
                 <TabsList className="mb-4">
                     <TabsTrigger value="questions">Danh sách câu hỏi</TabsTrigger>
-                    <TabsTrigger value="settings">Cấu hình AI (Global)</TabsTrigger>
+                    <TabsTrigger value="settings">Cấu hình AI (Theo ngành)</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="questions" className="space-y-4">
@@ -187,7 +204,7 @@ export default function InterviewModuleAdminPage() {
                             <table className="w-full text-sm text-left">
                                 <thead className="bg-gray-50 border-b">
                                     <tr>
-                                        <th className="px-6 py-3 font-semibold text-gray-600">Phân loại</th>
+                                        <th className="px-6 py-3 font-semibold text-gray-600">Ngành nghề / Phân loại</th>
                                         <th className="px-6 py-3 font-semibold text-gray-600">Câu hỏi (Tiếng Hàn)</th>
                                         <th className="px-6 py-3 font-semibold text-gray-600 text-right">Thao tác</th>
                                     </tr>
@@ -202,9 +219,14 @@ export default function InterviewModuleAdminPage() {
                                         .map((q) => (
                                         <tr key={q.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                                                    {q.category}
-                                                </span>
+                                                <div className="flex flex-col gap-1 items-start">
+                                                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+                                                        {q.industry || 'Sản xuất chế tạo'}
+                                                    </span>
+                                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                                                        {q.category}
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="font-medium">{q.question_text}</div>
@@ -244,19 +266,35 @@ export default function InterviewModuleAdminPage() {
                 <TabsContent value="settings">
                     <div className="bg-white rounded-lg border p-6 space-y-4">
                         <div>
-                            <h3 className="font-semibold text-lg">System Prompt & Nguồn tham khảo</h3>
+                            <h3 className="font-semibold text-lg">System Prompt & Nguồn tham khảo theo từng ngành</h3>
                             <p className="text-sm text-gray-500 mb-4">
-                                Dữ liệu này sẽ được dùng làm ngữ cảnh (System Prompt) cho AI khi chấm điểm các phần thi phỏng vấn.
+                                Hệ thống sẽ tự động chọn đúng System Prompt tương ứng với ngành nghề của câu hỏi để AI chấm điểm chính xác nhất.
                             </p>
                         </div>
-                        <Textarea 
-                            rows={15} 
-                            placeholder="Nhập prompt hệ thống và tiêu chí chấm điểm..." 
-                            value={aiPrompt}
-                            onChange={(e) => setAiPrompt(e.target.value)}
-                            className="font-mono text-sm leading-relaxed"
-                        />
-                        <div className="flex justify-end">
+
+                        <Tabs value={activeIndustryTab} onValueChange={setActiveIndustryTab} className="w-full">
+                            <TabsList className="mb-4 flex flex-wrap h-auto gap-2 bg-slate-100 p-1">
+                                {Object.keys(industryPrompts).map((ind) => (
+                                    <TabsTrigger key={ind} value={ind} className="data-[state=active]:bg-white">
+                                        {ind}
+                                    </TabsTrigger>
+                                ))}
+                            </TabsList>
+
+                            {Object.keys(industryPrompts).map((ind) => (
+                                <TabsContent key={ind} value={ind} className="m-0">
+                                    <Textarea 
+                                        rows={15} 
+                                        placeholder={`Nhập prompt hệ thống và tiêu chí chấm điểm cho ngành ${ind}...`} 
+                                        value={industryPrompts[ind]}
+                                        onChange={(e) => setIndustryPrompts(prev => ({ ...prev, [ind]: e.target.value }))}
+                                        className="font-mono text-sm leading-relaxed"
+                                    />
+                                </TabsContent>
+                            ))}
+                        </Tabs>
+
+                        <div className="flex justify-end pt-4 border-t mt-6">
                             <Button onClick={handleSaveSettings} disabled={savingSettings}>
                                 {savingSettings ? 'Đang lưu...' : 'Lưu cấu hình AI'}
                             </Button>

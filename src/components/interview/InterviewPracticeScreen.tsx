@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Mic, Square, Play, Eye, RefreshCw, CheckCircle, XCircle } from 'lucide-react'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { toast } from 'sonner'
+import { FlashcardMode, FillBlankMode, WordSortMode } from './ListenOnlyModes'
 
 interface InterviewPracticeScreenProps {
     questions: any[]
@@ -13,8 +14,13 @@ interface InterviewPracticeScreenProps {
 }
 
 export function InterviewPracticeScreen({ questions, mode, onFinish }: InterviewPracticeScreenProps) {
-    const [currentIndex, setCurrentIndex] = useState(0)
-    const currentQ = questions[currentIndex]
+    const [queue, setQueue] = useState<number[]>(questions.map((_, i) => i))
+    const currentQIndex = queue.length > 0 ? queue[0] : null
+    const currentQ = currentQIndex !== null ? questions[currentQIndex] : null
+
+    // Listen Only Settings
+    const [listenSubMode, setListenSubMode] = useState<'flashcard' | 'fill_blank' | 'word_sort'>('flashcard')
+    const [playbackRate, setPlaybackRate] = useState<number>(1.0)
 
     // Audio states
     const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -25,7 +31,6 @@ export function InterviewPracticeScreen({ questions, mode, onFinish }: Interview
     const timerRef = useRef<NodeJS.Timeout | null>(null)
 
     // UI states
-    const [showAnswer, setShowAnswer] = useState(false)
     const [answers, setAnswers] = useState<Record<string, string>>({})
 
     // Speech Recognition
@@ -46,7 +51,6 @@ export function InterviewPracticeScreen({ questions, mode, onFinish }: Interview
 
         setAudioState('idle')
         setTimeLeft(null)
-        setShowAnswer(false)
         resetTranscript()
         if (isRecording) stopRecording()
         
@@ -57,6 +61,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish }: Interview
 
         if (currentQ.question_audio_url && audioRef.current) {
             audioRef.current.src = currentQ.question_audio_url
+            audioRef.current.playbackRate = playbackRate
             // Do NOT call load() to avoid race conditions
             audioRef.current.play().catch(err => {
                 if (err.name === 'AbortError') {
@@ -70,7 +75,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish }: Interview
             // Fallback to Browser's Built-in TTS AI (Text-to-Speech)
             const utterance = new SpeechSynthesisUtterance(currentQ.question_text)
             utterance.lang = 'ko-KR'
-            utterance.rate = 0.9 // Read slightly slower for clarity
+            utterance.rate = 0.9 * playbackRate // Read slightly slower for clarity
             
             utterance.onstart = () => setAudioState('playing')
             utterance.onend = () => handleAudioEnded()
@@ -96,7 +101,13 @@ export function InterviewPracticeScreen({ questions, mode, onFinish }: Interview
             if ('speechSynthesis' in window) window.speechSynthesis.cancel()
             if (timerRef.current) clearInterval(timerRef.current)
         }
-    }, [currentIndex, currentQ])
+    }, [currentQIndex, currentQ, playbackRate])
+
+    useEffect(() => {
+        if (audioRef.current) {
+            audioRef.current.playbackRate = playbackRate
+        }
+    }, [playbackRate])
 
     const handleAudioPlay = () => setAudioState('playing')
     
@@ -126,11 +137,12 @@ export function InterviewPracticeScreen({ questions, mode, onFinish }: Interview
     const replayAudio = () => {
         if (currentQ.question_audio_url && audioRef.current) {
             audioRef.current.currentTime = 0
+            audioRef.current.playbackRate = playbackRate
             audioRef.current.play().catch(console.error)
         } else if (currentQ.question_text && 'speechSynthesis' in window) {
             const utterance = new SpeechSynthesisUtterance(currentQ.question_text)
             utterance.lang = 'ko-KR'
-            utterance.rate = 0.9
+            utterance.rate = 0.9 * playbackRate
             utterance.onstart = () => setAudioState('playing')
             utterance.onend = () => setAudioState('ended')
             window.speechSynthesis.cancel()
@@ -146,6 +158,26 @@ export function InterviewPracticeScreen({ questions, mode, onFinish }: Interview
         }
     }
 
+    const handleKnown = () => {
+        if (queue.length <= 1) {
+            onFinish(answers)
+        } else {
+            setQueue(prev => prev.slice(1))
+        }
+    }
+
+    const handleNotKnown = () => {
+        if (queue.length <= 1) {
+            onFinish(answers)
+        } else {
+            setQueue(prev => {
+                const newQ = [...prev.slice(1)]
+                newQ.push(prev[0])
+                return newQ
+            })
+        }
+    }
+
     const handleSaveAnswer = () => {
         if (!transcript.trim()) {
             toast.error('Chưa ghi nhận được giọng nói. Vui lòng thử lại.')
@@ -155,19 +187,11 @@ export function InterviewPracticeScreen({ questions, mode, onFinish }: Interview
         const newAnswers = { ...answers, [currentQ.id]: transcript }
         setAnswers(newAnswers)
         
-        if (currentIndex < questions.length - 1) {
-            setCurrentIndex(prev => prev + 1)
-        } else {
-            onFinish(newAnswers)
-        }
+        handleKnown()
     }
 
     const handleNext = () => {
-        if (currentIndex < questions.length - 1) {
-            setCurrentIndex(prev => prev + 1)
-        } else {
-            onFinish(answers)
-        }
+        handleKnown()
     }
 
     if (!currentQ) return null
@@ -191,11 +215,47 @@ export function InterviewPracticeScreen({ questions, mode, onFinish }: Interview
                     <span className="text-xs md:text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
                         {mode === 'listen_only' ? 'Chỉ luyện nghe' : 'Thi thử với AI'}
                     </span>
+                    {mode === 'listen_only' && (
+                        <div className="flex items-center gap-1 ml-2 bg-gray-50 rounded-full border p-0.5">
+                            <span className="text-xs text-gray-500 pl-2 pr-1 font-medium">Tốc độ:</span>
+                            {[0.8, 1.0, 1.2].map(rate => (
+                                <button 
+                                    key={rate}
+                                    onClick={() => setPlaybackRate(rate)}
+                                    className={`px-2 py-0.5 rounded-full text-xs font-semibold transition-all ${playbackRate === rate ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}
+                                >
+                                    {rate}x
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
                 <div className="text-xs md:text-sm font-semibold text-gray-600 bg-gray-50 border px-4 py-1.5 rounded-full w-full md:w-auto text-center">
-                    Câu {currentIndex + 1} / {questions.length}
+                    Còn {queue.length} câu (Tổng: {questions.length})
                 </div>
             </div>
+
+            {mode === 'listen_only' && (
+                <div className="flex justify-center mt-2 -mb-2 z-10 relative">
+                    <div className="bg-white p-1 rounded-xl border shadow-sm flex gap-1 w-full max-w-md">
+                        <Button 
+                            variant={listenSubMode === 'flashcard' ? 'default' : 'ghost'} 
+                            onClick={() => setListenSubMode('flashcard')}
+                            className={`flex-1 rounded-lg text-sm ${listenSubMode === 'flashcard' ? 'shadow-sm' : ''}`} size="sm"
+                        >Flashcard</Button>
+                        <Button 
+                            variant={listenSubMode === 'fill_blank' ? 'default' : 'ghost'} 
+                            onClick={() => setListenSubMode('fill_blank')}
+                            className={`flex-1 rounded-lg text-sm ${listenSubMode === 'fill_blank' ? 'shadow-sm' : ''}`} size="sm"
+                        >Điền từ</Button>
+                        <Button 
+                            variant={listenSubMode === 'word_sort' ? 'default' : 'ghost'} 
+                            onClick={() => setListenSubMode('word_sort')}
+                            className={`flex-1 rounded-lg text-sm ${listenSubMode === 'word_sort' ? 'shadow-sm' : ''}`} size="sm"
+                        >Xếp câu</Button>
+                    </div>
+                </div>
+            )}
 
             {/* Main Question Area */}
             <div className="bg-white rounded-2xl border shadow-sm p-5 md:p-8 text-center space-y-6 md:space-y-8 relative overflow-hidden">
@@ -240,39 +300,30 @@ export function InterviewPracticeScreen({ questions, mode, onFinish }: Interview
 
                     {/* Mode Specific UI */}
                     {audioState === 'ended' && timeLeft !== null && (
-                        <div className="w-full max-w-lg mt-4 transition-all duration-500">
+                        <div className="w-full max-w-2xl mt-4 transition-all duration-500">
                             {mode === 'listen_only' ? (
                                 <div className="space-y-4">
-                                    {!showAnswer ? (
-                                        <Button 
-                                            size="lg" 
-                                            className="w-full text-lg h-14 rounded-xl"
-                                            onClick={() => setShowAnswer(true)}
-                                            disabled={timeLeft > 0} // Có thể block không cho xem đáp án nếu chưa hết giờ suy nghĩ
-                                        >
-                                            <Eye className="w-5 h-5 mr-2" />
-                                            Xem nội dung & đáp án
-                                        </Button>
-                                    ) : (
-                                        <div className="text-left space-y-4 animate-in slide-in-from-bottom-4">
-                                            <div className="bg-blue-50 p-4 md:p-6 rounded-xl border border-blue-100">
-                                                <h4 className="font-semibold text-blue-900 mb-2">Lời thoại giám khảo:</h4>
-                                                <p className="text-lg font-medium text-gray-900">{currentQ.question_text}</p>
-                                                {currentQ.vietnamese_meaning && (
-                                                    <p className="text-gray-600 mt-2">{currentQ.vietnamese_meaning}</p>
-                                                )}
-                                            </div>
-                                            {currentQ.suggested_answers && currentQ.suggested_answers.length > 0 && (
-                                                <div className="bg-emerald-50 p-4 md:p-6 rounded-xl border border-emerald-100">
-                                                    <h4 className="font-semibold text-emerald-900 mb-2">Gợi ý trả lời:</h4>
-                                                    <ul className="list-disc pl-5 space-y-1">
-                                                        {currentQ.suggested_answers.map((ans: string, i: number) => (
-                                                            <li key={i} className="text-gray-800">{ans}</li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            )}
-                                        </div>
+                                    {listenSubMode === 'flashcard' && (
+                                        <FlashcardMode 
+                                            currentQ={currentQ} 
+                                            onKnown={handleKnown} 
+                                            onNotKnown={handleNotKnown} 
+                                            timeLeft={timeLeft} 
+                                        />
+                                    )}
+                                    {listenSubMode === 'fill_blank' && (
+                                        <FillBlankMode 
+                                            currentQ={currentQ} 
+                                            onKnown={handleKnown} 
+                                            onNotKnown={handleNotKnown} 
+                                        />
+                                    )}
+                                    {listenSubMode === 'word_sort' && (
+                                        <WordSortMode 
+                                            currentQ={currentQ} 
+                                            onKnown={handleKnown} 
+                                            onNotKnown={handleNotKnown} 
+                                        />
                                     )}
                                 </div>
                             ) : (
@@ -328,7 +379,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish }: Interview
                                                             <RefreshCw className="w-4 h-4 mr-2" /> Nói lại
                                                         </Button>
                                                         <Button size="sm" onClick={handleSaveAnswer} className="flex-1">
-                                                            {currentIndex < questions.length - 1 ? 'Ghi nhận & Tiếp tục' : 'Nộp bài & Chấm điểm'}
+                                                            {queue.length > 1 ? 'Ghi nhận & Tiếp tục' : 'Nộp bài & Chấm điểm'}
                                                         </Button>
                                                     </div>
                                                 )}
@@ -345,7 +396,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish }: Interview
             {/* Footer Nav */}
             <div className="flex justify-end pt-4">
                 <Button size="lg" onClick={handleNext} className="rounded-xl px-8">
-                    {currentIndex < questions.length - 1 ? 'Câu tiếp theo' : 'Hoàn thành'}
+                    {queue.length > 1 ? 'Câu tiếp theo' : 'Hoàn thành'}
                 </Button>
             </div>
         </div>

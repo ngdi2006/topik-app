@@ -238,21 +238,20 @@ export default function InterviewPracticePage() {
             <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-400/20 rounded-full blur-[100px] -z-10" />
             <div className="absolute top-40 -left-32 w-80 h-80 bg-emerald-400/20 rounded-full blur-[100px] -z-10" />
 
-            <div className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-8 space-y-8 md:space-y-10 relative z-10">
-                <Button variant="ghost" onClick={() => router.push('/dashboard')} className="mb-2 -ml-4 hover:bg-white/60 transition-colors text-slate-600">
-                    <ArrowLeft className="w-4 h-4 mr-2" /> Trở về Dashboard
-                </Button>
-
-                <div className="text-center space-y-3">
-                    <div className="inline-flex items-center justify-center p-3 md:p-4 bg-white rounded-2xl shadow-sm mb-1 border border-slate-100 ring-4 ring-white/50">
-                        <Mic className="w-6 h-6 md:w-8 md:h-8 text-blue-600" />
+            <div className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-8 space-y-6 md:space-y-8 relative z-10">
+                <div className="flex items-center gap-3 md:gap-4 mb-2">
+                    <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard')} className="hover:bg-white/60 text-slate-600 rounded-full h-10 w-10 md:h-12 md:w-12 shrink-0 bg-white/40 shadow-sm border border-white/50">
+                        <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
+                    </Button>
+                    
+                    <div className="flex items-center gap-3">
+                        <div className="inline-flex items-center justify-center p-2.5 md:p-3 bg-white rounded-xl shadow-sm border border-slate-100 ring-2 ring-white/50">
+                            <Mic className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
+                        </div>
+                        <h1 className="text-xl md:text-3xl font-extrabold text-slate-900 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-700">
+                            Luyện Phỏng Vấn Vòng 2
+                        </h1>
                     </div>
-                    <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-700 pb-1 px-2">
-                        Luyện Phỏng Vấn Vòng 2
-                    </h1>
-                    <p className="text-slate-600 text-sm md:text-base font-medium max-w-lg mx-auto px-4">
-                        Hệ thống mô phỏng bài thi phỏng vấn thực tế với Giám khảo AI chuyên nghiệp
-                    </p>
                 </div>
 
                 <Card className="p-4 md:p-8 space-y-6 md:space-y-8 border border-white/60 shadow-2xl bg-white/70 backdrop-blur-xl rounded-2xl md:rounded-[2rem] relative overflow-hidden">

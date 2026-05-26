@@ -11,12 +11,14 @@ import QuizMode from '@/components/vocabulary-vong2/QuizMode'
 import SpellingMode from '@/components/vocabulary-vong2/SpellingMode'
 import VoiceAiMode from '@/components/vocabulary-vong2/VoiceAiMode'
 
-const INDUSTRIES = ['COMMON', 'MANUFACTURING', 'FISHERY', 'AGRICULTURE', 'CONSTRUCTION']
+const INDUSTRIES = ['COMMON', 'MANUFACTURING', 'FISHERY', 'AGRICULTURE', 'FORESTRY', 'SERVICE', 'CONSTRUCTION']
 const INDUSTRY_LABELS: Record<string, string> = {
     'COMMON': 'Chung (Tất cả ngành)',
     'MANUFACTURING': 'Sản xuất chế tạo',
     'FISHERY': 'Ngư nghiệp',
     'AGRICULTURE': 'Nông nghiệp',
+    'FORESTRY': 'Lâm nghiệp',
+    'SERVICE': 'Dịch vụ',
     'CONSTRUCTION': 'Xây dựng'
 }
 const TYPES = ['ALL', 'TOOL', 'SIGN']
@@ -83,21 +85,20 @@ export default function VocabularyPracticePage() {
             {/* Background elements */}
             <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-br from-indigo-50 via-purple-50/50 to-pink-50/50 -z-10" />
             
-            <div className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-8 space-y-8 relative z-10">
-                <Button variant="ghost" onClick={() => router.push('/dashboard')} className="mb-2 -ml-4 hover:bg-white/60 text-slate-600">
-                    <ArrowLeft className="w-4 h-4 mr-2" /> Trở về Dashboard
-                </Button>
-
-                <div className="text-center space-y-3">
-                    <div className="inline-flex items-center justify-center p-3 md:p-4 bg-white rounded-2xl shadow-sm mb-1 border border-slate-100 ring-4 ring-white/50">
-                        <BookOpen className="w-6 h-6 md:w-8 md:h-8 text-indigo-600" />
+            <div className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-8 space-y-6 md:space-y-8 relative z-10">
+                <div className="flex items-center gap-3 md:gap-4">
+                    <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard')} className="hover:bg-white/60 text-slate-600 rounded-full h-10 w-10 md:h-12 md:w-12 shrink-0 bg-white/40 shadow-sm border border-white/50">
+                        <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
+                    </Button>
+                    
+                    <div className="flex items-center gap-3">
+                        <div className="inline-flex items-center justify-center p-2.5 md:p-3 bg-white rounded-xl shadow-sm border border-slate-100 ring-2 ring-white/50">
+                            <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-indigo-600" />
+                        </div>
+                        <h1 className="text-xl md:text-3xl font-extrabold text-slate-900 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-700 to-purple-700">
+                            Từ vựng & Biển báo
+                        </h1>
                     </div>
-                    <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-700 to-purple-700 pb-1 px-2">
-                        Từ vựng & Biển báo
-                    </h1>
-                    <p className="text-slate-600 text-sm md:text-base font-medium max-w-lg mx-auto px-4">
-                        Luyện tập trực quan với 4 chế độ thông minh giúp nhớ lâu, phản xạ nhanh
-                    </p>
                 </div>
 
                 <Card className="p-4 md:p-8 space-y-6 md:space-y-8 border border-white/60 shadow-2xl bg-white/70 backdrop-blur-xl rounded-2xl md:rounded-[2rem] relative overflow-hidden">

@@ -1,11 +1,12 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const admin = createAdminClient()
         const body = await req.json()
-        const { data, error } = await admin.from('vocabulary_vong2').update(body).eq('id', params.id).select().single()
+        const { id } = await params;
+        const { data, error } = await admin.from('vocabulary_vong2').update(body).eq('id', id).select().single()
         if (error) throw error
         return NextResponse.json({ success: true, data })
     } catch (error: any) {
@@ -13,10 +14,11 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const admin = createAdminClient()
-        const { error } = await admin.from('vocabulary_vong2').delete().eq('id', params.id)
+        const { id } = await params;
+        const { error } = await admin.from('vocabulary_vong2').delete().eq('id', id)
         if (error) throw error
         return NextResponse.json({ success: true })
     } catch (error: any) {

@@ -11,12 +11,13 @@ import QuizMode from '@/components/vocabulary-vong2/QuizMode'
 import SpellingMode from '@/components/vocabulary-vong2/SpellingMode'
 import VoiceAiMode from '@/components/vocabulary-vong2/VoiceAiMode'
 
-const INDUSTRIES = ['COMMON', 'MANUFACTURING', 'FISHERY', 'AGRICULTURE']
+const INDUSTRIES = ['COMMON', 'MANUFACTURING', 'FISHERY', 'AGRICULTURE', 'CONSTRUCTION']
 const INDUSTRY_LABELS: Record<string, string> = {
     'COMMON': 'Chung (Tất cả ngành)',
     'MANUFACTURING': 'Sản xuất chế tạo',
     'FISHERY': 'Ngư nghiệp',
-    'AGRICULTURE': 'Nông nghiệp'
+    'AGRICULTURE': 'Nông nghiệp',
+    'CONSTRUCTION': 'Xây dựng'
 }
 const TYPES = ['ALL', 'TOOL', 'SIGN']
 

@@ -27,6 +27,10 @@ type PreviewRow = {
 
     imageFile?: File;
     previewImageUrl?: string;
+
+    audio_url: string | null;
+    audioFile?: File;
+    previewAudioUrl?: string;
 };
 
 export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalProps) {
@@ -39,6 +43,67 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
     
     const [progressStatus, setProgressStatus] = useState('')
     const [progressPercent, setProgressPercent] = useState(0)
+
+    const handleDownloadTemplate = () => {
+        const templateData = [
+            {
+                'Ngành nghề': 'MANUFACTURING',
+                'Phân loại': 'TOOL',
+                'Tiếng Hàn': '망치',
+                'Tiếng Việt': 'Cái búa',
+                'Tên File Ảnh': 'hammer.jpg',
+                'Tên File Âm Thanh': 'hammer.mp3'
+            },
+            {
+                'Ngành nghề': 'COMMON',
+                'Phân loại': 'SIGN',
+                'Tiếng Hàn': '금연',
+                'Tiếng Việt': 'Cấm hút thuốc',
+                'Tên File Ảnh': 'no_smoking.png',
+                'Tên File Âm Thanh': 'no_smoking.mp3'
+            }
+        ];
+
+        const ws = XLSX.utils.json_to_sheet(templateData);
+        ws['!cols'] = [
+            { wch: 18 }, // Ngành nghề
+            { wch: 15 }, // Phân loại
+            { wch: 20 }, // Tiếng Hàn
+            { wch: 25 }, // Tiếng Việt
+            { wch: 20 }, // Tên File Ảnh
+            { wch: 20 }  // Tên File Âm Thanh
+        ];
+
+        const guideData = [
+            ['HƯỚNG DẪN NHẬP DỮ LIỆU TỪ VỰNG VÒNG 2'],
+            [],
+            ['1. CỘT "Ngành nghề" (Bắt buộc)'],
+            ['Nhập 1 trong các mã sau viết hoa:'],
+            ['MANUFACTURING', 'Sản xuất chế tạo'],
+            ['FISHERY', 'Ngư nghiệp'],
+            ['AGRICULTURE', 'Nông nghiệp'],
+            ['FORESTRY', 'Lâm nghiệp'],
+            ['SERVICE', 'Dịch vụ'],
+            ['CONSTRUCTION', 'Xây dựng'],
+            ['COMMON', 'Chung (Tất cả ngành)'],
+            [],
+            ['2. CỘT "Phân loại" (Bắt buộc)'],
+            ['Nhập 1 trong các mã sau viết hoa:'],
+            ['TOOL', 'Dụng cụ, vật dụng'],
+            ['SIGN', 'Biển báo'],
+            [],
+            ['3. CỘT "Tên File Ảnh" & "Tên File Âm Thanh" (Tùy chọn)'],
+            ['Cách 1:', 'Điền chính xác tên file (vd: hammer.jpg, audio.mp3) sẽ được bọc trong file ZIP tải lên.'],
+            ['Cách 2:', 'Điền đường link URL (http://...) của file ảnh hoặc âm thanh đã có trên mạng.']
+        ];
+        const wsGuide = XLSX.utils.aoa_to_sheet(guideData);
+        wsGuide['!cols'] = [{ wch: 20 }, { wch: 80 }];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, wsGuide, "Hướng dẫn");
+        XLSX.utils.book_append_sheet(wb, ws, "Template");
+        XLSX.writeFile(wb, "vocabulary_vong2_template.xlsx");
+    }
 
     const handlePreview = async () => {
         if (!excelFile) {
@@ -58,12 +123,18 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
                 const zip = new JSZip()
                 const zipContent = await zip.loadAsync(zipFile)
                 
-                const imageFiles = Object.values(zipContent.files).filter(f => !f.dir && f.name.match(/\.(png|jpe?g|gif|webp)$/i))
+                const mediaFiles = Object.values(zipContent.files).filter(f => !f.dir && f.name.match(/\.(png|jpe?g|gif|webp|mp3|wav|ogg)$/i))
                 
-                for (const imgZip of imageFiles) {
-                    const blob = await imgZip.async('blob')
-                    const filename = imgZip.name.split('/').pop() || imgZip.name
-                    const file = new File([blob], filename, { type: blob.type || 'image/png' })
+                for (const fZip of mediaFiles) {
+                    const blob = await fZip.async('blob')
+                    const filename = fZip.name.split('/').pop() || fZip.name
+                    let mimeType = blob.type
+                    if (!mimeType) {
+                        if (filename.match(/\.mp3$/i)) mimeType = 'audio/mpeg'
+                        else if (filename.match(/\.png$/i)) mimeType = 'image/png'
+                        else if (filename.match(/\.jpe?g$/i)) mimeType = 'image/jpeg'
+                    }
+                    const file = new File([blob], filename, { type: mimeType })
                     zipFilesMap[filename] = file
                 }
             }
@@ -93,9 +164,19 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
                 
                 const industryRaw = row['Ngành nghề'] || row['industry'] || 'COMMON'
                 const industry = industryRaw.toUpperCase()
+                const validIndustries = ['MANUFACTURING', 'FISHERY', 'AGRICULTURE', 'FORESTRY', 'SERVICE', 'COMMON', 'CONSTRUCTION']
+                if (!validIndustries.includes(industry)) {
+                    errors.push(`Ngành nghề không hợp lệ: ${industry}`)
+                    isValid = false
+                }
 
                 const typeRaw = row['Phân loại'] || row['type'] || 'TOOL'
                 const type = typeRaw.toUpperCase()
+                const validTypes = ['TOOL', 'SIGN']
+                if (!validTypes.includes(type)) {
+                    errors.push(`Loại không hợp lệ: ${type}`)
+                    isValid = false
+                }
 
                 const word_kr = row['Tiếng Hàn'] || row['word_kr'] || ''
                 if (!word_kr) {
@@ -120,6 +201,25 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
                     }
                 }
 
+                const audioName = row['Tên File Âm Thanh'] || row['audio_url'] || null
+                let audioFile: File | undefined = undefined
+                let previewAudioUrl: string | undefined = undefined
+
+                if (audioName) {
+                    if (audioName.startsWith('http')) {
+                        previewAudioUrl = audioName
+                    } else if (zipFilesMap[audioName]) {
+                        audioFile = zipFilesMap[audioName]
+                        previewAudioUrl = URL.createObjectURL(audioFile)
+                    } else {
+                        errors.push(`Thiếu file âm thanh đính kèm: ${audioName}`)
+                        isValid = false
+                    }
+                } else {
+                    // Fallback to Google TTS if no audio provided
+                    previewAudioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(word_kr)}`
+                }
+
                 parsedRows.push({
                     originalIndex: index + 2, 
                     isValid,
@@ -130,7 +230,10 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
                     word_vi,
                     image_url: imgName,
                     imageFile,
-                    previewImageUrl
+                    previewImageUrl,
+                    audio_url: audioName,
+                    audioFile,
+                    previewAudioUrl
                 })
             })
 
@@ -155,7 +258,7 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
         setProgressPercent(0)
         
         try {
-            setProgressStatus('Đang upload các file ảnh (nếu có)...')
+            setProgressStatus('Đang upload các file ảnh và âm thanh (nếu có)...')
             const finalDataToInsert: any[] = []
 
             for (let i = 0; i < validData.length; i++) {
@@ -163,20 +266,25 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
                 setProgressPercent(Math.round(20 + (i / validData.length) * 40)) 
                 
                 let finalImageUrl = row.previewImageUrl
-                
                 if (row.imageFile) {
                     const formData = new FormData()
                     formData.append('file', row.imageFile)
                     formData.append('folder', 'vocab_vong2')
-
-                    const uploadRes = await fetch('/api/admin/upload', {
-                        method: 'POST',
-                        body: formData
-                    })
-
+                    const uploadRes = await fetch('/api/admin/upload', { method: 'POST', body: formData })
                     if (!uploadRes.ok) throw new Error(`Upload ảnh thất bại: ${row.imageFile.name}`)
                     const uploadData = await uploadRes.json()
                     finalImageUrl = uploadData.url
+                }
+
+                let finalAudioUrl = row.previewAudioUrl
+                if (row.audioFile) {
+                    const formData = new FormData()
+                    formData.append('file', row.audioFile)
+                    formData.append('folder', 'vocab_vong2')
+                    const uploadRes = await fetch('/api/admin/upload', { method: 'POST', body: formData })
+                    if (!uploadRes.ok) throw new Error(`Upload âm thanh thất bại: ${row.audioFile.name}`)
+                    const uploadData = await uploadRes.json()
+                    finalAudioUrl = uploadData.url
                 }
 
                 finalDataToInsert.push({
@@ -185,6 +293,7 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
                     word_kr: row.word_kr,
                     word_vi: row.word_vi,
                     image_url: finalImageUrl,
+                    audio_url: finalAudioUrl,
                 })
             }
 
@@ -235,7 +344,12 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
                     {step === 1 && (
                         <div className="space-y-6">
                             <div className="space-y-2">
-                                <label className="text-sm font-semibold">1. File Danh sách (Excel/CSV) *</label>
+                                <div className="flex justify-between items-center">
+                                    <label className="text-sm font-semibold">1. File Danh sách (Excel/CSV) *</label>
+                                    <Button variant="link" size="sm" onClick={handleDownloadTemplate} className="text-blue-600 p-0 h-auto">
+                                        Tải file Excel mẫu
+                                    </Button>
+                                </div>
                                 <div className="flex items-center gap-3">
                                     <Button variant="outline" className="w-full justify-start h-12 relative overflow-hidden bg-green-50/50 hover:bg-green-50 border-green-200" onClick={() => document.getElementById('excel-upload')?.click()} disabled={isImporting}>
                                         <FileSpreadsheet className="w-5 h-5 mr-3 text-green-600" />
@@ -283,6 +397,7 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
                                             <th className="px-4 py-3 whitespace-nowrap">Dòng (Excel)</th>
                                             <th className="px-4 py-3 min-w-[120px]">Trạng thái</th>
                                             <th className="px-4 py-3 whitespace-nowrap">Hình ảnh</th>
+                                            <th className="px-4 py-3 whitespace-nowrap">Âm thanh</th>
                                             <th className="px-4 py-3">Ngành nghề</th>
                                             <th className="px-4 py-3">Loại</th>
                                             <th className="px-4 py-3">Tiếng Hàn</th>
@@ -312,6 +427,17 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
                                                 <td className="px-4 py-3 text-center">
                                                     {row.previewImageUrl ? (
                                                         <img src={row.previewImageUrl} alt="preview" className="w-10 h-10 object-contain mx-auto rounded-md shadow-sm border" />
+                                                    ) : '-'}
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    {row.previewAudioUrl ? (
+                                                        <button 
+                                                            onClick={() => new Audio(row.previewAudioUrl).play()}
+                                                            className="p-2 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors mx-auto block"
+                                                            title="Nghe thử"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+                                                        </button>
                                                     ) : '-'}
                                                 </td>
                                                 <td className="px-4 py-3 text-slate-700">{row.industry}</td>

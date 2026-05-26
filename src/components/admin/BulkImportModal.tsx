@@ -110,6 +110,7 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
                         'FORESTRY': 'Lâm nghiệp',
                         'SERVICE': 'Dịch vụ',
                         'CONSTRUCTION': 'Xây dựng',
+                        'COMMON': 'Chung (Tất cả ngành)',
                     }
                     industry = industryMap[upperInd] || rawInd
                 }

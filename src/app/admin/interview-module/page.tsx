@@ -132,6 +132,17 @@ export default function InterviewModuleAdminPage() {
                 "Gợi ý trả lời": "",
                 "Tên File Ảnh": "hammer.png",
                 "ID Ô thả": "shelf_bottom_right"
+            },
+            {
+                "Ngành nghề": "COMMON",
+                "Phân loại": "Khẩu lệnh",
+                "Câu hỏi": "앞으로 가세요.",
+                "Dịch nghĩa": "Đi về phía trước.",
+                "Giây đếm ngược": 5,
+                "Link Audio": "",
+                "Gợi ý trả lời": "네, 알겠습니다|네",
+                "Tên File Ảnh": "",
+                "ID Ô thả": ""
             }
         ]
         
@@ -159,10 +170,16 @@ export default function InterviewModuleAdminPage() {
             ['FORESTRY', 'Lâm nghiệp'],
             ['SERVICE', 'Dịch vụ'],
             ['CONSTRUCTION', 'Xây dựng'],
+            ['COMMON', 'Chung (Tất cả ngành)'],
             [],
             ['2. CỘT "Phân loại" (Bắt buộc)'],
             ['Nhập 1 trong các mục sau:'],
             ['Khẩu lệnh', 'Giao tiếp', 'Toán học', 'Sử dụng công cụ', 'Xử lý tình huống'],
+            [],
+            ['* LƯU Ý ĐỐI VỚI KHẨU LỆNH CHUNG:'],
+            ['Để nhập khẩu lệnh dùng chung cho tất cả ngành, bạn vui lòng điền:'],
+            [' - Cột "Ngành nghề":', 'COMMON'],
+            [' - Cột "Phân loại":', 'Khẩu lệnh'],
             [],
             ['3. CÁC CỘT KHÁC'],
             ['Gợi ý trả lời', 'Phân cách các câu bằng dấu gạch đứng | (Ví dụ: 네|알겠습니다)'],

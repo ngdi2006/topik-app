@@ -7,6 +7,13 @@ import { Plus, Upload, Trash2, Edit } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { VocabBulkImportModal } from "@/components/admin/VocabBulkImportModal"
 
+const INDUSTRY_LABELS: Record<string, string> = {
+    'COMMON': 'Chung (Tất cả ngành)',
+    'MANUFACTURING': 'Sản xuất chế tạo',
+    'FISHERY': 'Ngư nghiệp',
+    'AGRICULTURE': 'Nông nghiệp'
+}
+
 export default function VocabularyVong2AdminPage() {
     const [vocabList, setVocabList] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
@@ -90,7 +97,7 @@ export default function VocabularyVong2AdminPage() {
                                             <td className="px-6 py-4 font-bold text-gray-900">{item.word_kr}</td>
                                             <td className="px-6 py-4">{item.word_vi}</td>
                                             <td className="px-6 py-4">
-                                                <Badge variant="secondary">{item.industry}</Badge>
+                                                <Badge variant="secondary">{INDUSTRY_LABELS[item.industry] || item.industry}</Badge>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <Badge>{item.type}</Badge>

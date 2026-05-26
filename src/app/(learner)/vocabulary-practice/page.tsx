@@ -12,6 +12,12 @@ import SpellingMode from '@/components/vocabulary-vong2/SpellingMode'
 import VoiceAiMode from '@/components/vocabulary-vong2/VoiceAiMode'
 
 const INDUSTRIES = ['COMMON', 'MANUFACTURING', 'FISHERY', 'AGRICULTURE']
+const INDUSTRY_LABELS: Record<string, string> = {
+    'COMMON': 'Chung (Tất cả ngành)',
+    'MANUFACTURING': 'Sản xuất chế tạo',
+    'FISHERY': 'Ngư nghiệp',
+    'AGRICULTURE': 'Nông nghiệp'
+}
 const TYPES = ['ALL', 'TOOL', 'SIGN']
 
 type Mode = 'flashcard' | 'quiz' | 'spelling' | 'voice'
@@ -108,7 +114,7 @@ export default function VocabularyPracticePage() {
                                 </SelectTrigger>
                                 <SelectContent className="rounded-xl">
                                     {INDUSTRIES.map(ind => (
-                                        <SelectItem key={ind} value={ind} className="text-sm md:text-base py-2">{ind}</SelectItem>
+                                        <SelectItem key={ind} value={ind} className="text-sm md:text-base py-2">{INDUSTRY_LABELS[ind]}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>

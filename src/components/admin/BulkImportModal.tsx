@@ -99,7 +99,20 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
                 const errors: string[] = []
                 let isValid = true
                 
-                const industry = row['Ngành nghề'] || row['industry'] || 'Sản xuất chế tạo'
+                const rawInd = row['Ngành nghề'] || row['industry'] || ''
+                let industry = 'Sản xuất chế tạo'
+                if (rawInd) {
+                    const upperInd = String(rawInd).toUpperCase().trim()
+                    const industryMap: Record<string, string> = {
+                        'MANUFACTURING': 'Sản xuất chế tạo',
+                        'FISHERY': 'Ngư nghiệp',
+                        'AGRICULTURE': 'Nông nghiệp',
+                        'FORESTRY': 'Lâm nghiệp',
+                        'SERVICE': 'Dịch vụ',
+                        'CONSTRUCTION': 'Xây dựng',
+                    }
+                    industry = industryMap[upperInd] || rawInd
+                }
 
                 const category = row['Phân loại'] || row['category'] || ''
                 if (!category) {

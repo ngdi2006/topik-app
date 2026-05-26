@@ -112,18 +112,18 @@ export default function InterviewModuleAdminPage() {
     const handleDownloadTemplate = () => {
         const templateData = [
             {
-                "Ngành nghề": "Sản xuất chế tạo",
+                "Ngành nghề": "MANUFACTURING",
                 "Phân loại": "Khẩu lệnh",
                 "Câu hỏi": "위를 보세요.",
                 "Dịch nghĩa": "Hãy nhìn lên trên.",
                 "Giây đếm ngược": 5,
                 "Link Audio": "",
                 "Gợi ý trả lời": "네, 알겠습니다|네",
-                "Link Ảnh công cụ": "",
+                "Tên File Ảnh": "",
                 "ID Ô thả": ""
             },
             {
-                "Ngành nghề": "Ngư nghiệp",
+                "Ngành nghề": "FISHERY",
                 "Phân loại": "Sử dụng công cụ",
                 "Câu hỏi": "망치를 오른쪽 아래 선반에 넣으세요.",
                 "Dịch nghĩa": "Hãy đặt búa vào kệ dưới bên phải.",
@@ -136,7 +136,45 @@ export default function InterviewModuleAdminPage() {
         ]
         
         const ws = XLSX.utils.json_to_sheet(templateData)
+        ws['!cols'] = [
+            { wch: 18 }, // Ngành nghề
+            { wch: 15 }, // Phân loại
+            { wch: 30 }, // Câu hỏi
+            { wch: 30 }, // Dịch nghĩa
+            { wch: 15 }, // Giây đếm ngược
+            { wch: 20 }, // Link Audio
+            { wch: 25 }, // Gợi ý trả lời
+            { wch: 20 }, // Tên File Ảnh
+            { wch: 15 }  // ID Ô thả
+        ];
+
+        const guideData = [
+            ['HƯỚNG DẪN NHẬP DỮ LIỆU CÂU HỎI PHỎNG VẤN VÒNG 2'],
+            [],
+            ['1. CỘT "Ngành nghề" (Bắt buộc)'],
+            ['Nhập 1 trong các mã sau viết hoa:'],
+            ['MANUFACTURING', 'Sản xuất chế tạo'],
+            ['FISHERY', 'Ngư nghiệp'],
+            ['AGRICULTURE', 'Nông nghiệp'],
+            ['FORESTRY', 'Lâm nghiệp'],
+            ['SERVICE', 'Dịch vụ'],
+            ['CONSTRUCTION', 'Xây dựng'],
+            [],
+            ['2. CỘT "Phân loại" (Bắt buộc)'],
+            ['Nhập 1 trong các mục sau:'],
+            ['Khẩu lệnh', 'Giao tiếp', 'Toán học', 'Sử dụng công cụ', 'Xử lý tình huống'],
+            [],
+            ['3. CÁC CỘT KHÁC'],
+            ['Gợi ý trả lời', 'Phân cách các câu bằng dấu gạch đứng | (Ví dụ: 네|알겠습니다)'],
+            ['ID Ô thả', 'Chỉ dùng cho Phân loại "Sử dụng công cụ" (vd: shelf_bottom_right, box_1, v.v...)'],
+            ['Tên File Ảnh', 'Tên file (vd: hammer.png) nếu nén cùng file ZIP, hoặc link http'],
+            ['Link Audio', 'Link http đến file âm thanh nếu có (hoặc để trống hệ thống tự đọc AI)']
+        ];
+        const wsGuide = XLSX.utils.aoa_to_sheet(guideData);
+        wsGuide['!cols'] = [{ wch: 25 }, { wch: 80 }];
+
         const wb = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(wb, wsGuide, "Hướng dẫn")
         XLSX.utils.book_append_sheet(wb, ws, "Template")
         XLSX.writeFile(wb, "Template_Phong_Van_Vong_2.xlsx")
     }

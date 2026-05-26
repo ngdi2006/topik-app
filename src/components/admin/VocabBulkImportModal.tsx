@@ -61,6 +61,14 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
                 'Tiếng Việt': 'Cấm hút thuốc',
                 'Tên File Ảnh': 'no_smoking.png',
                 'Tên File Âm Thanh': 'no_smoking.mp3'
+            },
+            {
+                'Ngành nghề': 'COMMON',
+                'Phân loại': 'COMMAND',
+                'Tiếng Hàn': '앞으로 가세요',
+                'Tiếng Việt': 'Đi về phía trước',
+                'Tên File Ảnh': '',
+                'Tên File Âm Thanh': ''
             }
         ];
 
@@ -91,6 +99,7 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
             ['Nhập 1 trong các mã sau viết hoa:'],
             ['TOOL', 'Dụng cụ, vật dụng'],
             ['SIGN', 'Biển báo'],
+            ['COMMAND', 'Khẩu lệnh'],
             [],
             ['3. CỘT "Tên File Ảnh" & "Tên File Âm Thanh" (Tùy chọn)'],
             ['Cách 1:', 'Điền chính xác tên file (vd: hammer.jpg, audio.mp3) sẽ được bọc trong file ZIP tải lên.'],
@@ -172,7 +181,7 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
 
                 const typeRaw = row['Phân loại'] || row['type'] || 'TOOL'
                 const type = typeRaw.toUpperCase()
-                const validTypes = ['TOOL', 'SIGN']
+                const validTypes = ['TOOL', 'SIGN', 'COMMAND']
                 if (!validTypes.includes(type)) {
                     errors.push(`Loại không hợp lệ: ${type}`)
                     isValid = false

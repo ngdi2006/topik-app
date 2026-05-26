@@ -21,7 +21,7 @@ const INDUSTRY_LABELS: Record<string, string> = {
     'SERVICE': 'Dịch vụ',
     'CONSTRUCTION': 'Xây dựng'
 }
-const TYPES = ['ALL', 'TOOL', 'SIGN']
+const TYPES = ['ALL', 'TOOL', 'SIGN', 'COMMAND']
 
 type Mode = 'flashcard' | 'quiz' | 'spelling' | 'voice'
 type Step = 'setup' | 'practice'
@@ -135,6 +135,7 @@ export default function VocabularyPracticePage() {
                                     <SelectItem value="ALL">Tất cả</SelectItem>
                                     <SelectItem value="TOOL">Công cụ / Vật dụng</SelectItem>
                                     <SelectItem value="SIGN">Biển báo</SelectItem>
+                                    <SelectItem value="COMMAND">Khẩu lệnh</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

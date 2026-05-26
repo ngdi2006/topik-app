@@ -140,6 +140,7 @@ export default function VocabularyVong2AdminPage() {
                                     <SelectItem value="ALL">Tất cả loại</SelectItem>
                                     <SelectItem value="TOOL">Dụng cụ (TOOL)</SelectItem>
                                     <SelectItem value="SIGN">Biển báo (SIGN)</SelectItem>
+                                    <SelectItem value="COMMAND">Khẩu lệnh (COMMAND)</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

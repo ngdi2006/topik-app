@@ -186,6 +186,7 @@ export function VocabFormModal({ isOpen, onClose, onSuccess, editData }: VocabFo
                                 <SelectContent>
                                     <SelectItem value="TOOL">Dụng cụ (TOOL)</SelectItem>
                                     <SelectItem value="SIGN">Biển báo (SIGN)</SelectItem>
+                                    <SelectItem value="COMMAND">Khẩu lệnh (COMMAND)</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

@@ -101,6 +101,11 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
             ['SIGN', 'Biển báo'],
             ['COMMAND', 'Khẩu lệnh'],
             [],
+            ['* LƯU Ý ĐỐI VỚI KHẨU LỆNH CHUNG:'],
+            ['Để nhập khẩu lệnh dùng chung cho tất cả ngành, bạn vui lòng điền:'],
+            [' - Cột "Ngành nghề":', 'COMMON'],
+            [' - Cột "Phân loại":', 'COMMAND'],
+            [],
             ['3. CỘT "Tên File Ảnh" & "Tên File Âm Thanh" (Tùy chọn)'],
             ['Cách 1:', 'Điền chính xác tên file (vd: hammer.jpg, audio.mp3) sẽ được bọc trong file ZIP tải lên.'],
             ['Cách 2:', 'Điền đường link URL (http://...) của file ảnh hoặc âm thanh đã có trên mạng.']

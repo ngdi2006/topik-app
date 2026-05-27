@@ -288,7 +288,7 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
                 onClose()
             }
         }}>
-            <DialogContent className={`transition-all duration-300 ${step === 2 ? 'max-w-5xl' : 'max-w-xl'}`}>
+            <DialogContent className={`transition-all duration-300 w-[95vw] ${step === 2 ? 'sm:max-w-7xl' : 'sm:max-w-2xl'}`}>
                 <DialogHeader>
                     <DialogTitle className="text-xl">Import Dữ Liệu Vòng 2</DialogTitle>
                     <DialogDescription>

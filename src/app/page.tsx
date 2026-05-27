@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, BookOpen, Bot, CheckCircle, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, Bot, CheckCircle, Sparkles, Star, Gem } from "lucide-react";
 
 export default function Home() {
   return (
@@ -105,6 +105,115 @@ export default function Home() {
               </p>
             </div>
           ))}
+        </div>
+
+        {/* Pricing Section */}
+        <div className="mt-32 w-full max-w-6xl flex flex-col items-center mb-10">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">
+              Mua Lượt <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-500">Làm Bài</span>
+            </h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto font-medium">
+              Chọn gói phù hợp với nhu cầu luyện thi của bạn. 
+              Mỗi tài khoản được tặng <span className="font-bold text-red-500">3 lượt miễn phí</span>.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl mx-auto">
+            {/* Gói 10 lượt */}
+            <div className="flex flex-col p-8 rounded-3xl border border-border/50 bg-card/30 backdrop-blur-xl relative transition-all hover:border-border hover:shadow-lg">
+              <h3 className="text-2xl font-bold tracking-tight mb-2">Gói 10 lượt</h3>
+              <p className="text-muted-foreground mb-4 text-sm font-medium">Phù hợp để làm quen với cấu trúc bài thi.</p>
+              
+              <div className="mb-2 mt-2 flex items-baseline gap-1">
+                <span className="text-5xl font-extrabold">99K</span>
+                <span className="text-muted-foreground font-semibold">VNĐ</span>
+              </div>
+              <p className="text-muted-foreground mb-6 text-sm font-semibold h-6 text-primary">≈ 10k / lượt</p>
+              
+              <div className="flex flex-col gap-4 flex-1 mb-8">
+                {[
+                  "10 lượt làm bài thi thử",
+                  "Chấm điểm & giải đáp án ngay",
+                  "Giao diện chuẩn như thi thật",
+                ].map((feature, idx) => (
+                  <div key={idx} className="flex items-start gap-3">
+                    <CheckCircle className="w-5 h-5 text-primary shrink-0" />
+                    <span className="text-sm font-semibold text-foreground/80">{feature}</span>
+                  </div>
+                ))}
+              </div>
+              
+              <Link href="/register" className="w-full mt-auto">
+                <Button className="w-full rounded-xl h-12 font-bold border-border/80" variant="outline">Mua gói 10 lượt</Button>
+              </Link>
+            </div>
+
+            {/* Gói 20 lượt */}
+            <div className="flex flex-col p-8 rounded-3xl border-2 border-primary/50 bg-card/60 backdrop-blur-2xl relative shadow-2xl shadow-primary/10 scale-100 lg:scale-105 z-10 transition-all hover:border-primary">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-primary to-blue-500 text-primary-foreground text-xs font-bold rounded-full uppercase tracking-widest shadow-md whitespace-nowrap flex items-center gap-1">
+                <Star className="w-3 h-3 fill-current" /> Phổ biến nhất
+              </div>
+              <h3 className="text-2xl font-bold tracking-tight mb-2 text-primary">Gói 20 lượt</h3>
+              <p className="text-muted-foreground mb-4 text-sm font-medium">Dành cho giai đoạn tăng tốc luyện thi.</p>
+              
+              <div className="mb-2 mt-2 flex items-baseline gap-1">
+                <span className="text-5xl font-extrabold text-primary">189K</span>
+                <span className="text-muted-foreground font-semibold">VNĐ</span>
+              </div>
+              <p className="text-muted-foreground mb-6 text-sm font-semibold h-6 text-primary">≈ 9k / lượt</p>
+              
+              <div className="flex flex-col gap-4 flex-1 mb-8">
+                {[
+                  "20 lượt làm bài thi thử",
+                  "Chấm điểm & giải đáp án ngay",
+                  "Giao diện chuẩn như thi thật",
+                  "Phân tích điểm mạnh, điểm yếu",
+                ].map((feature, idx) => (
+                  <div key={idx} className="flex items-start gap-3">
+                    <CheckCircle className="w-5 h-5 text-primary shrink-0" />
+                    <span className="text-sm font-semibold text-foreground/90">{feature}</span>
+                  </div>
+                ))}
+              </div>
+              
+              <Link href="/register" className="w-full mt-auto">
+                <Button className="w-full rounded-xl h-12 bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/25">Mua gói 20 lượt</Button>
+              </Link>
+            </div>
+
+            {/* Gói 50 lượt */}
+            <div className="flex flex-col p-8 rounded-3xl border border-border/50 bg-card/30 backdrop-blur-xl relative transition-all hover:border-border hover:shadow-lg">
+               <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold rounded-full uppercase tracking-widest shadow-md whitespace-nowrap flex items-center gap-1">
+                <Gem className="w-3 h-3 fill-current" /> Tiết kiệm nhất
+              </div>
+              <h3 className="text-2xl font-bold tracking-tight mb-2 bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 to-teal-500">Gói 50 lượt</h3>
+              <p className="text-muted-foreground mb-4 text-sm font-medium">Lựa chọn tối ưu chi phí để chinh phục điểm cao.</p>
+              
+              <div className="mb-2 mt-2 flex items-baseline gap-1">
+                <span className="text-5xl font-extrabold text-teal-600">399K</span>
+                <span className="text-muted-foreground font-semibold">VNĐ</span>
+              </div>
+              <p className="text-muted-foreground mb-6 text-sm font-semibold h-6 text-teal-600">≈ 8k / lượt</p>
+              
+              <div className="flex flex-col gap-4 flex-1 mb-8">
+                {[
+                  "50 lượt làm bài thi thử",
+                  "Tất cả tính năng của Gói 20 lượt",
+                  "Luyện tập thỏa thích trước kỳ thi",
+                ].map((feature, idx) => (
+                  <div key={idx} className="flex items-start gap-3">
+                    <CheckCircle className="w-5 h-5 text-teal-500 shrink-0" />
+                    <span className="text-sm font-semibold text-foreground/80">{feature}</span>
+                  </div>
+                ))}
+              </div>
+              
+              <Link href="/register" className="w-full mt-auto">
+                <Button className="w-full rounded-xl h-12 font-bold hover:bg-teal-600 hover:text-white hover:border-teal-600 transition-colors border-border/80" variant="outline">Mua gói 50 lượt</Button>
+              </Link>
+            </div>
+          </div>
         </div>
       </main>
 

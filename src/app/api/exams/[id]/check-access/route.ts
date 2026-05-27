@@ -63,7 +63,7 @@ export async function GET(
             .eq('exam_id', examId)
 
         const totalAttempts = attemptCount || 0
-        const freeAttempts = exam.free_attempts || 1
+        const freeAttempts = exam.free_attempts ?? 1
 
         let canAccess = false
         

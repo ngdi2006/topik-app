@@ -53,8 +53,8 @@ export async function POST(
             .eq('exam_id', params.id)
 
         const totalAttempts = attemptCount || 0
-        const freeAttempts = exam.free_attempts || 1
-        const creditsRequired = exam.credits_required || 1
+        const freeAttempts = exam.free_attempts ?? 1
+        const creditsRequired = exam.credits_required ?? 1
 
         let isFreeAttempt = false
         let canStart = false

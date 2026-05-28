@@ -167,22 +167,22 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
 
     return (
         <Dialog open={open} onOpenChange={handleClose}>
-            <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+            <DialogContent className={`max-h-[90vh] overflow-y-auto border border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl transition-all duration-300 ${!selectedPackage && !loading ? 'max-w-[95vw] sm:max-w-4xl' : 'max-w-md'}`}>
                 {paymentComplete && (
-                    <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-lg">
-                        <CheckCircle2 className="w-16 h-16 text-emerald-500 mb-4" />
+                    <div className="absolute inset-0 bg-background/95 backdrop-blur-md z-50 flex flex-col items-center justify-center rounded-lg">
+                        <CheckCircle2 className="w-16 h-16 text-emerald-500 mb-4 animate-bounce" />
                         <h3 className="text-xl font-bold text-emerald-600 mb-2">Thanh toán thành công!</h3>
                         <p className="text-sm text-muted-foreground">Đang cập nhật số lượt...</p>
                     </div>
                 )}
                 <DialogHeader>
-                    <DialogTitle className="text-2xl">
+                    <DialogTitle className="text-2xl font-bold tracking-tight">
                         {selectedPackage ? 'Thanh toán' : 'Mua lượt làm bài'}
                     </DialogTitle>
-                    <DialogDescription>
+                    <DialogDescription className="text-muted-foreground font-medium">
                         {selectedPackage
                             ? 'Quét mã QR hoặc chuyển khoản theo thông tin bên dưới'
-                            : 'Chọn gói phù hợp với nhu cầu của bạn'}
+                            : 'Chọn gói phù hợp với nhu cầu luyện thi của bạn'}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -193,98 +193,100 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                 ) : selectedPackage && qrCodeUrl ? (
                     // Payment QR Screen
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-4 py-3">
-                            <div className="text-sm">
-                                <span className="text-muted-foreground">{selectedPackage.package_name}</span>
+                        <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                            <div className="text-sm font-medium">
+                                <span className="text-foreground">{selectedPackage.package_name}</span>
                                 <span className="mx-2 text-muted-foreground">·</span>
-                                <span className="text-muted-foreground">{selectedPackage.credits} lượt</span>
+                                <span className="text-primary">{selectedPackage.credits} lượt</span>
                             </div>
-                            <span className="text-lg font-bold text-primary">
+                            <span className="text-lg font-extrabold text-primary">
                                 {formatPrice(selectedPackage.price_vnd)}
                             </span>
                         </div>
 
-                        <div className="flex flex-col items-center gap-4 rounded-lg border p-4">
-                            <Image
-                                src={qrCodeUrl}
-                                alt="QR Code thanh toán"
-                                width={200}
-                                height={200}
-                                className="rounded-lg"
-                            />
-                            <p className="text-xs text-muted-foreground">Quét mã QR bằng app ngân hàng</p>
+                        <div className="flex flex-col items-center gap-4 rounded-xl border border-border/50 bg-card/50 p-6 shadow-sm">
+                            <div className="p-2 bg-white rounded-xl shadow-sm">
+                                <Image
+                                    src={qrCodeUrl}
+                                    alt="QR Code thanh toán"
+                                    width={200}
+                                    height={200}
+                                    className="rounded-lg"
+                                />
+                            </div>
+                            <p className="text-xs text-muted-foreground font-medium">Quét mã QR bằng app ngân hàng</p>
                         </div>
 
                         <p className="text-center text-xs text-muted-foreground">
                             Nếu không mở được app ngân hàng, hãy quét mã QR hoặc sao chép thông tin bên dưới.
                         </p>
 
-                        <div className="rounded-lg border divide-y text-sm">
-                            <div className="flex items-center justify-between px-4 py-2.5">
+                        <div className="rounded-xl border border-border/50 bg-card/30 divide-y divide-border/50 text-sm overflow-hidden">
+                            <div className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
                                 <span className="text-muted-foreground">Ngân hàng</span>
-                                <span className="font-medium">{bankInfo?.bank_name}</span>
+                                <span className="font-semibold">{bankInfo?.bank_name}</span>
                             </div>
-                            <div className="flex items-center justify-between px-4 py-2.5">
+                            <div className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
                                 <span className="text-muted-foreground">Số tài khoản</span>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="font-medium">{bankInfo?.account_no}</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-semibold">{bankInfo?.account_no}</span>
                                     <Button
                                         variant="ghost"
-                                        size="sm"
-                                        className="h-6 w-6 p-0"
+                                        size="icon"
+                                        className="h-7 w-7 rounded-full bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
                                         onClick={() => copyToClipboard(bankInfo?.account_no || '')}
                                     >
-                                        <Copy className="w-3 h-3" />
+                                        <Copy className="w-3.5 h-3.5" />
                                     </Button>
                                 </div>
                             </div>
-                            <div className="flex items-center justify-between px-4 py-2.5">
+                            <div className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
                                 <span className="text-muted-foreground">Chủ TK</span>
-                                <span className="font-medium">{bankInfo?.account_name}</span>
+                                <span className="font-semibold">{bankInfo?.account_name}</span>
                             </div>
-                            <div className="flex items-center justify-between px-4 py-2.5">
+                            <div className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
                                 <span className="text-muted-foreground">Số tiền</span>
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-2">
                                     <span className="font-bold text-primary">{formatPrice(bankInfo?.amount || 0)}</span>
                                     <Button
                                         variant="ghost"
-                                        size="sm"
-                                        className="h-6 w-6 p-0"
+                                        size="icon"
+                                        className="h-7 w-7 rounded-full bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
                                         onClick={() => copyToClipboard(String(bankInfo?.amount || ''))}
                                     >
-                                        <Copy className="w-3 h-3" />
+                                        <Copy className="w-3.5 h-3.5" />
                                     </Button>
                                 </div>
                             </div>
-                            <div className="flex items-center justify-between px-4 py-2.5">
+                            <div className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors bg-red-50/30">
                                 <span className="text-muted-foreground">Nội dung CK</span>
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-2">
                                     <span className="font-bold text-red-600 text-xs break-all">{transactionCode}</span>
                                     <Button
                                         variant="ghost"
-                                        size="sm"
-                                        className="h-6 w-6 p-0 shrink-0"
+                                        size="icon"
+                                        className="h-7 w-7 rounded-full bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700 shrink-0"
                                         onClick={() => copyToClipboard(transactionCode || '')}
                                     >
-                                        <Copy className="w-3 h-3" />
+                                        <Copy className="w-3.5 h-3.5" />
                                     </Button>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-xs text-emerald-800 flex items-center gap-2">
-                            <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
-                            <p>Đang chờ xác nhận... Hệ thống sẽ tự động kích hoạt sau khi chuyển khoản.</p>
+                        <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-xs text-emerald-800 flex items-center gap-2 shadow-sm">
+                            <Loader2 className="w-4 h-4 animate-spin shrink-0 text-emerald-600" />
+                            <p className="font-medium">Đang chờ xác nhận... Hệ thống sẽ tự động kích hoạt sau khi chuyển khoản.</p>
                         </div>
 
-                        <div className="flex gap-3">
-                            <Button variant="outline" onClick={handleBack} className="flex-1">
+                        <div className="flex gap-3 pt-2">
+                            <Button variant="outline" onClick={handleBack} className="flex-1 rounded-xl h-11 font-semibold">
                                 Chọn gói khác
                             </Button>
                             <Button
                                 type="button"
                                 onClick={() => window.open(qrCodeUrl, '_blank', 'noopener,noreferrer')}
-                                className="flex-1"
+                                className="flex-1 rounded-xl h-11 font-bold shadow-lg shadow-primary/20"
                             >
                                 Mở app ngân hàng
                             </Button>
@@ -292,69 +294,65 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                     </div>
                 ) : (
                     // Package Selection Screen
-                    <div className="space-y-5">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-6 pt-2">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-4 mt-2 w-full max-w-4xl mx-auto">
                             {packages.map((pkg) => {
                                 const isPopular = pkg.credits === 20
                                 const isBest = pkg.credits === 50
-                                const hasTag = isPopular || isBest
+
                                 return (
                                     <button
                                         key={pkg.id}
                                         onClick={() => handleSelectPackage(pkg)}
                                         disabled={processingPayment}
                                         className={`
-                                            flex flex-col rounded-xl text-left transition-all duration-200
-                                            border-2 hover:shadow-lg disabled:opacity-60 overflow-hidden
+                                            group flex flex-col text-left transition-all duration-300 disabled:opacity-60 relative
                                             ${isPopular
-                                                ? 'border-blue-500 bg-blue-50/50 hover:bg-blue-50 shadow-md'
-                                                : isBest
-                                                    ? 'border-emerald-500 bg-emerald-50/50 hover:bg-emerald-50 shadow-md'
-                                                    : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                                                ? 'p-5 sm:p-6 rounded-2xl border-2 border-primary/50 bg-card/60 backdrop-blur-2xl shadow-xl shadow-primary/10 hover:border-primary scale-100 md:scale-105 z-10'
+                                                : isBest 
+                                                    ? 'p-5 sm:p-6 rounded-2xl border border-border/50 bg-card/30 backdrop-blur-xl hover:border-teal-500/50 hover:shadow-lg'
+                                                    : 'p-5 sm:p-6 rounded-2xl border border-border/50 bg-card/30 backdrop-blur-xl hover:border-border hover:shadow-lg'
                                             }
                                         `}
                                     >
-                                        {hasTag && (
-                                            <div className={`
-                                                w-full text-center text-xs font-bold py-1.5 text-white
-                                                ${isPopular
-                                                    ? 'bg-linear-to-r from-blue-600 to-blue-500'
-                                                    : 'bg-linear-to-r from-emerald-600 to-emerald-500'
-                                                }
-                                            `}>
-                                                {isPopular ? '⭐ Phổ biến nhất' : '💎 Tiết kiệm nhất'}
+                                        {isPopular && (
+                                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gradient-to-r from-primary to-blue-500 text-white text-[10px] font-bold rounded-full uppercase tracking-widest shadow-md whitespace-nowrap">
+                                                ⭐ Phổ biến nhất
+                                            </div>
+                                        )}
+                                        {isBest && (
+                                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[10px] font-bold rounded-full uppercase tracking-widest shadow-md whitespace-nowrap">
+                                                💎 Tiết kiệm nhất
                                             </div>
                                         )}
 
-                                        <div className="flex flex-col flex-1 p-4">
-                                            <h3 className="font-bold text-base text-gray-900">{pkg.package_name}</h3>
-                                            <p className="text-sm text-gray-500 mt-0.5">{pkg.credits} lượt làm bài</p>
+                                        <h3 className={`text-lg sm:text-xl font-bold tracking-tight mb-1 ${isPopular ? 'text-primary' : isBest ? 'bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 to-teal-500' : ''}`}>{pkg.package_name}</h3>
+                                        <p className="text-muted-foreground mb-3 text-xs sm:text-sm font-medium">{pkg.credits} lượt làm bài thi thử</p>
 
-                                            <div className="mt-3">
-                                                <span className={`text-2xl font-extrabold ${isPopular ? 'text-blue-600' : isBest ? 'text-emerald-600' : 'text-gray-900'}`}>
-                                                    {(pkg.price_vnd / 1000).toFixed(0)}K
-                                                </span>
-                                                <span className="text-sm text-gray-400 ml-1">VNĐ</span>
-                                            </div>
+                                        <div className="mb-1 mt-1 flex items-baseline gap-1">
+                                            <span className={`text-3xl sm:text-4xl font-extrabold ${isPopular ? 'text-primary' : isBest ? 'text-teal-600' : ''}`}>
+                                                {(pkg.price_vnd / 1000).toFixed(0)}K
+                                            </span>
+                                            <span className="text-muted-foreground font-semibold text-xs sm:text-sm">VNĐ</span>
+                                        </div>
 
-                                            <p className="text-xs text-gray-400 mt-1">
-                                                ≈ {Math.round(pkg.price_vnd / pkg.credits / 1000)}k / lượt
-                                            </p>
+                                        <p className={`text-xs sm:text-sm font-semibold h-4 mb-6 ${isPopular ? 'text-primary' : isBest ? 'text-teal-600' : 'text-primary'}`}>
+                                            ≈ {Math.round(pkg.price_vnd / pkg.credits / 1000)}k / lượt
+                                        </p>
 
+                                        <div className="mt-auto w-full">
                                             <div className={`
-                                                mt-auto pt-3 w-full
+                                                w-full rounded-xl h-10 sm:h-11 flex items-center justify-center font-bold text-xs sm:text-sm transition-all
+                                                ${isPopular
+                                                    ? 'bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/25'
+                                                    : isBest
+                                                        ? 'border border-border/80 hover:bg-teal-600 hover:text-white hover:border-teal-600'
+                                                        : 'border border-border/80 hover:bg-accent hover:text-accent-foreground'
+                                                }
                                             `}>
-                                                <div className={`
-                                                    w-full py-2 rounded-lg text-sm font-semibold text-center transition-colors
-                                                    ${isPopular
-                                                        ? 'bg-blue-600 text-white'
-                                                        : isBest
-                                                            ? 'bg-emerald-600 text-white'
-                                                            : 'bg-gray-900 text-white'
-                                                    }
-                                                `}>
-                                                    {processingPayment ? 'Đang xử lý...' : 'Mua gói'}
-                                                </div>
+                                                {processingPayment ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : 'Mua gói này'}
                                             </div>
                                         </div>
                                     </button>
@@ -362,10 +360,9 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                             })}
                         </div>
 
-                        <div className="flex items-start gap-3 rounded-lg bg-emerald-50 border border-emerald-200 p-3">
-                            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                            <p className="text-sm text-emerald-800">
-                                Mỗi tài khoản được tặng <strong className="font-bold text-red-600">3 lượt miễn phí</strong>.
+                        <div className="mt-4 flex items-center justify-center">
+                            <p className="text-sm text-muted-foreground font-medium text-center">
+                                Mỗi tài khoản được tặng <span className="font-bold text-red-500">3 lượt miễn phí</span>.
                             </p>
                         </div>
                     </div>

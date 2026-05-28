@@ -46,9 +46,17 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
         resetTranscript 
     } = useSpeechRecognition(recognitionLang)
 
+    const reviewModesRef = useRef<Record<number, 'fill_blank' | 'word_sort'>>({})
+
     // Reset everything when question changes
     useEffect(() => {
         if (!currentQ) return
+
+        if (reviewModesRef.current[currentQIndex!]) {
+            setListenSubMode(reviewModesRef.current[currentQIndex!])
+        } else {
+            setListenSubMode('flashcard')
+        }
 
         setAudioState('idle')
         setTimeLeft(null)
@@ -145,7 +153,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
             utterance.lang = 'ko-KR'
             utterance.rate = 0.9 * playbackRate
             utterance.onstart = () => setAudioState('playing')
-            utterance.onend = () => setAudioState('ended')
+            utterance.onend = () => handleAudioEnded()
             window.speechSynthesis.cancel()
             window.speechSynthesis.speak(utterance)
         }
@@ -168,6 +176,23 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
     }
 
     const handleNotKnown = () => {
+        if (mode === 'listen_only') {
+            const currentMode = reviewModesRef.current[currentQIndex!]
+            const nextMode = currentMode === 'fill_blank' ? 'word_sort' : 'fill_blank'
+            reviewModesRef.current[currentQIndex!] = nextMode
+            
+            toast.info(`Sẽ ôn tập lại bằng hình thức ${nextMode === 'fill_blank' ? 'Điền từ' : 'Xếp câu'}.`)
+            
+            if (queue.length <= 1) {
+                setListenSubMode(nextMode)
+                setAudioState('idle')
+                setTimeLeft(null)
+                resetTranscript()
+                replayAudio()
+                return
+            }
+        }
+
         if (queue.length <= 1) {
             onFinish(answers)
         } else {

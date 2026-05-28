@@ -78,7 +78,8 @@ export function FlashcardMode({ currentQ, onKnown, onNotKnown, timeLeft = 0 }: L
 // --- 2. Fill Blank Mode ---
 export function FillBlankMode({ currentQ, onKnown }: ListenModeProps) {
     const targetText = useMemo(() => {
-        return (currentQ.suggested_answers?.[0] || "").trim()
+        const text = currentQ.suggested_answers?.[0] || currentQ.question_text || ""
+        return text.trim()
     }, [currentQ])
 
     const [words, setWords] = useState<{ id: string, word: string, isBlank: boolean, isWord: boolean }[]>([])
@@ -212,7 +213,8 @@ export function FillBlankMode({ currentQ, onKnown }: ListenModeProps) {
 // --- 3. Word Sort Mode ---
 export function WordSortMode({ currentQ, onKnown }: ListenModeProps) {
     const targetText = useMemo(() => {
-        return (currentQ.suggested_answers?.[0] || "").trim()
+        const text = currentQ.suggested_answers?.[0] || currentQ.question_text || ""
+        return text.trim()
     }, [currentQ])
 
     const [words, setWords] = useState<{ id: string, word: string }[]>([])

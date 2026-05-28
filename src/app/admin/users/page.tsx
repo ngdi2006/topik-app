@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Search, Plus, Coins, Trash2, History } from "lucide-react"
+import { Search, Plus, Coins, Trash2, History, Upload } from "lucide-react"
 import { toast } from "sonner"
+import { UserBulkImportModal } from "@/components/admin/UserBulkImportModal"
 import {
     Dialog,
     DialogContent,
@@ -102,8 +103,10 @@ export default function AdminUsersPage() {
     const [users, setUsers] = useState<UserProfile[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
+    const [selectedGroupFilter, setSelectedGroupFilter] = useState('all')
 
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+    const [isBulkImportOpen, setIsBulkImportOpen] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [formData, setFormData] = useState({
         name: '',
@@ -117,6 +120,10 @@ export default function AdminUsersPage() {
     const [selectedUserForCredits, setSelectedUserForCredits] = useState<UserProfile | null>(null)
     const [grantForm, setGrantForm] = useState(initialGrantForm)
     const [isGrantingCredits, setIsGrantingCredits] = useState(false)
+
+    const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
+    const [isBulkGrantDialogOpen, setIsBulkGrantDialogOpen] = useState(false)
+    const [bulkGrantForm, setBulkGrantForm] = useState(initialGrantForm)
 
     const [isHistoryOpen, setIsHistoryOpen] = useState(false)
     const [selectedUserHistory, setSelectedUserHistory] = useState<HistoryRecord[]>([])
@@ -316,10 +323,75 @@ export default function AdminUsersPage() {
         }
     }
 
-    const filteredUsers = users.filter(user =>
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedUserIds(filteredUsers.map(u => u.id))
+        } else {
+            setSelectedUserIds([])
+        }
+    }
+
+    const handleSelectUser = (userId: string, checked: boolean) => {
+        if (checked) {
+            setSelectedUserIds(prev => [...prev, userId])
+        } else {
+            setSelectedUserIds(prev => prev.filter(id => id !== userId))
+        }
+    }
+
+    const handleBulkGrantCredits = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (selectedUserIds.length === 0) return
+
+        if (!isPositiveInteger(bulkGrantForm.credits)) {
+            toast.error('Vui lòng nhập số lượt là số nguyên dương')
+            return
+        }
+
+        const action = bulkGrantForm.action
+        const requestedCredits = Number(bulkGrantForm.credits)
+
+        setIsGrantingCredits(true)
+        const toastId = toast.loading(`Đang xử lý ${selectedUserIds.length} tài khoản...`)
+
+        try {
+            const res = await fetch(`/api/admin/users/bulk-credits`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userIds: selectedUserIds,
+                    action,
+                    credits: requestedCredits,
+                    notes: bulkGrantForm.notes,
+                })
+            })
+
+            const data = await res.json().catch(() => null)
+            if (!res.ok) {
+                const message = data && typeof data.error === 'string' ? data.error : 'Lỗi cập nhật hàng loạt'
+                throw new Error(message)
+            }
+
+            toast.success(data.message, { id: toastId })
+            setIsBulkGrantDialogOpen(false)
+            setSelectedUserIds([])
+            setBulkGrantForm(initialGrantForm)
+            fetchUsers()
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Lỗi cập nhật hàng loạt'), { id: toastId })
+        } finally {
+            setIsGrantingCredits(false)
+        }
+    }
+
+    const filteredUsers = users.filter(user => {
+        const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              user.email.toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesGroup = selectedGroupFilter === 'all' || user.groupName === selectedGroupFilter
+        return matchesSearch && matchesGroup
+    })
+
+    const uniqueGroups = Array.from(new Set(users.map(u => u.groupName).filter(Boolean)))
 
     return (
         <div className="space-y-6">
@@ -330,27 +402,61 @@ export default function AdminUsersPage() {
                         Xem, phân quyền và quản lý tài khoản học viên/quản trị viên.
                     </p>
                 </div>
-                <Button onClick={() => setIsAddDialogOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Thêm người dùng mới
-                </Button>
+                <div className="flex space-x-2">
+                    {selectedUserIds.length > 0 && (
+                        <Button variant="secondary" onClick={() => setIsBulkGrantDialogOpen(true)} className="bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300">
+                            <Coins className="w-4 h-4 mr-2" />
+                            Điều chỉnh lượt ({selectedUserIds.length})
+                        </Button>
+                    )}
+                    <Button variant="outline" onClick={() => setIsBulkImportOpen(true)}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Import Excel
+                    </Button>
+                    <Button onClick={() => setIsAddDialogOpen(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Thêm người dùng mới
+                    </Button>
+                </div>
             </div>
 
-            <div className="flex items-center space-x-2 bg-white p-3 rounded-lg border border-gray-200">
-                <Search className="w-5 h-5 text-gray-400" />
-                <input
-                    type="text"
-                    placeholder="Tìm kiếm theo tên hoặc email..."
-                    className="flex-1 border-none focus:ring-0 outline-none text-sm"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 bg-white p-3 rounded-lg border border-gray-200">
+                <div className="flex-1 flex items-center space-x-2 w-full">
+                    <Search className="w-5 h-5 text-gray-400" />
+                    <input
+                        type="text"
+                        placeholder="Tìm kiếm theo tên hoặc email..."
+                        className="flex-1 border-none focus:ring-0 outline-none text-sm"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                <div className="w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-gray-200 pt-3 sm:pt-0 sm:pl-4">
+                    <select
+                        className="w-full sm:w-[200px] text-sm border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary"
+                        value={selectedGroupFilter}
+                        onChange={(e) => setSelectedGroupFilter(e.target.value)}
+                    >
+                        <option value="all">Tất cả Nhóm/Lớp</option>
+                        {uniqueGroups.map((group, idx) => (
+                            <option key={idx} value={group}>{group}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 <table className="w-full text-sm text-left">
                     <thead className="bg-gray-50 border-b border-gray-200 text-gray-600">
                         <tr>
+                            <th className="px-6 py-4 font-medium w-12">
+                                <input 
+                                    type="checkbox" 
+                                    className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                                    checked={filteredUsers.length > 0 && selectedUserIds.length === filteredUsers.length}
+                                    onChange={handleSelectAll}
+                                />
+                            </th>
                             <th className="px-6 py-4 font-medium">Họ Tên</th>
                             <th className="px-6 py-4 font-medium">Email</th>
                             <th className="px-6 py-4 font-medium">Vai trò</th>
@@ -364,19 +470,27 @@ export default function AdminUsersPage() {
                     <tbody className="divide-y divide-gray-200">
                         {isLoading ? (
                             <tr>
-                                <td colSpan={8} className="px-6 py-8 text-center text-muted-foreground">
+                                <td colSpan={9} className="px-6 py-8 text-center text-muted-foreground">
                                     Đang tải dữ liệu...
                                 </td>
                             </tr>
                         ) : filteredUsers.length === 0 ? (
                             <tr>
-                                <td colSpan={8} className="px-6 py-8 text-center text-muted-foreground">
+                                <td colSpan={9} className="px-6 py-8 text-center text-muted-foreground">
                                     Không tìm thấy dữ liệu nào phù hợp.
                                 </td>
                             </tr>
                         ) : (
                             filteredUsers.map((user) => (
                                 <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-6 py-4">
+                                        <input 
+                                            type="checkbox" 
+                                            className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                                            checked={selectedUserIds.includes(user.id)}
+                                            onChange={(e) => handleSelectUser(user.id, e.target.checked)}
+                                        />
+                                    </td>
                                     <td className="px-6 py-4 font-medium text-gray-900">{user.name}</td>
                                     <td className="px-6 py-4 text-gray-500">{user.email}</td>
                                     <td className="px-6 py-4">
@@ -593,6 +707,66 @@ export default function AdminUsersPage() {
                 </DialogContent>
             </Dialog>
 
+            <Dialog open={isBulkGrantDialogOpen} onOpenChange={(open) => !open && setIsBulkGrantDialogOpen(false)}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Điều chỉnh lượt cho {selectedUserIds.length} tài khoản</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleBulkGrantCredits} className="space-y-4 py-4">
+                        <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
+                            {(['add', 'deduct'] as CreditAction[]).map((action) => (
+                                <button
+                                    key={action}
+                                    type="button"
+                                    onClick={() => setBulkGrantForm({ ...bulkGrantForm, action })}
+                                    className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${actionTabsClasses(bulkGrantForm.action === action)}`}
+                                >
+                                    {actionLabels[action]}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="bulkGrantCredits">{actionInputLabels[bulkGrantForm.action]}</Label>
+                            <Input
+                                id="bulkGrantCredits"
+                                type="number"
+                                min={1}
+                                step={1}
+                                placeholder="VD: 5"
+                                value={bulkGrantForm.credits}
+                                onChange={(e) => setBulkGrantForm({ ...bulkGrantForm, credits: e.target.value })}
+                                required
+                            />
+                            <p className={`text-xs ${bulkGrantForm.action === 'deduct' ? 'text-red-600' : 'text-muted-foreground'}`}>
+                                {bulkGrantForm.action === 'deduct' ? 'Lưu ý: Nếu số lượt trừ lớn hơn số lượt hiện có của tài khoản nào đó, hệ thống sẽ báo lỗi cho tài khoản đó.' : 'Số lượt sẽ được cộng thêm vào tất cả tài khoản đã chọn.'}
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="bulkGrantNotes">Ghi chú (Tùy chọn)</Label>
+                            <Input
+                                id="bulkGrantNotes"
+                                placeholder="VD: Tặng lượt nhân dịp lễ"
+                                value={bulkGrantForm.notes}
+                                onChange={(e) => setBulkGrantForm({ ...bulkGrantForm, notes: e.target.value })}
+                            />
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setIsBulkGrantDialogOpen(false)}>
+                                Hủy
+                            </Button>
+                            <Button
+                                type="submit"
+                                variant={actionButtonVariants[bulkGrantForm.action]}
+                                className={actionButtonClasses[bulkGrantForm.action]}
+                                disabled={isGrantingCredits}
+                            >
+                                {isGrantingCredits ? actionMessages[bulkGrantForm.action] : actionLabels[bulkGrantForm.action]}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
             <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
                 <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
@@ -634,6 +808,12 @@ export default function AdminUsersPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <UserBulkImportModal 
+                isOpen={isBulkImportOpen}
+                onClose={() => setIsBulkImportOpen(false)}
+                onSuccess={() => fetchUsers()}
+            />
         </div>
     )
 }

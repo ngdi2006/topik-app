@@ -18,10 +18,11 @@ export async function GET(request: Request) {
 
         if (category) {
             query = query.eq('category', category)
-        }
-
-        if (industry) {
-            query = query.eq('industry', industry)
+            if (category !== 'Khẩu lệnh' && industry) {
+                query = query.eq('industry', industry)
+            }
+        } else if (industry) {
+            query = query.or(`industry.eq.${industry},category.eq.Khẩu lệnh`)
         }
 
         const { data, error } = await query

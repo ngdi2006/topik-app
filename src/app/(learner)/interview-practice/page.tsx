@@ -28,6 +28,7 @@ export default function InterviewPracticePage() {
     const [selectedCategory, setSelectedCategory] = useState('Tất cả')
     const [selectedIndustry, setSelectedIndustry] = useState('Sản xuất chế tạo')
     const [selectedMode, setSelectedMode] = useState<'listen_only' | 'ai_mock'>('listen_only')
+    const [numListenQuestions, setNumListenQuestions] = useState<number>(10)
     
     const [questions, setQuestions] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
@@ -54,20 +55,25 @@ export default function InterviewPracticePage() {
             }
 
             // Tính năng ngẫu nhiên: Group theo category, trộn và lấy ra tối đa 2 câu mỗi phần
-            const QUESTIONS_PER_CATEGORY = 2
-            
-            const grouped = filteredQuestions.reduce((acc: any, q: any) => {
-                if (!acc[q.category]) acc[q.category] = []
-                acc[q.category].push(q)
-                return acc
-            }, {})
-
             let finalQuestions: any[] = []
             
-            Object.keys(grouped).forEach(cat => {
-                const shuffled = shuffleArray(grouped[cat])
-                finalQuestions.push(...shuffled.slice(0, QUESTIONS_PER_CATEGORY))
-            })
+            if (selectedMode === 'listen_only') {
+                const shuffled = shuffleArray(filteredQuestions)
+                finalQuestions = shuffled.slice(0, numListenQuestions)
+            } else {
+                const QUESTIONS_PER_CATEGORY = 2
+                
+                const grouped = filteredQuestions.reduce((acc: any, q: any) => {
+                    if (!acc[q.category]) acc[q.category] = []
+                    acc[q.category].push(q)
+                    return acc
+                }, {})
+
+                Object.keys(grouped).forEach(cat => {
+                    const shuffled = shuffleArray(grouped[cat])
+                    finalQuestions.push(...shuffled.slice(0, QUESTIONS_PER_CATEGORY))
+                })
+            }
 
             // Xáo trộn lại danh sách cuối cùng
             finalQuestions = shuffleArray(finalQuestions)
@@ -332,9 +338,23 @@ export default function InterviewPracticePage() {
                                             <Headphones className="w-5 h-5 md:w-6 md:h-6" />
                                         </div>
                                         <h4 className="text-base md:text-lg font-bold text-slate-900 mb-1">Chỉ luyện nghe</h4>
-                                        <p className="text-slate-500 text-xs md:text-sm leading-relaxed">
+                                        <p className="text-slate-500 text-xs md:text-sm leading-relaxed mb-4">
                                             Nghe câu hỏi từ giám khảo, suy nghĩ và xem đáp án chuẩn. Phù hợp để làm quen với ngữ điệu.
                                         </p>
+                                        
+                                        {selectedMode === 'listen_only' && (
+                                            <div className="mt-auto border-t border-blue-200/60 pt-3" onClick={(e) => e.stopPropagation()}>
+                                                <label className="text-xs font-semibold text-blue-800 mb-1.5 block">Số câu hỏi muốn luyện:</label>
+                                                <input 
+                                                    type="number" 
+                                                    min="1" 
+                                                    max="100"
+                                                    value={numListenQuestions} 
+                                                    onChange={(e) => setNumListenQuestions(parseInt(e.target.value) || 1)}
+                                                    className="w-full px-3 py-2 rounded-lg border border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white/80"
+                                                />
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 

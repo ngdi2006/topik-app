@@ -44,7 +44,7 @@ export async function PUT(
         const body = await request.json()
 
         // Remove fields that shouldn't be updated
-        const { id: _, created_at, updated_at, created_by, ...updateData } = body
+        const { id: _, created_at, updated_at, created_by, category, ...updateData } = body
 
         const adminClient = createAdminClient()
         const { data, error } = await adminClient

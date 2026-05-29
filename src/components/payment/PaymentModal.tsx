@@ -294,8 +294,8 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                     </div>
                 ) : (
                     // Package Selection Screen
-                    <div className="space-y-6 pt-2">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-4 mt-2 w-full max-w-4xl mx-auto">
+                    <div className="space-y-4 md:space-y-6 pt-2">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mt-2 w-full max-w-4xl mx-auto">
                             {packages.map((pkg) => {
                                 const isPopular = pkg.credits === 20
                                 const isBest = pkg.credits === 50
@@ -308,10 +308,10 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                                         className={`
                                             group flex flex-col text-left transition-all duration-300 disabled:opacity-60 relative
                                             ${isPopular
-                                                ? 'p-5 sm:p-6 rounded-2xl border-2 border-primary/50 bg-card/60 backdrop-blur-2xl shadow-xl shadow-primary/10 hover:border-primary scale-100 md:scale-105 z-10'
+                                                ? 'p-3 sm:p-6 rounded-2xl border-2 border-primary/50 bg-card/60 backdrop-blur-2xl shadow-xl shadow-primary/10 hover:border-primary scale-100 md:scale-105 z-10'
                                                 : isBest 
-                                                    ? 'p-5 sm:p-6 rounded-2xl border border-border/50 bg-card/30 backdrop-blur-xl hover:border-teal-500/50 hover:shadow-lg'
-                                                    : 'p-5 sm:p-6 rounded-2xl border border-border/50 bg-card/30 backdrop-blur-xl hover:border-border hover:shadow-lg'
+                                                    ? 'p-3 sm:p-6 rounded-2xl border border-border/50 bg-card/30 backdrop-blur-xl hover:border-teal-500/50 hover:shadow-lg'
+                                                    : 'p-3 sm:p-6 rounded-2xl border border-border/50 bg-card/30 backdrop-blur-xl hover:border-border hover:shadow-lg'
                                             }
                                         `}
                                     >
@@ -326,32 +326,38 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                                             </div>
                                         )}
 
-                                        <h3 className={`text-lg sm:text-xl font-bold tracking-tight mb-1 ${isPopular ? 'text-primary' : isBest ? 'bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 to-teal-500' : ''}`}>{pkg.package_name}</h3>
-                                        <p className="text-muted-foreground mb-3 text-xs sm:text-sm font-medium">{pkg.credits} lượt làm bài thi thử</p>
+                                        <div className="flex flex-row md:flex-col items-center md:items-start justify-between w-full mt-1 md:mt-0">
+                                            <div className="flex flex-col md:block text-left">
+                                                <h3 className={`text-base sm:text-xl font-bold tracking-tight mb-0.5 md:mb-1 ${isPopular ? 'text-primary' : isBest ? 'bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 to-teal-500' : ''}`}>{pkg.package_name}</h3>
+                                                <p className="text-muted-foreground mb-0 md:mb-3 text-[11px] sm:text-sm font-medium">{pkg.credits} lượt làm bài</p>
+                                            </div>
 
-                                        <div className="mb-1 mt-1 flex items-baseline gap-1">
-                                            <span className={`text-3xl sm:text-4xl font-extrabold ${isPopular ? 'text-primary' : isBest ? 'text-teal-600' : ''}`}>
-                                                {(pkg.price_vnd / 1000).toFixed(0)}K
-                                            </span>
-                                            <span className="text-muted-foreground font-semibold text-xs sm:text-sm">VNĐ</span>
+                                            <div className="flex flex-col items-end md:items-start text-right md:text-left">
+                                                <div className="mb-0.5 md:mb-1 md:mt-1 flex items-baseline gap-0.5 md:gap-1">
+                                                    <span className={`text-xl sm:text-4xl font-extrabold ${isPopular ? 'text-primary' : isBest ? 'text-teal-600' : ''}`}>
+                                                        {(pkg.price_vnd / 1000).toFixed(0)}K
+                                                    </span>
+                                                    <span className="text-muted-foreground font-semibold text-[10px] sm:text-sm">VNĐ</span>
+                                                </div>
+
+                                                <p className={`text-[10px] sm:text-sm font-semibold h-auto md:h-4 mb-0 md:mb-6 ${isPopular ? 'text-primary' : isBest ? 'text-teal-600' : 'text-primary'}`}>
+                                                    ≈ {Math.round(pkg.price_vnd / pkg.credits / 1000)}k / lượt
+                                                </p>
+                                            </div>
                                         </div>
 
-                                        <p className={`text-xs sm:text-sm font-semibold h-4 mb-6 ${isPopular ? 'text-primary' : isBest ? 'text-teal-600' : 'text-primary'}`}>
-                                            ≈ {Math.round(pkg.price_vnd / pkg.credits / 1000)}k / lượt
-                                        </p>
-
-                                        <div className="mt-auto w-full">
+                                        <div className="mt-2 md:mt-auto w-full">
                                             <div className={`
-                                                w-full rounded-xl h-10 sm:h-11 flex items-center justify-center font-bold text-xs sm:text-sm transition-all
+                                                w-full rounded-lg sm:rounded-xl h-8 sm:h-11 flex items-center justify-center font-bold text-[11px] sm:text-sm transition-all
                                                 ${isPopular
-                                                    ? 'bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/25'
+                                                    ? 'bg-primary hover:bg-primary/90 text-white shadow-md sm:shadow-lg shadow-primary/25'
                                                     : isBest
                                                         ? 'border border-border/80 hover:bg-teal-600 hover:text-white hover:border-teal-600'
                                                         : 'border border-border/80 hover:bg-accent hover:text-accent-foreground'
                                                 }
                                             `}>
                                                 {processingPayment ? (
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                    <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
                                                 ) : 'Mua gói này'}
                                             </div>
                                         </div>

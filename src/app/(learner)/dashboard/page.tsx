@@ -206,7 +206,7 @@ export default function DashboardPage() {
                 setCheckingAccess(exam.id)
                 const { data, error } = await supabase.from('profiles').select('date_of_birth').eq('id', user?.id).single()
                 setCheckingAccess(null)
-                
+
                 if (data?.date_of_birth) {
                     setProfileDob(data.date_of_birth)
                     setSelectedOfficialExam(exam)
@@ -217,7 +217,7 @@ export default function DashboardPage() {
                 return
             }
         }
-        
+
         setCheckingAccess(examId)
         try {
             const res = await fetch(`/api/exams/${examId}/check-access`)
@@ -243,7 +243,7 @@ export default function DashboardPage() {
         setIsSavingDob(true)
         const { error } = await supabase.from('profiles').update({ date_of_birth: userDob }).eq('id', user.id)
         setIsSavingDob(false)
-        
+
         if (!error) {
             setProfileDob(userDob)
             setShowDobModal(false)
@@ -309,9 +309,19 @@ export default function DashboardPage() {
     if (isLoading || isLocalLoading) {
         return (
             <div className="flex h-screen items-center justify-center bg-[#f4f6f8]">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-                    <p className="text-gray-500 font-medium">Đang tải dữ liệu...</p>
+                <div className="flex flex-col items-center gap-6">
+                    <div className="relative flex items-center justify-center">
+                        {/* Outer rotating dashed ring */}
+                        <div className="absolute w-24 h-24 border-[3px] border-dashed border-blue-500/40 rounded-full animate-[spin_3s_linear_infinite]" />
+                        {/* Middle rotating solid ring */}
+                        <div className="absolute w-16 h-16 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
+                        {/* Inner pulsing dot */}
+                        <div className="w-6 h-6 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(37,99,235,0.6)]" />
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                        <p className="text-blue-800 font-bold text-lg tracking-wider animate-pulse">KOREA LINK</p>
+                        <p className="text-gray-500 font-medium text-sm">Đang tải dữ liệu, vui lòng đợi...</p>
+                    </div>
                 </div>
             </div>
         )
@@ -437,7 +447,7 @@ export default function DashboardPage() {
                                     <div className="max-w-3xl mx-auto py-4">
                                         <div className="bg-white rounded-2xl shadow-xl p-5 md:p-8 mb-6 border border-gray-100">
                                             <div className="relative text-center mb-5 md:mb-8 mt-2 px-8 md:px-12">
-                                                <button 
+                                                <button
                                                     onClick={() => setSelectedOfficialExam(null)}
                                                     className="absolute left-0 top-0 md:top-1 text-gray-400 hover:text-gray-700 transition-colors p-1.5 md:p-2 rounded-full hover:bg-gray-100 flex items-center justify-center"
                                                     title="Quay lại"
@@ -449,7 +459,7 @@ export default function DashboardPage() {
                                                 </h1>
                                                 <p className="text-xs md:text-sm text-gray-500">Vui lòng kiểm tra kỹ thông tin thí sinh trước khi vào phòng thi</p>
                                             </div>
-                                            
+
                                             <div className="flex flex-row gap-4 md:gap-10 items-center md:items-start mb-6 md:mb-8 bg-gradient-to-br from-blue-50 to-indigo-50/50 p-4 md:p-6 rounded-xl border border-blue-100/50">
                                                 <div className="shrink-0">
                                                     <div className="w-20 h-20 md:w-32 md:h-32 bg-gray-200 rounded-xl overflow-hidden border-2 md:border-4 border-white shadow-md relative">
@@ -474,7 +484,7 @@ export default function DashboardPage() {
                                                         </div>
                                                         <div>
                                                             <p className="text-gray-500 mb-0.5 md:mb-1 text-[10px] md:text-xs uppercase font-bold tracking-wider">Số báo danh (SBD)</p>
-                                                            <p className="font-extrabold text-blue-600 text-base md:text-xl font-mono tracking-wider truncate">SBD-{user?.id?.substring(0,5).toUpperCase() || '12345'}</p>
+                                                            <p className="font-extrabold text-blue-600 text-base md:text-xl font-mono tracking-wider truncate">SBD-{user?.id?.substring(0, 5).toUpperCase() || '12345'}</p>
                                                         </div>
                                                         <div>
                                                             <p className="text-gray-500 mb-0.5 md:mb-1 text-[10px] md:text-xs uppercase font-bold tracking-wider">Số máy</p>
@@ -514,67 +524,67 @@ export default function DashboardPage() {
                                 ) : (
                                     <div>
 
-                                    {exams.length === 0 ? (
-                                        <div className="border rounded-md p-8 text-center text-muted-foreground bg-muted/10">
-                                            Hệ thống đang cập nhật đề thi. Vui lòng quay lại sau!
-                                        </div>
-                                    ) : (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                            {exams.map((exam) => (
-                                                <Card key={exam.id} className="hover:border-primary/50 transition-colors flex flex-col">
-                                                    <CardHeader className="pb-3">
-                                                        <div className="flex justify-between items-start mb-2">
-                                                            <div className="flex gap-2">
-                                                                {exam.is_free && (
-                                                                    <Badge className="bg-emerald-500">Miễn phí</Badge>
-                                                                )}
-                                                                {exam.is_ai_generated && (
-                                                                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-800 flex items-center gap-1">
-                                                                        ✨ AI Gen
+                                        {exams.length === 0 ? (
+                                            <div className="border rounded-md p-8 text-center text-muted-foreground bg-muted/10">
+                                                Hệ thống đang cập nhật đề thi. Vui lòng quay lại sau!
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                {exams.map((exam) => (
+                                                    <Card key={exam.id} className="hover:border-primary/50 transition-colors flex flex-col">
+                                                        <CardHeader className="pb-3">
+                                                            <div className="flex justify-between items-start mb-2">
+                                                                <div className="flex gap-2">
+                                                                    {exam.is_free && (
+                                                                        <Badge className="bg-emerald-500">Miễn phí</Badge>
+                                                                    )}
+                                                                    {exam.is_ai_generated && (
+                                                                        <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-800 flex items-center gap-1">
+                                                                            ✨ AI Gen
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <CardTitle className="text-lg line-clamp-2 leading-tight">
+                                                                {exam.title}
+                                                            </CardTitle>
+                                                        </CardHeader>
+                                                        <CardContent className="pb-3 flex-1 text-sm text-muted-foreground space-y-3">
+                                                            <div className="flex items-center gap-2 font-medium text-slate-700">
+                                                                <Clock className="w-4 h-4 text-blue-500" />
+                                                                <span>{exam.duration} phút • {exam.total_questions} câu hỏi</span>
+                                                            </div>
+                                                            <div className="text-sm text-slate-600 line-clamp-2 leading-relaxed">
+                                                                {exam.description || 'Đề thi bám sát cấu trúc chuẩn EPS-TOPIK mới nhất, giúp bạn đánh giá chính xác năng lực và tự tin chinh phục kỳ thi thật! 🚀'}
+                                                            </div>
+                                                            {!exam.is_free && (
+                                                                <div className="flex items-center justify-between bg-blue-50 p-2.5 rounded-lg border border-blue-100">
+                                                                    <span className="text-xs font-semibold text-blue-800 flex items-center gap-1.5">
+                                                                        <Factory className="w-3.5 h-3.5 text-blue-600" />
+                                                                        Lượt thi miễn phí:
                                                                     </span>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        <CardTitle className="text-lg line-clamp-2 leading-tight">
-                                                            {exam.title}
-                                                        </CardTitle>
-                                                    </CardHeader>
-                                                    <CardContent className="pb-3 flex-1 text-sm text-muted-foreground space-y-3">
-                                                        <div className="flex items-center gap-2 font-medium text-slate-700">
-                                                            <Clock className="w-4 h-4 text-blue-500" />
-                                                            <span>{exam.duration} phút • {exam.total_questions} câu hỏi</span>
-                                                        </div>
-                                                        <div className="text-sm text-slate-600 line-clamp-2 leading-relaxed">
-                                                            {exam.description || 'Đề thi bám sát cấu trúc chuẩn EPS-TOPIK mới nhất, giúp bạn đánh giá chính xác năng lực và tự tin chinh phục kỳ thi thật! 🚀'}
-                                                        </div>
-                                                        {!exam.is_free && (
-                                                            <div className="flex items-center justify-between bg-blue-50 p-2.5 rounded-lg border border-blue-100">
-                                                                <span className="text-xs font-semibold text-blue-800 flex items-center gap-1.5">
-                                                                    <Factory className="w-3.5 h-3.5 text-blue-600" />
-                                                                    Lượt thi miễn phí:
-                                                                </span>
-                                                                <Badge variant="secondary" className="bg-white border-blue-200 text-blue-700 shadow-sm">
-                                                                    <Sparkles className="w-3.5 h-3.5 mr-1.5 text-yellow-500" /> 
-                                                                    {exam.remaining_free_attempts ?? exam.free_attempts ?? 0} lượt
-                                                                </Badge>
-                                                            </div>
-                                                        )}
-                                                    </CardContent>
-                                                    <CardFooter>
-                                                        <Button
-                                                            className="w-full gap-2"
-                                                            onClick={() => handleStartExam(exam.id, exam.is_official)}
-                                                            disabled={checkingAccess === exam.id}
-                                                        >
-                                                            <PlayCircle className="w-4 h-4" />
-                                                            {checkingAccess === exam.id ? 'Đang kiểm tra...' : 'Vào thi ngay'}
-                                                        </Button>
-                                                    </CardFooter>
-                                                </Card>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                                                                    <Badge variant="secondary" className="bg-white border-blue-200 text-blue-700 shadow-sm">
+                                                                        <Sparkles className="w-3.5 h-3.5 mr-1.5 text-yellow-500" />
+                                                                        {exam.remaining_free_attempts ?? exam.free_attempts ?? 0} lượt
+                                                                    </Badge>
+                                                                </div>
+                                                            )}
+                                                        </CardContent>
+                                                        <CardFooter>
+                                                            <Button
+                                                                className="w-full gap-2"
+                                                                onClick={() => handleStartExam(exam.id, exam.is_official)}
+                                                                disabled={checkingAccess === exam.id}
+                                                            >
+                                                                <PlayCircle className="w-4 h-4" />
+                                                                {checkingAccess === exam.id ? 'Đang kiểm tra...' : 'Vào thi ngay'}
+                                                            </Button>
+                                                        </CardFooter>
+                                                    </Card>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
                             </>
                         )}
@@ -708,9 +718,9 @@ export default function DashboardPage() {
                         )}
 
                         {/* Payment Modal */}
-                        <PaymentModal 
-                            open={paymentModalOpen} 
-                            onClose={() => setPaymentModalOpen(false)} 
+                        <PaymentModal
+                            open={paymentModalOpen}
+                            onClose={() => setPaymentModalOpen(false)}
                             onSuccess={() => {
                                 setPaymentModalOpen(false)
                                 fetchCredits()
@@ -725,8 +735,8 @@ export default function DashboardPage() {
                                 </DialogHeader>
                                 <div className="py-4">
                                     <p className="text-sm text-gray-500 mb-4">Vui lòng cập nhật <span className="font-semibold">Ngày sinh</span> của bạn để tham gia kỳ thi chính thức này.</p>
-                                    <Input 
-                                        type="date" 
+                                    <Input
+                                        type="date"
                                         value={userDob}
                                         onChange={(e) => setUserDob(e.target.value)}
                                         max={new Date().toISOString().split('T')[0]}
@@ -734,8 +744,8 @@ export default function DashboardPage() {
                                 </div>
                                 <div className="flex justify-end gap-3 mt-4">
                                     <Button variant="outline" onClick={() => setShowDobModal(false)}>Hủy</Button>
-                                    <Button 
-                                        onClick={handleSaveDob} 
+                                    <Button
+                                        onClick={handleSaveDob}
                                         disabled={!userDob || isSavingDob}
                                     >
                                         {isSavingDob ? 'Đang lưu...' : 'Lưu và tiếp tục'}

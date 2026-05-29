@@ -131,6 +131,16 @@ export default function AdminUsersPage() {
     const [isFetchingHistory, setIsFetchingHistory] = useState(false)
     const [selectedUserName, setSelectedUserName] = useState("")
 
+    const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+    const [mathProblem, setMathProblem] = useState({ a: 0, b: 0, answer: '' })
+
+    const generateMathProblem = () => {
+        const a = Math.floor(Math.random() * 10) + 1
+        const b = Math.floor(Math.random() * 10) + 1
+        setMathProblem({ a, b, answer: '' })
+    }
+
     const fetchUsers = async () => {
         setIsLoading(true)
         try {
@@ -385,6 +395,41 @@ export default function AdminUsersPage() {
         }
     }
 
+    const handleBulkDelete = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (parseInt(mathProblem.answer) !== mathProblem.a + mathProblem.b) {
+            toast.error("Kết quả phép tính không chính xác!")
+            return
+        }
+
+        setIsBulkDeleting(true)
+        const toastId = toast.loading(`Đang xóa ${selectedUserIds.length} tài khoản...`)
+
+        try {
+            const res = await fetch(`/api/admin/users/bulk-delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userIds: selectedUserIds })
+            })
+
+            const data = await res.json().catch(() => null)
+            if (!res.ok) throw new Error(data?.error || 'Lỗi xóa hàng loạt')
+
+            toast.success(`Đã xóa thành công ${data.successCount} tài khoản`, { id: toastId })
+            if (data.errors && data.errors.length > 0) {
+                toast.warning(`Có ${data.errors.length} tài khoản không thể xóa`)
+            }
+            
+            setIsBulkDeleteDialogOpen(false)
+            setSelectedUserIds([])
+            fetchUsers()
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Lỗi xóa hàng loạt'), { id: toastId })
+        } finally {
+            setIsBulkDeleting(false)
+        }
+    }
+
     const filteredUsers = users.filter(user => {
         const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                               user.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -405,10 +450,16 @@ export default function AdminUsersPage() {
                 </div>
                 <div className="flex space-x-2">
                     {selectedUserIds.length > 0 && (
-                        <Button variant="secondary" onClick={() => setIsBulkGrantDialogOpen(true)} className="bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300">
-                            <Coins className="w-4 h-4 mr-2" />
-                            Điều chỉnh lượt ({selectedUserIds.length})
-                        </Button>
+                        <>
+                            <Button variant="destructive" onClick={() => { generateMathProblem(); setIsBulkDeleteDialogOpen(true); }} className="bg-red-600 hover:bg-red-700">
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Xóa ({selectedUserIds.length})
+                            </Button>
+                            <Button variant="secondary" onClick={() => setIsBulkGrantDialogOpen(true)} className="bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300">
+                                <Coins className="w-4 h-4 mr-2" />
+                                Điều chỉnh lượt ({selectedUserIds.length})
+                            </Button>
+                        </>
                     )}
                     <Button variant="outline" onClick={() => setIsBulkImportOpen(true)}>
                         <Upload className="w-4 h-4 mr-2" />
@@ -817,6 +868,45 @@ export default function AdminUsersPage() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsHistoryOpen(false)}>Đóng</Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-red-600 flex items-center gap-2">
+                            <Trash2 className="w-5 h-5" /> Xác nhận xóa hàng loạt
+                        </DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleBulkDelete} className="space-y-4 py-4">
+                        <p className="text-sm text-gray-700">
+                            Bạn đang chuẩn bị xóa vĩnh viễn <strong>{selectedUserIds.length}</strong> tài khoản khỏi hệ thống. Thao tác này không thể hoàn tác!
+                        </p>
+                        <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm border border-red-100">
+                            Để xác nhận xóa, vui lòng nhập kết quả của phép tính:
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="font-bold text-lg bg-gray-100 px-4 py-2 rounded-md">
+                                {mathProblem.a} + {mathProblem.b} =
+                            </div>
+                            <Input
+                                type="number"
+                                placeholder="Nhập kết quả"
+                                className="flex-1"
+                                value={mathProblem.answer}
+                                onChange={(e) => setMathProblem({ ...mathProblem, answer: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <DialogFooter className="mt-4">
+                            <Button type="button" variant="outline" onClick={() => setIsBulkDeleteDialogOpen(false)}>
+                                Hủy
+                            </Button>
+                            <Button type="submit" variant="destructive" disabled={isBulkDeleting || !mathProblem.answer}>
+                                {isBulkDeleting ? 'Đang xóa...' : 'Xóa vĩnh viễn'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
                 </DialogContent>
             </Dialog>
 

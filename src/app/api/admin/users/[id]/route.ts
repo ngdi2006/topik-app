@@ -25,6 +25,13 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
 
         // 2. Perform deletion via Admin Auth api Client
         const adminAuthClient = createAdminClient()
+        
+        // Delete related records manually to avoid foreign key constraint errors
+        await adminAuthClient.from('exam_results').delete().eq('user_id', userId)
+        await adminAuthClient.from('user_exams').delete().eq('user_id', userId)
+        await adminAuthClient.from('user_exam_credits').delete().eq('user_id', userId)
+        await adminAuthClient.from('profiles').delete().eq('id', userId)
+
         const { error } = await adminAuthClient.auth.admin.deleteUser(userId)
 
         if (error) {

@@ -68,14 +68,20 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
             rawData.forEach((row: any, index: number) => {
                 const errors: string[] = []
                 let isValid = true
+
+                // Normalize keys to lowercase for robust matching
+                const normalizedRow: Record<string, any> = {}
+                for (const key in row) {
+                    normalizedRow[key.toLowerCase().trim()] = row[key]
+                }
                 
-                const name = row['Họ Tên'] || row['name'] || ''
+                const name = normalizedRow['họ tên'] || normalizedRow['name'] || normalizedRow['họ và tên'] || ''
                 if (!name) {
                     errors.push('Thiếu họ tên')
                     isValid = false
                 }
 
-                const email = row['Email'] || row['email'] || ''
+                const email = normalizedRow['email'] || ''
                 if (!email) {
                     errors.push('Thiếu email')
                     isValid = false
@@ -89,7 +95,7 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                     emailSet.add(email)
                 }
 
-                const password = row['Mật khẩu'] || row['password'] || ''
+                const password = normalizedRow['mật khẩu'] || normalizedRow['password'] || ''
                 if (!password) {
                     errors.push('Thiếu mật khẩu')
                     isValid = false
@@ -98,15 +104,29 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                     isValid = false
                 }
 
-                const rawRole = row['Vai trò'] || row['role'] || 'learner'
+                const rawRole = normalizedRow['vai trò'] || normalizedRow['role'] || 'learner'
                 let role = String(rawRole).toLowerCase().trim()
                 const validRoles = ['learner', 'supporter', 'teacher', 'admin']
                 if (!validRoles.includes(role)) {
                     role = 'learner' // default
                 }
 
-                const groupName = row['Nhóm/Lớp'] || row['groupName'] || ''
-                const dateOfBirth = row['Ngày sinh'] || row['dateOfBirth'] || row['dob'] || ''
+                const groupName = normalizedRow['nhóm/lớp'] || normalizedRow['groupname'] || normalizedRow['lớp'] || normalizedRow['nhóm'] || ''
+                
+                let rawDateOfBirth = normalizedRow['ngày sinh'] || normalizedRow['dateofbirth'] || normalizedRow['dob'] || ''
+                let dateOfBirth = ''
+                if (rawDateOfBirth) {
+                    if (rawDateOfBirth instanceof Date) {
+                        dateOfBirth = rawDateOfBirth.toISOString().split('T')[0]
+                    } else if (typeof rawDateOfBirth === 'number') {
+                        // Convert Excel serial date to JS Date
+                        const date = new Date(Math.round((rawDateOfBirth - 25569) * 86400 * 1000))
+                        dateOfBirth = date.toISOString().split('T')[0]
+                    } else {
+                        // Assuming string format
+                        dateOfBirth = String(rawDateOfBirth).trim()
+                    }
+                }
 
                 // Skip if entirely empty row
                 if (!name && !email && !password) return
@@ -170,8 +190,9 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
             setProgressStatus('Hoàn thành!')
             
             if (resData.errors && resData.errors.length > 0) {
-                toast.warning(`Thành công ${resData.successCount}. Lỗi ${resData.errors.length} tài khoản.`)
-                console.error("Import errors:", resData.errors)
+                const firstError = resData.errors[0]?.error || 'Lỗi không xác định';
+                toast.warning(`Thành công ${resData.successCount}. Lỗi ${resData.errors.length} tài khoản. Lỗi mẫu: ${firstError}`)
+                console.warn("Import errors:", resData.errors)
             } else {
                 toast.success(`Đã import thành công ${resData.successCount} người dùng!`)
             }

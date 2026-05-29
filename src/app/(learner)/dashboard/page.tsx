@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles, Mic, ArrowLeft } from "lucide-react"
+import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles, Mic, ArrowLeft, User } from "lucide-react"
 import { LessonList } from "@/components/lessons/LessonList"
 import { PracticeHub } from "@/components/practice/PracticeHub"
 import { PaymentModal } from "@/components/payment/PaymentModal"
@@ -456,8 +456,8 @@ export default function DashboardPage() {
                                                         {user?.user_metadata?.avatar_url ? (
                                                             <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                                                         ) : (
-                                                            <div className="w-full h-full flex items-center justify-center bg-blue-100 text-blue-500">
-                                                                <Bot className="w-12 h-12" />
+                                                            <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
+                                                                <User className="w-12 h-12 md:w-16 md:h-16 opacity-50" />
                                                             </div>
                                                         )}
                                                     </div>
@@ -480,7 +480,7 @@ export default function DashboardPage() {
                                                             <p className="text-gray-500 mb-0.5 md:mb-1 text-[10px] md:text-xs uppercase font-bold tracking-wider">Số máy</p>
                                                             <p className="font-semibold text-gray-900 flex items-center gap-2 text-sm md:text-base">
                                                                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse shrink-0"></span>
-                                                                Máy 01
+                                                                Máy {user?.id ? (parseInt(user.id.substring(0, 4), 16) % 50 + 1).toString().padStart(2, '0') : '01'}
                                                             </p>
                                                         </div>
                                                     </div>

@@ -709,9 +709,8 @@ export default function DashboardPage() {
 
                         {/* Payment Modal */}
                         <PaymentModal 
-                            isOpen={paymentModalOpen} 
+                            open={paymentModalOpen} 
                             onClose={() => setPaymentModalOpen(false)} 
-                            userCredits={userCredits}
                             onSuccess={() => {
                                 setPaymentModalOpen(false)
                                 fetchCredits()

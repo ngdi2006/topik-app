@@ -113,7 +113,8 @@ export default function AdminUsersPage() {
         email: '',
         password: '',
         role: 'learner',
-        groupName: ''
+        groupName: '',
+        dateOfBirth: ''
     })
 
     const [isGrantDialogOpen, setIsGrantDialogOpen] = useState(false)
@@ -223,7 +224,7 @@ export default function AdminUsersPage() {
 
             toast.success("Tạo tài khoản thành công!", { id: toastId })
             setIsAddDialogOpen(false)
-            setFormData({ name: '', email: '', password: '', role: 'learner', groupName: '' })
+            setFormData({ name: '', email: '', password: '', role: 'learner', groupName: '', dateOfBirth: '' })
             fetchUsers()
         } catch (error) {
             toast.error(getErrorMessage(error, 'Lỗi tạo tài khoản'), { id: toastId })
@@ -614,6 +615,16 @@ export default function AdminUsersPage() {
                                 placeholder="VD: TOPIK II - Lớp A"
                                 value={formData.groupName}
                                 onChange={(e) => setFormData({ ...formData, groupName: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="dateOfBirth">Ngày sinh (Tùy chọn)</Label>
+                            <Input
+                                id="dateOfBirth"
+                                type="date"
+                                value={formData.dateOfBirth}
+                                onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                                max={new Date().toISOString().split('T')[0]}
                             />
                         </div>
                         <div className="space-y-2">

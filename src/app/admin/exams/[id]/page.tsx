@@ -101,6 +101,7 @@ export default function AdminExamBuilderPage() {
         status: 'Draft',
         display_order: 0,
         is_free: false,
+        is_official: false,
         free_attempts: 1,
         credits_required: 1,
     })
@@ -142,6 +143,7 @@ export default function AdminExamBuilderPage() {
                     status: data.data.status || 'Draft',
                     display_order: data.data.display_order || 0,
                     is_free: data.data.is_free ?? false,
+                    is_official: data.data.is_official ?? false,
                     free_attempts: data.data.free_attempts ?? 1,
                     credits_required: data.data.credits_required ?? 1,
                 })
@@ -535,6 +537,21 @@ export default function AdminExamBuilderPage() {
                                     className="rounded border-gray-300"
                                 />
                                 <span className="text-sm font-medium">✅ Đề thi miễn phí (không giới hạn lượt)</span>
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer mt-2">
+                                <input
+                                    type="checkbox"
+                                    checked={metaForm.is_official}
+                                    onChange={(e) =>
+                                        setMetaForm({
+                                            ...metaForm,
+                                            is_official: e.target.checked,
+                                        })
+                                    }
+                                    className="rounded border-gray-300"
+                                />
+                                <span className="text-sm font-medium">🏆 Đề thi chính thức (yêu cầu xác nhận thông tin)</span>
                             </label>
 
                             {!metaForm.is_free && (

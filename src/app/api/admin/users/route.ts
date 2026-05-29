@@ -65,7 +65,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const { name, email, password, role, groupName } = await request.json()
+        const { name, email, password, role, groupName, dateOfBirth } = await request.json()
 
         // 1. Authentication & Authorization Check
         const supabase = await createClient()
@@ -100,7 +100,8 @@ export async function POST(request: Request) {
             id: newUserId,
             full_name: name,
             role: role || 'learner',
-            group_name: groupName || ''
+            group_name: groupName || '',
+            date_of_birth: dateOfBirth || null
         })
 
         if (profileError) {

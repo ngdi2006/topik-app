@@ -23,6 +23,7 @@ type PreviewRow = {
     password: string
     role: string
     groupName: string
+    dateOfBirth: string
 }
 
 export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImportModalProps) {
@@ -105,6 +106,7 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                 }
 
                 const groupName = row['Nhóm/Lớp'] || row['groupName'] || ''
+                const dateOfBirth = row['Ngày sinh'] || row['dateOfBirth'] || row['dob'] || ''
 
                 // Skip if entirely empty row
                 if (!name && !email && !password) return
@@ -117,7 +119,8 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                     email: String(email).trim(),
                     password: String(password).trim(),
                     role,
-                    groupName: String(groupName).trim()
+                    groupName: String(groupName).trim(),
+                    dateOfBirth: String(dateOfBirth).trim()
                 })
             })
 
@@ -148,7 +151,8 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                 email: r.email,
                 password: r.password,
                 role: r.role,
-                groupName: r.groupName
+                groupName: r.groupName,
+                dateOfBirth: r.dateOfBirth
             }))
 
             const res = await fetch('/api/admin/users/bulk', {
@@ -200,14 +204,16 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                 'Email': 'nguyenvana@example.com',
                 'Mật khẩu': '123456',
                 'Vai trò': 'learner',
-                'Nhóm/Lớp': 'Lớp TOPIK 1'
+                'Nhóm/Lớp': 'Lớp TOPIK 1',
+                'Ngày sinh': '1990-01-01'
             },
             {
                 'Họ Tên': 'Trần Thị B',
                 'Email': 'tranthib@example.com',
                 'Mật khẩu': '123456',
                 'Vai trò': 'supporter',
-                'Nhóm/Lớp': ''
+                'Nhóm/Lớp': '',
+                'Ngày sinh': ''
             }
         ])
         
@@ -218,6 +224,7 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
             { wch: 15 },
             { wch: 15 },
             { wch: 20 },
+            { wch: 15 },
         ];
         ws['!cols'] = wscols;
 
@@ -278,7 +285,7 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                                     />
                                 </div>
                                 <div className="text-xs text-muted-foreground mt-2">
-                                    <p>File cần có các cột: <strong>Họ Tên</strong>, <strong>Email</strong>, <strong>Mật khẩu</strong>, <strong>Vai trò</strong> (learner/supporter/teacher/admin), <strong>Nhóm/Lớp</strong></p>
+                                    <p>File cần có các cột: <strong>Họ Tên</strong>, <strong>Email</strong>, <strong>Mật khẩu</strong>, <strong>Vai trò</strong> (learner/supporter/teacher/admin), <strong>Nhóm/Lớp</strong>, <strong>Ngày sinh</strong> (YYYY-MM-DD)</p>
                                 </div>
                             </div>
                         </div>
@@ -309,6 +316,7 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                                             <th className="px-4 py-3">Email</th>
                                             <th className="px-4 py-3">Vai trò</th>
                                             <th className="px-4 py-3">Nhóm/Lớp</th>
+                                            <th className="px-4 py-3">Ngày sinh</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
@@ -335,6 +343,7 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                                                 <td className="px-4 py-3 text-slate-700">{row.email}</td>
                                                 <td className="px-4 py-3 text-slate-700">{row.role}</td>
                                                 <td className="px-4 py-3 text-slate-700">{row.groupName}</td>
+                                                <td className="px-4 py-3 text-slate-700">{row.dateOfBirth}</td>
                                             </tr>
                                         ))}
                                     </tbody>

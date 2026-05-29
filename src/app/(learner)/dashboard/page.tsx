@@ -7,9 +7,11 @@ import { createClient } from "@/lib/supabase/client"
 import { useUserStore } from "@/store/userStore"
 import { Button } from "@/components/ui/button"
 import { UserNav } from "@/components/shared/UserNav"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles, Mic } from "lucide-react"
+import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles, Mic, ArrowLeft } from "lucide-react"
 import { LessonList } from "@/components/lessons/LessonList"
 import { PracticeHub } from "@/components/practice/PracticeHub"
 import { PaymentModal } from "@/components/payment/PaymentModal"
@@ -23,6 +25,7 @@ type Exam = {
     total_questions: number
     is_free?: boolean
     is_ai_generated?: boolean
+    is_official?: boolean
     description?: string
     free_attempts?: number
     remaining_free_attempts?: number
@@ -112,6 +115,12 @@ export default function DashboardPage() {
     const [checkingAccess, setCheckingAccess] = useState<string | null>(null)
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+    const [selectedOfficialExam, setSelectedOfficialExam] = useState<Exam | null>(null)
+    const [showDobModal, setShowDobModal] = useState(false)
+    const [userDob, setUserDob] = useState<string>("")
+    const [isSavingDob, setIsSavingDob] = useState(false)
+    const [examAwaitingDob, setExamAwaitingDob] = useState<Exam | null>(null)
+    const [profileDob, setProfileDob] = useState<string | null>(null)
 
     const enabledMenuItems = useMemo(
         () => enabledMenuSettings
@@ -190,7 +199,25 @@ export default function DashboardPage() {
         }
     }
 
-    const handleStartExam = async (examId: string) => {
+    const handleStartExam = async (examId: string, isOfficial?: boolean) => {
+        if (isOfficial) {
+            const exam = exams.find(e => e.id === examId)
+            if (exam) {
+                setCheckingAccess(exam.id)
+                const { data, error } = await supabase.from('profiles').select('date_of_birth').eq('id', user?.id).single()
+                setCheckingAccess(null)
+                
+                if (data?.date_of_birth) {
+                    setProfileDob(data.date_of_birth)
+                    setSelectedOfficialExam(exam)
+                } else {
+                    setExamAwaitingDob(exam)
+                    setShowDobModal(true)
+                }
+                return
+            }
+        }
+        
         setCheckingAccess(examId)
         try {
             const res = await fetch(`/api/exams/${examId}/check-access`)
@@ -208,6 +235,24 @@ export default function DashboardPage() {
             router.push(`/exam/${examId}/start`)
         } finally {
             setCheckingAccess(null)
+        }
+    }
+
+    const handleSaveDob = async () => {
+        if (!user?.id || !userDob) return
+        setIsSavingDob(true)
+        const { error } = await supabase.from('profiles').update({ date_of_birth: userDob }).eq('id', user.id)
+        setIsSavingDob(false)
+        
+        if (!error) {
+            setProfileDob(userDob)
+            setShowDobModal(false)
+            if (examAwaitingDob) {
+                setSelectedOfficialExam(examAwaitingDob)
+                setExamAwaitingDob(null)
+            }
+        } else {
+            alert("Có lỗi xảy ra khi lưu ngày sinh. Vui lòng thử lại.")
         }
     }
 
@@ -320,7 +365,7 @@ export default function DashboardPage() {
                         </button>
 
                         <div className="md:hidden relative w-32 h-8 mr-1">
-                            <Image src="/logomobile.png" alt="Korea Link" fill className="object-contain" priority />
+                            <Image src="/logomobile.png" alt="Korea Link" fill sizes="128px" className="object-contain" priority />
                         </div>
 
                         <div className="hidden md:flex items-center text-xl font-bold text-gray-800 ml-2">
@@ -388,7 +433,86 @@ export default function DashboardPage() {
                         {/* THI THỬ */}
                         {activeMenu === 'thi-thu' && activeMenuItem && (
                             <>
-                                <div>
+                                {selectedOfficialExam ? (
+                                    <div className="max-w-3xl mx-auto py-4">
+                                        <div className="bg-white rounded-2xl shadow-xl p-5 md:p-8 mb-6 border border-gray-100">
+                                            <div className="relative text-center mb-5 md:mb-8 mt-2 px-8 md:px-12">
+                                                <button 
+                                                    onClick={() => setSelectedOfficialExam(null)}
+                                                    className="absolute left-0 top-0 md:top-1 text-gray-400 hover:text-gray-700 transition-colors p-1.5 md:p-2 rounded-full hover:bg-gray-100 flex items-center justify-center"
+                                                    title="Quay lại"
+                                                >
+                                                    <ArrowLeft className="w-5 h-5 md:w-7 md:h-7" />
+                                                </button>
+                                                <h1 className="text-lg md:text-3xl font-bold text-gray-900 mb-1 md:mb-2 uppercase tracking-wide">
+                                                    Xác nhận thông tin
+                                                </h1>
+                                                <p className="text-xs md:text-sm text-gray-500">Vui lòng kiểm tra kỹ thông tin thí sinh trước khi vào phòng thi</p>
+                                            </div>
+                                            
+                                            <div className="flex flex-row gap-4 md:gap-10 items-center md:items-start mb-6 md:mb-8 bg-gradient-to-br from-blue-50 to-indigo-50/50 p-4 md:p-6 rounded-xl border border-blue-100/50">
+                                                <div className="shrink-0">
+                                                    <div className="w-20 h-20 md:w-32 md:h-32 bg-gray-200 rounded-xl overflow-hidden border-2 md:border-4 border-white shadow-md relative">
+                                                        {user?.user_metadata?.avatar_url ? (
+                                                            <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center bg-blue-100 text-blue-500">
+                                                                <Bot className="w-12 h-12" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex-1 w-full min-w-0">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 md:gap-y-5 gap-x-4 text-sm md:text-base">
+                                                        <div>
+                                                            <p className="text-gray-500 mb-0.5 md:mb-1 text-[10px] md:text-xs uppercase font-bold tracking-wider">Họ và tên</p>
+                                                            <p className="font-bold text-gray-900 text-base md:text-lg uppercase truncate">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Thí sinh'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-gray-500 mb-0.5 md:mb-1 text-[10px] md:text-xs uppercase font-bold tracking-wider">Ngày sinh</p>
+                                                            <p className="font-semibold text-gray-900 text-sm md:text-base">{profileDob ? new Date(profileDob).toLocaleDateString('vi-VN') : 'Đang cập nhật'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-gray-500 mb-0.5 md:mb-1 text-[10px] md:text-xs uppercase font-bold tracking-wider">Số báo danh (SBD)</p>
+                                                            <p className="font-extrabold text-blue-600 text-base md:text-xl font-mono tracking-wider truncate">SBD-{user?.id?.substring(0,5).toUpperCase() || '12345'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-gray-500 mb-0.5 md:mb-1 text-[10px] md:text-xs uppercase font-bold tracking-wider">Số máy</p>
+                                                            <p className="font-semibold text-gray-900 flex items-center gap-2 text-sm md:text-base">
+                                                                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse shrink-0"></span>
+                                                                Máy 01
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8 text-sm text-yellow-800 rounded-r-lg">
+                                                <p className="font-semibold mb-1">Lưu ý:</p>
+                                                <p>Nếu thông tin trên không chính xác, vui lòng báo cáo ngay cho giám thị phòng thi. Không nhấn "Tiếp tục" nếu sai thông tin.</p>
+                                            </div>
+
+                                            <div className="text-center">
+                                                <Button
+                                                    size="lg"
+                                                    className="w-full md:w-auto px-6 py-4 md:px-16 md:py-6 text-base md:text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all disabled:opacity-70"
+                                                    onClick={() => handleStartExam(selectedOfficialExam.id, false)}
+                                                    disabled={checkingAccess === selectedOfficialExam.id}
+                                                >
+                                                    {checkingAccess === selectedOfficialExam.id ? (
+                                                        <div className="flex items-center">
+                                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                                                            Đang tải...
+                                                        </div>
+                                                    ) : (
+                                                        'Tiếp tục'
+                                                    )}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div>
 
                                     {exams.length === 0 ? (
                                         <div className="border rounded-md p-8 text-center text-muted-foreground bg-muted/10">
@@ -439,7 +563,7 @@ export default function DashboardPage() {
                                                     <CardFooter>
                                                         <Button
                                                             className="w-full gap-2"
-                                                            onClick={() => handleStartExam(exam.id)}
+                                                            onClick={() => handleStartExam(exam.id, exam.is_official)}
                                                             disabled={checkingAccess === exam.id}
                                                         >
                                                             <PlayCircle className="w-4 h-4" />
@@ -451,6 +575,7 @@ export default function DashboardPage() {
                                         </div>
                                     )}
                                 </div>
+                                )}
                             </>
                         )}
 
@@ -582,14 +707,43 @@ export default function DashboardPage() {
                             </>
                         )}
 
-                        <PaymentModal
-                            open={paymentModalOpen}
-                            onClose={() => setPaymentModalOpen(false)}
+                        {/* Payment Modal */}
+                        <PaymentModal 
+                            isOpen={paymentModalOpen} 
+                            onClose={() => setPaymentModalOpen(false)} 
+                            userCredits={userCredits}
                             onSuccess={() => {
                                 setPaymentModalOpen(false)
                                 fetchCredits()
                             }}
                         />
+
+                        {/* DOB Modal */}
+                        <Dialog open={showDobModal} onOpenChange={setShowDobModal}>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Cập nhật thông tin</DialogTitle>
+                                </DialogHeader>
+                                <div className="py-4">
+                                    <p className="text-sm text-gray-500 mb-4">Vui lòng cập nhật <span className="font-semibold">Ngày sinh</span> của bạn để tham gia kỳ thi chính thức này.</p>
+                                    <Input 
+                                        type="date" 
+                                        value={userDob}
+                                        onChange={(e) => setUserDob(e.target.value)}
+                                        max={new Date().toISOString().split('T')[0]}
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-3 mt-4">
+                                    <Button variant="outline" onClick={() => setShowDobModal(false)}>Hủy</Button>
+                                    <Button 
+                                        onClick={handleSaveDob} 
+                                        disabled={!userDob || isSavingDob}
+                                    >
+                                        {isSavingDob ? 'Đang lưu...' : 'Lưu và tiếp tục'}
+                                    </Button>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
                     </div>
                 </main>
             </div>

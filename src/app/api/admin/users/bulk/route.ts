@@ -25,7 +25,7 @@ export async function POST(request: Request) {
         const errors = []
 
         for (const u of users) {
-            const { name, email, password, role, groupName } = u
+            const { name, email, password, role, groupName, dateOfBirth } = u
 
             const { data: newUser, error: createError } = await adminAuthClient.auth.admin.createUser({
                 email: email,
@@ -47,7 +47,8 @@ export async function POST(request: Request) {
                 id: newUserId,
                 full_name: name,
                 role: role || 'learner',
-                group_name: groupName || ''
+                group_name: groupName || '',
+                date_of_birth: dateOfBirth || null
             })
 
             if (profileError) {

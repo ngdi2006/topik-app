@@ -211,6 +211,11 @@ export default function ReadingPage() {
                 router.push(`/exam/${examId}/submit?attemptId=${attemptId}`)
             }
         } catch (error: any) {
+            if (error.message?.includes('Unauthorized')) {
+                toast.error('Tài khoản của bạn đang đăng nhập ở một thiết bị khác. Vui lòng đăng nhập lại.')
+                router.push('/')
+                return
+            }
             toast.error(error.message || 'Lỗi lưu bài')
             setIsSubmitting(false)
         }

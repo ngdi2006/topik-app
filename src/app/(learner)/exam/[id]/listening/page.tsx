@@ -213,6 +213,11 @@ export default function ListeningPage() {
             toast.success('Đã lưu phần Nghe hiểu!')
             router.push(`/exam/${examId}/submit?attemptId=${attemptId}`)
         } catch (error: any) {
+            if (error.message?.includes('Unauthorized')) {
+                toast.error('Tài khoản của bạn đang đăng nhập ở một thiết bị khác. Vui lòng đăng nhập lại.')
+                router.push('/')
+                return
+            }
             toast.error(error.message || 'Lỗi nộp bài')
             setIsSubmitting(false)
         }

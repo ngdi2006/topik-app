@@ -8,6 +8,7 @@ import {
     CheckCircle, Loader2, Trophy, Target, BookOpen,
     ChevronLeft, ChevronRight, XCircle, CheckCircle2
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 // ===== Score Display Component =====
 function ScoreDisplay({
@@ -406,6 +407,11 @@ export default function SubmitPage() {
                 setStatus('complete')
             } catch (error: any) {
                 console.error('Submit error:', error)
+                if (error.message?.includes('Unauthorized')) {
+                    toast.error('Tài khoản của bạn đang đăng nhập ở một thiết bị khác. Vui lòng đăng nhập lại.')
+                    router.push('/')
+                    return
+                }
                 setErrorMessage(error.message || 'Lỗi không xác định')
                 setStatus('error')
             }

@@ -57,6 +57,11 @@ export async function updateSession(request: NextRequest) {
         !request.nextUrl.pathname.startsWith('/api/payment/webhook') &&
         request.nextUrl.pathname !== '/'
     ) {
+        // If it's an API request, return 401 instead of redirecting
+        if (request.nextUrl.pathname.startsWith('/api/')) {
+            return NextResponse.json({ success: false, error: 'Unauthorized: Vui lòng đăng nhập lại (tài khoản đã đăng nhập ở nơi khác)' }, { status: 401 })
+        }
+        
         // no user, redirect to login page
         const url = request.nextUrl.clone()
         url.pathname = '/login'

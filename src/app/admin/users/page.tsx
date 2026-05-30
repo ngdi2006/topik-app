@@ -29,6 +29,8 @@ interface UserProfile {
 type HistoryRecord = {
     id: string
     score: number
+    raw_score?: number
+    total_points?: number
     total_correct: number
     created_at: string
     exams?: {
@@ -856,7 +858,7 @@ export default function AdminUsersPage() {
                                             <p className="font-semibold text-gray-900">{record.exams?.title || "Đề thi"}</p>
                                         </div>
                                         <div className="mt-3 sm:mt-0 text-left sm:text-right border-t sm:border-t-0 pt-3 sm:pt-0 pl-0 sm:pl-4">
-                                            <div className="text-2xl font-bold text-primary">{record.score}<span className="text-sm font-medium text-gray-400">/100</span></div>
+                                            <div className="text-2xl font-bold text-primary">{record.raw_score ?? record.score}<span className="text-sm font-medium text-gray-400">/{record.total_points ?? 100}</span></div>
                                             <div className="text-xs text-green-600 font-medium mt-1">Đúng {record.total_correct} câu</div>
                                         </div>
                                     </div>

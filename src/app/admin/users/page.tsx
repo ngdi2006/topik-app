@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Search, Plus, Coins, Trash2, History, Upload } from "lucide-react"
+import { Search, Plus, Coins, Trash2, History, Upload, Download } from "lucide-react"
 import { toast } from "sonner"
+import * as XLSX from "xlsx"
 import { UserBulkImportModal } from "@/components/admin/UserBulkImportModal"
 import {
     Dialog,
@@ -118,6 +119,7 @@ export default function AdminUsersPage() {
         groupName: '',
         dateOfBirth: ''
     })
+    const [isExporting, setIsExporting] = useState(false)
 
     const [isGrantDialogOpen, setIsGrantDialogOpen] = useState(false)
     const [selectedUserForCredits, setSelectedUserForCredits] = useState<UserProfile | null>(null)
@@ -439,6 +441,69 @@ export default function AdminUsersPage() {
         return matchesSearch && matchesGroup
     })
 
+    const handleExportExcel = async () => {
+        if (filteredUsers.length === 0) {
+            toast.error("Không có người dùng nào để xuất.")
+            return
+        }
+
+        setIsExporting(true)
+        const toastId = toast.loading(`Đang xử lý xuất dữ liệu cho ${filteredUsers.length} người dùng...`)
+        try {
+            const userIds = filteredUsers.map(u => u.id)
+            const res = await fetch('/api/admin/users/export', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userIds })
+            })
+
+            const responseData = await res.json()
+            if (!res.ok) throw new Error(responseData.error || "Lỗi xuất dữ liệu")
+
+            const maxAttempts = Math.max(
+                0,
+                ...responseData.data.map((item: any) => (item.attempts ? item.attempts.length : 0))
+            )
+
+            const exportData = responseData.data.map((item: any, index: number) => {
+                const row: any = {
+                    'STT': index + 1,
+                    'Họ Tên': item.name,
+                    'Email': item.email,
+                    'Lớp': item.groupName || 'N/A',
+                }
+
+                if (!item.attempts || item.attempts.length === 0) {
+                    row['Trạng thái'] = 'Chưa có điểm'
+                } else {
+                    row['Trạng thái'] = 'Đã thi'
+                }
+
+                for (let i = 0; i < maxAttempts; i++) {
+                    const attempt = item.attempts ? item.attempts[i] : null
+                    row[`Ngày giờ lần ${i + 1}`] = attempt ? attempt.completedAt : ''
+                    row[`Đề thi lần ${i + 1}`] = attempt ? attempt.examTitle : ''
+                    row[`Điểm số lần ${i + 1}`] = attempt ? attempt.score : ''
+                }
+
+                return row
+            })
+
+            const worksheet = XLSX.utils.json_to_sheet(exportData)
+            const workbook = XLSX.utils.book_new()
+            XLSX.utils.book_append_sheet(workbook, worksheet, "DiemSo")
+            
+            const groupNameSafe = selectedGroupFilter === 'all' ? 'Tat_Ca' : selectedGroupFilter.replace(/[^a-zA-Z0-9]/g, '_')
+            XLSX.writeFile(workbook, `Bang_Diem_${groupNameSafe}_${new Date().getTime()}.xlsx`)
+
+            toast.success("Xuất file Excel thành công", { id: toastId })
+        } catch (error) {
+            toast.error(getErrorMessage(error, "Lỗi khi xuất file Excel"), { id: toastId })
+        } finally {
+            setIsExporting(false)
+        }
+    }
+
     const uniqueGroups = Array.from(new Set(users.map(u => u.groupName).filter(Boolean)))
 
     return (
@@ -466,6 +531,10 @@ export default function AdminUsersPage() {
                     <Button variant="outline" onClick={() => setIsBulkImportOpen(true)}>
                         <Upload className="w-4 h-4 mr-2" />
                         Import Excel
+                    </Button>
+                    <Button variant="outline" onClick={handleExportExcel} disabled={isExporting} className="bg-green-50 text-green-700 hover:bg-green-100 border-green-200">
+                        <Download className="w-4 h-4 mr-2" />
+                        {isExporting ? "Đang xuất..." : "Xuất điểm Excel"}
                     </Button>
                     <Button onClick={() => setIsAddDialogOpen(true)}>
                         <Plus className="w-4 h-4 mr-2" />

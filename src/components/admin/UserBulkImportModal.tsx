@@ -48,15 +48,15 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
         setProgressStatus('Đang đọc file Excel...')
 
         try {
-            const bstr = await new Promise<string>((resolve, reject) => {
+            const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
                 const reader = new FileReader()
-                reader.onload = (e) => resolve(e.target?.result as string)
+                reader.onload = (e) => resolve(e.target?.result as ArrayBuffer)
                 reader.onerror = (e) => reject(e)
-                reader.readAsBinaryString(excelFile)
+                reader.readAsArrayBuffer(excelFile)
             })
 
             setProgressPercent(50)
-            const wb = XLSX.read(bstr, { type: 'binary' })
+            const wb = XLSX.read(arrayBuffer, { type: 'array' })
             const ws = wb.Sheets[wb.SheetNames[0]]
             const rawData = XLSX.utils.sheet_to_json(ws)
 
@@ -69,13 +69,21 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                 const errors: string[] = []
                 let isValid = true
 
-                // Normalize keys to lowercase for robust matching
+                // Normalize keys: NFC, lowercase, remove all spaces
                 const normalizedRow: Record<string, any> = {}
                 for (const key in row) {
-                    normalizedRow[key.toLowerCase().trim()] = row[key]
+                    if (key && typeof key === 'string') {
+                        const cleanKey = key.normalize('NFC').toLowerCase().replace(/[\s_]+/g, '')
+                        normalizedRow[cleanKey] = row[key]
+                    }
                 }
+
+                // Check if row is entirely empty
+                const hasAnyValue = Object.values(normalizedRow).some(val => val !== undefined && val !== null && val !== '')
+                if (!hasAnyValue) return
                 
-                const name = normalizedRow['họ tên'] || normalizedRow['name'] || normalizedRow['họ và tên'] || ''
+                // Read properties using the highly normalized keys
+                const name = normalizedRow['họtên'] || normalizedRow['name'] || normalizedRow['họvàtên'] || ''
                 if (!name) {
                     errors.push('Thiếu họ tên')
                     isValid = false
@@ -85,17 +93,17 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                 if (!email) {
                     errors.push('Thiếu email')
                     isValid = false
-                } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
                     errors.push('Email không hợp lệ')
                     isValid = false
-                } else if (emailSet.has(email)) {
+                } else if (emailSet.has(String(email))) {
                     errors.push('Email trùng lặp trong file')
                     isValid = false
                 } else {
-                    emailSet.add(email)
+                    emailSet.add(String(email))
                 }
 
-                const password = normalizedRow['mật khẩu'] || normalizedRow['password'] || ''
+                const password = normalizedRow['mậtkhẩu'] || normalizedRow['password'] || ''
                 if (!password) {
                     errors.push('Thiếu mật khẩu')
                     isValid = false
@@ -104,16 +112,16 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                     isValid = false
                 }
 
-                const rawRole = normalizedRow['vai trò'] || normalizedRow['role'] || 'learner'
+                const rawRole = normalizedRow['vaitrò'] || normalizedRow['role'] || ''
                 let role = String(rawRole).toLowerCase().trim()
                 const validRoles = ['learner', 'supporter', 'teacher', 'admin']
                 if (!validRoles.includes(role)) {
                     role = 'learner' // default
                 }
 
-                const groupName = normalizedRow['nhóm/lớp'] || normalizedRow['groupname'] || normalizedRow['lớp'] || normalizedRow['nhóm'] || ''
+                const groupName = normalizedRow['nhóm/lớp'] || normalizedRow['lớp'] || normalizedRow['nhóm'] || normalizedRow['groupname'] || ''
                 
-                let rawDateOfBirth = normalizedRow['ngày sinh'] || normalizedRow['dateofbirth'] || normalizedRow['dob'] || ''
+                let rawDateOfBirth = normalizedRow['ngàysinh'] || normalizedRow['dob'] || normalizedRow['dateofbirth'] || ''
                 let dateOfBirth = ''
                 if (rawDateOfBirth) {
                     if (rawDateOfBirth instanceof Date) {
@@ -127,9 +135,6 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                         dateOfBirth = String(rawDateOfBirth).trim()
                     }
                 }
-
-                // Skip if entirely empty row
-                if (!name && !email && !password) return
 
                 parsedRows.push({
                     originalIndex: index + 2,

@@ -272,10 +272,6 @@ export default function ListeningPage() {
         const currentQ = questions[currentIndex]
         if (!currentQ) return
 
-        // Prevent double execution in React Strict Mode
-        if (lastPlayedQuestionIdRef.current === currentQ.id) return
-        lastPlayedQuestionIdRef.current = currentQ.id
-
         setAudioEnded(false)
         setAudioError(false)
 
@@ -433,6 +429,9 @@ export default function ListeningPage() {
                                         <button
                                             onClick={() => {
                                                 if (audioRef.current) {
+                                                    if (!audioRef.current.src || !audioRef.current.src.includes(currentQuestion.audio_url)) {
+                                                        audioRef.current.src = currentQuestion.audio_url;
+                                                    }
                                                     audioRef.current.play().then(() => {
                                                         setAudioPlaying(true)
                                                         setAudioError(false)

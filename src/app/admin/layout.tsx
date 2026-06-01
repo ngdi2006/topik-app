@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Shield, Users, FileText, Settings, LayoutDashboard, BookOpen, Menu, X, GraduationCap, Target, CreditCard, Package } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useState } from "react"
+import { useUserStore } from "@/store/userStore"
 
 const AdminUserNav = dynamic(() => import("@/components/admin/AdminUserNav").then(mod => mod.AdminUserNav), { ssr: false })
 
@@ -13,6 +14,9 @@ export default function AdminLayout({
     children: React.ReactNode
 }) {
     const [sidebarOpen, setSidebarOpen] = useState(false)
+    const { role } = useUserStore()
+
+    const isTeacher = role === 'teacher'
 
     return (
         <div className="flex min-h-screen bg-gray-50/50">
@@ -52,38 +56,42 @@ export default function AdminLayout({
                         <LayoutDashboard className="w-5 h-5 mr-3" />
                         Dashboard
                     </Link>
-                    <Link
-                        href="/admin/lessons"
-                        className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        onClick={() => setSidebarOpen(false)}
-                    >
-                        <GraduationCap className="w-5 h-5 mr-3" />
-                        Bài Học
-                    </Link>
-                    <Link
-                        href="/admin/practice"
-                        className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        onClick={() => setSidebarOpen(false)}
-                    >
-                        <Target className="w-5 h-5 mr-3" />
-                        Luyện Tập AI
-                    </Link>
-                    <Link
-                        href="/admin/interview-module"
-                        className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        onClick={() => setSidebarOpen(false)}
-                    >
-                        <Target className="w-5 h-5 mr-3" />
-                        Phỏng Vấn (Vòng 2)
-                    </Link>
-                    <Link
-                        href="/admin/vocabulary-vong2"
-                        className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        onClick={() => setSidebarOpen(false)}
-                    >
-                        <BookOpen className="w-5 h-5 mr-3" />
-                        Từ vựng Vòng 2
-                    </Link>
+                    {!isTeacher && (
+                        <>
+                            <Link
+                                href="/admin/lessons"
+                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                onClick={() => setSidebarOpen(false)}
+                            >
+                                <GraduationCap className="w-5 h-5 mr-3" />
+                                Bài Học
+                            </Link>
+                            <Link
+                                href="/admin/practice"
+                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                onClick={() => setSidebarOpen(false)}
+                            >
+                                <Target className="w-5 h-5 mr-3" />
+                                Luyện Tập AI
+                            </Link>
+                            <Link
+                                href="/admin/interview-module"
+                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                onClick={() => setSidebarOpen(false)}
+                            >
+                                <Target className="w-5 h-5 mr-3" />
+                                Phỏng Vấn (Vòng 2)
+                            </Link>
+                            <Link
+                                href="/admin/vocabulary-vong2"
+                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                onClick={() => setSidebarOpen(false)}
+                            >
+                                <BookOpen className="w-5 h-5 mr-3" />
+                                Từ vựng Vòng 2
+                            </Link>
+                        </>
+                    )}
                     <Link
                         href="/admin/users"
                         className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
@@ -92,62 +100,66 @@ export default function AdminLayout({
                         <Users className="w-5 h-5 mr-3" />
                         Người dùng
                     </Link>
-                    <Link
-                        href="/admin/milestones"
-                        className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        onClick={() => setSidebarOpen(false)}
-                    >
-                        <FileText className="w-5 h-5 mr-3" />
-                        Các Mốc Học
-                    </Link>
-                    <Link
-                        href="/admin/categories"
-                        className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        onClick={() => setSidebarOpen(false)}
-                    >
-                        <BookOpen className="w-5 h-5 mr-3" />
-                        Quản lý Kho
-                    </Link>
-                    <Link
-                        href="/admin/question-bank"
-                        className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        onClick={() => setSidebarOpen(false)}
-                    >
-                        <FileText className="w-5 h-5 mr-3" />
-                        Câu Hỏi
-                    </Link>
-                    <Link
-                        href="/admin/exams"
-                        className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        onClick={() => setSidebarOpen(false)}
-                    >
-                        <FileText className="w-5 h-5 mr-3" />
-                        Đề Thi
-                    </Link>
-                    <Link
-                        href="/admin/payments"
-                        className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        onClick={() => setSidebarOpen(false)}
-                    >
-                        <CreditCard className="w-5 h-5 mr-3" />
-                        Thanh Toán
-                    </Link>
-                    <Link
-                        href="/admin/payment-packages"
-                        className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        onClick={() => setSidebarOpen(false)}
-                    >
-                        <Package className="w-5 h-5 mr-3" />
-                        Gói thanh toán
-                    </Link>
-                    <Link
-                        href="/admin/settings"
-                        className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        onClick={() => setSidebarOpen(false)}
-                    >
-                        <Settings className="w-5 h-5 mr-3" />
-                        Settings
-                    </Link>
+                    {!isTeacher && (
+                        <>
+                            <Link
+                                href="/admin/milestones"
+                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                onClick={() => setSidebarOpen(false)}
+                            >
+                                <FileText className="w-5 h-5 mr-3" />
+                                Các Mốc Học
+                            </Link>
+                            <Link
+                                href="/admin/categories"
+                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                onClick={() => setSidebarOpen(false)}
+                            >
+                                <BookOpen className="w-5 h-5 mr-3" />
+                                Quản lý Kho
+                            </Link>
+                            <Link
+                                href="/admin/question-bank"
+                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                onClick={() => setSidebarOpen(false)}
+                            >
+                                <FileText className="w-5 h-5 mr-3" />
+                                Câu Hỏi
+                            </Link>
+                            <Link
+                                href="/admin/exams"
+                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                onClick={() => setSidebarOpen(false)}
+                            >
+                                <FileText className="w-5 h-5 mr-3" />
+                                Đề Thi
+                            </Link>
+                            <Link
+                                href="/admin/payments"
+                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                onClick={() => setSidebarOpen(false)}
+                            >
+                                <CreditCard className="w-5 h-5 mr-3" />
+                                Thanh Toán
+                            </Link>
+                            <Link
+                                href="/admin/payment-packages"
+                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                onClick={() => setSidebarOpen(false)}
+                            >
+                                <Package className="w-5 h-5 mr-3" />
+                                Gói thanh toán
+                            </Link>
+                            <Link
+                                href="/admin/settings"
+                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                onClick={() => setSidebarOpen(false)}
+                            >
+                                <Settings className="w-5 h-5 mr-3" />
+                                Settings
+                            </Link>
+                        </>
+                    )}
                 </nav>
             </aside>
 

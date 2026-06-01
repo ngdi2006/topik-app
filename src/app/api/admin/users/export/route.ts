@@ -16,7 +16,7 @@ export async function POST(request: Request) {
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
         const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-        if (!profile || profile.role !== 'admin') {
+        if (!profile || !['admin', 'teacher'].includes(profile.role)) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
@@ -33,9 +33,18 @@ export async function POST(request: Request) {
         }
 
         // Fetch users from Auth schema to get emails
-        const { data: usersData, error: usersError } = await adminAuthClient.auth.admin.listUsers()
-        if (usersError) {
-            return NextResponse.json({ error: usersError.message }, { status: 500 })
+        const allAuthUsers = [];
+        let authPage = 1;
+        let authHasMore = true;
+        while (authHasMore) {
+            const { data, error } = await adminAuthClient.auth.admin.listUsers({ page: authPage, perPage: 1000 });
+            if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+            allAuthUsers.push(...data.users);
+            if (data.users.length < 1000) {
+                authHasMore = false;
+            } else {
+                authPage++;
+            }
         }
 
         // Fetch exam scores (all attempts)
@@ -64,7 +73,7 @@ export async function POST(request: Request) {
 
         // 3. Mapping data
         const result = profiles.map(prof => {
-            const authUser = usersData.users.find(u => u.id === prof.id)
+            const authUser = allAuthUsers.find(u => u.id === prof.id)
             const attempts = userScores.get(prof.id) || []
             
             // Sort attempts in ascending order so 'Lần 1' is the earliest

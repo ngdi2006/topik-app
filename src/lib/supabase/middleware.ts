@@ -93,7 +93,7 @@ export async function updateSession(request: NextRequest) {
             const result = await Promise.race([profilePromise, timeoutPromise])
             const profile = result?.data
 
-            if (!profile || profile.role !== 'admin') {
+            if (!profile || !['admin', 'teacher'].includes(profile.role)) {
                 const url = request.nextUrl.clone()
                 url.pathname = '/dashboard'
                 return NextResponse.redirect(url)

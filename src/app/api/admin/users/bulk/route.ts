@@ -16,7 +16,7 @@ export async function POST(request: Request) {
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
         const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-        if (!profile || profile.role !== 'admin') {
+        if (!profile || !['admin', 'teacher'].includes(profile.role)) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
@@ -25,7 +25,11 @@ export async function POST(request: Request) {
         const errors = []
 
         for (const u of users) {
-            const { name, email, password, role, groupName, dateOfBirth } = u
+            let { name, email, password, role, groupName, dateOfBirth } = u
+
+            if (profile.role === 'teacher') {
+                role = 'learner'
+            }
 
             const { data: newUser, error: createError } = await adminAuthClient.auth.admin.createUser({
                 email: email,

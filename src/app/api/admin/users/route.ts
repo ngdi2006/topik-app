@@ -11,36 +11,60 @@ export async function GET() {
 
         // Check if the current user is really an admin
         const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-        if (!profile || profile.role !== 'admin') {
+        if (!profile || !['admin', 'teacher'].includes(profile.role)) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
         // 2. Fetch all users using Admin Service Role Key
         const adminAuthClient = createAdminClient()
 
-        // Fetch users from Auth schema
-        const { data: usersData, error: usersError } = await adminAuthClient.auth.admin.listUsers()
-        if (usersError) {
-            return NextResponse.json({ error: usersError.message }, { status: 500 })
+        const allAuthUsers = [];
+        let authPage = 1;
+        let authHasMore = true;
+        while (authHasMore) {
+            const { data, error } = await adminAuthClient.auth.admin.listUsers({ page: authPage, perPage: 1000 });
+            if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+            allAuthUsers.push(...data.users);
+            if (data.users.length < 1000) {
+                authHasMore = false;
+            } else {
+                authPage++;
+            }
         }
 
         // Fetch profiles for roles and names
-        const { data: profiles, error: profilesError } = await adminAuthClient.from('profiles').select('*')
-        if (profilesError) {
-            return NextResponse.json({ error: profilesError.message }, { status: 500 })
+        const allProfiles = [];
+        let profilePage = 0;
+        let profileHasMore = true;
+        while (profileHasMore) {
+            const { data, error } = await adminAuthClient.from('profiles').select('*').range(profilePage * 1000, (profilePage + 1) * 1000 - 1);
+            if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+            allProfiles.push(...data);
+            if (data.length < 1000) {
+                profileHasMore = false;
+            } else {
+                profilePage++;
+            }
         }
 
-        const { data: credits, error: creditsError } = await adminAuthClient
-            .from('user_exam_credits')
-            .select('user_id, remaining_credits')
-        if (creditsError) {
-            return NextResponse.json({ error: creditsError.message }, { status: 500 })
+        const allCredits = [];
+        let creditPage = 0;
+        let creditHasMore = true;
+        while (creditHasMore) {
+            const { data, error } = await adminAuthClient.from('user_exam_credits').select('user_id, remaining_credits').range(creditPage * 1000, (creditPage + 1) * 1000 - 1);
+            if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+            allCredits.push(...data);
+            if (data.length < 1000) {
+                creditHasMore = false;
+            } else {
+                creditPage++;
+            }
         }
 
         // 3. Mapping data
-        const result = usersData.users.map(u => {
-            const prof = profiles.find(p => p.id === u.id)
-            const credit = credits.find(c => c.user_id === u.id)
+        const result = allAuthUsers.map(u => {
+            const prof = allProfiles.find(p => p.id === u.id)
+            const credit = allCredits.find(c => c.user_id === u.id)
             return {
                 id: u.id,
                 email: u.email,
@@ -65,7 +89,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const { name, email, password, role, groupName, dateOfBirth } = await request.json()
+        let { name, email, password, role, groupName, dateOfBirth } = await request.json()
 
         // 1. Authentication & Authorization Check
         const supabase = await createClient()
@@ -73,8 +97,13 @@ export async function POST(request: Request) {
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
         const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-        if (!profile || profile.role !== 'admin') {
+        if (!profile || !['admin', 'teacher'].includes(profile.role)) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        }
+
+        // If teacher, force role to learner
+        if (profile.role === 'teacher') {
+            role = 'learner'
         }
 
         // 2. Create user with Admin Service Role Key

@@ -14,7 +14,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
             .eq('id', user.id)
             .single()
 
-        if (!profile || profile.role !== 'admin') {
+        if (!profile || !['admin', 'teacher'].includes(profile.role)) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 

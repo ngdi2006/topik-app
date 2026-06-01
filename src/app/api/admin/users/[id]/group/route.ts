@@ -16,7 +16,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
         // Check Admin
         const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-        if (!profile || profile.role !== 'admin') {
+        if (!profile || !['admin', 'teacher'].includes(profile.role)) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 

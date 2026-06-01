@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Search, Plus, Coins, Trash2, History, Upload, Download } from "lucide-react"
 import { toast } from "sonner"
 import * as XLSX from "xlsx"
+import { useUserStore } from "@/store/userStore"
 import { UserBulkImportModal } from "@/components/admin/UserBulkImportModal"
 import {
     Dialog,
@@ -107,6 +108,11 @@ export default function AdminUsersPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedGroupFilter, setSelectedGroupFilter] = useState('all')
+    const [selectedRoleFilter, setSelectedRoleFilter] = useState('all')
+    const [currentPage, setCurrentPage] = useState(1)
+    const [itemsPerPage, setItemsPerPage] = useState(20)
+    const { role: currentUserRole } = useUserStore()
+    const isTeacher = currentUserRole === 'teacher'
 
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
     const [isBulkImportOpen, setIsBulkImportOpen] = useState(false)
@@ -164,6 +170,10 @@ export default function AdminUsersPage() {
     useEffect(() => {
         fetchUsers()
     }, [])
+
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [searchTerm, selectedGroupFilter, selectedRoleFilter, itemsPerPage])
 
     const closeGrantDialog = () => {
         setIsGrantDialogOpen(false)
@@ -435,11 +445,17 @@ export default function AdminUsersPage() {
     }
 
     const filteredUsers = users.filter(user => {
-        const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              user.email.toLowerCase().includes(searchTerm.toLowerCase())
+        const email = user.email || ''
+        const name = user.name || ''
+        const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              email.toLowerCase().includes(searchTerm.toLowerCase())
         const matchesGroup = selectedGroupFilter === 'all' || user.groupName === selectedGroupFilter
-        return matchesSearch && matchesGroup
+        const matchesRole = selectedRoleFilter === 'all' || user.role === selectedRoleFilter
+        return matchesSearch && matchesGroup && matchesRole
     })
+
+    const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+    const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
 
     const handleExportExcel = async () => {
         if (filteredUsers.length === 0) {
@@ -511,17 +527,35 @@ export default function AdminUsersPage() {
             <div className="flex justify-between items-center">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight">Quản lý Người Dùng</h2>
-                    <p className="text-muted-foreground">
+                    <p className="text-muted-foreground mt-1 mb-4">
                         Xem, phân quyền và quản lý tài khoản học viên/quản trị viên.
                     </p>
+                    <div className="flex space-x-3 mb-2">
+                        <div className="bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-md flex flex-col min-w-[120px]">
+                            <span className="text-xs text-blue-600 font-medium uppercase tracking-wider">Tổng tài khoản</span>
+                            <span className="text-lg font-bold text-blue-900">{users.length}</span>
+                        </div>
+                        <div className="bg-green-50 border border-green-100 px-3 py-1.5 rounded-md flex flex-col min-w-[120px]">
+                            <span className="text-xs text-green-600 font-medium uppercase tracking-wider">Học viên</span>
+                            <span className="text-lg font-bold text-green-900">{users.filter(u => u.role === 'learner').length}</span>
+                        </div>
+                        {!isTeacher && (
+                            <div className="bg-yellow-50 border border-yellow-100 px-3 py-1.5 rounded-md flex flex-col min-w-[120px]">
+                                <span className="text-xs text-yellow-600 font-medium uppercase tracking-wider">Giáo viên</span>
+                                <span className="text-lg font-bold text-yellow-900">{users.filter(u => u.role === 'teacher').length}</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className="flex space-x-2">
                     {selectedUserIds.length > 0 && (
                         <>
-                            <Button variant="destructive" onClick={() => { generateMathProblem(); setIsBulkDeleteDialogOpen(true); }} className="bg-red-600 hover:bg-red-700">
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Xóa ({selectedUserIds.length})
-                            </Button>
+                            {!isTeacher && (
+                                <Button variant="destructive" onClick={() => { generateMathProblem(); setIsBulkDeleteDialogOpen(true); }} className="bg-red-600 hover:bg-red-700">
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Xóa ({selectedUserIds.length})
+                                </Button>
+                            )}
                             <Button variant="secondary" onClick={() => setIsBulkGrantDialogOpen(true)} className="bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300">
                                 <Coins className="w-4 h-4 mr-2" />
                                 Điều chỉnh lượt ({selectedUserIds.length})
@@ -554,9 +588,20 @@ export default function AdminUsersPage() {
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <div className="w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-gray-200 pt-3 sm:pt-0 sm:pl-4">
+                <div className="w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-gray-200 pt-3 sm:pt-0 sm:pl-4 flex space-x-2">
                     <select
-                        className="w-full sm:w-[200px] text-sm border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary"
+                        className="w-full sm:w-[150px] text-sm border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary"
+                        value={selectedRoleFilter}
+                        onChange={(e) => setSelectedRoleFilter(e.target.value)}
+                    >
+                        <option value="all">Tất cả vai trò</option>
+                        <option value="learner">Học viên</option>
+                        {!isTeacher && <option value="supporter">Hỗ trợ viên</option>}
+                        {!isTeacher && <option value="teacher">Giáo viên</option>}
+                        {!isTeacher && <option value="admin">Quản trị viên</option>}
+                    </select>
+                    <select
+                        className="w-full sm:w-[180px] text-sm border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary"
                         value={selectedGroupFilter}
                         onChange={(e) => setSelectedGroupFilter(e.target.value)}
                     >
@@ -604,7 +649,7 @@ export default function AdminUsersPage() {
                                 </td>
                             </tr>
                         ) : (
-                            filteredUsers.map((user) => (
+                            paginatedUsers.map((user) => (
                                 <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4">
                                         <input 
@@ -619,8 +664,9 @@ export default function AdminUsersPage() {
                                     <td className="px-6 py-4">
                                         <select
                                             value={user.role}
+                                            disabled={isTeacher}
                                             onChange={(e) => handleChangeRole(user.id, e.target.value)}
-                                            className={`px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer outline-none appearance-none border-none text-center ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                                            className={`px-2.5 py-1 rounded-full text-xs font-medium ${!isTeacher ? 'cursor-pointer' : 'cursor-not-allowed'} outline-none appearance-none border-none text-center ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' :
                                                 user.role === 'teacher' ? 'bg-yellow-100 text-yellow-700' :
                                                     user.role === 'supporter' ? 'bg-cyan-100 text-cyan-700' :
                                                         'bg-blue-100 text-blue-700'
@@ -674,21 +720,65 @@ export default function AdminUsersPage() {
                                         >
                                             <History className="w-4 h-4" />
                                         </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => handleDelete(user.id)}
-                                            className="h-8 w-8 text-red-600"
-                                            title="Xóa người dùng"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </Button>
+                                        {!isTeacher && (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => handleDelete(user.id)}
+                                                className="h-8 w-8 text-red-600"
+                                                title="Xóa người dùng"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        )}
                                     </td>
                                 </tr>
                             ))
                         )}
                     </tbody>
                 </table>
+                {filteredUsers.length > 0 && (
+                    <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-gray-50">
+                        <div className="text-sm text-gray-500">
+                            Hiển thị {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredUsers.length)} trong số {filteredUsers.length} tài khoản
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <select 
+                                className="text-sm border-gray-300 rounded-md py-1 px-2"
+                                value={itemsPerPage}
+                                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                            >
+                                <option value={10}>10 dòng/trang</option>
+                                <option value={20}>20 dòng/trang</option>
+                                <option value={50}>50 dòng/trang</option>
+                                <option value={100}>100 dòng/trang</option>
+                            </select>
+                            <div className="flex items-center space-x-1">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="h-8"
+                                >
+                                    Trước
+                                </Button>
+                                <span className="text-sm px-2">
+                                    Trang {currentPage} / {totalPages}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="h-8"
+                                >
+                                    Sau
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -753,14 +843,19 @@ export default function AdminUsersPage() {
                             <Label htmlFor="role">Phân quyền</Label>
                             <select
                                 id="role"
+                                disabled={isTeacher}
                                 className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 value={formData.role}
                                 onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                             >
                                 <option value="learner">Học viên (Learner)</option>
-                                <option value="supporter">Hỗ trợ viên (Supporter)</option>
-                                <option value="teacher">Giáo viên (Teacher)</option>
-                                <option value="admin">Quản trị viên (Admin)</option>
+                                {!isTeacher && (
+                                    <>
+                                        <option value="supporter">Hỗ trợ viên (Supporter)</option>
+                                        <option value="teacher">Giáo viên (Teacher)</option>
+                                        <option value="admin">Quản trị viên (Admin)</option>
+                                    </>
+                                )}
                             </select>
                         </div>
                         <DialogFooter className="pt-4">

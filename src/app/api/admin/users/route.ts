@@ -18,7 +18,7 @@ export async function GET() {
         // 2. Fetch all users using Admin Service Role Key
         const adminAuthClient = createAdminClient()
 
-        const allAuthUsers = [];
+        const allAuthUsers: any[] = [];
         let authPage = 1;
         let authHasMore = true;
         while (authHasMore) {
@@ -33,7 +33,7 @@ export async function GET() {
         }
 
         // Fetch profiles for roles and names
-        const allProfiles = [];
+        const allProfiles: any[] = [];
         let profilePage = 0;
         let profileHasMore = true;
         while (profileHasMore) {
@@ -47,7 +47,7 @@ export async function GET() {
             }
         }
 
-        const allCredits = [];
+        const allCredits: any[] = [];
         let creditPage = 0;
         let creditHasMore = true;
         while (creditHasMore) {

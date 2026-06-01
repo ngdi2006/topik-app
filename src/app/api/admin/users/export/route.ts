@@ -33,7 +33,7 @@ export async function POST(request: Request) {
         }
 
         // Fetch users from Auth schema to get emails
-        const allAuthUsers = [];
+        const allAuthUsers: any[] = [];
         let authPage = 1;
         let authHasMore = true;
         while (authHasMore) {

@@ -1,17 +1,144 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { InterviewPracticeScreen } from '@/components/interview/InterviewPracticeScreen'
 import { ToolDragPracticeScreen } from '@/components/interview/ToolDragPracticeScreen'
 import { toast } from 'sonner'
-import { Headphones, Bot, ArrowLeft, Wrench, Mic, Briefcase, BookOpen, Sparkles } from 'lucide-react'
+import { Headphones, Bot, ArrowLeft, Wrench, Mic, CheckCircle, Calculator, MessageSquare, Presentation, Factory, Fish, Trees, Tractor, Home, Coffee } from 'lucide-react'
 
-const CATEGORIES = ['Tất cả', 'Khẩu lệnh', 'Giao tiếp', 'Toán học', 'Xử lý tình huống', 'Sử dụng công cụ']
-const INDUSTRIES = ['Sản xuất chế tạo', 'Ngư nghiệp', 'Nông nghiệp', 'Lâm nghiệp', 'Xây dựng', 'Dịch vụ']
+const INDUSTRIES = [
+    { 
+        id: 'Sản xuất chế tạo', name: 'Sản xuất chế tạo', 
+        desc: 'Công xưởng, gia công, lắp ráp',
+        icon: Factory, 
+        color: 'text-blue-600', 
+        gradient: 'from-blue-50 to-blue-100/50',
+        hoverGradient: 'hover:from-blue-100 hover:to-blue-200/50',
+        borderColor: 'border-blue-100 hover:border-blue-300',
+        shadow: 'hover:shadow-blue-200/50'
+    },
+    { 
+        id: 'Ngư nghiệp', name: 'Ngư nghiệp', 
+        desc: 'Đánh bắt, nuôi trồng thủy sản',
+        icon: Fish, 
+        color: 'text-cyan-600', 
+        gradient: 'from-cyan-50 to-cyan-100/50',
+        hoverGradient: 'hover:from-cyan-100 hover:to-cyan-200/50',
+        borderColor: 'border-cyan-100 hover:border-cyan-300',
+        shadow: 'hover:shadow-cyan-200/50'
+    },
+    { 
+        id: 'Nông nghiệp', name: 'Nông nghiệp', 
+        desc: 'Trồng trọt, chăn nuôi, thu hoạch',
+        icon: Tractor, 
+        color: 'text-emerald-600', 
+        gradient: 'from-emerald-50 to-emerald-100/50',
+        hoverGradient: 'hover:from-emerald-100 hover:to-emerald-200/50',
+        borderColor: 'border-emerald-100 hover:border-emerald-300',
+        shadow: 'hover:shadow-emerald-200/50'
+    },
+    { 
+        id: 'Lâm nghiệp', name: 'Lâm nghiệp', 
+        desc: 'Trồng rừng, khai thác gỗ',
+        icon: Trees, 
+        color: 'text-green-600', 
+        gradient: 'from-green-50 to-green-100/50',
+        hoverGradient: 'hover:from-green-100 hover:to-green-200/50',
+        borderColor: 'border-green-100 hover:border-green-300',
+        shadow: 'hover:shadow-green-200/50'
+    },
+    { 
+        id: 'Xây dựng', name: 'Xây dựng', 
+        desc: 'Công trình, mộc, cốt thép',
+        icon: Home, 
+        color: 'text-orange-600', 
+        gradient: 'from-orange-50 to-orange-100/50',
+        hoverGradient: 'hover:from-orange-100 hover:to-orange-200/50',
+        borderColor: 'border-orange-100 hover:border-orange-300',
+        shadow: 'hover:shadow-orange-200/50'
+    },
+    { 
+        id: 'Dịch vụ', name: 'Dịch vụ', 
+        desc: 'Nhà hàng, khách sạn, bán hàng',
+        icon: Coffee, 
+        color: 'text-purple-600', 
+        gradient: 'from-purple-50 to-purple-100/50',
+        hoverGradient: 'hover:from-purple-100 hover:to-purple-200/50',
+        borderColor: 'border-purple-100 hover:border-purple-300',
+        shadow: 'hover:shadow-purple-200/50'
+    },
+]
+
+const TOPICS = [
+    { 
+        id: 'command', 
+        name: 'Khẩu lệnh phản xạ', 
+        description: 'Chỉ áp dụng chế độ nghe và tự hành động.',
+        icon: Headphones,
+        color: 'text-indigo-600', 
+        gradient: 'from-indigo-50 to-indigo-100/50',
+        hoverGradient: 'hover:from-indigo-100 hover:to-indigo-200/50',
+        borderColor: 'border-indigo-100 hover:border-indigo-300',
+        shadow: 'hover:shadow-indigo-200/50',
+        apiCategory: 'Khẩu lệnh',
+        mode: 'listen_only'
+    },
+    { 
+        id: 'vocabulary', 
+        name: 'Từ vựng & Biển báo', 
+        description: 'Flashcard, Trắc nghiệm, Ghép chữ, AI chấm điểm.',
+        icon: Presentation,
+        color: 'text-pink-600',
+        gradient: 'from-pink-50 to-pink-100/50',
+        hoverGradient: 'hover:from-pink-100 hover:to-pink-200/50',
+        borderColor: 'border-pink-100 hover:border-pink-300',
+        shadow: 'hover:shadow-pink-200/50',
+        action: 'navigate',
+        href: '/vocabulary-practice'
+    },
+    { 
+        id: 'tools', 
+        name: 'Sử dụng công cụ', 
+        description: 'Chạy game kéo thả vật phẩm vào đúng vị trí.',
+        icon: Wrench,
+        color: 'text-orange-600',
+        gradient: 'from-orange-50 to-orange-100/50',
+        hoverGradient: 'hover:from-orange-100 hover:to-orange-200/50',
+        borderColor: 'border-orange-100 hover:border-orange-300',
+        shadow: 'hover:shadow-orange-200/50',
+        apiCategory: 'Sử dụng công cụ',
+        mode: 'tools'
+    },
+    { 
+        id: 'math', 
+        name: 'Toán học & Tính toán', 
+        description: 'Hỏi đáp tính toán, AI chấm điểm tự động.',
+        icon: Calculator,
+        color: 'text-rose-600',
+        gradient: 'from-rose-50 to-rose-100/50',
+        hoverGradient: 'hover:from-rose-100 hover:to-rose-200/50',
+        borderColor: 'border-rose-100 hover:border-rose-300',
+        shadow: 'hover:shadow-rose-200/50',
+        apiCategory: 'Toán học',
+        mode: 'ai_mock'
+    },
+    { 
+        id: 'communication', 
+        name: 'Giao tiếp & Tình huống', 
+        description: 'Hội thoại thực tế, AI đóng vai giám khảo.',
+        icon: MessageSquare,
+        color: 'text-emerald-600',
+        gradient: 'from-emerald-50 to-emerald-100/50',
+        hoverGradient: 'hover:from-emerald-100 hover:to-emerald-200/50',
+        borderColor: 'border-emerald-100 hover:border-emerald-300',
+        shadow: 'hover:shadow-emerald-200/50',
+        apiCategory: 'Giao tiếp,Xử lý tình huống',
+        mode: 'ai_mock'
+    },
+]
 
 function shuffleArray<T>(array: T[]): T[] {
     const newArr = [...array]
@@ -24,59 +151,46 @@ function shuffleArray<T>(array: T[]): T[] {
 
 export default function InterviewPracticePage() {
     const router = useRouter()
-    const [step, setStep] = useState<'setup' | 'practice' | 'evaluating' | 'finished'>('setup')
-    const [selectedCategory, setSelectedCategory] = useState('Tất cả')
-    const [selectedIndustry, setSelectedIndustry] = useState('Sản xuất chế tạo')
-    const [selectedMode, setSelectedMode] = useState<'listen_only' | 'ai_mock'>('listen_only')
-    const [numListenQuestions, setNumListenQuestions] = useState<number>(10)
+    const [step, setStep] = useState<'industry' | 'topic' | 'practice' | 'evaluating' | 'finished'>('industry')
+    const [selectedIndustry, setSelectedIndustry] = useState<string>('')
+    const [selectedTopicObj, setSelectedTopicObj] = useState<any>(null)
     
     const [questions, setQuestions] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
     const [answers, setAnswers] = useState<Record<string, string>>({})
     const [evaluationResults, setEvaluationResults] = useState<any[]>([])
 
-    const handleStart = async () => {
+    const handleSelectIndustry = (indId: string) => {
+        setSelectedIndustry(indId)
+        setStep('topic')
+    }
+
+    const handleSelectTopic = async (topic: any) => {
+        if (topic.action === 'navigate') {
+            router.push(`${topic.href}?industry=${encodeURIComponent(selectedIndustry)}`)
+            return
+        }
+
+        setSelectedTopicObj(topic)
         setLoading(true)
         try {
-            // Lấy danh sách câu hỏi
-            const url = selectedCategory === 'Tất cả' 
-                ? `/api/interview-questions?industry=${encodeURIComponent(selectedIndustry)}` 
-                : `/api/interview-questions?category=${encodeURIComponent(selectedCategory)}&industry=${encodeURIComponent(selectedIndustry)}`
+            const url = `/api/interview-questions?category=${encodeURIComponent(topic.apiCategory)}&industry=${encodeURIComponent(selectedIndustry)}`
             
             const res = await fetch(url, { cache: 'no-store' })
             const data = await res.json()
             
             if (!data.success) throw new Error(data.error)
             
-            // Lọc bỏ "Sử dụng công cụ" nếu chọn tất cả, vì nó dùng UI khác
-            let filteredQuestions = data.data
-            if (selectedCategory === 'Tất cả') {
-                filteredQuestions = filteredQuestions.filter((q: any) => q.category !== 'Sử dụng công cụ')
+            let finalQuestions = shuffleArray(data.data)
+
+            // Random limit based on mode
+            if (topic.mode === 'listen_only') {
+                finalQuestions = finalQuestions.slice(0, 10)
+            } else if (topic.mode === 'ai_mock') {
+                finalQuestions = finalQuestions.slice(0, 5) // Mock 5 questions
+            } else if (topic.mode === 'tools') {
+                finalQuestions = finalQuestions.slice(0, 5)
             }
-
-            // Tính năng ngẫu nhiên: Group theo category, trộn và lấy ra tối đa 2 câu mỗi phần
-            let finalQuestions: any[] = []
-            
-            if (selectedMode === 'listen_only') {
-                const shuffled = shuffleArray(filteredQuestions)
-                finalQuestions = shuffled.slice(0, numListenQuestions)
-            } else {
-                const QUESTIONS_PER_CATEGORY = 2
-                
-                const grouped = filteredQuestions.reduce((acc: any, q: any) => {
-                    if (!acc[q.category]) acc[q.category] = []
-                    acc[q.category].push(q)
-                    return acc
-                }, {})
-
-                Object.keys(grouped).forEach(cat => {
-                    const shuffled = shuffleArray(grouped[cat])
-                    finalQuestions.push(...shuffled.slice(0, QUESTIONS_PER_CATEGORY))
-                })
-            }
-
-            // Xáo trộn lại danh sách cuối cùng
-            finalQuestions = shuffleArray(finalQuestions)
 
             if (finalQuestions.length === 0) {
                 toast.error('Chưa có câu hỏi nào trong danh mục này')
@@ -93,7 +207,7 @@ export default function InterviewPracticePage() {
     }
 
     const handleFinishPractice = async (submittedAnswers?: Record<string, string>) => {
-        if (selectedMode !== 'ai_mock' || !submittedAnswers || Object.keys(submittedAnswers).length === 0) {
+        if (selectedTopicObj?.mode !== 'ai_mock' || !submittedAnswers || Object.keys(submittedAnswers).length === 0) {
             setStep('finished')
             return
         }
@@ -125,18 +239,18 @@ export default function InterviewPracticePage() {
     if (step === 'practice') {
         return (
             <div className="min-h-screen bg-slate-50 pt-6">
-                {selectedCategory === 'Sử dụng công cụ' ? (
+                {selectedTopicObj?.mode === 'tools' ? (
                     <ToolDragPracticeScreen
                         questions={questions}
                         onFinish={handleFinishPractice}
-                        onBack={() => setStep('setup')}
+                        onBack={() => setStep('topic')}
                     />
                 ) : (
                     <InterviewPracticeScreen 
                         questions={questions} 
-                        mode={selectedMode} 
+                        mode={selectedTopicObj?.mode as 'listen_only' | 'ai_mock'} 
                         onFinish={handleFinishPractice} 
-                        onBack={() => setStep('setup')}
+                        onBack={() => setStep('topic')}
                     />
                 )}
             </div>
@@ -159,7 +273,7 @@ export default function InterviewPracticePage() {
     }
 
     if (step === 'finished') {
-        if (selectedMode === 'ai_mock' && evaluationResults.length > 0) {
+        if (selectedTopicObj?.mode === 'ai_mock' && evaluationResults.length > 0) {
             const totalScore = Math.round(evaluationResults.reduce((sum, r) => sum + (r.score || 0), 0) / evaluationResults.length)
             return (
                 <div className="min-h-screen bg-slate-50 p-4 md:p-8">
@@ -210,10 +324,10 @@ export default function InterviewPracticePage() {
                         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8 pb-12">
                             <Button variant="outline" size="lg" className="h-14 px-8 text-lg rounded-xl" onClick={() => router.push('/dashboard')}>Trở về Dashboard</Button>
                             <Button size="lg" className="h-14 px-8 text-lg rounded-xl shadow-lg" onClick={() => {
-                                setStep('setup')
+                                setStep('topic')
                                 setEvaluationResults([])
                                 setAnswers({})
-                            }}>Thi thử lại</Button>
+                            }}>Luyện tiếp chủ đề này</Button>
                         </div>
                     </div>
                 </div>
@@ -222,15 +336,15 @@ export default function InterviewPracticePage() {
 
         return (
             <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-                <Card className="max-w-md w-full p-8 text-center space-y-6">
+                <Card className="max-w-md w-full p-8 text-center space-y-6 border-none shadow-xl">
                     <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
-                        <CheckCircleIcon className="w-10 h-10" />
+                        <CheckCircle className="w-10 h-10" />
                     </div>
                     <h2 className="text-2xl font-bold text-gray-900">Hoàn thành bài luyện tập!</h2>
                     <p className="text-gray-600">Bạn đã hoàn thành xong danh sách câu hỏi phỏng vấn.</p>
                     <div className="flex gap-4 justify-center pt-4">
-                        <Button variant="outline" onClick={() => router.push('/dashboard')}>Trở về Dashboard</Button>
-                        <Button onClick={() => setStep('setup')}>Luyện tập tiếp</Button>
+                        <Button variant="outline" onClick={() => router.push('/dashboard')}>Dashboard</Button>
+                        <Button onClick={() => setStep('topic')}>Luyện tập tiếp</Button>
                     </div>
                 </Card>
             </div>
@@ -244,9 +358,17 @@ export default function InterviewPracticePage() {
             <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-400/20 rounded-full blur-[100px] -z-10" />
             <div className="absolute top-40 -left-32 w-80 h-80 bg-emerald-400/20 rounded-full blur-[100px] -z-10" />
 
-            <div className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-8 space-y-6 md:space-y-8 relative z-10">
+            <div className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8 space-y-6 md:space-y-8 relative z-10">
                 <div className="flex items-center gap-3 md:gap-4 mb-2">
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard')} className="hover:bg-white/60 text-slate-600 rounded-full h-10 w-10 md:h-12 md:w-12 shrink-0 bg-white/40 shadow-sm border border-white/50">
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => {
+                            if (step === 'topic') setStep('industry')
+                            else router.push('/dashboard')
+                        }} 
+                        className="hover:bg-white/60 text-slate-600 rounded-full h-10 w-10 md:h-12 md:w-12 shrink-0 bg-white/40 shadow-sm border border-white/50"
+                    >
                         <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
                     </Button>
                     
@@ -260,168 +382,78 @@ export default function InterviewPracticePage() {
                     </div>
                 </div>
 
-                <Card className="p-4 md:p-8 space-y-6 md:space-y-8 border border-white/60 shadow-2xl bg-white/70 backdrop-blur-xl rounded-2xl md:rounded-[2rem] relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-500" />
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8">
-                        <div className="space-y-2 md:space-y-3">
-                            <h3 className="text-sm md:text-base font-semibold text-slate-800 flex items-center gap-2">
-                                <Briefcase className="w-4 h-4 md:w-5 md:h-5 text-indigo-500" />
-                                1. Chọn ngành nghề thi
-                            </h3>
-                            <Select value={selectedIndustry} onValueChange={setSelectedIndustry}>
-                                <SelectTrigger className="h-12 md:h-14 text-sm md:text-base bg-white/80 border-slate-200 hover:border-indigo-300 transition-colors rounded-xl shadow-sm focus:ring-indigo-500/20">
-                                    <SelectValue placeholder="Chọn ngành nghề" />
-                                </SelectTrigger>
-                                <SelectContent className="rounded-xl">
-                                    {INDUSTRIES.map(ind => (
-                                        <SelectItem key={ind} value={ind} className="text-sm md:text-base py-2 md:py-3 cursor-pointer">{ind}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                {step === 'industry' && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="text-center space-y-2 mb-8">
+                            <h2 className="text-2xl md:text-3xl font-bold text-slate-800">Chọn Ngành Nghề Dự Thi</h2>
+                            <p className="text-slate-500">Vui lòng chọn đúng ngành nghề bạn đã đăng ký thi EPS-TOPIK</p>
                         </div>
-
-                        <div className="space-y-2 md:space-y-3">
-                            <h3 className="text-sm md:text-base font-semibold text-slate-800 flex items-center gap-2">
-                                <BookOpen className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" />
-                                2. Chọn chủ đề luyện tập
-                            </h3>
-                            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                                <SelectTrigger className="h-12 md:h-14 text-sm md:text-base bg-white/80 border-slate-200 hover:border-emerald-300 transition-colors rounded-xl shadow-sm focus:ring-emerald-500/20">
-                                    <SelectValue placeholder="Chọn chủ đề" />
-                                </SelectTrigger>
-                                <SelectContent className="rounded-xl">
-                                    {CATEGORIES.map(cat => (
-                                        <SelectItem key={cat} value={cat} className="text-sm md:text-base py-2 md:py-3 cursor-pointer">{cat}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+                            {INDUSTRIES.map((ind) => {
+                                const Icon = ind.icon
+                                return (
+                                    <div 
+                                        key={ind.id}
+                                        onClick={() => handleSelectIndustry(ind.id)}
+                                        className={`group cursor-pointer rounded-3xl p-6 border-2 transition-all duration-300 transform hover:-translate-y-1.5 shadow-sm hover:shadow-xl bg-gradient-to-br ${ind.gradient} ${ind.hoverGradient} ${ind.borderColor} ${ind.shadow} relative overflow-hidden`}
+                                    >
+                                        <div className="absolute -right-6 -bottom-6 opacity-[0.04] group-hover:opacity-[0.08] transition-opacity duration-500 transform group-hover:scale-110 group-hover:rotate-12">
+                                            <Icon className="w-40 h-40" />
+                                        </div>
+                                        <div className="relative z-10">
+                                            <div className={`w-14 h-14 rounded-2xl bg-white/60 shadow-sm border border-white flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300 ${ind.color}`}>
+                                                <Icon className="w-7 h-7" />
+                                            </div>
+                                            <h3 className="text-xl font-bold text-slate-800 mb-1.5 group-hover:text-slate-900 transition-colors">{ind.name}</h3>
+                                            <p className="text-sm font-medium text-slate-500 line-clamp-2">{ind.desc}</p>
+                                        </div>
+                                    </div>
+                                )
+                            })}
                         </div>
                     </div>
+                )}
 
-
-                    {selectedCategory === 'Sử dụng công cụ' ? (
-                        <div className="space-y-2 md:space-y-3 pt-2 border-t border-slate-200/50">
-                            <h3 className="text-sm md:text-base font-semibold text-slate-800 flex items-center gap-2">
-                                <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-orange-500" />
-                                3. Chế độ luyện tập
-                            </h3>
-                            <div className="relative group cursor-default">
-                                <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-2xl blur opacity-20 group-hover:opacity-30 transition-opacity"></div>
-                                <div className="relative border-2 border-orange-400 bg-orange-50/80 rounded-2xl p-4 md:p-6 backdrop-blur-sm">
-                                    <Wrench className="w-8 h-8 md:w-10 md:h-10 mb-3 text-orange-500" />
-                                    <h4 className="text-base md:text-lg font-bold text-slate-900 mb-1">Thực hành kéo thả công cụ</h4>
-                                    <p className="text-slate-600 text-xs md:text-sm leading-relaxed">
-                                        Nghe khẩu lệnh từ giám khảo và thực hiện thao tác kéo thả vật phẩm vào đúng vị trí được yêu cầu. Hệ thống sẽ chấm điểm tự động chính xác.
-                                    </p>
-                                </div>
-                            </div>
+                {step === 'topic' && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="text-center space-y-2 mb-8">
+                            <h2 className="text-2xl md:text-3xl font-bold text-slate-800">Chọn Chủ Đề Luyện Tập</h2>
+                            <p className="text-slate-500">Ngành nghề đã chọn: <strong className="text-blue-600">{selectedIndustry}</strong></p>
                         </div>
-                    ) : (
-                        <div className="space-y-2 md:space-y-3 pt-2 border-t border-slate-200/50">
-                            <h3 className="text-sm md:text-base font-semibold text-slate-800 flex items-center gap-2">
-                                <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-blue-500" />
-                                3. Chọn chế độ luyện tập
-                            </h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-5">
-                                <div 
-                                    className={`relative group cursor-pointer transition-all duration-300 ${selectedMode === 'listen_only' ? 'scale-[1.02]' : 'hover:scale-[1.01]'}`}
-                                    onClick={() => setSelectedMode('listen_only')}
-                                >
-                                    {selectedMode === 'listen_only' && <div className="absolute inset-0 bg-blue-400 rounded-2xl blur opacity-25"></div>}
-                                    <div className={`relative h-full rounded-2xl p-4 md:p-6 transition-all duration-300 backdrop-blur-sm border-2 ${
-                                        selectedMode === 'listen_only' 
-                                        ? 'border-blue-500 bg-blue-50/90 shadow-lg shadow-blue-500/10' 
-                                        : 'border-slate-200/60 bg-white/60 hover:bg-white hover:border-blue-300 hover:shadow-md'
-                                    }`}>
-                                        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center mb-3 ${selectedMode === 'listen_only' ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-500'} transition-colors`}>
-                                            <Headphones className="w-5 h-5 md:w-6 md:h-6" />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                            {TOPICS.map((topic) => {
+                                const Icon = topic.icon
+                                return (
+                                    <div 
+                                        key={topic.id}
+                                        onClick={() => handleSelectTopic(topic)}
+                                        className={`group cursor-pointer rounded-3xl p-6 md:p-8 border-2 transition-all duration-300 transform hover:-translate-y-1.5 shadow-sm hover:shadow-xl bg-gradient-to-br ${topic.gradient} ${topic.hoverGradient} ${topic.borderColor} ${topic.shadow} relative overflow-hidden flex items-center gap-5 md:gap-6`}
+                                    >
+                                        <div className="absolute -right-8 -bottom-8 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity duration-500 transform group-hover:scale-110 group-hover:-rotate-12">
+                                            <Icon className="w-48 h-48" />
                                         </div>
-                                        <h4 className="text-base md:text-lg font-bold text-slate-900 mb-1">Chỉ luyện nghe</h4>
-                                        <p className="text-slate-500 text-xs md:text-sm leading-relaxed mb-4">
-                                            Nghe câu hỏi từ giám khảo, suy nghĩ và xem đáp án chuẩn. Phù hợp để làm quen với ngữ điệu.
-                                        </p>
-                                        
-                                        {selectedMode === 'listen_only' && (
-                                            <div className="mt-auto border-t border-blue-200/60 pt-3" onClick={(e) => e.stopPropagation()}>
-                                                <label className="text-xs font-semibold text-blue-800 mb-1.5 block">Số câu hỏi muốn luyện:</label>
-                                                <input 
-                                                    type="number" 
-                                                    min="1" 
-                                                    max="100"
-                                                    value={numListenQuestions} 
-                                                    onChange={(e) => setNumListenQuestions(parseInt(e.target.value) || 1)}
-                                                    className="w-full px-3 py-2 rounded-lg border border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white/80"
-                                                />
+                                        <div className={`relative z-10 w-16 h-16 md:w-20 md:h-20 shrink-0 rounded-2xl bg-white/70 shadow-sm border border-white flex items-center justify-center group-hover:scale-105 transition-transform duration-300 ${topic.color}`}>
+                                            <Icon className="w-8 h-8 md:w-10 md:h-10" />
+                                        </div>
+                                        <div className="relative z-10 flex-1">
+                                            <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-2 group-hover:text-slate-900 transition-colors">{topic.name}</h3>
+                                            <p className="text-sm md:text-base font-medium text-slate-600 leading-relaxed">{topic.description}</p>
+                                        </div>
+                                        {loading && selectedTopicObj?.id === topic.id && (
+                                            <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center z-20">
+                                                <div className="flex flex-col items-center gap-3">
+                                                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                                    <span className="text-sm font-bold text-blue-700 bg-white px-3 py-1 rounded-full shadow-sm">Đang tải...</span>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
-                                </div>
-
-                                <div 
-                                    className={`relative group cursor-pointer transition-all duration-300 ${selectedMode === 'ai_mock' ? 'scale-[1.02]' : 'hover:scale-[1.01]'}`}
-                                    onClick={() => setSelectedMode('ai_mock')}
-                                >
-                                    {selectedMode === 'ai_mock' && <div className="absolute inset-0 bg-emerald-400 rounded-2xl blur opacity-25"></div>}
-                                    <div className={`relative h-full rounded-2xl p-4 md:p-6 transition-all duration-300 backdrop-blur-sm border-2 ${
-                                        selectedMode === 'ai_mock' 
-                                        ? 'border-emerald-500 bg-emerald-50/90 shadow-lg shadow-emerald-500/10' 
-                                        : 'border-slate-200/60 bg-white/60 hover:bg-white hover:border-emerald-300 hover:shadow-md'
-                                    }`}>
-                                        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center mb-3 ${selectedMode === 'ai_mock' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-emerald-100 group-hover:text-emerald-500'} transition-colors`}>
-                                            <Bot className="w-5 h-5 md:w-6 md:h-6" />
-                                        </div>
-                                        <h4 className="text-base md:text-lg font-bold text-slate-900 mb-1">Thi thử với AI</h4>
-                                        <p className="text-slate-500 text-xs md:text-sm leading-relaxed">
-                                            Trả lời trực tiếp qua Micro. AI sẽ phân tích giọng nói, chấm điểm và chỉ ra lỗi sai của bạn.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+                                )
+                            })}
                         </div>
-                    )}
-
-                    <div className="pt-2 md:pt-4">
-                        <Button 
-                            size="lg" 
-                            className="w-full h-12 md:h-14 text-base md:text-lg rounded-xl md:rounded-2xl shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 transition-all hover:-translate-y-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold"
-                            onClick={handleStart}
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <span className="flex items-center gap-2">
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                    Đang chuẩn bị dữ liệu...
-                                </span>
-                            ) : (
-                                selectedCategory === 'Sử dụng công cụ' 
-                                    ? 'Bắt đầu thực hành' 
-                                    : (selectedMode === 'ai_mock' ? 'Bắt đầu thi thử ngay' : 'Bắt đầu luyện tập')
-                            )}
-                        </Button>
                     </div>
-                </Card>
+                )}
             </div>
         </div>
-    )
-}
-
-function CheckCircleIcon(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-            <polyline points="22 4 12 14.01 9 11.01" />
-        </svg>
     )
 }

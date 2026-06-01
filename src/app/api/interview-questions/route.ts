@@ -17,8 +17,9 @@ export async function GET(request: Request) {
             .order('created_at', { ascending: false })
 
         if (category) {
-            query = query.eq('category', category)
-            if (category !== 'Khẩu lệnh' && industry) {
+            const categories = category.split(',')
+            query = query.in('category', categories)
+            if (!categories.includes('Khẩu lệnh') && industry) {
                 query = query.eq('industry', industry)
             }
         } else if (industry) {

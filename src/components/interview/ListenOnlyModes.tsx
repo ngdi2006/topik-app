@@ -9,201 +9,188 @@ export interface ListenModeProps {
     onKnown: () => void
     onNotKnown: () => void
     timeLeft?: number
+    questions?: any[]
 }
 
 // --- 1. Flashcard Mode ---
 export function FlashcardMode({ currentQ, onKnown, onNotKnown, timeLeft = 0 }: ListenModeProps) {
-    const [showAnswer, setShowAnswer] = useState(false)
+    const [isFlipped, setIsFlipped] = useState(false)
 
     // Reset when question changes
-    useEffect(() => setShowAnswer(false), [currentQ])
+    useEffect(() => setIsFlipped(false), [currentQ])
+    
+    // Auto flip when timer reaches 0
+    useEffect(() => {
+        if (timeLeft <= 0) {
+            setIsFlipped(true)
+        }
+    }, [timeLeft])
 
     return (
-        <div className="space-y-4">
-            {!showAnswer ? (
-                <Button 
-                    size="lg" 
-                    className="w-full text-lg h-14 rounded-xl shadow-sm transition-transform hover:scale-[1.02]"
-                    onClick={() => setShowAnswer(true)}
-                    disabled={timeLeft > 0}
-                >
-                    <Eye className="w-5 h-5 mr-2" />
-                    Xem nội dung & đáp án
-                </Button>
-            ) : (
-                <div className="text-left space-y-4 animate-in slide-in-from-bottom-4 duration-500">
-                    <div className="bg-blue-50/80 p-5 md:p-6 rounded-2xl border border-blue-100 shadow-sm backdrop-blur-sm">
-                        <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-blue-500"></span> Lời thoại giám khảo:
-                        </h4>
-                        <p className="text-lg font-medium text-gray-900">{currentQ.question_text}</p>
-                        {currentQ.vietnamese_meaning && (
-                            <p className="text-gray-600 mt-3 text-sm md:text-base border-t border-blue-100/50 pt-3">{currentQ.vietnamese_meaning}</p>
-                        )}
+        <div className="space-y-6 perspective-1000">
+            <div 
+                className={`relative w-full transition-transform duration-700 transform-style-3d cursor-pointer ${isFlipped ? 'rotate-y-180' : ''}`}
+                onClick={() => { if (!isFlipped && timeLeft <= 0) setIsFlipped(true) }}
+                style={{ minHeight: '280px' }}
+            >
+                {/* Front (Question hint / Hidden state) */}
+                <div className="absolute inset-0 backface-hidden bg-white p-6 md:p-8 rounded-2xl border-2 border-dashed border-gray-300 shadow-sm flex flex-col items-center justify-center text-center hover:border-blue-300 transition-colors">
+                    <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
+                        <span className="text-3xl">⏳</span>
                     </div>
-                    {currentQ.suggested_answers && currentQ.suggested_answers.length > 0 && (
-                        <div className="bg-emerald-50/80 p-5 md:p-6 rounded-2xl border border-emerald-100 shadow-sm backdrop-blur-sm">
-                            <h4 className="font-semibold text-emerald-900 mb-2 flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Gợi ý trả lời:
-                            </h4>
-                            <ul className="list-disc pl-5 space-y-2">
-                                {currentQ.suggested_answers.map((ans: string, i: number) => (
-                                    <li key={i} className="text-gray-800">{ans}</li>
-                                ))}
-                            </ul>
+                    <h3 className="text-xl font-semibold text-gray-700">Đang suy nghĩ...</h3>
+                    <p className="text-gray-500 mt-2">Thẻ sẽ tự động lật khi hết thời gian đếm ngược.</p>
+                </div>
+
+                {/* Back (Answer state) */}
+                <div className="absolute inset-0 backface-hidden rotate-y-180 bg-blue-50/90 p-5 md:p-6 rounded-2xl border border-blue-200 shadow-lg backdrop-blur-sm flex flex-col justify-center text-left">
+                    <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2 text-sm uppercase tracking-wider">
+                        <span className="w-2 h-2 rounded-full bg-blue-500"></span> Nội dung câu hỏi
+                    </h4>
+                    <p className="text-xl md:text-2xl font-semibold text-gray-900 mb-4">{currentQ.question_text}</p>
+                    
+                    {currentQ.vietnamese_meaning && (
+                        <div className="mt-2 pt-4 border-t border-blue-200/50">
+                            <h4 className="font-semibold text-gray-700 mb-1 text-sm uppercase tracking-wider opacity-80">Nghĩa Tiếng Việt</h4>
+                            <p className="text-lg md:text-xl text-gray-800 font-medium">{currentQ.vietnamese_meaning}</p>
                         </div>
                     )}
-                    
-                    <div className="flex flex-col sm:flex-row gap-3 md:gap-4 mt-6 pt-4">
-                        <Button 
-                            variant="outline" 
-                            className="flex-1 h-12 md:h-14 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 rounded-xl font-medium text-base transition-all hover:shadow-md" 
-                            onClick={onNotKnown}
-                        >
-                            <XCircle className="w-5 h-5 mr-2" /> Chưa thuộc (Lặp lại sau)
-                        </Button>
-                        <Button 
-                            className="flex-1 h-12 md:h-14 bg-green-600 hover:bg-green-700 rounded-xl font-medium text-base transition-all hover:shadow-md shadow-green-200" 
-                            onClick={onKnown}
-                        >
-                            <CheckCircle className="w-5 h-5 mr-2" /> Đã thuộc (Bỏ qua)
-                        </Button>
-                    </div>
                 </div>
-            )}
+            </div>
+
+            {/* Actions */}
+            <div className={`flex flex-col sm:flex-row gap-3 md:gap-4 transition-all duration-700 ${isFlipped ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
+                <Button 
+                    variant="outline" 
+                    className="flex-1 h-14 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 rounded-xl font-bold text-base transition-all hover:shadow-md hover:-translate-y-1" 
+                    onClick={onNotKnown}
+                >
+                    <XCircle className="w-5 h-5 mr-2" /> [Chưa thuộc] Lặp lại sau
+                </Button>
+                <Button 
+                    className="flex-1 h-14 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-base transition-all hover:shadow-lg shadow-green-200 hover:-translate-y-1" 
+                    onClick={onKnown}
+                >
+                    <CheckCircle className="w-5 h-5 mr-2" /> [Đã thuộc] Hoàn thành
+                </Button>
+            </div>
         </div>
     )
 }
 
 // --- 2. Fill Blank Mode ---
-export function FillBlankMode({ currentQ, onKnown }: ListenModeProps) {
-    const targetText = useMemo(() => {
-        const text = currentQ.suggested_answers?.[0] || currentQ.question_text || ""
-        return text.trim()
-    }, [currentQ])
+export function MeaningQuizMode({ currentQ, onKnown, onNotKnown, timeLeft = 0, questions = [] }: ListenModeProps) {
+    const [options, setOptions] = useState<string[]>([])
+    const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
+    const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
 
-    const [words, setWords] = useState<{ id: string, word: string, isBlank: boolean, isWord: boolean }[]>([])
-    const [suggestions, setSuggestions] = useState<{ id: string, word: string, used: boolean }[]>([])
-    const [filledAnswers, setFilledAnswers] = useState<Record<string, { sugId: string, word: string }>>({})
-    
     useEffect(() => {
-        if (!targetText) return
-        const tokens = targetText.split(/(\s+)/)
+        const correct = currentQ.vietnamese_meaning || "Không có dữ liệu nghĩa"
+        let wrongOptions = questions
+            .filter(q => q.id !== currentQ.id && q.vietnamese_meaning)
+            .map(q => q.vietnamese_meaning)
+            .filter((v, i, a) => a.indexOf(v) === i) // unique
         
-        let wordCount = 0
-        const parsedWords: {id: string, word: string, isWord: boolean}[] = tokens.map((token: string, i: number) => {
-            const isWord = token.trim().length > 0 && !/^[\.,!?;:]+$/.test(token.trim())
-            if (isWord) wordCount++
-            return {
-                id: `w_${i}`,
-                word: token,
-                isWord
+        // Shuffle wrong options and pick up to 3
+        wrongOptions = wrongOptions.sort(() => 0.5 - Math.random()).slice(0, 3)
+        
+        // If not enough wrong options from questions, add fallbacks
+        const fallbacks = [
+            "Mời bạn ngồi xuống", 
+            "Hãy nhìn vào camera", 
+            "Bắt đầu làm bài thi", 
+            "Vui lòng đọc to rõ ràng",
+            "Xin mời trả lời câu hỏi"
+        ]
+        while (wrongOptions.length < 3) {
+            const fb = fallbacks[Math.floor(Math.random() * fallbacks.length)]
+            if (!wrongOptions.includes(fb) && fb !== correct) {
+                wrongOptions.push(fb)
             }
-        })
+        }
 
-        const wordsOnly = parsedWords.filter((w: any) => w.isWord)
-        const numBlanks = Math.max(1, Math.floor(wordsOnly.length * 0.4)) // 40% blanks
-        const blankIndices = new Set<string>()
-        
-        const shuffled = [...wordsOnly].sort(() => 0.5 - Math.random())
-        shuffled.slice(0, numBlanks).forEach(w => blankIndices.add(w.id))
+        const allOptions = [correct, ...wrongOptions].sort(() => 0.5 - Math.random())
+        setOptions(allOptions)
+        setSelectedAnswer(null)
+        setIsCorrect(null)
+    }, [currentQ, questions])
 
-        const finalWords = parsedWords.map(w => ({
-            ...w,
-            isBlank: blankIndices.has(w.id)
-        }))
-
-        setWords(finalWords)
-        setFilledAnswers({})
-
-        const blanks = finalWords.filter(w => w.isBlank).map(w => w.word)
-        const finalSuggestions = [...blanks].sort(() => 0.5 - Math.random()).map((word, i) => ({
-            id: `sug_${i}`,
-            word,
-            used: false
-        }))
-        setSuggestions(finalSuggestions)
-    }, [targetText])
-
-    const handleSuggestionClick = (sug: typeof suggestions[0]) => {
-        if (sug.used) return
-        const firstEmptyBlank = words.find(w => w.isBlank && !filledAnswers[w.id])
-        if (!firstEmptyBlank) return
-
-        setFilledAnswers(prev => ({
-            ...prev,
-            [firstEmptyBlank.id]: { sugId: sug.id, word: sug.word }
-        }))
-        setSuggestions(prev => prev.map(s => s.id === sug.id ? { ...s, used: true } : s))
+    const handleSelect = (opt: string) => {
+        if (selectedAnswer !== null) return // Already answered
+        setSelectedAnswer(opt)
+        const correct = opt === (currentQ.vietnamese_meaning || "Không có dữ liệu nghĩa")
+        setIsCorrect(correct)
     }
 
-    const handleBlankClick = (wordId: string) => {
-        const filled = filledAnswers[wordId]
-        if (!filled) return
-
-        setSuggestions(prev => prev.map(s => s.id === filled.sugId ? { ...s, used: false } : s))
-        setFilledAnswers(prev => {
-            const next = { ...prev }
-            delete next[wordId]
-            return next
-        })
-    }
-
-    if (!targetText) {
-        return <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-xl border border-gray-100">Câu hỏi này không có câu trả lời mẫu để luyện tập.</div>
-    }
-
-    const isComplete = words.filter(w => w.isBlank).every(w => filledAnswers[w.id])
-    const isCorrect = isComplete && words.filter(w => w.isBlank).every(w => filledAnswers[w.id]?.word === w.word)
+    const correctMeaning = currentQ.vietnamese_meaning || "Không có dữ liệu nghĩa"
 
     return (
         <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
-            <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-200 shadow-sm text-lg md:text-xl leading-relaxed flex flex-wrap items-center">
-                {words.map((w) => {
-                    if (!w.isWord) return <span key={w.id} className="whitespace-pre">{w.word}</span>
-                    if (!w.isBlank) return <span key={w.id} className="font-medium text-gray-700">{w.word}</span>
-                    
-                    const filled = filledAnswers[w.id]
-                    return (
-                        <div 
-                            key={w.id}
-                            onClick={() => handleBlankClick(w.id)}
-                            className={`inline-flex items-center justify-center min-w-[70px] h-10 md:h-12 px-3 mx-1 rounded-xl cursor-pointer transition-all border-b-2 font-medium shadow-sm
-                                ${filled 
-                                    ? (isComplete ? (filled.word === w.word ? 'bg-green-50 border-green-500 text-green-700 shadow-green-100' : 'bg-red-50 border-red-500 text-red-700 shadow-red-100') : 'bg-blue-50 border-blue-400 text-blue-700 shadow-blue-100')
-                                    : 'bg-gray-50 border-gray-300 hover:bg-gray-100 hover:border-gray-400'}`}
-                        >
-                            {filled ? filled.word : ''}
-                        </div>
-                    )
-                })}
-            </div>
+            <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-200 shadow-sm text-center relative overflow-hidden">
+                <p className="text-gray-500 font-medium mb-6">Chọn nghĩa Tiếng Việt chính xác nhất với câu vừa nghe</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {options.map((opt, idx) => {
+                        let btnStyle = "bg-white border-gray-300 text-gray-700 hover:border-blue-400 hover:text-blue-600 hover:shadow-md"
+                        
+                        if (selectedAnswer !== null) {
+                            if (opt === correctMeaning) {
+                                btnStyle = "bg-green-50 border-green-500 text-green-700 shadow-sm font-bold z-10 scale-105"
+                            } else if (opt === selectedAnswer) {
+                                btnStyle = "bg-red-50 border-red-500 text-red-700 shadow-sm"
+                            } else {
+                                btnStyle = "bg-gray-50 border-gray-200 text-gray-400 opacity-50"
+                            }
+                        }
 
-            <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
-                <p className="text-sm text-gray-500 font-medium mb-4 text-center">Chọn từ thích hợp điền vào chỗ trống</p>
-                <div className="flex flex-wrap justify-center gap-3">
-                    {suggestions.map(sug => (
-                        <Button
-                            key={sug.id}
-                            variant={sug.used ? "ghost" : "outline"}
-                            className={`text-base h-12 px-6 rounded-xl transition-all ${sug.used ? 'opacity-30 cursor-not-allowed scale-95' : 'hover:-translate-y-1 hover:shadow-md bg-white border-gray-300 text-gray-700 hover:text-blue-600 hover:border-blue-300'}`}
-                            onClick={() => handleSuggestionClick(sug)}
-                            disabled={sug.used}
-                        >
-                            {sug.word}
-                        </Button>
-                    ))}
+                        return (
+                            <Button
+                                key={idx}
+                                variant="outline"
+                                className={`h-auto min-h-[70px] p-4 text-left justify-start text-base whitespace-normal transition-all duration-300 ${btnStyle}`}
+                                onClick={() => handleSelect(opt)}
+                                disabled={selectedAnswer !== null || timeLeft > 0}
+                            >
+                                {opt}
+                            </Button>
+                        )
+                    })}
                 </div>
+                
+                {timeLeft > 0 && selectedAnswer === null && (
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-blue-100">
+                        <div className="h-full bg-blue-500 animate-pulse" style={{ width: '100%' }}></div>
+                    </div>
+                )}
             </div>
 
-            {isComplete && isCorrect && (
+            {selectedAnswer !== null && (
                 <div className="flex flex-col items-center animate-in zoom-in-95 fade-in duration-300 pt-2">
-                    <div className="text-green-600 font-bold text-lg mb-4 flex items-center gap-2">
-                        <CheckCircle className="w-6 h-6" /> Chính xác! Bạn đã hoàn thành câu trả lời.
-                    </div>
-                    <Button onClick={onKnown} className="bg-green-600 hover:bg-green-700 px-8 rounded-xl h-14 text-base shadow-lg shadow-green-200 transition-all hover:scale-105">
-                        Tiếp tục học <CheckCircle className="w-5 h-5 ml-2" />
-                    </Button>
+                    {isCorrect ? (
+                        <>
+                            <div className="text-green-600 font-bold text-xl mb-4 flex items-center gap-2 bg-green-50 px-6 py-2 rounded-full border border-green-200">
+                                <CheckCircle className="w-6 h-6" /> Tốt lắm! Trả lời chính xác.
+                            </div>
+                            <Button onClick={onKnown} className="bg-green-600 hover:bg-green-700 px-8 rounded-xl h-14 text-base font-bold shadow-lg shadow-green-200 transition-all hover:-translate-y-1">
+                                Tiếp tục học <CheckCircle className="w-5 h-5 ml-2" />
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <div className="text-red-500 font-bold text-lg md:text-xl mb-4 flex items-center gap-2 bg-red-50 px-6 py-3 rounded-2xl border border-red-200 text-center flex-col sm:flex-row">
+                                <div className="flex items-center gap-2"><XCircle className="w-6 h-6" /> Sai rồi!</div>
+                                <span className="text-gray-700 font-medium text-base">Nghĩa đúng: <span className="font-bold text-green-700">{correctMeaning}</span></span>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 w-full sm:w-auto">
+                                <Button onClick={onNotKnown} variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 px-8 rounded-xl h-14 text-base font-bold">
+                                    <XCircle className="w-5 h-5 mr-2" /> [Chưa thuộc] Lặp lại sau
+                                </Button>
+                                <Button onClick={onKnown} className="bg-gray-800 hover:bg-gray-900 text-white px-8 rounded-xl h-14 text-base font-bold shadow-lg transition-all">
+                                    [Đã thuộc] Bỏ qua <CheckCircle className="w-5 h-5 ml-2" />
+                                </Button>
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
         </div>

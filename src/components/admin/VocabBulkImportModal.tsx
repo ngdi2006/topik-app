@@ -204,7 +204,11 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
                 let previewImageUrl: string | undefined = undefined
 
                 if (imgName) {
-                    if (imgName.startsWith('http')) {
+                    if (imgName.match(/^https?:\/\/[0-9a-fA-F]{6}/)) {
+                        previewImageUrl = imgName.replace(/^https?:\/\//, 'https://placehold.co/150x150/');
+                    } else if (imgName.match(/^[0-9a-fA-F]{6}/)) {
+                        previewImageUrl = `https://placehold.co/150x150/${imgName}`;
+                    } else if (imgName.startsWith('http')) {
                         previewImageUrl = imgName
                     } else if (zipFilesMap[imgName]) {
                         imageFile = zipFilesMap[imgName]

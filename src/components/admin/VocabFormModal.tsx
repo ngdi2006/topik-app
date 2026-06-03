@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
@@ -46,7 +46,15 @@ export function VocabFormModal({ isOpen, onClose, onSuccess, editData }: VocabFo
                 setWordVi(editData.word_vi || '')
                 setIndustry(editData.industry || 'COMMON')
                 setType(editData.type || 'TOOL')
-                setPreviewImageUrl(editData.image_url || null)
+                let imgUrl = editData.image_url || null;
+                if (imgUrl) {
+                    if (imgUrl.match(/^https?:\/\/[0-9a-fA-F]{6}/)) {
+                        imgUrl = imgUrl.replace(/^https?:\/\//, 'https://placehold.co/150x150/');
+                    } else if (imgUrl.match(/^[0-9a-fA-F]{6}/)) {
+                        imgUrl = `https://placehold.co/150x150/${imgUrl}`;
+                    }
+                }
+                setPreviewImageUrl(imgUrl)
                 setPreviewAudioUrl(editData.audio_url || null)
             } else {
                 setWordKr('')
@@ -94,6 +102,8 @@ export function VocabFormModal({ isOpen, onClose, onSuccess, editData }: VocabFo
                 if (!uploadRes.ok) throw new Error('Upload ảnh thất bại')
                 const uploadData = await uploadRes.json()
                 finalImageUrl = uploadData.url
+            } else if (!previewImageUrl) {
+                finalImageUrl = null
             }
 
             let finalAudioUrl = editData ? editData.audio_url : null
@@ -105,7 +115,11 @@ export function VocabFormModal({ isOpen, onClose, onSuccess, editData }: VocabFo
                 if (!uploadRes.ok) throw new Error('Upload âm thanh thất bại')
                 const uploadData = await uploadRes.json()
                 finalAudioUrl = uploadData.url
-            } else if (!finalAudioUrl && wordKr.trim()) {
+            } else if (!previewAudioUrl) {
+                finalAudioUrl = null
+            }
+            
+            if (!finalAudioUrl && wordKr.trim()) {
                 finalAudioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=${encodeURIComponent(wordKr.trim())}`
             }
 
@@ -152,6 +166,9 @@ export function VocabFormModal({ isOpen, onClose, onSuccess, editData }: VocabFo
             <DialogContent className="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>{editData ? 'Sửa Từ Vựng' : 'Thêm Từ Vựng Mới'}</DialogTitle>
+                    <DialogDescription>
+                        {editData ? 'Chỉnh sửa thông tin từ vựng' : 'Nhập thông tin cho từ vựng mới'}
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">

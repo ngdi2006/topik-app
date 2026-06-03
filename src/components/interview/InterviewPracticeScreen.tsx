@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Mic, Square, Play, Eye, RefreshCw, CheckCircle, XCircle, ArrowLeft } from 'lucide-react'
+import { Mic, Square, Play, Eye, RefreshCw, CheckCircle, XCircle, ArrowLeft, Menu } from 'lucide-react'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { toast } from 'sonner'
-import { FlashcardMode, FillBlankMode, WordSortMode } from './ListenOnlyModes'
+import { FlashcardMode, MeaningQuizMode, WordSortMode } from './ListenOnlyModes'
 
 interface InterviewPracticeScreenProps {
     questions: any[]
@@ -19,8 +19,10 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
     const currentQIndex = queue.length > 0 ? queue[0] : null
     const currentQ = currentQIndex !== null ? questions[currentQIndex] : null
 
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+
     // Listen Only Settings
-    const [listenSubMode, setListenSubMode] = useState<'flashcard' | 'fill_blank' | 'word_sort'>('flashcard')
+    const [listenSubMode, setListenSubMode] = useState<'flashcard' | 'meaning_quiz' | 'word_sort'>('flashcard')
     const [playbackRate, setPlaybackRate] = useState<number>(1.0)
 
     // Audio states
@@ -46,7 +48,17 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
         resetTranscript 
     } = useSpeechRecognition(recognitionLang)
 
-    const reviewModesRef = useRef<Record<number, 'fill_blank' | 'word_sort'>>({})
+    const reviewModesRef = useRef<Record<number, 'meaning_quiz' | 'word_sort'>>({})
+
+    const jumpToQuestion = (index: number) => {
+        const newQueue = [...queue];
+        const currentIndex = newQueue.indexOf(index);
+        if (currentIndex > -1) {
+            newQueue.splice(currentIndex, 1);
+        }
+        setQueue([index, ...newQueue]);
+        setIsDrawerOpen(false);
+    }
 
     // Reset everything when question changes
     useEffect(() => {
@@ -178,10 +190,10 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
     const handleNotKnown = () => {
         if (mode === 'listen_only') {
             const currentMode = reviewModesRef.current[currentQIndex!]
-            const nextMode = currentMode === 'fill_blank' ? 'word_sort' : 'fill_blank'
+            const nextMode = currentMode === 'meaning_quiz' ? 'word_sort' : 'meaning_quiz'
             reviewModesRef.current[currentQIndex!] = nextMode
             
-            toast.info(`Sẽ ôn tập lại bằng hình thức ${nextMode === 'fill_blank' ? 'Điền từ' : 'Xếp câu'}.`)
+            toast.info(`Sẽ ôn tập lại bằng hình thức ${nextMode === 'meaning_quiz' ? 'Trắc nghiệm nghĩa' : 'Xếp câu'}.`)
             
             if (queue.length <= 1) {
                 setListenSubMode(nextMode)
@@ -240,7 +252,10 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
                             <ArrowLeft className="w-5 h-5 text-gray-500" />
                         </Button>
                     )}
-                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs md:text-sm font-semibold">
+                    <Button variant="outline" size="sm" onClick={() => setIsDrawerOpen(true)} className="rounded-full shrink-0 mr-1 font-semibold text-gray-700 hover:text-blue-600 bg-gray-50 hover:bg-blue-50 border-gray-200 hover:border-blue-200">
+                        <Menu className="w-4 h-4 mr-2" /> Danh sách câu
+                    </Button>
+                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs md:text-sm font-semibold hidden md:inline-block">
                         {currentQ.category}
                     </span>
                     <span className="text-xs md:text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
@@ -275,10 +290,10 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
                             className={`flex-1 rounded-lg text-sm ${listenSubMode === 'flashcard' ? 'shadow-sm' : ''}`} size="sm"
                         >Flashcard</Button>
                         <Button 
-                            variant={listenSubMode === 'fill_blank' ? 'default' : 'ghost'} 
-                            onClick={() => setListenSubMode('fill_blank')}
-                            className={`flex-1 rounded-lg text-sm ${listenSubMode === 'fill_blank' ? 'shadow-sm' : ''}`} size="sm"
-                        >Điền từ</Button>
+                            variant={listenSubMode === 'meaning_quiz' ? 'default' : 'ghost'} 
+                            onClick={() => setListenSubMode('meaning_quiz')}
+                            className={`flex-1 rounded-lg text-sm ${listenSubMode === 'meaning_quiz' ? 'shadow-sm' : ''}`} size="sm"
+                        >Trắc nghiệm nghĩa</Button>
                         <Button 
                             variant={listenSubMode === 'word_sort' ? 'default' : 'ghost'} 
                             onClick={() => setListenSubMode('word_sort')}
@@ -342,11 +357,13 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
                                             timeLeft={timeLeft} 
                                         />
                                     )}
-                                    {listenSubMode === 'fill_blank' && (
-                                        <FillBlankMode 
+                                    {listenSubMode === 'meaning_quiz' && (
+                                        <MeaningQuizMode 
                                             currentQ={currentQ} 
                                             onKnown={handleKnown} 
                                             onNotKnown={handleNotKnown} 
+                                            timeLeft={timeLeft}
+                                            questions={questions}
                                         />
                                     )}
                                     {listenSubMode === 'word_sort' && (
@@ -426,10 +443,49 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
 
             {/* Footer Nav */}
             <div className="flex justify-end pt-4">
-                <Button size="lg" onClick={handleNext} className="rounded-xl px-8">
+                <Button size="lg" onClick={handleNext} className="rounded-xl px-8 shadow-sm">
                     {queue.length > 1 ? 'Câu tiếp theo' : 'Hoàn thành'}
                 </Button>
             </div>
+
+            {/* Side Drawer for Questions List */}
+            {isDrawerOpen && (
+                <div className="fixed inset-0 z-[100] flex justify-end bg-black/40 backdrop-blur-sm transition-opacity" onClick={() => setIsDrawerOpen(false)}>
+                    <div className="w-80 max-w-[85vw] bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 border-b flex justify-between items-center bg-gray-50/80 backdrop-blur-md">
+                            <h3 className="font-bold text-lg text-gray-800">Danh sách câu hỏi</h3>
+                            <Button variant="ghost" size="icon" onClick={() => setIsDrawerOpen(false)} className="rounded-full hover:bg-gray-200 transition-colors">
+                                <XCircle className="w-6 h-6 text-gray-500" />
+                            </Button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                            {questions.map((q, idx) => {
+                                const isActive = idx === currentQIndex;
+                                const isDone = !queue.includes(idx) && idx !== currentQIndex;
+                                return (
+                                    <button
+                                        key={q.id}
+                                        onClick={() => jumpToQuestion(idx)}
+                                        className={`w-full text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all duration-200
+                                            ${isActive ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm scale-[1.02]' : 
+                                              isDone ? 'bg-gray-50/50 border-gray-200 text-gray-400' : 
+                                              'bg-white border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50 hover:-translate-y-0.5'}`}
+                                    >
+                                        <div className="flex justify-between items-center">
+                                            <span className={isActive ? 'font-bold' : ''}>Câu {idx + 1}</span>
+                                            {isActive && <div className="w-2 h-2 rounded-full bg-blue-500 shadow-sm animate-pulse"></div>}
+                                            {isDone && <CheckCircle className="w-4 h-4 text-green-500 opacity-80" />}
+                                        </div>
+                                        <div className={`mt-1 text-xs line-clamp-1 ${isActive ? 'text-blue-500/80' : 'text-gray-400'}`}>
+                                            {q.question_text}
+                                        </div>
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

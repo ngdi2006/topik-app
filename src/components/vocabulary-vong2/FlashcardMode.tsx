@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ArrowLeft, Volume2, Repeat, CheckCircle } from 'lucide-react'
@@ -7,6 +7,22 @@ export default function FlashcardMode({ vocabList, onBack }: { vocabList: any[],
     const [currentIndex, setCurrentIndex] = useState(0)
     const [flipped, setFlipped] = useState(false)
     const [queue, setQueue] = useState<any[]>([...vocabList])
+    const [timeLeft, setTimeLeft] = useState(5)
+
+    useEffect(() => {
+        if (flipped || queue.length === 0) return
+        
+        if (timeLeft <= 0) {
+            handleFlip()
+            return
+        }
+
+        const timer = setInterval(() => {
+            setTimeLeft(prev => prev - 1)
+        }, 1000)
+
+        return () => clearInterval(timer)
+    }, [timeLeft, flipped, queue.length])
 
     if (queue.length === 0) {
         return (
@@ -32,6 +48,7 @@ export default function FlashcardMode({ vocabList, onBack }: { vocabList: any[],
 
     const handleKnown = () => {
         setFlipped(false)
+        setTimeLeft(5)
         const newQueue = queue.filter((_, i) => i !== currentIndex)
         setQueue(newQueue)
         if (currentIndex >= newQueue.length) setCurrentIndex(0)
@@ -39,6 +56,7 @@ export default function FlashcardMode({ vocabList, onBack }: { vocabList: any[],
 
     const handleUnknown = () => {
         setFlipped(false)
+        setTimeLeft(5)
         // Move to back of queue
         const newQueue = [...queue]
         const item = newQueue.splice(currentIndex, 1)[0]
@@ -61,7 +79,7 @@ export default function FlashcardMode({ vocabList, onBack }: { vocabList: any[],
                 className="relative w-full aspect-[4/3] md:aspect-video cursor-pointer perspective-1000"
                 onClick={!flipped ? handleFlip : undefined}
             >
-                <div className={`w-full h-full transition-all duration-500 transform-style-preserve-3d ${flipped ? 'rotate-y-180' : ''}`}>
+                <div className={`w-full h-full transition-all duration-500 transform-style-3d ${flipped ? 'rotate-y-180' : ''}`}>
                     {/* Front */}
                     <Card className="absolute inset-0 backface-hidden w-full h-full flex flex-col items-center justify-center p-6 rounded-3xl shadow-lg border-2 border-slate-100 hover:border-indigo-200 transition-colors bg-white">
                         {currentVocab.image_url ? (
@@ -69,7 +87,7 @@ export default function FlashcardMode({ vocabList, onBack }: { vocabList: any[],
                         ) : (
                             <div className="h-32 w-32 bg-slate-100 rounded-2xl flex items-center justify-center mb-4 text-slate-400">No Image</div>
                         )}
-                        <p className="text-slate-400 font-medium animate-pulse mt-4">Chạm để lật thẻ</p>
+                        <p className="text-slate-400 font-medium animate-pulse mt-4">Tự động lật sau {timeLeft}s</p>
                     </Card>
 
                     {/* Back */}

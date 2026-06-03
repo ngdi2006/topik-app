@@ -163,17 +163,32 @@ export default function VocabularyVong2AdminPage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {vocabList.map(item => (
+                                    {vocabList.map(item => {
+                                        let validImageUrl = item.image_url;
+                                        if (validImageUrl) {
+                                            if (validImageUrl.match(/^https?:\/\/[0-9a-fA-F]{6}/)) {
+                                                validImageUrl = validImageUrl.replace(/^https?:\/\//, 'https://placehold.co/150x150/');
+                                            } else if (validImageUrl.match(/^[0-9a-fA-F]{6}/)) {
+                                                validImageUrl = `https://placehold.co/150x150/${validImageUrl}`;
+                                            }
+                                        }
+
+                                        return (
                                         <tr key={item.id} className="bg-white border-b hover:bg-gray-50">
                                             <td className="px-6 py-4">
-                                                {item.image_url ? (
-                                                    <img src={item.image_url} alt="img" className="w-16 h-16 object-contain bg-gray-100 rounded" />
+                                                {validImageUrl ? (
+                                                    <img src={validImageUrl} alt="img" className="w-16 h-16 object-contain bg-gray-100 rounded" />
                                                 ) : <span className="text-gray-400">Không có</span>}
                                             </td>
                                             <td className="px-6 py-4">
                                                 {item.audio_url ? (
                                                     <button 
-                                                        onClick={() => new Audio(item.audio_url).play()}
+                                                        onClick={() => {
+                                                            const audio = new Audio(item.audio_url);
+                                                            audio.play().catch(e => {
+                                                                console.error('Lỗi phát âm thanh:', e);
+                                                            });
+                                                        }}
                                                         className="p-2 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
                                                         title="Nghe thử"
                                                     >
@@ -198,7 +213,8 @@ export default function VocabularyVong2AdminPage() {
                                                 </Button>
                                             </td>
                                         </tr>
-                                    ))}
+                                        );
+                                    })}
                                     {vocabList.length === 0 && (
                                         <tr>
                                             <td colSpan={7} className="px-6 py-10 text-center">Chưa có dữ liệu</td>

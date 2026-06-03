@@ -31,7 +31,7 @@ function shuffleOptions(question: QuestionBank): {
     shuffledCorrectAnswer: number
 } {
     // If shuffle_options is false, return original
-    if (question.shuffle_options === false) {
+    if (question.shuffle_options === false || String(question.shuffle_options) === 'false') {
         return {
             shuffledOptions: question.options,
             shuffledCorrectAnswer: question.correct_answer,
@@ -276,9 +276,20 @@ export async function generateRandomQuestionsForUser(
             availableQuestions = poolQuestions // Reset toàn bộ pool
         }
 
-        // 2g. Shuffle và lấy N câu
-        const shuffled = shuffleArray(availableQuestions)
-        const selected = shuffled.slice(0, rule.quantity)
+        // Kiểm tra xem kho có tắt tính năng đảo câu không
+        const firstQ = availableQuestions[0]
+        const catForShuffle = firstQ ? (firstQ as any).question_categories : null
+        const categoryShuffleFlag = Array.isArray(catForShuffle) ? catForShuffle[0]?.shuffle_options : catForShuffle?.shuffle_options
+
+        // 2g. Shuffle và lấy N câu (nếu kho cho phép đảo)
+        let selected: any[] = []
+        if (categoryShuffleFlag === false) {
+            // Không đảo câu, giữ nguyên thứ tự (ví dụ: các câu nghe chung audio)
+            selected = availableQuestions.slice(0, rule.quantity)
+        } else {
+            const shuffled = shuffleArray(availableQuestions)
+            selected = shuffled.slice(0, rule.quantity)
+        }
 
         // 2h. Lưu vào history
         await saveToHistory(

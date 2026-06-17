@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card'
 import { InterviewPracticeScreen } from '@/components/interview/InterviewPracticeScreen'
 import { ToolDragPracticeScreen } from '@/components/interview/ToolDragPracticeScreen'
 import { toast } from 'sonner'
-import { Headphones, Bot, ArrowLeft, Wrench, Mic, CheckCircle, Calculator, MessageSquare, Presentation, Factory, Fish, Trees, Tractor, Home, Coffee } from 'lucide-react'
+import { Headphones, Bot, ArrowLeft, Wrench, Mic, CheckCircle, Calculator, MessageSquare, Presentation, Factory, Fish, Trees, Tractor, Home, Coffee, Layers } from 'lucide-react'
 
 const INDUSTRIES = [
     { 
@@ -151,9 +151,10 @@ function shuffleArray<T>(array: T[]): T[] {
 
 export default function InterviewPracticePage() {
     const router = useRouter()
-    const [step, setStep] = useState<'industry' | 'topic' | 'practice' | 'evaluating' | 'finished'>('industry')
+    const [step, setStep] = useState<'industry' | 'topic' | 'select_mode' | 'practice' | 'evaluating' | 'finished'>('industry')
     const [selectedIndustry, setSelectedIndustry] = useState<string>('')
     const [selectedTopicObj, setSelectedTopicObj] = useState<any>(null)
+    const [selectedListenMode, setSelectedListenMode] = useState<'flashcard' | 'meaning_quiz' | 'word_sort'>('flashcard')
     
     const [questions, setQuestions] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
@@ -172,6 +173,16 @@ export default function InterviewPracticePage() {
         }
 
         setSelectedTopicObj(topic)
+
+        if (topic.mode === 'listen_only') {
+            setStep('select_mode')
+            return
+        }
+
+        startPractice(topic, null)
+    }
+
+    const startPractice = async (topic: any, listenMode: string | null) => {
         setLoading(true)
         try {
             const url = `/api/interview-questions?category=${encodeURIComponent(topic.apiCategory)}&industry=${encodeURIComponent(selectedIndustry)}`
@@ -204,6 +215,11 @@ export default function InterviewPracticePage() {
         } finally {
             setLoading(false)
         }
+    }
+
+    const handleStartListenMode = (mode: 'flashcard' | 'meaning_quiz' | 'word_sort') => {
+        setSelectedListenMode(mode)
+        startPractice(selectedTopicObj, mode)
     }
 
     const handleFinishPractice = async (submittedAnswers?: Record<string, string>) => {
@@ -248,7 +264,7 @@ export default function InterviewPracticePage() {
                 ) : (
                     <InterviewPracticeScreen 
                         questions={questions} 
-                        mode={selectedTopicObj?.mode as 'listen_only' | 'ai_mock'} 
+                        mode={selectedTopicObj?.mode === 'listen_only' ? selectedListenMode : (selectedTopicObj?.mode as 'ai_mock')} 
                         onFinish={handleFinishPractice} 
                         onBack={() => setStep('topic')}
                     />
@@ -451,6 +467,54 @@ export default function InterviewPracticePage() {
                                 )
                             })}
                         </div>
+                    </div>
+                )}
+
+                {step === 'select_mode' && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="text-center space-y-2 mb-8">
+                            <h2 className="text-2xl md:text-3xl font-bold text-slate-800">Chọn Chế Độ Luyện Tập</h2>
+                            <p className="text-slate-500">Chuyên đề: <strong className="text-blue-600">{selectedTopicObj?.name}</strong></p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                            
+                            <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={() => handleStartListenMode('flashcard')}>
+                                <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-slate-200/60 bg-white hover:border-blue-400 shadow-sm hover:shadow-xl">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-blue-100 text-blue-600 transition-colors">
+                                        <Presentation className="w-6 h-6" />
+                                    </div>
+                                    <h4 className="text-lg font-bold text-slate-900 mb-2">Flashcard Lật Thẻ</h4>
+                                    <p className="text-slate-500 text-sm leading-relaxed">Nghe âm thanh và suy nghĩ, thẻ tự động lật hiện đáp án.</p>
+                                </div>
+                            </div>
+
+                            <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={() => handleStartListenMode('meaning_quiz')}>
+                                <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-slate-200/60 bg-white hover:border-pink-400 shadow-sm hover:shadow-xl">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-pink-100 text-pink-600 transition-colors">
+                                        <CheckCircle className="w-6 h-6" />
+                                    </div>
+                                    <h4 className="text-lg font-bold text-slate-900 mb-2">Trắc Nghiệm Nghĩa</h4>
+                                    <p className="text-slate-500 text-sm leading-relaxed">Chọn đáp án Tiếng Việt đúng nhất sau khi nghe âm thanh.</p>
+                                </div>
+                            </div>
+
+                            <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={() => handleStartListenMode('word_sort')}>
+                                <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-slate-200/60 bg-white hover:border-emerald-400 shadow-sm hover:shadow-xl">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-emerald-100 text-emerald-600 transition-colors">
+                                        <Layers className="w-6 h-6" />
+                                    </div>
+                                    <h4 className="text-lg font-bold text-slate-900 mb-2">Xếp Câu</h4>
+                                    <p className="text-slate-500 text-sm leading-relaxed">Sắp xếp các từ bị xáo trộn thành câu hoàn chỉnh.</p>
+                                </div>
+                            </div>
+
+                        </div>
+                        {loading && (
+                            <div className="absolute inset-0 bg-white/70 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-2xl md:rounded-[2rem]">
+                                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                                <p className="font-semibold text-blue-700">Đang chuẩn bị nội dung...</p>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

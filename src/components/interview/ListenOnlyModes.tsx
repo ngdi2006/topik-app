@@ -129,7 +129,7 @@ export function MeaningQuizMode({ currentQ, onKnown, onNotKnown, timeLeft = 0, q
             <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-200 shadow-sm text-center relative overflow-hidden">
                 <p className="text-gray-500 font-medium mb-6">Chọn nghĩa Tiếng Việt chính xác nhất với câu vừa nghe</p>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 md:gap-4">
                     {options.map((opt, idx) => {
                         let btnStyle = "bg-white border-gray-300 text-gray-700 hover:border-blue-400 hover:text-blue-600 hover:shadow-md"
                         
@@ -237,34 +237,34 @@ export function WordSortMode({ currentQ, onKnown }: ListenModeProps) {
     return (
         <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
             {/* Answer Area */}
-            <div className="bg-white p-6 rounded-2xl border-2 border-dashed border-gray-300 shadow-sm flex flex-wrap content-start gap-2.5 min-h-[120px] transition-colors hover:border-blue-200">
+            <div className="bg-white p-6 md:p-8 rounded-[2rem] border-2 border-dashed border-gray-300 shadow-sm flex flex-wrap content-start gap-3 min-h-[140px] transition-colors hover:border-blue-300">
                 {selectedWords.map((w, i) => (
                     <Button
                         key={w.id}
                         variant="secondary"
                         onClick={() => handleDeselect(w)}
-                        className={`text-base h-11 px-4 rounded-xl shadow-sm hover:scale-95 transition-all animate-in zoom-in-90
+                        className={`text-base md:text-lg h-12 md:h-14 px-5 rounded-2xl shadow-sm hover:scale-95 transition-all animate-in zoom-in-90 font-medium
                             ${isComplete ? (isCorrect ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-red-100 text-red-800 hover:bg-red-200') : 'bg-blue-50 text-blue-800 hover:bg-blue-100'}`}
                     >
                         {w.word}
                     </Button>
                 ))}
                 {selectedWords.length === 0 && (
-                    <div className="text-gray-400 m-auto flex items-center gap-2">
+                    <div className="text-gray-400 m-auto flex items-center gap-2 text-sm md:text-base">
                         Bấm vào các từ bên dưới để ghép thành câu
                     </div>
                 )}
             </div>
 
             {/* Word Pool */}
-            <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
-                <div className="flex flex-wrap justify-center gap-3">
+            <div className="bg-gray-50/70 p-6 md:p-8 rounded-[2rem] border border-gray-100">
+                <div className="flex flex-wrap justify-center gap-3 md:gap-4">
                     {words.map((w, i) => (
                         <Button
                             key={w.id}
                             variant="outline"
                             onClick={() => handleSelect(w)}
-                            className="text-base h-12 px-5 rounded-xl border-gray-300 text-gray-700 hover:border-blue-400 hover:text-blue-600 hover:-translate-y-1 hover:shadow-md transition-all bg-white"
+                            className="text-base md:text-lg h-12 md:h-14 px-5 md:px-6 rounded-2xl border-gray-300 text-gray-700 hover:border-blue-400 hover:text-blue-600 hover:-translate-y-1 hover:shadow-md transition-all bg-white font-medium"
                         >
                             {w.word}
                         </Button>

@@ -9,7 +9,7 @@ import { FlashcardMode, MeaningQuizMode, WordSortMode } from './ListenOnlyModes'
 
 interface InterviewPracticeScreenProps {
     questions: any[]
-    mode: 'listen_only' | 'ai_mock'
+    mode: 'flashcard' | 'meaning_quiz' | 'word_sort' | 'ai_mock'
     onFinish: (answers?: Record<string, string>) => void
     onBack?: () => void
 }
@@ -21,8 +21,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
 
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
-    // Listen Only Settings
-    const [listenSubMode, setListenSubMode] = useState<'flashcard' | 'meaning_quiz' | 'word_sort'>('flashcard')
+    const isListenOnly = mode !== 'ai_mock'
     const [playbackRate, setPlaybackRate] = useState<number>(1.0)
 
     // Audio states
@@ -63,12 +62,6 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
     // Reset everything when question changes
     useEffect(() => {
         if (!currentQ) return
-
-        if (reviewModesRef.current[currentQIndex!]) {
-            setListenSubMode(reviewModesRef.current[currentQIndex!])
-        } else {
-            setListenSubMode('flashcard')
-        }
 
         setAudioState('idle')
         setTimeLeft(null)
@@ -188,23 +181,6 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
     }
 
     const handleNotKnown = () => {
-        if (mode === 'listen_only') {
-            const currentMode = reviewModesRef.current[currentQIndex!]
-            const nextMode = currentMode === 'meaning_quiz' ? 'word_sort' : 'meaning_quiz'
-            reviewModesRef.current[currentQIndex!] = nextMode
-            
-            toast.info(`Sẽ ôn tập lại bằng hình thức ${nextMode === 'meaning_quiz' ? 'Trắc nghiệm nghĩa' : 'Xếp câu'}.`)
-            
-            if (queue.length <= 1) {
-                setListenSubMode(nextMode)
-                setAudioState('idle')
-                setTimeLeft(null)
-                resetTranscript()
-                replayAudio()
-                return
-            }
-        }
-
         if (queue.length <= 1) {
             onFinish(answers)
         } else {
@@ -213,6 +189,11 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
                 newQ.push(prev[0])
                 return newQ
             })
+            // Reset for the next question
+            setAudioState('idle')
+            setTimeLeft(null)
+            resetTranscript()
+            replayAudio()
         }
     }
 
@@ -252,16 +233,13 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
                             <ArrowLeft className="w-5 h-5 text-gray-500" />
                         </Button>
                     )}
-                    <Button variant="outline" size="sm" onClick={() => setIsDrawerOpen(true)} className="rounded-full shrink-0 mr-1 font-semibold text-gray-700 hover:text-blue-600 bg-gray-50 hover:bg-blue-50 border-gray-200 hover:border-blue-200">
-                        <Menu className="w-4 h-4 mr-2" /> Danh sách câu
-                    </Button>
                     <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs md:text-sm font-semibold hidden md:inline-block">
                         {currentQ.category}
                     </span>
                     <span className="text-xs md:text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                        {mode === 'listen_only' ? 'Chỉ luyện nghe' : 'Thi thử với AI'}
+                        {isListenOnly ? 'Chỉ luyện nghe' : 'Thi thử với AI'}
                     </span>
-                    {mode === 'listen_only' && (
+                    {isListenOnly && (
                         <div className="flex items-center gap-1 ml-2 bg-gray-50 rounded-full border p-0.5">
                             <span className="text-xs text-gray-500 pl-2 pr-1 font-medium">Tốc độ:</span>
                             {[0.8, 1.0, 1.2].map(rate => (
@@ -281,58 +259,38 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
                 </div>
             </div>
 
-            {mode === 'listen_only' && (
-                <div className="flex justify-center mt-2 -mb-2 z-10 relative">
-                    <div className="bg-white p-1 rounded-xl border shadow-sm flex gap-1 w-full max-w-md">
-                        <Button 
-                            variant={listenSubMode === 'flashcard' ? 'default' : 'ghost'} 
-                            onClick={() => setListenSubMode('flashcard')}
-                            className={`flex-1 rounded-lg text-sm ${listenSubMode === 'flashcard' ? 'shadow-sm' : ''}`} size="sm"
-                        >Flashcard</Button>
-                        <Button 
-                            variant={listenSubMode === 'meaning_quiz' ? 'default' : 'ghost'} 
-                            onClick={() => setListenSubMode('meaning_quiz')}
-                            className={`flex-1 rounded-lg text-sm ${listenSubMode === 'meaning_quiz' ? 'shadow-sm' : ''}`} size="sm"
-                        >Trắc nghiệm nghĩa</Button>
-                        <Button 
-                            variant={listenSubMode === 'word_sort' ? 'default' : 'ghost'} 
-                            onClick={() => setListenSubMode('word_sort')}
-                            className={`flex-1 rounded-lg text-sm ${listenSubMode === 'word_sort' ? 'shadow-sm' : ''}`} size="sm"
-                        >Xếp câu</Button>
-                    </div>
-                </div>
-            )}
-
             {/* Main Question Area */}
             <div className="bg-white rounded-2xl border shadow-sm p-5 md:p-8 text-center space-y-6 md:space-y-8 relative overflow-hidden">
                 {/* Visualizer / Timer */}
-                <div className="h-32 flex flex-col items-center justify-center">
-                    {audioState === 'playing' && (
-                        <div className="flex items-center gap-2">
-                            <div className="w-2 h-8 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                            <div className="w-2 h-12 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '100ms' }}></div>
-                            <div className="w-2 h-8 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '200ms' }}></div>
-                            <span className="ml-4 text-blue-600 font-medium">Giám khảo đang đọc câu hỏi...</span>
-                        </div>
-                    )}
-
-                    {audioState === 'ended' && timeLeft !== null && (
-                        <div className="flex flex-col items-center animate-in fade-in zoom-in duration-300">
-                            <div className={`text-5xl md:text-6xl font-black ${timeLeft > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
-                                {timeLeft}s
+                {mode !== 'word_sort' && (
+                    <div className="h-32 flex flex-col items-center justify-center">
+                        {audioState === 'playing' && (
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-8 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                                <div className="w-2 h-12 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '100ms' }}></div>
+                                <div className="w-2 h-8 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '200ms' }}></div>
+                                <span className="ml-4 text-blue-600 font-medium">Giám khảo đang đọc câu hỏi...</span>
                             </div>
-                            {timeLeft > 0 ? (
-                                <p className="text-gray-500 mt-2 font-medium">Thời gian suy nghĩ...</p>
-                            ) : (
-                                <p className="text-gray-500 mt-2 font-medium">Hết thời gian suy nghĩ!</p>
-                            )}
-                        </div>
-                    )}
-                    
-                    {audioState === 'error' && (
-                        <div className="text-red-500 font-medium">Lỗi tải âm thanh. Bạn có thể bỏ qua hoặc thử lại.</div>
-                    )}
-                </div>
+                        )}
+
+                        {audioState === 'ended' && timeLeft !== null && (
+                            <div className="flex flex-col items-center animate-in fade-in zoom-in duration-300">
+                                <div className={`text-5xl md:text-6xl font-black ${timeLeft > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
+                                    {timeLeft}s
+                                </div>
+                                {timeLeft > 0 ? (
+                                    <p className="text-gray-500 mt-2 font-medium">Thời gian suy nghĩ...</p>
+                                ) : (
+                                    <p className="text-gray-500 mt-2 font-medium">Hết thời gian suy nghĩ!</p>
+                                )}
+                            </div>
+                        )}
+                        
+                        {audioState === 'error' && (
+                            <div className="text-red-500 font-medium">Lỗi tải âm thanh. Bạn có thể bỏ qua hoặc thử lại.</div>
+                        )}
+                    </div>
+                )}
 
                 {/* Actions */}
                 <div className="flex flex-col items-center justify-center gap-6">
@@ -345,28 +303,28 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
                     )}
 
                     {/* Mode Specific UI */}
-                    {audioState === 'ended' && timeLeft !== null && (
+                    {audioState === 'ended' && (timeLeft !== null || mode === 'word_sort') && (
                         <div className="w-full max-w-2xl mt-4 transition-all duration-500">
-                            {mode === 'listen_only' ? (
+                            {isListenOnly ? (
                                 <div className="space-y-4">
-                                    {listenSubMode === 'flashcard' && (
+                                    {mode === 'flashcard' && (
                                         <FlashcardMode 
                                             currentQ={currentQ} 
                                             onKnown={handleKnown} 
                                             onNotKnown={handleNotKnown} 
-                                            timeLeft={timeLeft} 
+                                            timeLeft={timeLeft || 0} 
                                         />
                                     )}
-                                    {listenSubMode === 'meaning_quiz' && (
+                                    {mode === 'meaning_quiz' && (
                                         <MeaningQuizMode 
                                             currentQ={currentQ} 
                                             onKnown={handleKnown} 
                                             onNotKnown={handleNotKnown} 
-                                            timeLeft={timeLeft}
+                                            timeLeft={timeLeft || 0}
                                             questions={questions}
                                         />
                                     )}
-                                    {listenSubMode === 'word_sort' && (
+                                    {mode === 'word_sort' && (
                                         <WordSortMode 
                                             currentQ={currentQ} 
                                             onKnown={handleKnown} 
@@ -389,7 +347,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
                                             variant={isRecording ? "destructive" : "default"}
                                             className={`w-16 h-16 md:w-20 md:h-20 rounded-full shadow-lg transition-all ${isRecording ? 'scale-110 shadow-red-200 shadow-2xl' : 'hover:scale-105'}`}
                                             onClick={toggleRecording}
-                                            disabled={!hasBrowserSupport || timeLeft > 0}
+                                            disabled={!hasBrowserSupport || (timeLeft || 0) > 0}
                                         >
                                             {isRecording ? <Square className="w-6 h-6 md:w-8 md:h-8" /> : <Mic className="w-6 h-6 md:w-8 md:h-8" />}
                                         </Button>
@@ -406,11 +364,11 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
                                         
                                         <div className="text-sm text-gray-500 font-medium flex flex-col items-center gap-2">
                                             <span>
-                                                {timeLeft > 0 
+                                                {(timeLeft || 0) > 0 
                                                     ? 'Vui lòng chờ hết thời gian suy nghĩ' 
                                                     : isRecording ? 'Đang ghi âm... Chạm để kết thúc' : 'Chạm 1 lần để bắt đầu trả lời'}
                                             </span>
-                                            {currentQ?.category === 'Khẩu lệnh' && timeLeft <= 0 && !isRecording && (
+                                            {currentQ?.category === 'Khẩu lệnh' && (timeLeft || 0) <= 0 && !isRecording && (
                                                 <span className="text-blue-700 bg-blue-100 px-3 py-1 rounded-full text-xs font-bold animate-pulse">
                                                     💡 Yêu cầu: Trả lời bằng Tiếng Việt
                                                 </span>
@@ -441,8 +399,11 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
                 </div>
             </div>
 
-            {/* Footer Nav */}
-            <div className="flex justify-end pt-4">
+            {/* Footer Nav & FAB */}
+            <div className="flex justify-between items-center pt-4">
+                <Button variant="outline" size="lg" onClick={() => setIsDrawerOpen(true)} className="rounded-full font-semibold text-gray-700 bg-white hover:text-blue-600 hover:bg-blue-50 border-gray-200 shadow-sm">
+                    <Menu className="w-5 h-5 mr-2" /> Danh sách câu
+                </Button>
                 <Button size="lg" onClick={handleNext} className="rounded-xl px-8 shadow-sm">
                     {queue.length > 1 ? 'Câu tiếp theo' : 'Hoàn thành'}
                 </Button>

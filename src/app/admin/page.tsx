@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, FileText, Activity, GraduationCap } from "lucide-react"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { OnlineUsersCounter } from "@/components/admin/OnlineUsersCounter"
 
 export const dynamic = 'force-dynamic'
 
@@ -71,8 +72,8 @@ export default async function AdminDashboardPage() {
                         <Activity className="h-4 w-4 text-green-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-green-500">Online</div>
-                        <p className="text-xs text-muted-foreground">Đang hoạt động ổn định</p>
+                        <OnlineUsersCounter />
+                        <p className="text-xs text-muted-foreground mt-1">Đang truy cập thời gian thực</p>
                     </CardContent>
                 </Card>
             </div>

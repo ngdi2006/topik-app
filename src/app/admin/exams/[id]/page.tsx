@@ -34,6 +34,7 @@ import {
     X,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { ExamAssignments } from '@/components/admin/ExamAssignments'
 
 const stripHtml = (html: string | undefined | null) => {
     if (!html) return ''
@@ -498,9 +499,14 @@ export default function AdminExamBuilderPage() {
                                 <SelectContent>
                                     <SelectItem value="Draft">Nháp</SelectItem>
                                     <SelectItem value="Published">Xuất bản</SelectItem>
+                                    <SelectItem value="Internal">Thi thử nội bộ</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
+
+                        {metaForm.status === 'Internal' && (
+                            <ExamAssignments examId={examId} />
+                        )}
 
                         <div className="space-y-2">
                             <Label>Thứ tự hiển thị</Label>

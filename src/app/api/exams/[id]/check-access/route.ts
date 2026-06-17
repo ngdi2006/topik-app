@@ -23,12 +23,29 @@ export async function GET(
         // Check if exam exists and get all needed info using admin client to bypass RLS
         const { data: exam, error: examError } = await adminClient
             .from('exams')
-            .select('id, title, is_free, free_attempts, credits_required')
+            .select('id, title, is_free, free_attempts, credits_required, status')
             .eq('id', examId)
             .single()
 
         if (examError || !exam) {
             return NextResponse.json({ error: 'Exam not found', details: examError }, { status: 404 })
+        }
+
+        // Check internal exam assignment
+        if (exam.status === 'Internal') {
+            const { data: assignment, error: assignmentError } = await adminClient
+                .from('exam_assignments')
+                .select('id')
+                .eq('exam_id', examId)
+                .eq('user_id', user.id)
+                .maybeSingle()
+            
+            if (assignmentError && assignmentError.code !== '42P01') {
+                 return NextResponse.json({ error: 'Lỗi kiểm tra quyền truy cập' }, { status: 500 })
+            }
+            if (!assignment) {
+                return NextResponse.json({ error: 'Bạn không có quyền truy cập đề thi nội bộ này' }, { status: 403 })
+            }
         }
 
         // Get user credits (may not exist for new users)

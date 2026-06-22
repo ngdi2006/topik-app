@@ -11,7 +11,7 @@ import { VocabBulkImportModal } from "@/components/admin/VocabBulkImportModal"
 import { VocabFormModal } from "@/components/admin/VocabFormModal"
 
 const INDUSTRY_LABELS: Record<string, string> = {
-    'COMMON': 'Chung (Tất cả ngành)',
+    'ALL': 'Dùng chung cho các ngành (ALL)',
     'MANUFACTURING': 'Sản xuất chế tạo',
     'FISHERY': 'Ngư nghiệp',
     'AGRICULTURE': 'Nông nghiệp',
@@ -30,8 +30,8 @@ export default function VocabularyVong2AdminPage() {
     // Filters & Pagination
     const [search, setSearch] = useState('')
     const [debouncedSearch, setDebouncedSearch] = useState('')
-    const [industryFilter, setIndustryFilter] = useState('ALL')
-    const [typeFilter, setTypeFilter] = useState('ALL')
+    const [industryFilter, setIndustryFilter] = useState('ANY')
+    const [typeFilter, setTypeFilter] = useState('ANY')
     
     const [page, setPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
@@ -51,8 +51,8 @@ export default function VocabularyVong2AdminPage() {
         try {
             const url = new URL('/api/admin/vocabulary-vong2', window.location.origin)
             if (debouncedSearch) url.searchParams.set('search', debouncedSearch)
-            if (industryFilter !== 'ALL') url.searchParams.set('industry', industryFilter)
-            if (typeFilter !== 'ALL') url.searchParams.set('type', typeFilter)
+            if (industryFilter !== 'ANY') url.searchParams.set('industry', industryFilter)
+            if (typeFilter !== 'ANY') url.searchParams.set('type', typeFilter)
             url.searchParams.set('page', page.toString())
             url.searchParams.set('limit', limit.toString())
 
@@ -125,7 +125,7 @@ export default function VocabularyVong2AdminPage() {
                                     <SelectValue placeholder="Ngành nghề" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="ALL">Tất cả ngành nghề</SelectItem>
+                                    <SelectItem value="ANY">Tất cả ngành nghề</SelectItem>
                                     {Object.entries(INDUSTRY_LABELS).map(([k, v]) => (
                                         <SelectItem key={k} value={k}>{v}</SelectItem>
                                     ))}
@@ -137,7 +137,7 @@ export default function VocabularyVong2AdminPage() {
                                     <SelectValue placeholder="Phân loại" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="ALL">Tất cả loại</SelectItem>
+                                    <SelectItem value="ANY">Tất cả loại</SelectItem>
                                     <SelectItem value="TOOL">Dụng cụ (TOOL)</SelectItem>
                                     <SelectItem value="SIGN">Biển báo (SIGN)</SelectItem>
                                     <SelectItem value="COMMAND">Khẩu lệnh (COMMAND)</SelectItem>

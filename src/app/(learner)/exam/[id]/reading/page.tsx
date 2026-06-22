@@ -43,19 +43,26 @@ export default function ReadingPage() {
                     throw new Error(data.error)
                 }
 
+                // Sort questions: reading first, then listening to ensure sidebar grouping is correct
+                const sortedAllQuestions = [...data.attempt.questions].sort((a: any, b: any) => {
+                    if (a.section === 'reading' && b.section === 'listening') return -1;
+                    if (a.section === 'listening' && b.section === 'reading') return 1;
+                    return 0;
+                });
+
                 // Filter reading questions
-                const readingQuestions = data.attempt.questions.filter(
+                const readingQuestions = sortedAllQuestions.filter(
                     (q: any) => q.section === 'reading'
                 )
 
                 // Check if exam has listening section
-                const listeningQuestions = data.attempt.questions.filter(
+                const listeningQuestions = sortedAllQuestions.filter(
                     (q: any) => q.section === 'listening'
                 )
                 setHasListening(listeningQuestions.length > 0)
 
                 // Set all questions for sidebar (reading + listening)
-                setAllQuestions(data.attempt.questions)
+                setAllQuestions(sortedAllQuestions)
                 setQuestions(readingQuestions)
                 setExam(data.exam)
                 setTimeLeft((data.exam.reading_duration || 40) * 60)
@@ -145,34 +152,10 @@ export default function ReadingPage() {
         }
     }, [allowNavigation, router])
 
-    // Timer countdown
-    useEffect(() => {
-        if (timeLeft <= 0 || isLoading) return
-
-        const timer = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) {
-                    handleNext()
-                    return 0
-                }
-                return prev - 1
-            })
-        }, 1000)
-
-        return () => clearInterval(timer)
-    }, [timeLeft, isLoading])
-
-    const handleAnswerSelect = (questionId: string, optionIndex: number) => {
-        setAnswers((prev) => ({
-            ...prev,
-            [questionId]: optionIndex,
-        }))
-    }
-
-    const handleNext = async () => {
+    const handleNext = useCallback(async (isAutoSubmit: boolean = false) => {
         if (isSubmitting) return
 
-        if (!hasListening) {
+        if (!hasListening && !isAutoSubmit) {
             const confirmed = window.confirm('Bạn muốn nộp bài? Sau khi đồng ý, hệ thống sẽ kết thúc bài thi và tính điểm.')
             if (!confirmed) return
         }
@@ -201,7 +184,11 @@ export default function ReadingPage() {
                 throw new Error(data.error)
             }
 
-            toast.success('Đã lưu phần Đọc hiểu!')
+            if (!isAutoSubmit) {
+                toast.success('Đã lưu phần Đọc hiểu!')
+            } else {
+                toast.success('Đã hết thời gian phần Đọc hiểu!')
+            }
 
             // Nếu có phần Nghe → đi đến transition
             if (hasListening) {
@@ -219,6 +206,30 @@ export default function ReadingPage() {
             toast.error(error.message || 'Lỗi lưu bài')
             setIsSubmitting(false)
         }
+    }, [isSubmitting, hasListening, questions, answers, examId, attemptId, router])
+
+    // Timer countdown
+    useEffect(() => {
+        if (timeLeft <= 0 || isLoading) return
+
+        const timer = setInterval(() => {
+            setTimeLeft((prev) => {
+                if (prev <= 1) {
+                    handleNext(true)
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+
+        return () => clearInterval(timer)
+    }, [timeLeft, isLoading, handleNext])
+
+    const handleAnswerSelect = (questionId: string, optionIndex: number) => {
+        setAnswers((prev) => ({
+            ...prev,
+            [questionId]: optionIndex,
+        }))
     }
 
     const formatTime = (seconds: number) => {
@@ -443,7 +454,7 @@ export default function ReadingPage() {
                             {/* Show button only when all reading questions are answered */}
                             {allAnsweredReading && (
                                 <Button
-                                    onClick={handleNext}
+                                    onClick={() => handleNext(false)}
                                     disabled={isSubmitting}
                                     className={`w-full mb-4 shadow-sm font-semibold ${hasListening ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'}`}
                                 >

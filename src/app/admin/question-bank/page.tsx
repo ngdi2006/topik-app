@@ -521,8 +521,19 @@ export default function QuestionBankPage() {
                                             Level {q.level}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-3 max-w-md truncate">
-                                        {q.question_text}
+                                    <td className="px-4 py-3 max-w-md">
+                                        <div 
+                                            className="font-medium truncate mb-1"
+                                            title="Câu hỏi"
+                                            dangerouslySetInnerHTML={{ __html: q.question_text }}
+                                        />
+                                        {q.passage && (
+                                            <div 
+                                                className="text-xs text-muted-foreground line-clamp-2 mt-1 border-l-2 border-gray-200 pl-2"
+                                                title="Nội dung đính kèm"
+                                                dangerouslySetInnerHTML={{ __html: q.passage }}
+                                            />
+                                        )}
                                     </td>
                                     <td className="px-4 py-3">{q.points}</td>
                                     <td className="px-4 py-3">

@@ -754,50 +754,49 @@ export default function AdminExamBuilderPage() {
                                         return a.order_index - b.order_index
                                     })
                                     .map((fq, idx) => (
-                                    <div
-                                        key={fq.id}
-                                        className="flex items-center justify-between px-3 py-2 rounded-lg border bg-gray-50 text-sm"
-                                    >
-                                        <div className="flex items-center gap-2 min-w-0">
-                                            <span className="px-1.5 py-0.5 bg-white rounded text-xs font-mono shrink-0">
-                                                #{idx + 1}
-                                            </span>
-                                            <span className={`px-1.5 py-0.5 rounded text-xs shrink-0 ${
-                                                fq.question_type === 'reading'
-                                                    ? 'bg-blue-100 text-blue-700'
-                                                    : 'bg-purple-100 text-purple-700'
-                                            }`}>
-                                                {fq.question_type === 'reading' ? 'Đọc' : 'Nghe'}
-                                            </span>
-                                            <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-xs shrink-0">
-                                                Lv.{fq.question_bank?.level}
-                                            </span>
-                                            <span className="truncate text-muted-foreground">
-                                                {stripHtml(fq.question_bank?.question_text).substring(0, 150)}
-                                                {stripHtml(fq.question_bank?.question_text).length > 150 ? '...' : ''}
-                                            </span>
+                                        <div
+                                            key={fq.id}
+                                            className="flex items-center justify-between px-3 py-2 rounded-lg border bg-gray-50 text-sm"
+                                        >
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className="px-1.5 py-0.5 bg-white rounded text-xs font-mono shrink-0">
+                                                    #{idx + 1}
+                                                </span>
+                                                <span className={`px-1.5 py-0.5 rounded text-xs shrink-0 ${fq.question_type === 'reading'
+                                                        ? 'bg-blue-100 text-blue-700'
+                                                        : 'bg-purple-100 text-purple-700'
+                                                    }`}>
+                                                    {fq.question_type === 'reading' ? 'Đọc' : 'Nghe'}
+                                                </span>
+                                                <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-xs shrink-0">
+                                                    Lv.{fq.question_bank?.level}
+                                                </span>
+                                                <span className="truncate text-muted-foreground">
+                                                    {stripHtml(fq.question_bank?.question_text).substring(0, 150)}
+                                                    {stripHtml(fq.question_bank?.question_text).length > 150 ? '...' : ''}
+                                                </span>
+                                            </div>
+                                            <div className="flex gap-1 shrink-0">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7"
+                                                    onClick={() => router.push(`/admin/question-bank/${fq.question_bank_id}`)}
+                                                    title="Sửa câu hỏi"
+                                                >
+                                                    <Edit className="w-3.5 h-3.5" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-red-500 hover:text-red-700"
+                                                    onClick={() => handleRemoveFreeQuestion(fq.question_bank_id)}
+                                                >
+                                                    <X className="w-3.5 h-3.5" />
+                                                </Button>
+                                            </div>
                                         </div>
-                                        <div className="flex gap-1 shrink-0">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7"
-                                                onClick={() => router.push(`/admin/question-bank/${fq.question_bank_id}`)}
-                                                title="Sửa câu hỏi"
-                                            >
-                                                <Edit className="w-3.5 h-3.5" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7 text-red-500 hover:text-red-700"
-                                                onClick={() => handleRemoveFreeQuestion(fq.question_bank_id)}
-                                            >
-                                                <X className="w-3.5 h-3.5" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ))}
+                                    ))}
                                 <div className="flex gap-4 pt-2 text-xs text-muted-foreground">
                                     <span>📖 Đọc: {freeQuestions.filter(q => q.question_type === 'reading').length} câu</span>
                                     <span>🎧 Nghe: {freeQuestions.filter(q => q.question_type === 'listening').length} câu</span>
@@ -850,11 +849,10 @@ export default function AdminExamBuilderPage() {
                                     setPoolFilter({ ...poolFilter, freeOnly: !poolFilter.freeOnly })
                                     setPoolPage(1)
                                 }}
-                                className={`flex items-center gap-1.5 px-3 py-2 rounded-md border text-sm font-medium transition-colors whitespace-nowrap ${
-                                    poolFilter.freeOnly
+                                className={`flex items-center gap-1.5 px-3 py-2 rounded-md border text-sm font-medium transition-colors whitespace-nowrap ${poolFilter.freeOnly
                                         ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
                                         : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                                }`}
+                                    }`}
                             >
                                 <Gift className="w-3.5 h-3.5" />
                                 Chỉ câu Free
@@ -908,11 +906,10 @@ export default function AdminExamBuilderPage() {
                                                 />
                                                 <div className="min-w-0 flex-1">
                                                     <div className="flex items-center gap-1.5 mb-1">
-                                                        <span className={`px-1.5 py-0.5 rounded text-xs ${
-                                                            q.question_type === 'reading'
+                                                        <span className={`px-1.5 py-0.5 rounded text-xs ${q.question_type === 'reading'
                                                                 ? 'bg-blue-100 text-blue-700'
                                                                 : 'bg-purple-100 text-purple-700'
-                                                        }`}>
+                                                            }`}>
                                                             {q.question_type === 'reading' ? 'Đọc' : 'Nghe'}
                                                         </span>
                                                         <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-xs">

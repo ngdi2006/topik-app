@@ -40,17 +40,17 @@ export default function HistoryPage() {
                     <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard')}>
                         <ChevronLeft className="w-5 h-5 text-gray-600" />
                     </Button>
-                    <div className="font-bold text-xl text-primary">Lịch sử làm bài</div>
+                    <div className="font-bold text-xl text-primary">Báo cáo tổng quát</div>
                 </div>
                 <UserNav />
             </header>
 
             <main className="flex-1 p-6 md:p-10 max-w-5xl mx-auto w-full">
                 {/* Title + Stats */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Báo cáo quá trình luyện thi</h1>
-                        <p className="text-muted-foreground mt-2">Xem lại điểm số và bài thi bạn đã hoàn thành.</p>
+                        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Lịch sử bài thi</h1>
+                        <p className="text-sm text-muted-foreground mt-1">Xem lại điểm số và kết quả các bài thi bạn đã hoàn thành.</p>
                     </div>
                     <div className="bg-white px-4 py-2 border rounded-full flex items-center shadow-sm">
                         <Award className="w-5 h-5 text-yellow-500 mr-2" />
@@ -61,13 +61,7 @@ export default function HistoryPage() {
                 </div>
 
                 {/* Exam Attempts */}
-                <Card className="shadow-sm border-gray-200">
-                    <CardHeader className="bg-white border-b rounded-t-xl">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <Clock className="w-5 h-5 text-blue-500" />
-                            Lịch sử làm bài
-                        </CardTitle>
-                    </CardHeader>
+                <Card className="shadow-sm border-gray-200 overflow-hidden">
                     <CardContent className="p-0">
                         {isLoading ? (
                             <div className="py-20 text-center text-muted-foreground space-y-3">
@@ -108,57 +102,50 @@ export default function HistoryPage() {
                                     const secondsTaken = (record.time_taken || 0) % 60
 
                                     return (
-                                        <div key={record.id} className="p-5 sm:p-6 hover:bg-blue-50/40 transition-colors group">
-                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                        <div key={record.id} className="p-4 sm:p-5 hover:bg-gray-50/80 transition-colors group">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                                 <div className="flex-1 space-y-2">
-                                                    {/* Level & attempt badge */}
                                                     <div className="flex flex-wrap items-center gap-2">
-                                                        {/* Level badge hidden as requested */}
-                                                        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
+                                                        <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
                                                             Lần {record.attempt_number || 1}
                                                         </span>
                                                     </div>
 
-                                                    {/* Title */}
-                                                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-700 transition-colors leading-snug">
+                                                    <h3 className="text-base sm:text-lg font-bold text-gray-900 group-hover:text-primary transition-colors leading-snug line-clamp-2">
                                                         {examTitle}
                                                     </h3>
 
-                                                    {/* Meta */}
-                                                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <CalendarDays className="w-4 h-4 text-gray-400" />
+                                                    <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-gray-500">
+                                                        <div className="flex items-center gap-1">
+                                                            <CalendarDays className="w-3.5 h-3.5 text-gray-400" />
                                                             {completedDate}
                                                         </div>
-                                                        <div className="flex items-center gap-1.5">
-                                                            <Clock className="w-4 h-4 text-gray-400" />
-                                                            {minutesTaken} phút {secondsTaken} giây
+                                                        <div className="flex items-center gap-1">
+                                                            <Clock className="w-3.5 h-3.5 text-gray-400" />
+                                                            {minutesTaken}p {secondsTaken}s
                                                         </div>
                                                     </div>
 
-                                                    {/* Correct/Wrong count */}
-                                                    <div className="flex items-center gap-4 text-sm">
-                                                        <span className="flex items-center gap-1 text-green-600 font-medium">
+                                                    <div className="flex flex-wrap items-center gap-3 text-sm pt-1">
+                                                        <span className="flex items-center gap-1 text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded">
                                                             <CheckCircle2 className="w-4 h-4" />
                                                             {record.total_correct} đúng
                                                         </span>
-                                                        <span className="flex items-center gap-1 text-red-500 font-medium">
+                                                        <span className="flex items-center gap-1 text-red-600 font-medium bg-red-50 px-2 py-0.5 rounded">
                                                             <XCircle className="w-4 h-4" />
                                                             {record.wrong_count} sai
                                                         </span>
-                                                        <span className="text-lg font-bold text-gray-700">
-                                                            ({record.raw_score}/{record.total_points} điểm)
+                                                        <span className="font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">
+                                                            {record.raw_score}/{record.total_points} điểm
                                                         </span>
                                                     </div>
                                                 </div>
 
-                                                {/* Score + Action */}
-                                                <div className={`flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-4
-                                                    border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6 min-w-[120px]`}>
-                                                    <div className={`text-center px-6 py-4 rounded-xl ${scoreBg}`}>
-                                                        <p className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-1">Kết quả</p>
-                                                        <div className={`text-5xl font-black ${scoreColor} leading-none`}>
-                                                            {pct}<span className="text-xl font-semibold text-gray-400">%</span>
+                                                <div className="flex items-center justify-center sm:justify-end min-w-[100px] sm:pl-4 sm:border-l border-gray-100 mt-2 sm:mt-0">
+                                                    <div className={`text-center px-4 py-2 sm:px-5 sm:py-3 rounded-lg w-full sm:w-auto ${scoreBg} border border-transparent`}>
+                                                        <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Kết quả</p>
+                                                        <div className={`text-3xl sm:text-4xl font-black ${scoreColor} leading-none`}>
+                                                            {pct}<span className="text-base sm:text-lg font-bold opacity-60">%</span>
                                                         </div>
                                                     </div>
                                                 </div>

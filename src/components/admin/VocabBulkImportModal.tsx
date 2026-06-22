@@ -55,7 +55,7 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
                 'Tên File Âm Thanh': 'hammer.mp3'
             },
             {
-                'Ngành nghề': 'COMMON',
+                'Ngành nghề': 'ALL',
                 'Phân loại': 'SIGN',
                 'Tiếng Hàn': '금연',
                 'Tiếng Việt': 'Cấm hút thuốc',
@@ -63,7 +63,7 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
                 'Tên File Âm Thanh': 'no_smoking.mp3'
             },
             {
-                'Ngành nghề': 'COMMON',
+                'Ngành nghề': 'ALL',
                 'Phân loại': 'COMMAND',
                 'Tiếng Hàn': '앞으로 가세요',
                 'Tiếng Việt': 'Đi về phía trước',
@@ -93,7 +93,7 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
             ['FORESTRY', 'Lâm nghiệp'],
             ['SERVICE', 'Dịch vụ'],
             ['CONSTRUCTION', 'Xây dựng'],
-            ['COMMON', 'Chung (Tất cả ngành)'],
+            ['ALL', 'Dùng chung cho các ngành (ALL)'],
             [],
             ['2. CỘT "Phân loại" (Bắt buộc)'],
             ['Nhập 1 trong các mã sau viết hoa:'],
@@ -103,7 +103,7 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
             [],
             ['* LƯU Ý ĐỐI VỚI KHẨU LỆNH CHUNG:'],
             ['Để nhập khẩu lệnh dùng chung cho tất cả ngành, bạn vui lòng điền:'],
-            [' - Cột "Ngành nghề":', 'COMMON'],
+            [' - Cột "Ngành nghề":', 'ALL'],
             [' - Cột "Phân loại":', 'COMMAND'],
             [],
             ['3. CỘT "Tên File Ảnh" & "Tên File Âm Thanh" (Tùy chọn)'],
@@ -176,9 +176,9 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
                 const errors: string[] = []
                 let isValid = true
                 
-                const industryRaw = row['Ngành nghề'] || row['industry'] || 'COMMON'
+                const industryRaw = row['Ngành nghề'] || row['industry'] || 'ALL'
                 const industry = industryRaw.toUpperCase()
-                const validIndustries = ['MANUFACTURING', 'FISHERY', 'AGRICULTURE', 'FORESTRY', 'SERVICE', 'COMMON', 'CONSTRUCTION']
+                const validIndustries = ['MANUFACTURING', 'FISHERY', 'AGRICULTURE', 'FORESTRY', 'SERVICE', 'ALL', 'CONSTRUCTION']
                 if (!validIndustries.includes(industry)) {
                     errors.push(`Ngành nghề không hợp lệ: ${industry}`)
                     isValid = false

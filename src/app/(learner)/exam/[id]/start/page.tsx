@@ -19,6 +19,7 @@ export default function ExamStartPage() {
     const [accessInfo, setAccessInfo] = useState<any>(null)
     const [accessLoaded, setAccessLoaded] = useState(false)
     const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+    const [progressMessage, setProgressMessage] = useState('')
 
     useEffect(() => {
         const fetchData = async () => {
@@ -85,26 +86,49 @@ export default function ExamStartPage() {
         }
 
         setIsStarting(true)
-        const toastId = toast.loading('Đang chuẩn bị đề thi...')
+        
+        const messages = [
+            'Đang phân tích cấu trúc đề...',
+            'Đang chuẩn bị câu hỏi phần đọc...',
+            'Đang tải tệp âm thanh phần nghe...',
+            'Đang trộn ngẫu nhiên thứ tự câu hỏi...',
+            'Đang thiết lập phiên làm bài...',
+            'Sắp hoàn tất, vui lòng chờ...'
+        ]
+        
+        let msgIndex = 0
+        setProgressMessage(messages[0])
+        const toastId = toast.loading(messages[0])
+
+        const progressInterval = setInterval(() => {
+            msgIndex = Math.min(msgIndex + 1, messages.length - 1)
+            setProgressMessage(messages[msgIndex])
+            toast.loading(messages[msgIndex], { id: toastId })
+        }, 1200)
 
         try {
             // Start exam (will consume credit internally)
             const res = await fetch(`/api/exams/${examId}/start`, {
                 method: 'POST',
             })
+            
+            clearInterval(progressInterval)
             const data = await res.json()
 
             if (!data.success) {
                 throw new Error(data.error || 'Không thể bắt đầu thi')
             }
 
+            setProgressMessage('Đã hoàn tất đề!')
             toast.success('Bắt đầu làm bài!', { id: toastId })
 
             // Redirect to reading section
             router.push(`/exam/${examId}/reading?attemptId=${data.attempt.id}`)
         } catch (error: any) {
+            clearInterval(progressInterval)
             toast.error(error.message || 'Lỗi bắt đầu thi', { id: toastId })
             setIsStarting(false)
+            setProgressMessage('')
         }
     }
 
@@ -255,7 +279,7 @@ export default function ExamStartPage() {
                             {isStarting ? (
                                 <>
                                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                                    Đang chuẩn bị...
+                                    <span className="truncate max-w-[200px] md:max-w-none">{progressMessage || 'Đang chuẩn bị...'}</span>
                                 </>
                             ) : (
                                 <>

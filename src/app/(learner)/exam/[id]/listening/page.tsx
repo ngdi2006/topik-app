@@ -52,7 +52,14 @@ export default function ListeningPage() {
                     throw new Error(data.error)
                 }
 
-                const listeningQuestions = data.attempt.questions.filter(
+                // Sort questions: reading first, then listening to ensure sidebar grouping is correct
+                const sortedAllQuestions = [...data.attempt.questions].sort((a: any, b: any) => {
+                    if (a.section === 'reading' && b.section === 'listening') return -1;
+                    if (a.section === 'listening' && b.section === 'reading') return 1;
+                    return 0;
+                });
+
+                const listeningQuestions = sortedAllQuestions.filter(
                     (q: any) => q.section === 'listening'
                 )
 
@@ -63,7 +70,7 @@ export default function ListeningPage() {
                 }
 
                 // Count reading questions for continuous numbering
-                const readingQuestions = data.attempt.questions.filter(
+                const readingQuestions = sortedAllQuestions.filter(
                     (q: any) => q.section === 'reading'
                 )
                 setReadingCount(readingQuestions.length)
@@ -80,7 +87,7 @@ export default function ListeningPage() {
                 }
 
                 // Set all questions for sidebar (reading + listening)
-                setAllQuestions(data.attempt.questions)
+                setAllQuestions(sortedAllQuestions)
                 setQuestions(listeningQuestions)
                 setExam(data.exam)
                 setTimeLeft((data.exam.listening_duration || 30) * 60)
@@ -159,28 +166,13 @@ export default function ListeningPage() {
         }
     }, [allowNavigation, router])
 
-    // Total time countdown
-    useEffect(() => {
-        if (timeLeft <= 0 || isLoading) return
-
-        const timer = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) {
-                    handleSubmitAll()
-                    return 0
-                }
-                return prev - 1
-            })
-        }, 1000)
-
-        return () => clearInterval(timer)
-    }, [timeLeft, isLoading])
-
-    const handleSubmitAll = useCallback(async () => {
+    const handleSubmitAll = useCallback(async (isAutoSubmit: boolean = false) => {
         if (isSubmitting) return
 
-        const confirmed = window.confirm('Bạn muốn nộp bài? Sau khi đồng ý, hệ thống sẽ kết thúc bài thi và tính điểm.')
-        if (!confirmed) return
+        if (!isAutoSubmit) {
+            const confirmed = window.confirm('Bạn muốn nộp bài? Sau khi đồng ý, hệ thống sẽ kết thúc bài thi và tính điểm.')
+            if (!confirmed) return
+        }
 
         setIsSubmitting(true)
         setAllowNavigation(true) // Allow navigation when submitting
@@ -210,7 +202,11 @@ export default function ListeningPage() {
                 throw new Error(data.error)
             }
 
-            toast.success('Đã lưu phần Nghe hiểu!')
+            if (!isAutoSubmit) {
+                toast.success('Đã lưu phần Nghe hiểu!')
+            } else {
+                toast.success('Đã hết thời gian! Hệ thống tự động nộp bài.')
+            }
             router.push(`/exam/${examId}/submit?attemptId=${attemptId}`)
         } catch (error: any) {
             if (error.message?.includes('Unauthorized')) {
@@ -222,6 +218,23 @@ export default function ListeningPage() {
             setIsSubmitting(false)
         }
     }, [isSubmitting, questions, answers, examId, attemptId, router])
+
+    // Total time countdown
+    useEffect(() => {
+        if (timeLeft <= 0 || isLoading) return
+
+        const timer = setInterval(() => {
+            setTimeLeft((prev) => {
+                if (prev <= 1) {
+                    handleSubmitAll(true)
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+
+        return () => clearInterval(timer)
+    }, [timeLeft, isLoading, handleSubmitAll])
 
     const startQuestionTimer = useCallback((question: any, questionIndex: number) => {
         const timeLimit = question.time_per_question || 15
@@ -265,6 +278,29 @@ export default function ListeningPage() {
         }))
     }
 
+    const getDirectAudioUrl = (url: string) => {
+        if (!url) return url;
+        // Check if it's a Google Drive file/d/ link
+        const driveRegex = /drive\.google\.com\/file\/d\/([^\/]+)/;
+        const match = url.match(driveRegex);
+        if (match && match[1]) {
+            return `https://drive.google.com/uc?export=download&id=${match[1]}`;
+        }
+        // Check if it's a Google Drive open?id= link
+        const driveOpenRegex = /drive\.google\.com\/open\?id=([^&]+)/;
+        const matchOpen = url.match(driveOpenRegex);
+        if (matchOpen && matchOpen[1]) {
+            return `https://drive.google.com/uc?export=download&id=${matchOpen[1]}`;
+        }
+        // Check if it's a Google Drive uc?id= link (already correct but we can ensure export=download)
+        const driveUcRegex = /drive\.google\.com\/uc\?id=([^&]+)/;
+        const matchUc = url.match(driveUcRegex);
+        if (matchUc && matchUc[1] && !url.includes('export=download')) {
+             return `https://drive.google.com/uc?export=download&id=${matchUc[1]}`;
+        }
+        return url;
+    }
+
     // Auto-play audio when question changes
     useEffect(() => {
         if (questions.length === 0 || isLoading) return
@@ -282,7 +318,7 @@ export default function ListeningPage() {
 
         // Auto-play audio
         if (currentQ.audio_url && audioRef.current) {
-            audioRef.current.src = currentQ.audio_url
+            audioRef.current.src = getDirectAudioUrl(currentQ.audio_url)
 
             // Try to play
             const playPromise = audioRef.current.play()
@@ -429,15 +465,16 @@ export default function ListeningPage() {
                                         <button
                                             onClick={() => {
                                                 if (audioRef.current) {
-                                                    if (!audioRef.current.src || !audioRef.current.src.includes(currentQuestion.audio_url)) {
-                                                        audioRef.current.src = currentQuestion.audio_url;
+                                                    const directUrl = getDirectAudioUrl(currentQuestion.audio_url);
+                                                    if (!audioRef.current.src || !audioRef.current.src.includes(directUrl)) {
+                                                        audioRef.current.src = directUrl;
                                                     }
                                                     audioRef.current.play().then(() => {
                                                         setAudioPlaying(true)
                                                         setAudioError(false)
                                                     }).catch((err) => {
                                                         console.error('Manual play error:', err)
-                                                        toast.error('Không thể phát audio. Vui lòng kiểm tra lại.')
+                                                        toast.error('Lỗi phát audio: File có thể bị lỗi, không đúng định dạng (.mp3) hoặc không có quyền truy cập.')
                                                     })
                                                 }
                                             }}
@@ -588,7 +625,7 @@ export default function ListeningPage() {
                         <Card className="p-4 sticky top-24 flex flex-col max-h-[calc(100vh-6rem)]">
                             {/* Nút Nộp Bài - luôn hiển thị */}
                             <Button
-                                onClick={handleSubmitAll}
+                                onClick={() => handleSubmitAll(false)}
                                 disabled={isSubmitting}
                                 size="lg"
                                 className="w-full mb-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"

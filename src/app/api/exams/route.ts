@@ -6,7 +6,7 @@ export async function GET() {
     try {
         const supabase = await createClient()
         const adminSupabase = createAdminClient()
-        
+
         // 1. Get current user
         const { data: { user } } = await supabase.auth.getUser()
 
@@ -34,7 +34,7 @@ export async function GET() {
             }
 
             assignedExamIds = (assignments || []).map((a: any) => a.exam_id)
-            
+
             if (assignedExamIds.length > 0) {
                 examsQuery = examsQuery.in('status', ['Published', 'Internal'])
             } else {
@@ -48,7 +48,7 @@ export async function GET() {
         const { data: exams, error } = await examsQuery
 
         if (error) throw error
-        
+
         let filteredExams = exams || []
         if (user && assignedExamIds.length > 0) {
             filteredExams = filteredExams.filter(exam => {
@@ -61,7 +61,7 @@ export async function GET() {
         // 3. If user is logged in, calculate remaining free attempts
         if (user && filteredExams && filteredExams.length > 0) {
             const examIds = filteredExams.map(e => e.id)
-            
+
             // Get attempt counts for these exams for this user
             const { data: attempts } = await adminSupabase
                 .from('exam_attempts')
@@ -74,7 +74,7 @@ export async function GET() {
                 return acc
             }, {})
 
-            const examsWithRemaining = exams.map(exam => {
+            const examsWithRemaining = filteredExams.map(exam => {
                 const totalAttempts = attemptCounts[exam.id] || 0
                 const configuredFree = exam.free_attempts ?? 0
                 const remaining = Math.max(0, configuredFree - totalAttempts)
@@ -88,7 +88,7 @@ export async function GET() {
         }
 
         // If no user, just return exams with remaining = configured
-        const examsWithDefaultRemaining = exams?.map(exam => ({
+        const examsWithDefaultRemaining = filteredExams?.map(exam => ({
             ...exam,
             remaining_free_attempts: exam.free_attempts ?? 0
         }))

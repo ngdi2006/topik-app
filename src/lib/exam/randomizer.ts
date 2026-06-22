@@ -334,6 +334,19 @@ export async function generateRandomQuestionsForUser(
         allSelectedQuestions.push(...snapshots)
     }
 
+    // Sort questions to ensure reading comes first, then listening
+    // Since the exam flow is Reading -> Listening
+    allSelectedQuestions.sort((a, b) => {
+        if (a.section === 'reading' && b.section === 'listening') return -1;
+        if (a.section === 'listening' && b.section === 'reading') return 1;
+        return 0;
+    });
+
+    // Re-assign order based on the new sorted array
+    allSelectedQuestions.forEach((q, idx) => {
+        q.order = idx;
+    });
+
     return allSelectedQuestions
 }
 

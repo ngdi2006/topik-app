@@ -13,8 +13,8 @@ export async function GET(req: Request) {
 
         // Build count query
         let countQuery = admin.from('vocabulary_vong2').select('*', { count: 'exact', head: true })
-        if (industry && industry !== 'ALL') countQuery = countQuery.eq('industry', industry)
-        if (type && type !== 'ALL') countQuery = countQuery.eq('type', type)
+        if (industry && industry !== 'ANY') countQuery = countQuery.eq('industry', industry)
+        if (type && type !== 'ANY') countQuery = countQuery.eq('type', type)
         if (search) countQuery = countQuery.or(`word_kr.ilike.%${search}%,word_vi.ilike.%${search}%`)
         
         const { count, error: countError } = await countQuery
@@ -23,8 +23,8 @@ export async function GET(req: Request) {
 
         // Build data query
         let query = admin.from('vocabulary_vong2').select('*').order('created_at', { ascending: false })
-        if (industry && industry !== 'ALL') query = query.eq('industry', industry)
-        if (type && type !== 'ALL') query = query.eq('type', type)
+        if (industry && industry !== 'ANY') query = query.eq('industry', industry)
+        if (type && type !== 'ANY') query = query.eq('type', type)
         if (search) query = query.or(`word_kr.ilike.%${search}%,word_vi.ilike.%${search}%`)
         
         const from = (page - 1) * limit

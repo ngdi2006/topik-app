@@ -241,18 +241,27 @@ export default function DashboardPage() {
     const handleSaveDob = async () => {
         if (!user?.id || !userDob) return
         setIsSavingDob(true)
-        const { error } = await supabase.from('profiles').update({ date_of_birth: userDob }).eq('id', user.id)
-        setIsSavingDob(false)
-
-        if (!error) {
-            setProfileDob(userDob)
-            setShowDobModal(false)
-            if (examAwaitingDob) {
-                setSelectedOfficialExam(examAwaitingDob)
-                setExamAwaitingDob(null)
+        try {
+            const res = await fetch('/api/learner/update-dob', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dob: userDob })
+            })
+            const data = await res.json()
+            if (data.success) {
+                setProfileDob(userDob)
+                setShowDobModal(false)
+                if (examAwaitingDob) {
+                    setSelectedOfficialExam(examAwaitingDob)
+                    setExamAwaitingDob(null)
+                }
+            } else {
+                throw new Error(data.error)
             }
-        } else {
-            alert("Có lỗi xảy ra khi lưu ngày sinh. Vui lòng thử lại.")
+        } catch (error: any) {
+            alert("Có lỗi xảy ra khi lưu ngày sinh. Vui lòng thử lại: " + error.message)
+        } finally {
+            setIsSavingDob(false)
         }
     }
 

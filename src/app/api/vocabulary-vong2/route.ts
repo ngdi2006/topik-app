@@ -17,7 +17,7 @@ export async function GET(request: Request) {
             .order('created_at', { ascending: false })
 
         if (industry && industry !== 'ALL') {
-            query = query.eq('industry', industry)
+            query = query.in('industry', [industry, 'ALL'])
         }
 
         if (type) {

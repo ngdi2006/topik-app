@@ -30,12 +30,12 @@ export async function POST(
         // Use admin client to bypass RLS for question selection
         const adminClient = createAdminClient()
 
-        // Verify exam exists and is published
+        // Verify exam exists and is published or internal
         const { data: exam, error: examError } = await adminClient
             .from('exams')
             .select('*')
             .eq('id', params.id)
-            .eq('status', 'Published')
+            .in('status', ['Published', 'Internal'])
             .single()
 
         if (examError || !exam) {
@@ -43,6 +43,23 @@ export async function POST(
                 { success: false, error: 'Đề thi trống hoặc không tồn tại' },
                 { status: 404 }
             )
+        }
+
+        // Check internal exam assignment
+        if (exam.status === 'Internal') {
+            const { data: assignment, error: assignmentError } = await adminClient
+                .from('exam_assignments')
+                .select('id')
+                .eq('exam_id', params.id)
+                .eq('user_id', user.id)
+                .maybeSingle()
+            
+            if (assignmentError || !assignment) {
+                return NextResponse.json(
+                    { success: false, error: 'Bạn không có quyền truy cập đề thi nội bộ này' },
+                    { status: 403 }
+                )
+            }
         }
 
         // Determine if user has free attempts or needs to consume credits

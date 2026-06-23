@@ -263,6 +263,31 @@ export default function QuestionBankPage() {
         }
     }
 
+    const handleUpdateCorrectAnswer = async (question: QuestionWithCategory, newCorrectAnswer: number) => {
+        if (question.correct_answer === newCorrectAnswer) return;
+        
+        const toastId = toast.loading('Đang cập nhật đáp án...');
+        try {
+            const res = await fetch(`/api/admin/question-bank/${question.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ correct_answer: newCorrectAnswer }),
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                setQuestions((prev) => 
+                    prev.map((q) => q.id === question.id ? { ...q, correct_answer: newCorrectAnswer } : q)
+                );
+                toast.success('Đã cập nhật đáp án', { id: toastId });
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (error: any) {
+            toast.error(error.message || 'Cập nhật thất bại', { id: toastId });
+        }
+    }
+
     const handleExport = () => {
         const params = new URLSearchParams({
             ...(filters.question_type && {
@@ -414,11 +439,10 @@ export default function QuestionBankPage() {
                 </Select>
                 <button
                     onClick={() => setFilters({ ...filters, freeOnly: !filters.freeOnly })}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-md border text-sm font-medium transition-colors whitespace-nowrap ${
-                        filters.freeOnly
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-md border text-sm font-medium transition-colors whitespace-nowrap ${filters.freeOnly
                             ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
                             : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                    }`}
+                        }`}
                 >
                     <Gift className="w-3.5 h-3.5" />
                     Câu Free
@@ -449,6 +473,9 @@ export default function QuestionBankPage() {
                             </th>
                             <th className="px-4 py-3 text-left font-medium">
                                 Câu hỏi
+                            </th>
+                            <th className="px-4 py-3 text-center font-medium">
+                                Đáp án
                             </th>
                             <th className="px-4 py-3 text-left font-medium">
                                 Điểm
@@ -522,18 +549,35 @@ export default function QuestionBankPage() {
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 max-w-md">
-                                        <div 
+                                        <div
                                             className="font-medium truncate mb-1"
                                             title="Câu hỏi"
                                             dangerouslySetInnerHTML={{ __html: q.question_text }}
                                         />
                                         {q.passage && (
-                                            <div 
+                                            <div
                                                 className="text-xs text-muted-foreground line-clamp-2 mt-1 border-l-2 border-gray-200 pl-2"
                                                 title="Nội dung đính kèm"
                                                 dangerouslySetInnerHTML={{ __html: q.passage }}
                                             />
                                         )}
+                                    </td>
+                                    <td className="px-4 py-3 text-center">
+                                        <Select
+                                            value={(q.correct_answer !== undefined && q.correct_answer !== null ? q.correct_answer : '').toString()}
+                                            onValueChange={(val) => handleUpdateCorrectAnswer(q, parseInt(val))}
+                                        >
+                                            <SelectTrigger className="w-12 h-7 mx-auto px-1 flex justify-center border-transparent bg-emerald-100 text-emerald-700 font-bold focus:ring-0 focus:ring-offset-0 hover:bg-emerald-200 transition-colors [&>svg]:hidden rounded-full">
+                                                <SelectValue placeholder="?" />
+                                            </SelectTrigger>
+                                            <SelectContent className="min-w-[3rem]">
+                                                {q.options?.map((_, idx) => (
+                                                    <SelectItem key={idx} value={idx.toString()} className="justify-center font-bold">
+                                                        {idx + 1}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </td>
                                     <td className="px-4 py-3">{q.points}</td>
                                     <td className="px-4 py-3">

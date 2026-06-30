@@ -44,6 +44,7 @@ interface Category {
 interface QuestionWithCategory extends QuestionBank {
     category?: Category
     category_id?: string | null
+    translated_text?: string | null
 }
 
 export default function QuestionBankPage() {

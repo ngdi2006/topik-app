@@ -214,6 +214,37 @@ export async function generateRandomQuestionsForUser(
     const allSelectedQuestions: QuestionSnapshot[] = []
     let globalOrder = 0
 
+    // BATCH READ: Lấy toàn bộ lịch sử của user cho tất cả rules trong 1 query
+    const ruleIds = rules.map(r => r.id)
+    const { data: allHistory } = await supabase
+        .from('user_question_history')
+        .select('rule_id, question_bank_id, cycle_number')
+        .eq('user_id', userId)
+        .in('rule_id', ruleIds)
+
+    // Nhóm history theo rule_id và tìm cycle lớn nhất
+    const historyByRule: Record<string, { maxCycle: number, seenIds: Set<string> }> = {}
+    for (const r of rules) {
+        historyByRule[r.id] = { maxCycle: 1, seenIds: new Set() }
+    }
+
+    if (allHistory && allHistory.length > 0) {
+        // Tìm max cycle cho mỗi rule
+        for (const h of allHistory) {
+            if (h.cycle_number > historyByRule[h.rule_id].maxCycle) {
+                historyByRule[h.rule_id].maxCycle = h.cycle_number
+            }
+        }
+        // Thu thập seenIds của cycle lớn nhất
+        for (const h of allHistory) {
+            if (h.cycle_number === historyByRule[h.rule_id].maxCycle) {
+                historyByRule[h.rule_id].seenIds.add(h.question_bank_id)
+            }
+        }
+    }
+
+    const batchHistoryRecords: any[] = []
+
     // 2. Xử lý từng rule
     for (const rule of rules as any[]) {
         // 2a. Lấy tất cả câu hỏi match với rule từ kho
@@ -253,20 +284,13 @@ export async function generateRandomQuestionsForUser(
             )
         }
 
-        // 2c. Lấy chu kỳ hiện tại
-        const currentCycle = await getCurrentCycle(supabase, userId, rule.id)
-
-        // 2d. Lấy IDs đã thấy trong chu kỳ này
-        const seenIds = await getSeenQuestionIds(
-            supabase,
-            userId,
-            rule.id,
-            currentCycle
-        )
+        // 2c, 2d. Lấy chu kỳ hiện tại và IDs đã thấy từ Memory (không gọi DB)
+        const currentCycle = historyByRule[rule.id].maxCycle
+        const seenIds = historyByRule[rule.id].seenIds
 
         // 2e. Filter câu chưa thấy
         let availableQuestions = poolQuestions.filter(
-            (q) => !seenIds.includes(q.id)
+            (q) => !seenIds.has(q.id)
         )
         let cycleToUse = currentCycle
 
@@ -291,14 +315,16 @@ export async function generateRandomQuestionsForUser(
             selected = shuffled.slice(0, rule.quantity)
         }
 
-        // 2h. Lưu vào history
-        await saveToHistory(
-            supabase,
-            userId,
-            rule.id,
-            selected.map((q) => q.id),
-            cycleToUse
-        )
+        // 2h. Lưu tạm vào batch array thay vì gọi DB
+        const selectedIds = selected.map((q) => q.id)
+        for (const qId of selectedIds) {
+            batchHistoryRecords.push({
+                user_id: userId,
+                rule_id: rule.id,
+                question_bank_id: qId,
+                cycle_number: cycleToUse,
+            })
+        }
 
         // 2i. Transform sang QuestionSnapshot với shuffled options
         const snapshots: QuestionSnapshot[] = selected.map((q) => {
@@ -332,6 +358,11 @@ export async function generateRandomQuestionsForUser(
         })
 
         allSelectedQuestions.push(...snapshots)
+    }
+
+    // BATCH INSERT: Ghi toàn bộ lịch sử vào DB trong 1 query
+    if (batchHistoryRecords.length > 0) {
+        await supabase.from('user_question_history').insert(batchHistoryRecords)
     }
 
     // Sort questions to ensure reading comes first, then listening

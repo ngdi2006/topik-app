@@ -263,6 +263,13 @@ export default function ExamResultPage() {
                             <BookOpen className="w-5 h-5 mr-2" /> Xem đáp án
                         </Button>
                     )}
+                    <Button
+                        size="lg"
+                        className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white shadow-lg shadow-purple-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 border-0 font-bold"
+                        onClick={() => router.push(`/adaptive-learning?examId=${examId}&resultId=${resultId}`)}
+                    >
+                        🎯 Chinh phục câu sai
+                    </Button>
                     <Button size="lg" variant="outline" className="w-full" onClick={() => router.push('/dashboard')}>
                         Về trang chủ
                     </Button>

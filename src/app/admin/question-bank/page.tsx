@@ -145,7 +145,7 @@ export default function QuestionBankPage() {
         try {
             const params = new URLSearchParams({
                 page: page.toString(),
-                pageSize: '20',
+                pageSize: '10000',
                 ...(filters.question_type && {
                     question_type: filters.question_type,
                 }),
@@ -561,23 +561,41 @@ export default function QuestionBankPage() {
                                                 dangerouslySetInnerHTML={{ __html: q.passage }}
                                             />
                                         )}
+                                        {q.translated_text && (
+                                            <div
+                                                className="text-xs text-blue-700 mt-2 bg-blue-50/80 p-2 rounded border border-blue-100 line-clamp-2 hover:line-clamp-none cursor-pointer transition-all"
+                                                title="Dịch nghĩa AI (Rê chuột hoặc bấm để xem toàn bộ)"
+                                            >
+                                                <span className="font-bold mr-1">🤖 AI:</span>
+                                                <span dangerouslySetInnerHTML={{ __html: q.translated_text }} />
+                                            </div>
+                                        )}
                                     </td>
-                                    <td className="px-4 py-3 text-center">
-                                        <Select
-                                            value={(q.correct_answer !== undefined && q.correct_answer !== null ? q.correct_answer : '').toString()}
-                                            onValueChange={(val) => handleUpdateCorrectAnswer(q, parseInt(val))}
-                                        >
-                                            <SelectTrigger className="w-12 h-7 mx-auto px-1 flex justify-center border-transparent bg-emerald-100 text-emerald-700 font-bold focus:ring-0 focus:ring-offset-0 hover:bg-emerald-200 transition-colors [&>svg]:hidden rounded-full">
-                                                <SelectValue placeholder="?" />
-                                            </SelectTrigger>
-                                            <SelectContent className="min-w-[3rem]">
-                                                {q.options?.map((_, idx) => (
-                                                    <SelectItem key={idx} value={idx.toString()} className="justify-center font-bold">
-                                                        {idx + 1}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                    <td className="px-4 py-3 text-center align-top pt-4">
+                                        <div className="flex flex-col items-center gap-1.5 max-w-[150px] mx-auto">
+                                            <Select
+                                                value={(q.correct_answer !== undefined && q.correct_answer !== null ? q.correct_answer : '').toString()}
+                                                onValueChange={(val) => handleUpdateCorrectAnswer(q, parseInt(val))}
+                                            >
+                                                <SelectTrigger className="w-12 h-7 mx-auto px-1 flex justify-center border-transparent bg-emerald-100 text-emerald-700 font-bold focus:ring-0 focus:ring-offset-0 hover:bg-emerald-200 transition-colors [&>svg]:hidden rounded-full">
+                                                    <SelectValue placeholder="?" />
+                                                </SelectTrigger>
+                                                <SelectContent className="min-w-[3rem]">
+                                                    {q.options?.map((_, idx) => (
+                                                        <SelectItem key={idx} value={idx.toString()} className="justify-center font-bold">
+                                                            {idx + 1}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {q.options && q.options[q.correct_answer] && (
+                                                <div 
+                                                    className="text-xs text-muted-foreground truncate w-full text-center px-1"
+                                                    title="Nội dung đáp án"
+                                                    dangerouslySetInnerHTML={{ __html: q.options[q.correct_answer].content }}
+                                                />
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="px-4 py-3">{q.points}</td>
                                     <td className="px-4 py-3">

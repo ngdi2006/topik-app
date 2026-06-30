@@ -75,10 +75,35 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
             created_at: attemptData.completed_at || attemptData.started_at
         }
 
+        // Lấy thông tin AI metadata mới nhất từ question_bank
+        const snapshot = attemptData.questions_snapshot || [];
+        const questionIds = snapshot.map((q: any) => q.id);
+
+        let aiDataMap: Record<string, any> = {};
+        if (questionIds.length > 0) {
+            const { data: qbData } = await adminAuthClient
+                .from('question_bank')
+                .select('id, translated_text, ai_vocab_list, ai_grammar_list')
+                .in('id', questionIds);
+            
+            if (qbData) {
+                qbData.forEach((q: any) => {
+                    aiDataMap[q.id] = q;
+                });
+            }
+        }
+
+        const enrichedQuestions = snapshot.map((q: any) => ({
+            ...q,
+            translated_text: aiDataMap[q.id]?.translated_text || null,
+            ai_vocab_list: aiDataMap[q.id]?.ai_vocab_list || null,
+            ai_grammar_list: aiDataMap[q.id]?.ai_grammar_list || null
+        }));
+
         return NextResponse.json({
             result: resultFormatted,
             exam: examData,
-            questions: attemptData.questions_snapshot || []
+            questions: enrichedQuestions
         }, { status: 200 })
 
     } catch (error: any) {

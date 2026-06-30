@@ -61,7 +61,9 @@ export async function PUT(request: Request) {
 
         // Lookup category_id for each question by category_name
         const toInsert = []
-        for (const q of questions) {
+        const now = new Date().getTime()
+        for (let i = 0; i < questions.length; i++) {
+            const q = questions[i]
             const { category_name, ...restQuestionData } = q
             const categoryName = category_name
 
@@ -89,6 +91,7 @@ export async function PUT(request: Request) {
                 points: q.points ?? 1,
                 tags: q.tags || [],
                 question_position: q.question_position || 'below',
+                created_at: new Date(now - i * 1000).toISOString(),
             })
         }
 

@@ -9,6 +9,7 @@ export async function GET(request: Request) {
             .from('exams')
             .select('*')
             .order('created_at', { ascending: false })
+            .limit(100)
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 })

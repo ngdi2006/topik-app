@@ -104,7 +104,7 @@ const fallbackMenuSettings: LearnerMenuSetting[] = Object.entries(learnerMenuMet
 
 export default function DashboardPage() {
     const router = useRouter()
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
     const { user, setUser, setRole, isLoading, setIsLoading } = useUserStore()
     const [exams, setExams] = useState<Exam[]>([])
     const [enabledMenuSettings, setEnabledMenuSettings] = useState<LearnerMenuSetting[]>([])
@@ -121,6 +121,9 @@ export default function DashboardPage() {
     const [isSavingDob, setIsSavingDob] = useState(false)
     const [examAwaitingDob, setExamAwaitingDob] = useState<Exam | null>(null)
     const [profileDob, setProfileDob] = useState<string | null>(null)
+    const [dashboardStats, setDashboardStats] = useState<any>(null)
+    const [leaderboard, setLeaderboard] = useState<any[]>([])
+    const [currentUserRank, setCurrentUserRank] = useState<any>(null)
 
     const enabledMenuItems = useMemo(
         () => enabledMenuSettings
@@ -147,9 +150,10 @@ export default function DashboardPage() {
             }
 
             try {
-                const [examsRes, menuRes] = await Promise.all([
+                const [examsRes, menuRes, statsRes] = await Promise.all([
                     fetch('/api/exams', { cache: 'no-store' }),
                     fetch('/api/learner/dashboard-menu', { cache: 'no-store' }),
+                    fetch('/api/learner/dashboard-stats', { cache: 'no-store' }),
                 ])
 
                 if (examsRes.ok) {
@@ -161,6 +165,15 @@ export default function DashboardPage() {
                     const menuItems = await menuRes.json()
                     if (Array.isArray(menuItems) && menuItems.length > 0) {
                         setEnabledMenuSettings(menuItems)
+                    }
+                }
+
+                if (statsRes.ok) {
+                    const statsData = await statsRes.json()
+                    if (statsData.success) {
+                        setDashboardStats(statsData.data.stats)
+                        setLeaderboard(statsData.data.leaderboard)
+                        setCurrentUserRank(statsData.data.currentUser)
                     }
                 }
             } catch (error) {
@@ -431,16 +444,111 @@ export default function DashboardPage() {
 
                 {/* Content */}
                 <main className="flex-1 p-4 md:p-6 overflow-y-auto bg-[#f4f6f8]">
-                    <div className="max-w-4xl mx-auto space-y-6">
+                    <div className="max-w-6xl mx-auto space-y-6">
 
                         {/* Default view - no menu selected */}
                         {!activeMenu && (
-                            <>
-                                <h1 className="text-3xl font-bold tracking-tight">Chào mừng trở lại! 👋</h1>
-                                <div className="grid md:grid-cols-2 gap-6">
-                                    {enabledMenuItems.map((item) => renderOverviewCard(item))}
+                            <div className="grid grid-cols-12 gap-6">
+                                {/* Khối bên trái/giữa */}
+                                <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
+                                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">Chào mừng trở lại! 👋</h1>
+                                    
+                                    <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-4">
+                                        {enabledMenuItems.map((item) => renderOverviewCard(item))}
+                                    </div>
+
+                                    {/* Khối Thống kê tiến độ nhanh */}
+                                    <div>
+                                        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                            <Target className="w-5 h-5 text-blue-600" /> Thống kê tiến độ
+                                        </h2>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            <div className="bg-white p-4 rounded-2xl border border-gray-100 hover:shadow-md transition-all flex flex-col items-center justify-center text-center">
+                                                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center mb-2">
+                                                    <FileText className="w-5 h-5 text-blue-600" />
+                                                </div>
+                                                <p className="text-xs text-gray-500 font-medium uppercase mb-1">Lượt thi đã làm</p>
+                                                <p className="text-xl font-bold text-gray-900">{dashboardStats?.examsTaken || 0} đề</p>
+                                            </div>
+                                            <div className="bg-white p-4 rounded-2xl border border-gray-100 hover:shadow-md transition-all flex flex-col items-center justify-center text-center">
+                                                <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center mb-2">
+                                                    <Target className="w-5 h-5 text-emerald-600" />
+                                                </div>
+                                                <p className="text-xs text-gray-500 font-medium uppercase mb-1">Điểm trung bình</p>
+                                                <p className="text-xl font-bold text-gray-900">{dashboardStats?.avgScore || 0}<span className="text-sm font-normal text-gray-500">/200</span></p>
+                                            </div>
+                                            <div className="bg-white p-4 rounded-2xl border border-gray-100 hover:shadow-md transition-all flex flex-col items-center justify-center text-center">
+                                                <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center mb-2">
+                                                    <BookOpen className="w-5 h-5 text-purple-600" />
+                                                </div>
+                                                <p className="text-xs text-gray-500 font-medium uppercase mb-1">Từ vựng đã thuộc</p>
+                                                <p className="text-xl font-bold text-gray-900">{dashboardStats?.vocabLearned || 0} từ</p>
+                                            </div>
+                                            <div className="bg-white p-4 rounded-2xl border border-gray-100 hover:shadow-md transition-all flex flex-col items-center justify-center text-center">
+                                                <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center mb-2">
+                                                    <span className="text-xl">🔥</span>
+                                                </div>
+                                                <p className="text-xs text-gray-500 font-medium uppercase mb-1">Chuỗi ngày học</p>
+                                                <p className="text-xl font-bold text-orange-600">{dashboardStats?.streak || 0} ngày</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                            </>
+
+                                {/* Khối bên phải - Bảng xếp hạng */}
+                                <div className="col-span-12 lg:col-span-4">
+                                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col h-full hover:shadow-md transition-all">
+                                        <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-[#2B64CE] to-blue-500 text-white">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <h2 className="text-lg font-bold flex items-center gap-2">
+                                                    <span>🏆</span> Bảng Xếp Hạng
+                                                </h2>
+                                            </div>
+                                            <div className="flex gap-2 bg-black/10 p-1 rounded-full">
+                                                <button className="flex-1 py-1.5 px-3 text-xs font-semibold rounded-full bg-white text-[#2B64CE] shadow-sm transition-all">Tuần này</button>
+                                                <button className="flex-1 py-1.5 px-3 text-xs font-medium rounded-full text-white hover:bg-white/20 transition-all">Tháng này</button>
+                                            </div>
+                                        </div>
+                                        <div className="p-0 flex-1">
+                                            <ul className="divide-y divide-gray-50">
+                                                {(leaderboard && leaderboard.length > 0 ? leaderboard : [
+                                                    { rank: 1, name: "Đang tải...", score: 0, time: "0 phút", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=A" }
+                                                ]).map((user: any) => (
+                                                    <li key={user.rank} className="flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors">
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
+                                                            user.rank === 1 ? 'bg-yellow-100 text-yellow-700 shadow-sm border border-yellow-200' :
+                                                            user.rank === 2 ? 'bg-gray-200 text-gray-700 shadow-sm border border-gray-300' :
+                                                            user.rank === 3 ? 'bg-orange-100 text-orange-700 shadow-sm border border-orange-200' :
+                                                            'bg-gray-50 text-gray-500'
+                                                        }`}>
+                                                            {user.rank}
+                                                        </div>
+                                                        <img src={user.avatar} alt="avatar" className="w-10 h-10 rounded-full bg-blue-50 shrink-0 border border-gray-100" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-bold text-gray-900 truncate">{user.name}</p>
+                                                            <p className="text-xs text-gray-500">{user.time}</p>
+                                                        </div>
+                                                        <div className="text-right shrink-0">
+                                                            <p className="text-sm font-bold text-[#2B64CE]">{user.score}đ</p>
+                                                        </div>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                        <div className="p-4 bg-gray-50 border-t border-gray-100 mt-auto">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-blue-100 text-[#2B64CE] flex items-center justify-center font-bold text-sm shrink-0">
+                                                    {currentUserRank?.rank || '-'}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-semibold text-gray-800">Vị trí của bạn</p>
+                                                    <p className="text-xs text-gray-500">{currentUserRank?.score || 0} điểm • {currentUserRank?.time || '0 phút'}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         )}
 
                         {/* BÀI HỌC */}

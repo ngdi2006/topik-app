@@ -10,7 +10,7 @@ export async function GET() {
             .from('question_categories')
             .select('*')
             .order('sort_order', { ascending: true })
-            .order('created_at', { ascending: false })
+            .order('created_at', { ascending: true })
 
         // If sort_order column doesn't exist yet (migration not run)
         if (error && error.message?.includes('sort_order')) {
@@ -18,7 +18,7 @@ export async function GET() {
             const fallback = await adminClient
                 .from('question_categories')
                 .select('*')
-                .order('created_at', { ascending: false })
+                .order('created_at', { ascending: true })
 
             data = fallback.data
             error = fallback.error

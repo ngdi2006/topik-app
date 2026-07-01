@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Clock, ChevronLeft, ChevronRight, AlertCircle, BookOpen } from 'lucide-react'
+import { Clock, ChevronLeft, ChevronRight, AlertCircle, BookOpen, ZoomIn, ZoomOut } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function ReadingPage() {
@@ -25,6 +25,7 @@ export default function ReadingPage() {
     const [exam, setExam] = useState<any>(null)
     const [hasListening, setHasListening] = useState(false)
     const [allowNavigation, setAllowNavigation] = useState(false)
+    const [zoomLevel, setZoomLevel] = useState(1)
 
     // Fetch attempt data
     useEffect(() => {
@@ -297,32 +298,59 @@ export default function ReadingPage() {
                         <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
                             <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
                         </div>
-                        <span className="text-base md:text-xl font-black text-blue-700 tracking-tighter">KOREA LINK</span>
+                        <span className="text-base md:text-xl font-black text-blue-700 tracking-tighter whitespace-nowrap">KOREA LINK</span>
                     </div>
-                    <div className="flex items-center gap-1.5 md:gap-2 ml-auto">
-                        {/* Timer Đọc - đang chạy */}
-                        <div className={`flex items-center gap-1 md:gap-1.5 px-2 md:px-4 py-1 md:py-2 rounded-lg ${timeLeft < 300 ? 'bg-red-100 text-red-700 animate-pulse' : 'bg-blue-100 text-blue-700'
-                            }`}>
-                            <Clock className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                            <div className="text-center">
-                                <p className="text-[9px] md:text-[10px] leading-none mb-0.5">읽기</p>
-                                <span className="text-xs md:text-base font-medium font-mono tabular-nums">
-                                    {formatTime(timeLeft)}
+                    <div className="flex items-center gap-2 ml-auto flex-wrap justify-end">
+                        {/* Controls Group */}
+                        <div className="flex items-center gap-1.5 md:gap-2">
+                            {/* Thu phóng / Zoom Control - Buttons */}
+                            <div className="flex items-center gap-1 px-1 py-1 rounded-lg bg-gray-100 h-9 md:h-10">
+                                <button 
+                                    onClick={() => setZoomLevel(prev => Math.max(0.8, prev - 0.1))}
+                                    className="p-1 md:p-1.5 bg-white hover:bg-gray-50 rounded-md text-gray-600 hover:text-blue-600 transition-colors shadow-sm"
+                                    title="Thu nhỏ"
+                                >
+                                    <ZoomOut className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                </button>
+                                <span className="text-[11px] md:text-xs font-bold text-gray-700 w-10 md:w-11 text-center tabular-nums">
+                                    {Math.round(zoomLevel * 100)}%
                                 </span>
+                                <button 
+                                    onClick={() => setZoomLevel(prev => Math.min(2.0, prev + 0.1))}
+                                    className="p-1 md:p-1.5 bg-white hover:bg-gray-50 rounded-md text-gray-600 hover:text-blue-600 transition-colors shadow-sm"
+                                    title="Phóng to"
+                                >
+                                    <ZoomIn className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                </button>
                             </div>
                         </div>
-                        {/* Timer Nghe - chưa bắt đầu */}
-                        {hasListening && (
-                            <div className="flex items-center gap-1 md:gap-1.5 px-2 md:px-4 py-1 md:py-2 rounded-lg bg-gray-100 text-gray-400">
+                        
+                        {/* Timers Group */}
+                        <div className="flex items-center gap-1.5 md:gap-2">
+                            {/* Timer Đọc - đang chạy */}
+                            <div className={`flex items-center gap-1 md:gap-1.5 px-2 md:px-4 py-1 md:py-2 rounded-lg ${timeLeft < 300 ? 'bg-red-100 text-red-700 animate-pulse' : 'bg-blue-100 text-blue-700'
+                                }`}>
                                 <Clock className="w-3.5 h-3.5 md:w-4 md:h-4" />
                                 <div className="text-center">
-                                    <p className="text-[9px] md:text-[10px] leading-none mb-0.5">듣기</p>
+                                    <p className="text-[9px] md:text-[10px] leading-none mb-0.5">읽기</p>
                                     <span className="text-xs md:text-base font-medium font-mono tabular-nums">
-                                        {formatTime((exam?.listening_duration || 30) * 60)}
+                                        {formatTime(timeLeft)}
                                     </span>
                                 </div>
                             </div>
-                        )}
+                            {/* Timer Nghe - chưa bắt đầu */}
+                            {hasListening && (
+                                <div className="flex items-center gap-1 md:gap-1.5 px-2 md:px-4 py-1 md:py-2 rounded-lg bg-gray-100 text-gray-400">
+                                    <Clock className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                    <div className="text-center">
+                                        <p className="text-[9px] md:text-[10px] leading-none mb-0.5">듣기</p>
+                                        <span className="text-xs md:text-base font-medium font-mono tabular-nums">
+                                            {formatTime((exam?.listening_duration || 30) * 60)}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -332,6 +360,7 @@ export default function ReadingPage() {
                     {/* Main Question Area */}
                     <div className="lg:col-span-3">
                         <Card className="p-6">
+                            <div style={{ zoom: zoomLevel }}>
                             <div className="mb-6">
                                 <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                                     Câu {currentIndex + 1}
@@ -444,6 +473,7 @@ export default function ReadingPage() {
                                     다음
                                     <ChevronRight className="w-4 h-4 ml-2" />
                                 </Button>
+                            </div>
                             </div>
                         </Card>
                     </div>

@@ -11,12 +11,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles, Mic, ArrowLeft, User } from "lucide-react"
+import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles, Mic, ArrowLeft, User, Trophy } from "lucide-react"
 import { LessonList } from "@/components/lessons/LessonList"
 import { PracticeHub } from "@/components/practice/PracticeHub"
 import { PaymentModal } from "@/components/payment/PaymentModal"
+import { Leaderboard } from "@/components/leaderboard/Leaderboard"
 
-type ActiveMenu = 'bai-hoc' | 'luyen-tap' | 'thi-thu' | 'ai-chat' | 'kiem-tra' | 'phong-van' | 'tu-vung-vong-2'
+type ActiveMenu = 'bai-hoc' | 'luyen-tap' | 'thi-thu' | 'ai-chat' | 'kiem-tra' | 'phong-van' | 'tu-vung-vong-2' | 'bang-xep-hang'
 
 type Exam = {
     id: string
@@ -92,6 +93,12 @@ const learnerMenuMeta: Record<ActiveMenu, LearnerMenuMeta> = {
         description: 'Luyện tập Flashcard, Trắc nghiệm, Ghép chữ, Nhận diện với AI',
         buttonText: 'Vào Luyện Từ Vựng',
         highlight: true,
+    },
+    'bang-xep-hang': {
+        label: 'Bảng xếp hạng',
+        Icon: Trophy,
+        description: 'Bảng xếp hạng thành tích học tập',
+        buttonText: 'Xem Bảng Xếp Hạng',
     },
 }
 
@@ -280,12 +287,25 @@ export default function DashboardPage() {
 
     const renderMenuButton = (item: (typeof enabledMenuItems)[number], onClick?: () => void) => {
         const Icon = item.Icon
+        
+        const isLeaderboard = item.key === 'bang-xep-hang';
+        let buttonClass = '';
+        
+        if (isLeaderboard) {
+            buttonClass = activeMenu === item.key 
+                ? 'bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 text-blue-900 font-extrabold shadow-[0_0_15px_rgba(251,191,36,0.5)] scale-[1.02]' 
+                : 'bg-gradient-to-r from-yellow-400/90 to-amber-500/90 text-blue-900 font-bold shadow-md hover:scale-[1.02] hover:shadow-lg hover:shadow-yellow-500/30 transition-all duration-300';
+        } else {
+            buttonClass = activeMenu === item.key 
+                ? 'bg-white/15 text-white hover:bg-white/20 font-medium' 
+                : 'text-white/80 hover:bg-white/10 hover:text-white font-medium';
+        }
 
         return (
             <Button
                 key={item.key}
                 variant="ghost"
-                className={`w-full justify-start font-medium border-0 ${activeMenu === item.key ? 'bg-white/15 text-white hover:bg-white/20' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}
+                className={`w-full justify-start border-0 rounded-xl relative overflow-hidden ${buttonClass}`}
                 onClick={() => {
                     setActiveMenu(item.key)
                     onClick?.()
@@ -358,9 +378,26 @@ export default function DashboardPage() {
                         <Image src="/logo.png" alt="" fill className="object-contain" priority unoptimized={true} />
                     </div>
                 </div>
-                <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 w-64">
-                    {enabledMenuItems.map((item) => renderMenuButton(item))}
+                <nav className="flex-1 overflow-y-auto pt-4 px-3 flex flex-col gap-1 w-64">
+                    {enabledMenuItems.filter(item => item.key !== 'bang-xep-hang').map((item) => renderMenuButton(item))}
+                    
+                    <div className="mt-auto mx-auto w-[204px] pb-4">
+                        {enabledMenuItems.filter(item => item.key === 'bang-xep-hang').map((item) => renderMenuButton(item))}
+                    </div>
                 </nav>
+                <div className="shrink-0 pb-4 w-64 flex flex-col items-center">
+                    <a
+                        href="tel:0965577882"
+                        className="flex w-[204px] flex-col items-center justify-center gap-3 rounded border border-white/70 bg-transparent px-5 py-6 text-white shadow-sm transition-colors hover:border-white"
+                        aria-label="Gọi hotline hỗ trợ 0965577882"
+                    >
+                        <span className="flex items-center gap-1.5 text-sm font-semibold">
+                            <Phone className="h-4 w-4" />
+                            Hotline hỗ trợ
+                        </span>
+                        <span className="text-base font-medium">0965577882</span>
+                    </a>
+                </div>
             </aside>
 
             {/* Main Area */}
@@ -428,7 +465,12 @@ export default function DashboardPage() {
                 {/* Mobile Menu Dropdown */}
                 {isMobileMenuOpen && (
                     <div className="md:hidden border-b border-white/10 bg-[#2B64CE] p-4 shadow-md sticky top-[72px] z-10 flex flex-col gap-1 text-white">
-                        {enabledMenuItems.map((item) => renderMenuButton(item, () => setIsMobileMenuOpen(false)))}
+                        {enabledMenuItems.filter(item => item.key !== 'bang-xep-hang').map((item) => renderMenuButton(item, () => setIsMobileMenuOpen(false)))}
+                        
+                        <div className="mt-2 pb-2">
+                            {enabledMenuItems.filter(item => item.key === 'bang-xep-hang').map((item) => renderMenuButton(item, () => setIsMobileMenuOpen(false)))}
+                        </div>
+
                         <a
                             href="tel:0965577882"
                             className="mt-3 flex items-center justify-between rounded-lg border border-white/25 px-4 py-3 text-white/95"
@@ -450,7 +492,7 @@ export default function DashboardPage() {
                         {!activeMenu && (
                             <div className="grid grid-cols-12 gap-6">
                                 {/* Khối bên trái/giữa */}
-                                <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
+                                <div className="col-span-12 flex flex-col gap-6">
                                     <h1 className="text-3xl font-bold tracking-tight text-gray-900">Chào mừng trở lại! 👋</h1>
                                     
                                     <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-4">
@@ -490,60 +532,6 @@ export default function DashboardPage() {
                                                 </div>
                                                 <p className="text-xs text-gray-500 font-medium uppercase mb-1">Chuỗi ngày học</p>
                                                 <p className="text-xl font-bold text-orange-600">{dashboardStats?.streak || 0} ngày</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Khối bên phải - Bảng xếp hạng */}
-                                <div className="col-span-12 lg:col-span-4">
-                                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col h-full hover:shadow-md transition-all">
-                                        <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-[#2B64CE] to-blue-500 text-white">
-                                            <div className="flex justify-between items-center mb-4">
-                                                <h2 className="text-lg font-bold flex items-center gap-2">
-                                                    <span>🏆</span> Bảng Xếp Hạng
-                                                </h2>
-                                            </div>
-                                            <div className="flex gap-2 bg-black/10 p-1 rounded-full">
-                                                <button className="flex-1 py-1.5 px-3 text-xs font-semibold rounded-full bg-white text-[#2B64CE] shadow-sm transition-all">Tuần này</button>
-                                                <button className="flex-1 py-1.5 px-3 text-xs font-medium rounded-full text-white hover:bg-white/20 transition-all">Tháng này</button>
-                                            </div>
-                                        </div>
-                                        <div className="p-0 flex-1">
-                                            <ul className="divide-y divide-gray-50">
-                                                {(leaderboard && leaderboard.length > 0 ? leaderboard : [
-                                                    { rank: 1, name: "Đang tải...", score: 0, time: "0 phút", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=A" }
-                                                ]).map((user: any) => (
-                                                    <li key={user.rank} className="flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors">
-                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
-                                                            user.rank === 1 ? 'bg-yellow-100 text-yellow-700 shadow-sm border border-yellow-200' :
-                                                            user.rank === 2 ? 'bg-gray-200 text-gray-700 shadow-sm border border-gray-300' :
-                                                            user.rank === 3 ? 'bg-orange-100 text-orange-700 shadow-sm border border-orange-200' :
-                                                            'bg-gray-50 text-gray-500'
-                                                        }`}>
-                                                            {user.rank}
-                                                        </div>
-                                                        <img src={user.avatar} alt="avatar" className="w-10 h-10 rounded-full bg-blue-50 shrink-0 border border-gray-100" />
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-bold text-gray-900 truncate">{user.name}</p>
-                                                            <p className="text-xs text-gray-500">{user.time}</p>
-                                                        </div>
-                                                        <div className="text-right shrink-0">
-                                                            <p className="text-sm font-bold text-[#2B64CE]">{user.score}đ</p>
-                                                        </div>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                        <div className="p-4 bg-gray-50 border-t border-gray-100 mt-auto">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-blue-100 text-[#2B64CE] flex items-center justify-center font-bold text-sm shrink-0">
-                                                    {currentUserRank?.rank || '-'}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-semibold text-gray-800">Vị trí của bạn</p>
-                                                    <p className="text-xs text-gray-500">{currentUserRank?.score || 0} điểm • {currentUserRank?.time || '0 phút'}</p>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -832,6 +820,10 @@ export default function DashboardPage() {
                                     </CardContent>
                                 </Card>
                             </>
+                        )}
+                        {/* BẢNG XẾP HẠNG */}
+                        {activeMenu === 'bang-xep-hang' && activeMenuItem && (
+                            <Leaderboard leaderboard={leaderboard} currentUserRank={currentUserRank} />
                         )}
 
                         {/* Payment Modal */}

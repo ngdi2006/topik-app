@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 import { Toaster } from 'sonner';
-import { OnlineSupportWidget } from '@/components/shared/OnlineSupportWidget';
+
 import { PresenceTracker } from '@/components/shared/PresenceTracker';
 
 export default function RootLayout({
@@ -27,7 +27,6 @@ export default function RootLayout({
         className={`${inter.className} antialiased`}
       >
         {children}
-        <OnlineSupportWidget />
         <PresenceTracker />
         <Toaster richColors position="top-right" />
       </body>

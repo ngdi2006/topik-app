@@ -94,6 +94,11 @@ export default function ListeningPage() {
                 setExam(data.exam)
                 setTimeLeft((data.exam.listening_duration || 30) * 60)
             } catch (error: any) {
+                if (error.message?.includes('Unauthorized')) {
+                    toast.error('Tài khoản của bạn đang đăng nhập ở một thiết bị khác. Vui lòng đăng nhập lại.')
+                    router.push('/')
+                    return
+                }
                 toast.error(error.message || 'Lỗi tải dữ liệu')
                 router.push(`/exam/${examId}/start`)
             } finally {
@@ -433,7 +438,7 @@ export default function ListeningPage() {
                         {/* Controls Group */}
                         <div className="flex items-center gap-1.5 md:gap-2">
                             {/* Thu phóng / Zoom Control - Buttons */}
-                            <div className="flex items-center gap-1 px-1 py-1 rounded-lg bg-gray-100 h-9 md:h-10">
+                            <div className="hidden md:flex items-center gap-1 px-1 py-1 rounded-lg bg-gray-100 h-9 md:h-10">
                                 <button 
                                     onClick={() => setZoomLevel(prev => Math.max(0.8, prev - 0.1))}
                                     className="p-1 md:p-1.5 bg-white hover:bg-gray-50 rounded-md text-gray-600 hover:text-blue-600 transition-colors shadow-sm"
@@ -454,7 +459,7 @@ export default function ListeningPage() {
                             </div>
                             
                             {/* Thể tích / Volume Control */}
-                            <div className="flex items-center gap-1.5 md:gap-2 px-3 rounded-lg bg-gray-100 h-9 md:h-10">
+                            <div className="hidden md:flex items-center gap-1.5 md:gap-2 px-3 rounded-lg bg-gray-100 h-9 md:h-10">
                                 <Volume2 className="w-4 h-4 md:w-4.5 md:h-4.5 text-gray-500" />
                                 <input
                                     type="range"
@@ -553,13 +558,13 @@ export default function ListeningPage() {
 
                             {/* Audio Status */}
                             {audioPlaying && (
-                                <div className="mb-6 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
-                                    <div className="flex items-center gap-3">
-                                        <div className="relative">
-                                            <Volume2 className="w-6 h-6 text-blue-600" />
-                                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-ping"></div>
+                                <div className="mb-4 md:mb-6 px-3 py-2 md:px-4 md:py-2.5 bg-blue-50/80 rounded-lg border-l-4 border-blue-400 shadow-sm w-fit max-w-full">
+                                    <div className="flex items-center gap-2 md:gap-2.5">
+                                        <div className="relative shrink-0">
+                                            <Volume2 className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+                                            <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 md:w-2 md:h-2 bg-blue-500 rounded-full animate-ping"></div>
                                         </div>
-                                        <p className="text-blue-700 font-medium">
+                                        <p className="text-blue-700 text-xs md:text-sm font-medium leading-tight">
                                             🎧 Đang phát audio... Hãy lắng nghe
                                         </p>
                                     </div>
@@ -568,9 +573,11 @@ export default function ListeningPage() {
 
                             {/* Question Time Countdown */}
                             {audioEnded && questionTimeLeft > 0 && (
-                                <div className="mb-6 flex items-start justify-end">
-                                    <div className="text-4xl font-black text-orange-600 font-mono tabular-nums">
-                                        {questionTimeLeft}
+                                <div className="mb-4 md:mb-6 flex items-start justify-end">
+                                    <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-orange-50 rounded-full border-2 border-orange-200 shadow-sm">
+                                        <span className="text-lg md:text-xl font-bold text-orange-600 font-mono tabular-nums">
+                                            {questionTimeLeft.toString().padStart(2, '0')}
+                                        </span>
                                     </div>
                                 </div>
                             )}

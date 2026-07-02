@@ -50,30 +50,19 @@ export async function GET(request: Request) {
         const sortedUsers = Array.from(userBestScores.values())
             .sort((a, b) => b.score - a.score);
 
-        const top5 = sortedUsers.slice(0, 5);
+        const top20 = sortedUsers.slice(0, 20);
         let currentUserRank = sortedUsers.findIndex(u => u.user_id === user.id) + 1;
         const currentUserData = sortedUsers.find(u => u.user_id === user.id);
 
-        const userIdsToFetch = top5.map(u => u.user_id);
+        const userIdsToFetch = top20.map(u => u.user_id);
         const { data: profiles } = await adminClient
             .from('profiles')
             .select('id, full_name, avatar_url')
             .in('id', userIdsToFetch);
 
-        const leaderboard = top5.map((entry, index) => {
+        const leaderboard = top20.map((entry, index) => {
             const profile = profiles?.find(p => p.id === entry.user_id);
             let name = profile?.full_name || 'Thí sinh';
-            
-            // Mask name (Nguyễn Văn A -> Nguyễn Văn A*)
-            if (name.length > 2) {
-                const parts = name.split(' ');
-                if (parts.length > 1) {
-                    const lastName = parts[parts.length - 1];
-                    name = parts.slice(0, -1).join(' ') + ' ' + lastName.charAt(0) + '*';
-                } else {
-                    name = name.substring(0, name.length - 1) + '*';
-                }
-            }
 
             return {
                 rank: index + 1,

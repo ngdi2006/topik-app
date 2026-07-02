@@ -9,6 +9,7 @@ const fallbackMenu = [
     { key: 'kiem-tra', label: 'Kiểm Tra', is_enabled: true, sort_order: 5 },
     { key: 'phong-van', label: 'Phỏng Vấn V2', is_enabled: true, sort_order: 6 },
     { key: 'tu-vung-vong-2', label: 'Từ vựng & Biển báo', is_enabled: true, sort_order: 7 },
+    { key: 'bang-xep-hang', label: 'Bảng Xếp Hạng', is_enabled: true, sort_order: 8 },
 ]
 
 export async function GET() {
@@ -32,6 +33,11 @@ export async function GET() {
         // Ensure tu-vung-vong-2 is always available
         if (!finalData.some(m => m.key === 'tu-vung-vong-2')) {
             finalData.push({ key: 'tu-vung-vong-2', label: 'Từ vựng & Biển báo', is_enabled: true, sort_order: 7 })
+        }
+
+        // Ensure bang-xep-hang is always available
+        if (!finalData.some(m => m.key === 'bang-xep-hang')) {
+            finalData.push({ key: 'bang-xep-hang', label: 'Bảng Xếp Hạng', is_enabled: true, sort_order: 8 })
         }
 
         return NextResponse.json(finalData)

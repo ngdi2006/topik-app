@@ -79,6 +79,11 @@ export default function ReadingPage() {
                     setAnswers(savedAnswers)
                 }
             } catch (error: any) {
+                if (error.message?.includes('Unauthorized')) {
+                    toast.error('Tài khoản của bạn đang đăng nhập ở một thiết bị khác. Vui lòng đăng nhập lại.')
+                    router.push('/')
+                    return
+                }
                 toast.error(error.message || 'Lỗi tải dữ liệu')
                 router.push(`/exam/${examId}/start`)
             } finally {
@@ -304,7 +309,7 @@ export default function ReadingPage() {
                         {/* Controls Group */}
                         <div className="flex items-center gap-1.5 md:gap-2">
                             {/* Thu phóng / Zoom Control - Buttons */}
-                            <div className="flex items-center gap-1 px-1 py-1 rounded-lg bg-gray-100 h-9 md:h-10">
+                            <div className="hidden md:flex items-center gap-1 px-1 py-1 rounded-lg bg-gray-100 h-9 md:h-10">
                                 <button 
                                     onClick={() => setZoomLevel(prev => Math.max(0.8, prev - 0.1))}
                                     className="p-1 md:p-1.5 bg-white hover:bg-gray-50 rounded-md text-gray-600 hover:text-blue-600 transition-colors shadow-sm"

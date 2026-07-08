@@ -289,7 +289,7 @@ export function MeaningQuizMode({ currentQ, onKnown, onNotKnown, timeLeft = 0, q
 }
 
 // --- 3. Word Sort Mode ---
-export function WordSortMode({ currentQ, onKnown }: ListenModeProps) {
+export function WordSortMode({ currentQ, onKnown, timeLeft }: ListenModeProps) {
     const targetText = useMemo(() => {
         const text = currentQ.suggested_answers?.[0] || currentQ.question_text || ""
         return text.trim()

@@ -1,0 +1,691 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { InterviewPracticeScreen } from '@/components/interview/InterviewPracticeScreen'
+import { ToolDragPracticeScreen } from '@/components/interview/ToolDragPracticeScreen'
+import { toast } from 'sonner'
+import { Headphones, Bot, ArrowLeft, Wrench, Mic, CheckCircle, Calculator, MessageSquare, Presentation, Factory, Fish, Trees, Tractor, Home, Coffee, Layers, RefreshCw, Play, MousePointer2 } from 'lucide-react'
+
+const INDUSTRIES = [
+    { 
+        id: 'Sản xuất chế tạo', name: 'Sản xuất chế tạo', 
+        desc: 'Công xưởng, gia công, lắp ráp',
+        icon: Factory, 
+        color: 'text-blue-600', 
+        gradient: 'from-blue-50 to-blue-100/50',
+        hoverGradient: 'hover:from-blue-100 hover:to-blue-200/50',
+        borderColor: 'border-blue-100 hover:border-blue-300',
+        shadow: 'hover:shadow-blue-200/50'
+    },
+    { 
+        id: 'Ngư nghiệp', name: 'Ngư nghiệp', 
+        desc: 'Đánh bắt, nuôi trồng thủy sản',
+        icon: Fish, 
+        color: 'text-cyan-600', 
+        gradient: 'from-cyan-50 to-cyan-100/50',
+        hoverGradient: 'hover:from-cyan-100 hover:to-cyan-200/50',
+        borderColor: 'border-cyan-100 hover:border-cyan-300',
+        shadow: 'hover:shadow-cyan-200/50'
+    },
+    { 
+        id: 'Nông nghiệp', name: 'Nông nghiệp', 
+        desc: 'Trồng trọt, chăn nuôi, thu hoạch',
+        icon: Tractor, 
+        color: 'text-emerald-600', 
+        gradient: 'from-emerald-50 to-emerald-100/50',
+        hoverGradient: 'hover:from-emerald-100 hover:to-emerald-200/50',
+        borderColor: 'border-emerald-100 hover:border-emerald-300',
+        shadow: 'hover:shadow-emerald-200/50'
+    },
+    { 
+        id: 'Lâm nghiệp', name: 'Lâm nghiệp', 
+        desc: 'Trồng rừng, khai thác gỗ',
+        icon: Trees, 
+        color: 'text-green-600', 
+        gradient: 'from-green-50 to-green-100/50',
+        hoverGradient: 'hover:from-green-100 hover:to-green-200/50',
+        borderColor: 'border-green-100 hover:border-green-300',
+        shadow: 'hover:shadow-green-200/50'
+    },
+    { 
+        id: 'Xây dựng', name: 'Xây dựng', 
+        desc: 'Công trình, mộc, cốt thép',
+        icon: Home, 
+        color: 'text-orange-600', 
+        gradient: 'from-orange-50 to-orange-100/50',
+        hoverGradient: 'hover:from-orange-100 hover:to-orange-200/50',
+        borderColor: 'border-orange-100 hover:border-orange-300',
+        shadow: 'hover:shadow-orange-200/50'
+    },
+    { 
+        id: 'Dịch vụ', name: 'Dịch vụ', 
+        desc: 'Nhà hàng, khách sạn, bán hàng',
+        icon: Coffee, 
+        color: 'text-purple-600', 
+        gradient: 'from-purple-50 to-purple-100/50',
+        hoverGradient: 'hover:from-purple-100 hover:to-purple-200/50',
+        borderColor: 'border-purple-100 hover:border-purple-300',
+        shadow: 'hover:shadow-purple-200/50'
+    },
+]
+
+const TOPICS = [
+    { 
+        id: 'command', 
+        name: 'Khẩu lệnh phản xạ', 
+        description: 'Chỉ áp dụng chế độ nghe và tự hành động.',
+        icon: Headphones,
+        color: 'text-indigo-600', 
+        gradient: 'from-indigo-50 to-indigo-100/50',
+        hoverGradient: 'hover:from-indigo-100 hover:to-indigo-200/50',
+        borderColor: 'border-indigo-100 hover:border-indigo-300',
+        shadow: 'hover:shadow-indigo-200/50',
+        apiCategory: 'Khẩu lệnh',
+        mode: 'listen_only'
+    },
+    { 
+        id: 'vocabulary', 
+        name: 'Từ vựng & Biển báo', 
+        description: 'Flashcard, Trắc nghiệm, Ghép chữ, AI chấm điểm.',
+        icon: Presentation,
+        color: 'text-pink-600',
+        gradient: 'from-pink-50 to-pink-100/50',
+        hoverGradient: 'hover:from-pink-100 hover:to-pink-200/50',
+        borderColor: 'border-pink-100 hover:border-pink-300',
+        shadow: 'hover:shadow-pink-200/50',
+        action: 'navigate',
+        href: '/vocabulary-practice'
+    },
+    { 
+        id: 'tools', 
+        name: 'Sử dụng công cụ', 
+        description: 'Chạy game kéo thả vật phẩm vào đúng vị trí.',
+        icon: Wrench,
+        color: 'text-orange-600',
+        gradient: 'from-orange-50 to-orange-100/50',
+        hoverGradient: 'hover:from-orange-100 hover:to-orange-200/50',
+        borderColor: 'border-orange-100 hover:border-orange-300',
+        shadow: 'hover:shadow-orange-200/50',
+        apiCategory: 'Sử dụng công cụ',
+        mode: 'tools'
+    },
+    { 
+        id: 'math', 
+        name: 'Toán học & Tính toán', 
+        description: 'Hỏi đáp tính toán, AI chấm điểm tự động.',
+        icon: Calculator,
+        color: 'text-rose-600',
+        gradient: 'from-rose-50 to-rose-100/50',
+        hoverGradient: 'hover:from-rose-100 hover:to-rose-200/50',
+        borderColor: 'border-rose-100 hover:border-rose-300',
+        shadow: 'hover:shadow-rose-200/50',
+        apiCategory: 'Toán học',
+        mode: 'ai_mock'
+    },
+    { 
+        id: 'communication', 
+        name: 'Giao tiếp & Tình huống', 
+        description: 'Hội thoại thực tế, AI đóng vai giám khảo.',
+        icon: MessageSquare,
+        color: 'text-emerald-600',
+        gradient: 'from-emerald-50 to-emerald-100/50',
+        hoverGradient: 'hover:from-emerald-100 hover:to-emerald-200/50',
+        borderColor: 'border-emerald-100 hover:border-emerald-300',
+        shadow: 'hover:shadow-emerald-200/50',
+        apiCategory: 'Giao tiếp,Xử lý tình huống',
+        mode: 'ai_mock'
+    },
+]
+
+function shuffleArray<T>(array: T[]): T[] {
+    const newArr = [...array]
+    for (let i = newArr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArr[i], newArr[j]] = [newArr[j], newArr[i]]
+    }
+    return newArr
+}
+
+export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?: () => void }) {
+    const router = useRouter()
+    const [step, setStep] = useState<'industry' | 'topic' | 'select_mode' | 'flashcard_options' | 'practice' | 'evaluating' | 'finished'>('industry')
+    const [selectedIndustry, setSelectedIndustry] = useState<string>('')
+    const [selectedTopicObj, setSelectedTopicObj] = useState<any>(null)
+    const [selectedListenMode, setSelectedListenMode] = useState<'flashcard' | 'meaning_quiz' | 'word_sort'>('flashcard')
+    const [initialAutoPlay, setInitialAutoPlay] = useState<boolean>(false)
+    
+    const [questions, setQuestions] = useState<any[]>([])
+    const [loading, setLoading] = useState(false)
+    const [answers, setAnswers] = useState<Record<string, string>>({})
+    const [evaluationResults, setEvaluationResults] = useState<any[]>([])
+    const [sessionStats, setSessionStats] = useState({ mastered: 0, total: 0 })
+
+    const handleSelectIndustry = (indId: string) => {
+        setSelectedIndustry(indId)
+        setStep('topic')
+    }
+
+    const handleSelectTopic = async (topic: any) => {
+        if (topic.action === 'navigate') {
+            router.push(`${topic.href}?industry=${encodeURIComponent(selectedIndustry)}`)
+            return
+        }
+
+        setSelectedTopicObj(topic)
+
+        if (topic.mode === 'listen_only') {
+            setStep('select_mode')
+            return
+        }
+
+        startPractice(topic, null)
+    }
+
+    const startPractice = async (topic: any, listenMode: string | null) => {
+        setLoading(true)
+        try {
+            const url = `/api/interview-questions?category=${encodeURIComponent(topic.apiCategory)}&industry=${encodeURIComponent(selectedIndustry)}`
+            
+            const res = await fetch(url, { cache: 'no-store' })
+            const data = await res.json()
+            
+            if (!data.success) throw new Error(data.error)
+
+            // Lấy dữ liệu thống kê từ localStorage
+            const masteryData = JSON.parse(localStorage.getItem('interview_mastery_v1') || '{}')
+            const masteredIds = masteryData[topic.id] || []
+
+            // Phân tách câu đã thuộc và chưa thuộc, ưu tiên câu chưa thuộc
+            let unmastered = data.data.filter((q: any) => !masteredIds.includes(q.id))
+            let mastered = data.data.filter((q: any) => masteredIds.includes(q.id))
+
+            unmastered = shuffleArray(unmastered)
+            mastered = shuffleArray(mastered)
+            
+            let finalQuestions = [...unmastered, ...mastered]
+
+            // Random limit based on mode
+            if (topic.mode === 'listen_only') {
+                finalQuestions = finalQuestions.slice(0, 10)
+            } else if (topic.mode === 'ai_mock') {
+                finalQuestions = finalQuestions.slice(0, 5) // Mock 5 questions
+            } else if (topic.mode === 'tools') {
+                finalQuestions = finalQuestions.slice(0, 5)
+            }
+
+            if (finalQuestions.length === 0) {
+                toast.error('Chưa có câu hỏi nào trong danh mục này')
+                return
+            }
+
+            setQuestions(finalQuestions)
+            setStep('practice')
+        } catch (error) {
+            toast.error('Lỗi khi tải câu hỏi')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleStartListenMode = (mode: 'flashcard' | 'meaning_quiz' | 'word_sort') => {
+        setSelectedListenMode(mode)
+        if (mode === 'flashcard') {
+            setStep('flashcard_options')
+            return
+        }
+        startPractice(selectedTopicObj, mode)
+    }
+
+    const startFlashcardPractice = (autoPlay: boolean) => {
+        setInitialAutoPlay(autoPlay)
+        startPractice(selectedTopicObj, 'flashcard')
+    }
+
+    const handleFinishPractice = async (submittedAnswers?: Record<string, string>, newlyMasteredIds: string[] = []) => {
+        // Lưu thống kê vào localStorage
+        if (newlyMasteredIds.length > 0 && selectedTopicObj) {
+            const masteryData = JSON.parse(localStorage.getItem('interview_mastery_v1') || '{}')
+            const prevMastered = new Set<string>(masteryData[selectedTopicObj.id] || [])
+            newlyMasteredIds.forEach(id => prevMastered.add(id))
+            masteryData[selectedTopicObj.id] = Array.from(prevMastered)
+            localStorage.setItem('interview_mastery_v1', JSON.stringify(masteryData))
+        }
+
+        setSessionStats({ mastered: newlyMasteredIds.length, total: questions.length })
+
+        if (selectedTopicObj?.mode !== 'ai_mock' || !submittedAnswers || Object.keys(submittedAnswers).length === 0) {
+            setStep('finished')
+            return
+        }
+
+        setAnswers(submittedAnswers)
+        setStep('evaluating')
+
+        try {
+            const results = await Promise.all(
+                Object.entries(submittedAnswers).map(async ([qId, transcript]) => {
+                    const res = await fetch('/api/interview/evaluate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ question_id: qId, transcript })
+                    })
+                    const data = await res.json()
+                    const qInfo = questions.find(q => q.id === qId)
+                    return { question_id: qId, transcript, question: qInfo, ...data.data }
+                })
+            )
+            setEvaluationResults(results)
+
+            // Lưu các câu trả lời có điểm >= 80 vào danh sách đã thuộc
+            const aiMastered = results.filter(r => r.score >= 80).map(r => r.question_id)
+            if (aiMastered.length > 0 && selectedTopicObj) {
+                const masteryData = JSON.parse(localStorage.getItem('interview_mastery_v1') || '{}')
+                const prevMastered = new Set<string>(masteryData[selectedTopicObj.id] || [])
+                aiMastered.forEach(id => prevMastered.add(id))
+                masteryData[selectedTopicObj.id] = Array.from(prevMastered)
+                localStorage.setItem('interview_mastery_v1', JSON.stringify(masteryData))
+            }
+
+            setStep('finished')
+        } catch (error) {
+            toast.error('Lỗi khi chấm điểm. Vui lòng thử lại.')
+            setStep('finished')
+        }
+    }
+
+    const handleGoBack = () => {
+        if (step === 'topic') {
+            setStep('industry')
+        } else {
+            if (onBackToDashboard) {
+                onBackToDashboard()
+            } else {
+                router.push('/dashboard')
+            }
+        }
+    }
+
+    if (step === 'practice') {
+        return (
+            <div className="min-h-screen bg-slate-50 pt-6 rounded-2xl overflow-hidden">
+                {selectedTopicObj?.mode === 'tools' ? (
+                    <ToolDragPracticeScreen
+                        questions={questions}
+                        onFinish={handleFinishPractice}
+                        onBack={() => setStep('topic')}
+                    />
+                ) : (
+                    <InterviewPracticeScreen 
+                        questions={questions} 
+                        mode={selectedTopicObj?.mode === 'listen_only' ? selectedListenMode : (selectedTopicObj?.mode as 'ai_mock')} 
+                        onFinish={handleFinishPractice}
+                        onBack={() => setStep('topic')}
+                        initialAutoPlay={initialAutoPlay}
+                    />
+                )}
+            </div>
+        )
+    }
+
+    if (step === 'evaluating') {
+        return (
+            <div className="min-h-[80vh] flex items-center justify-center p-4">
+                <Card className="max-w-md w-full p-10 text-center space-y-8 shadow-2xl border-none bg-white/90 backdrop-blur-xl relative overflow-hidden rounded-[2.5rem]">
+                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500"></div>
+                    <div className="absolute -top-32 -right-32 w-64 h-64 bg-blue-500/10 rounded-full blur-[60px] pointer-events-none"></div>
+                    
+                    <div className="w-28 h-28 bg-gradient-to-tr from-blue-50 to-indigo-50 rounded-full flex items-center justify-center mx-auto relative shadow-inner">
+                        <Bot className="w-14 h-14 text-blue-600 animate-bounce relative z-10" />
+                        <div className="absolute inset-0 border-[5px] border-blue-100 border-t-blue-500 rounded-full animate-spin"></div>
+                        <div className="absolute inset-2 border-[3px] border-indigo-100 border-b-indigo-400 rounded-full animate-[spin_1.5s_reverse_infinite]"></div>
+                    </div>
+                    
+                    <div className="space-y-3 relative z-10">
+                        <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">AI đang chấm điểm...</h2>
+                        <p className="text-slate-500 text-sm leading-relaxed px-4">
+                            Hệ thống đang phân tích ngữ âm và từ vựng trong câu trả lời của bạn. Vui lòng đợi trong giây lát.
+                        </p>
+                    </div>
+                </Card>
+            </div>
+        )
+    }
+
+    if (step === 'finished') {
+        if (selectedTopicObj?.mode === 'ai_mock' && evaluationResults.length > 0) {
+            const totalScore = Math.round(evaluationResults.reduce((sum, r) => sum + (r.score || 0), 0) / evaluationResults.length)
+            return (
+                <div className="min-h-[80vh] p-4 md:p-8">
+                    <div className="max-w-4xl mx-auto space-y-8">
+                        <div className="text-center space-y-4">
+                            <div className="w-24 h-24 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto">
+                                <span className="text-4xl font-black">{totalScore}</span>
+                            </div>
+                            <h2 className="text-3xl font-bold text-gray-900">Kết quả thi thử</h2>
+                            <p className="text-gray-600">Đã chấm điểm xong {evaluationResults.length} câu hỏi</p>
+                        </div>
+                        
+                        <div className="space-y-6">
+                            {evaluationResults.map((result, idx) => (
+                                <Card key={result.question_id} className="p-6 overflow-hidden relative shadow-sm border-gray-200">
+                                    <div className={`absolute top-0 left-0 w-2 h-full ${result.is_correct ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                    <div className="pl-4 space-y-4">
+                                        <div className="flex justify-between items-start gap-4">
+                                            <div>
+                                                <h4 className="font-semibold text-gray-800">Câu {idx + 1}: {result.question?.question_text}</h4>
+                                                <p className="text-sm text-gray-500 mt-1">{result.question?.vietnamese_meaning}</p>
+                                            </div>
+                                            <div className={`px-4 py-1.5 rounded-full font-bold text-sm shrink-0 ${result.is_correct ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+                                                {result.score}/100 điểm
+                                            </div>
+                                        </div>
+
+                                        <div className="grid md:grid-cols-2 gap-4 pt-2">
+                                            <div className="bg-gray-50 p-4 rounded-xl border">
+                                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Bạn đã trả lời:</p>
+                                                <p className="text-gray-900 font-medium">{result.transcript}</p>
+                                            </div>
+                                            <div className={`${result.is_correct ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'} p-4 rounded-xl border`}>
+                                                <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${result.is_correct ? 'text-emerald-700' : 'text-red-700'}`}>Nhận xét của AI:</p>
+                                                <p className="text-gray-800 text-sm">{result.feedback_vi}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mt-2">
+                                            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-2">Gợi ý trả lời chuẩn:</p>
+                                            <p className="text-gray-800 text-sm">{result.sample_answer}</p>
+                                        </div>
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8 pb-12">
+                            <Button size="lg" className="h-14 px-10 text-lg rounded-2xl shadow-xl shadow-blue-200 hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white" onClick={() => {
+                                setStep('topic')
+                                setEvaluationResults([])
+                                setAnswers({})
+                            }}>Luyện tiếp chủ đề này</Button>
+                        </div>
+                    </div>
+                </div>
+            )
+        }
+
+        return (
+            <div className="min-h-[80vh] flex items-center justify-center p-4">
+                <Card className="max-w-md w-full p-10 text-center space-y-8 border-none shadow-2xl bg-white/95 backdrop-blur-xl rounded-[2.5rem] relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-teal-500"></div>
+                    <div className="absolute -top-32 -left-32 w-64 h-64 bg-emerald-500/10 rounded-full blur-[60px] pointer-events-none"></div>
+
+                    <div className="relative mx-auto w-24 h-24 mt-2">
+                        <div className="absolute inset-0 bg-emerald-100 rounded-full animate-ping opacity-75"></div>
+                        <div className="relative w-full h-full bg-gradient-to-tr from-emerald-100 to-teal-50 text-emerald-600 rounded-full flex items-center justify-center shadow-inner border-[6px] border-white z-10">
+                            <CheckCircle className="w-12 h-12 drop-shadow-sm" />
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-2 relative z-10">
+                        <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">Tuyệt vời!</h2>
+                        <p className="text-slate-500 font-medium">Bạn đã hoàn thành phiên luyện tập.</p>
+                    </div>
+                    
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-5 border border-slate-200/60 shadow-inner space-y-4 relative z-10">
+                         <p className="font-bold text-slate-700 text-sm uppercase tracking-widest border-b border-slate-200 pb-3">Thống kê phiên học</p>
+                         <div className="space-y-3">
+                             <div className="flex justify-between items-center bg-white p-3 rounded-xl shadow-sm border border-slate-100">
+                                 <span className="text-slate-600 font-medium text-sm">Đã thuộc / Đúng:</span> 
+                                 <strong className="text-emerald-600 text-lg">{sessionStats.mastered} câu</strong>
+                             </div>
+                             <div className="flex justify-between items-center bg-white p-3 rounded-xl shadow-sm border border-slate-100">
+                                 <span className="text-slate-600 font-medium text-sm">Chưa thuộc / Sai:</span> 
+                                 <strong className="text-rose-500 text-lg">{sessionStats.total - sessionStats.mastered} câu</strong>
+                             </div>
+                         </div>
+                    </div>
+                    
+                    <p className="text-slate-400 text-xs leading-relaxed px-2 font-medium relative z-10">
+                        * Những câu chưa thuộc sẽ được ưu tiên nhắc lại vào những lần luyện tập sau.
+                    </p>
+                    
+                    <div className="flex flex-col sm:flex-row justify-center gap-3 pt-4 relative z-10">
+                        <Button 
+                            variant="outline"
+                            className="flex-1 h-12 text-sm font-bold rounded-xl border-blue-200 text-blue-700 hover:bg-blue-50 transition-all duration-300 shadow-sm" 
+                            onClick={() => {
+                                setSessionStats({ mastered: 0, total: 0 })
+                                setStep('practice') // Remounts InterviewPracticeScreen with the same questions
+                            }}
+                        >
+                            <RefreshCw className="w-4 h-4 mr-2" /> Luyện tập lại
+                        </Button>
+                        <Button 
+                            className="flex-1 h-12 text-sm font-bold rounded-xl shadow-md shadow-blue-200 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white" 
+                            onClick={() => {
+                                setSessionStats({ mastered: 0, total: 0 })
+                                startPractice(selectedTopicObj, selectedListenMode)
+                            }}
+                        >
+                            Luyện tập câu mới <CheckCircle className="w-4 h-4 ml-2" />
+                        </Button>
+                    </div>
+                    
+                    <div className="flex justify-center mt-3 relative z-10">
+                        <Button variant="ghost" size="sm" onClick={() => setStep('topic')} className="text-slate-500 hover:text-slate-700">
+                            ← Trở về danh sách chủ đề
+                        </Button>
+                    </div>
+                </Card>
+            </div>
+        )
+    }
+
+    return (
+        <div className="relative overflow-hidden flex flex-col rounded-2xl bg-white shadow-sm border border-slate-100">
+            {/* Background elements */}
+            <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-br from-blue-50/50 via-indigo-50/30 to-emerald-50/30 -z-10" />
+            <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-400/10 rounded-full blur-[100px] -z-10" />
+            <div className="absolute top-40 -left-32 w-80 h-80 bg-emerald-400/10 rounded-full blur-[100px] -z-10" />
+
+            <div className="flex-1 w-full mx-auto p-4 md:p-8 space-y-6 md:space-y-8 relative z-10">
+                <div className="flex items-center gap-3 md:gap-4 mb-2">
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={handleGoBack} 
+                        className="hover:bg-slate-100 text-slate-600 rounded-full h-10 w-10 md:h-12 md:w-12 shrink-0 bg-white shadow-sm border border-slate-200"
+                    >
+                        <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
+                    </Button>
+                    
+                    <div className="flex items-center gap-3">
+                        <div className="inline-flex items-center justify-center p-2.5 md:p-3 bg-white rounded-xl shadow-sm border border-slate-100 ring-2 ring-white/50">
+                            <Mic className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
+                        </div>
+                        <h1 className="text-xl md:text-3xl font-extrabold text-slate-900 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-700">
+                            Luyện Phỏng Vấn Vòng 2
+                        </h1>
+                    </div>
+                </div>
+
+                {step === 'industry' && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="text-center space-y-2 mb-8">
+                            <h2 className="text-2xl md:text-3xl font-bold text-slate-800">Chọn Ngành Nghề Dự Thi</h2>
+                            <p className="text-slate-500">Vui lòng chọn đúng ngành nghề bạn đã đăng ký thi EPS-TOPIK</p>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+                            {INDUSTRIES.map((ind) => {
+                                const Icon = ind.icon
+                                return (
+                                    <div 
+                                        key={ind.id}
+                                        onClick={() => handleSelectIndustry(ind.id)}
+                                        className={`group cursor-pointer rounded-3xl p-6 border-2 transition-all duration-300 transform hover:-translate-y-1.5 shadow-sm hover:shadow-xl bg-gradient-to-br ${ind.gradient} ${ind.hoverGradient} ${ind.borderColor} ${ind.shadow} relative overflow-hidden`}
+                                    >
+                                        <div className="absolute -right-6 -bottom-6 opacity-[0.04] group-hover:opacity-[0.08] transition-opacity duration-500 transform group-hover:scale-110 group-hover:rotate-12">
+                                            <Icon className="w-40 h-40" />
+                                        </div>
+                                        <div className="relative z-10">
+                                            <div className={`w-14 h-14 rounded-2xl bg-white/60 shadow-sm border border-white flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300 ${ind.color}`}>
+                                                <Icon className="w-7 h-7" />
+                                            </div>
+                                            <h3 className="text-xl font-bold text-slate-800 mb-1.5 group-hover:text-slate-900 transition-colors">{ind.name}</h3>
+                                            <p className="text-sm font-medium text-slate-500 line-clamp-2">{ind.desc}</p>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {step === 'topic' && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="text-center space-y-2 mb-8">
+                            <h2 className="text-2xl md:text-3xl font-bold text-slate-800">Chọn Chủ Đề Luyện Tập</h2>
+                            <p className="text-slate-500">Ngành nghề đã chọn: <strong className="text-blue-600">{selectedIndustry}</strong></p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                            {TOPICS.map((topic) => {
+                                const Icon = topic.icon
+                                return (
+                                    <div 
+                                        key={topic.id}
+                                        onClick={() => handleSelectTopic(topic)}
+                                        className={`group cursor-pointer rounded-3xl p-6 md:p-8 border-2 transition-all duration-300 transform hover:-translate-y-1.5 shadow-sm hover:shadow-xl bg-gradient-to-br ${topic.gradient} ${topic.hoverGradient} ${topic.borderColor} ${topic.shadow} relative overflow-hidden flex items-center gap-5 md:gap-6`}
+                                    >
+                                        <div className="absolute -right-8 -bottom-8 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity duration-500 transform group-hover:scale-110 group-hover:-rotate-12">
+                                            <Icon className="w-48 h-48" />
+                                        </div>
+                                        <div className={`relative z-10 w-16 h-16 md:w-20 md:h-20 shrink-0 rounded-2xl bg-white/70 shadow-sm border border-white flex items-center justify-center group-hover:scale-105 transition-transform duration-300 ${topic.color}`}>
+                                            <Icon className="w-8 h-8 md:w-10 md:h-10" />
+                                        </div>
+                                        <div className="relative z-10 flex-1">
+                                            <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-2 group-hover:text-slate-900 transition-colors">{topic.name}</h3>
+                                            <p className="text-sm md:text-base font-medium text-slate-600 leading-relaxed">{topic.description}</p>
+                                        </div>
+                                        {loading && selectedTopicObj?.id === topic.id && (
+                                            <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center z-20">
+                                                <div className="flex flex-col items-center gap-3">
+                                                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                                    <span className="text-sm font-bold text-blue-700 bg-white px-3 py-1 rounded-full shadow-sm">Đang tải...</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {step === 'select_mode' && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="text-center space-y-2 mb-8">
+                            <h2 className="text-2xl md:text-3xl font-bold text-slate-800">Chọn Chế Độ Luyện Tập</h2>
+                            <p className="text-slate-500">Chuyên đề: <strong className="text-blue-600">{selectedTopicObj?.name}</strong></p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                            
+                            <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={() => handleStartListenMode('flashcard')}>
+                                <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-slate-200/60 bg-white hover:border-blue-400 shadow-sm hover:shadow-xl">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-blue-100 text-blue-600 transition-colors">
+                                        <Presentation className="w-6 h-6" />
+                                    </div>
+                                    <h4 className="text-lg font-bold text-slate-900 mb-2">Flashcard Lật Thẻ</h4>
+                                    <p className="text-slate-500 text-sm leading-relaxed">Nghe âm thanh và suy nghĩ, thẻ tự động lật hiện đáp án.</p>
+                                </div>
+                            </div>
+
+                            <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={() => handleStartListenMode('meaning_quiz')}>
+                                <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-slate-200/60 bg-white hover:border-pink-400 shadow-sm hover:shadow-xl">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-pink-100 text-pink-600 transition-colors">
+                                        <CheckCircle className="w-6 h-6" />
+                                    </div>
+                                    <h4 className="text-lg font-bold text-slate-900 mb-2">Trắc Nghiệm Nghĩa</h4>
+                                    <p className="text-slate-500 text-sm leading-relaxed">Chọn đáp án Tiếng Việt đúng nhất sau khi nghe âm thanh.</p>
+                                </div>
+                            </div>
+
+                            <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={() => handleStartListenMode('word_sort')}>
+                                <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-slate-200/60 bg-white hover:border-emerald-400 shadow-sm hover:shadow-xl">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-emerald-100 text-emerald-600 transition-colors">
+                                        <Layers className="w-6 h-6" />
+                                    </div>
+                                    <h4 className="text-lg font-bold text-slate-900 mb-2">Xếp Câu</h4>
+                                    <p className="text-slate-500 text-sm leading-relaxed">Sắp xếp các từ bị xáo trộn thành câu hoàn chỉnh.</p>
+                                </div>
+                            </div>
+
+                        </div>
+                        {loading && (
+                            <div className="absolute inset-0 bg-white/70 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-2xl md:rounded-[2rem]">
+                                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                                <p className="font-semibold text-blue-700">Đang chuẩn bị nội dung...</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {step === 'flashcard_options' && (
+                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-3xl mx-auto">
+                        <div className="text-center space-y-3">
+                            <h2 className="text-2xl md:text-3xl font-bold text-slate-800">Phương thức luyện tập</h2>
+                            <p className="text-slate-500 font-medium">Bạn muốn luyện tập thẻ ghi nhớ theo cách nào?</p>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8">
+                            <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-2" onClick={() => startFlashcardPractice(false)}>
+                                <div className="h-full rounded-[2rem] p-8 transition-all duration-300 border-2 border-slate-200/60 bg-white hover:border-blue-400 shadow-sm hover:shadow-2xl hover:shadow-blue-200/50 flex flex-col items-center text-center">
+                                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6 bg-blue-50 text-blue-600 transition-colors group-hover:scale-110 duration-300">
+                                        <MousePointer2 className="w-8 h-8" />
+                                    </div>
+                                    <h4 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-blue-700 transition-colors">Luyện từng câu</h4>
+                                    <p className="text-slate-500 text-sm leading-relaxed mb-4">Bạn sẽ tự bấm chuyển sang câu tiếp theo sau khi đã suy nghĩ xong.</p>
+                                    <div className="mt-auto pt-4 flex w-full justify-center">
+                                        <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-4 py-1.5 rounded-full group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                            Bắt đầu
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-2" onClick={() => startFlashcardPractice(true)}>
+                                <div className="h-full rounded-[2rem] p-8 transition-all duration-300 border-2 border-slate-200/60 bg-white hover:border-indigo-400 shadow-sm hover:shadow-2xl hover:shadow-indigo-200/50 flex flex-col items-center text-center">
+                                    <div className="absolute -top-3 -right-3 bg-gradient-to-r from-orange-400 to-rose-400 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg uppercase tracking-wider animate-bounce">Rảnh tay</div>
+                                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6 bg-indigo-50 text-indigo-600 transition-colors group-hover:scale-110 duration-300">
+                                        <Play className="w-8 h-8" fill="currentColor" />
+                                    </div>
+                                    <h4 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-indigo-700 transition-colors">Phát tự động danh sách</h4>
+                                    <p className="text-slate-500 text-sm leading-relaxed mb-4">Hệ thống sẽ tự động đọc câu hỏi, chờ bạn suy nghĩ và chuyển câu liên tục.</p>
+                                    <div className="mt-auto pt-4 flex w-full justify-center">
+                                        <span className="text-sm font-semibold text-indigo-600 bg-indigo-50 px-4 py-1.5 rounded-full group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                            Bắt đầu ngay
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="flex justify-center pt-4">
+                            <Button variant="ghost" className="text-slate-500 hover:text-slate-700" onClick={() => setStep('select_mode')}>
+                                <ArrowLeft className="w-4 h-4 mr-2" /> Quay lại
+                            </Button>
+                        </div>
+
+                        {loading && (
+                            <div className="absolute inset-0 bg-white/70 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-[2rem]">
+                                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                                <p className="font-semibold text-blue-700">Đang chuẩn bị nội dung...</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    )
+}

@@ -16,6 +16,7 @@ import { LessonList } from "@/components/lessons/LessonList"
 import { PracticeHub } from "@/components/practice/PracticeHub"
 import { PaymentModal } from "@/components/payment/PaymentModal"
 import { Leaderboard } from "@/components/leaderboard/Leaderboard"
+import { InterviewPracticeHub } from "@/components/interview/InterviewPracticeHub"
 
 type ActiveMenu = 'bai-hoc' | 'luyen-tap' | 'thi-thu' | 'ai-chat' | 'kiem-tra' | 'phong-van' | 'tu-vung-vong-2' | 'bang-xep-hang'
 
@@ -403,7 +404,7 @@ export default function DashboardPage() {
             {/* Main Area */}
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Header */}
-                <header className="h-[72px] border-b bg-white px-4 md:px-6 flex items-center justify-between sticky top-0 z-20 shrink-0">
+                <header className="h-[72px] border-b bg-white px-4 md:px-6 flex items-center justify-between sticky top-0 z-40 shrink-0">
                     <div className="flex items-center gap-3">
                         {/* Mobile Hamburger */}
                         <button
@@ -464,7 +465,7 @@ export default function DashboardPage() {
 
                 {/* Mobile Menu Dropdown */}
                 {isMobileMenuOpen && (
-                    <div className="md:hidden border-b border-white/10 bg-[#2B64CE] p-4 shadow-md sticky top-[72px] z-10 flex flex-col gap-1 text-white">
+                    <div className="md:hidden border-b border-white/10 bg-[#2B64CE] p-4 shadow-md sticky top-[72px] z-30 flex flex-col gap-1 text-white">
                         {enabledMenuItems.filter(item => item.key !== 'bang-xep-hang').map((item) => renderMenuButton(item, () => setIsMobileMenuOpen(false)))}
                         
                         <div className="mt-2 pb-2">
@@ -760,34 +761,7 @@ export default function DashboardPage() {
 
                         {/* PHỎNG VẤN VÒNG 2 */}
                         {activeMenu === 'phong-van' && activeMenuItem && (
-                            <>
-                                <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-                                    <Mic className="w-8 h-8 text-primary" />
-                                    Luyện Phỏng Vấn Vòng 2
-                                </h1>
-                                <Card className="border-primary/50 bg-primary/5">
-                                    <CardHeader>
-                                        <CardTitle className="text-primary flex items-center gap-2">
-                                            <Mic className="w-5 h-5" />
-                                            Phỏng Vấn Vòng 2
-                                            <span className="relative flex h-3 w-3">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-                                            </span>
-                                        </CardTitle>
-                                        <CardDescription>Thực hành trả lời câu hỏi và kéo thả công cụ theo khẩu lệnh của Giám khảo AI</CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <Button
-                                            variant="default"
-                                            className="w-full"
-                                            onClick={() => router.push('/interview-practice')}
-                                        >
-                                            Vào luyện tập ngay
-                                        </Button>
-                                    </CardContent>
-                                </Card>
-                            </>
+                            <InterviewPracticeHub onBackToDashboard={() => setActiveMenu(null)} />
                         )}
 
                         {/* TỪ VỰNG VÒNG 2 */}

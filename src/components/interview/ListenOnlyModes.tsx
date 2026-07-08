@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Eye, CheckCircle, XCircle } from 'lucide-react'
 
@@ -8,70 +8,147 @@ export interface ListenModeProps {
     currentQ: any
     onKnown: () => void
     onNotKnown: () => void
-    timeLeft?: number
+    timeLeft?: number | null
     questions?: any[]
+    isAutoPlay?: boolean
 }
 
 // --- 1. Flashcard Mode ---
-export function FlashcardMode({ currentQ, onKnown, onNotKnown, timeLeft = 0 }: ListenModeProps) {
+export function FlashcardMode({ currentQ, onKnown, onNotKnown, timeLeft = 0, isAutoPlay = false, questions }: ListenModeProps) {
     const [isFlipped, setIsFlipped] = useState(false)
+    const autoPlayTimerRef = useRef<NodeJS.Timeout | null>(null)
 
     // Reset when question changes
-    useEffect(() => setIsFlipped(false), [currentQ])
+    useEffect(() => {
+        setIsFlipped(false)
+        if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current)
+    }, [currentQ])
     
     // Auto flip when timer reaches 0
     useEffect(() => {
-        if (timeLeft <= 0) {
+        if (timeLeft !== null && timeLeft !== undefined && timeLeft <= 0) {
             setIsFlipped(true)
+            
+            // If autoplay is enabled, auto advance after 4 seconds (but not on the very last question)
+            const currentIndex = questions?.findIndex(x => x.id === currentQ.id) ?? -1
+            const isLastQuestion = questions && currentIndex !== -1 && currentIndex === questions.length - 1
+
+            if (isAutoPlay && !isLastQuestion) {
+                if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current)
+                autoPlayTimerRef.current = setTimeout(() => {
+                    onKnown()
+                }, 4000)
+            }
         }
-    }, [timeLeft])
+    }, [timeLeft, isAutoPlay, onKnown, currentQ, questions])
+
+    useEffect(() => {
+        return () => {
+            if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current)
+        }
+    }, [])
+
+    if (isAutoPlay && questions) {
+        return (
+            <div className="space-y-4 text-left max-h-[60vh] overflow-y-auto p-2 scroll-smooth">
+                {questions
+                    .map((q, index) => ({ q, index }))
+                    .filter(({ index }) => {
+                        const currentIndexInList = questions.findIndex(x => x.id === currentQ.id)
+                        return currentIndexInList >= index
+                    })
+                    .reverse()
+                    .map(({ q, index }) => {
+                        const isCurrent = q.id === currentQ.id
+                        const showText = !isCurrent || isFlipped
+
+                        return (
+                            <div 
+                                key={q.id} 
+                                ref={isCurrent ? (el) => el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) : null}
+                                className={`p-3 md:p-4 rounded-xl border transition-all duration-500 ${isCurrent ? 'bg-indigo-50 border-indigo-200 shadow-md ring-1 ring-indigo-200 ring-opacity-50' : 'bg-gray-50 border-gray-100 opacity-70'}`}
+                            >
+                                <div className="flex items-start gap-3">
+                                    <span className={`w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-xs font-bold shadow-sm mt-0.5 ${isCurrent ? 'bg-indigo-600 text-white' : 'bg-gray-300 text-gray-600'}`}>
+                                        {index + 1}
+                                    </span>
+                                    <div className="flex-1">
+                                        {isCurrent && !isFlipped && (
+                                            <div className="text-indigo-600 text-xs font-semibold animate-pulse flex items-center gap-1.5 mb-2">
+                                                <span className="flex gap-0.5">
+                                                    <span className="w-1 h-1 rounded-full bg-indigo-600"></span>
+                                                    <span className="w-1 h-1 rounded-full bg-indigo-600 animation-delay-200"></span>
+                                                    <span className="w-1 h-1 rounded-full bg-indigo-600 animation-delay-400"></span>
+                                                </span>
+                                                Đang đọc...
+                                            </div>
+                                        )}
+                                        {showText ? (
+                                            <div className="space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                                <p className="text-base font-semibold text-gray-900">{q.question_text}</p>
+                                                {q.vietnamese_meaning && <p className="text-gray-500 text-sm">{q.vietnamese_meaning}</p>}
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-2 py-1">
+                                                <div className="h-4 bg-indigo-200/40 rounded w-3/4 animate-pulse"></div>
+                                                <div className="h-4 bg-indigo-200/40 rounded w-1/2 animate-pulse"></div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    })}
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6 perspective-1000">
             <div 
                 className={`relative w-full transition-transform duration-700 transform-style-3d cursor-pointer ${isFlipped ? 'rotate-y-180' : ''}`}
-                onClick={() => { if (!isFlipped && timeLeft <= 0) setIsFlipped(true) }}
+                onClick={() => { if (!isFlipped && timeLeft !== null && timeLeft <= 0) setIsFlipped(true) }}
                 style={{ minHeight: '280px' }}
             >
                 {/* Front (Question hint / Hidden state) */}
                 <div className="absolute inset-0 backface-hidden bg-white p-6 md:p-8 rounded-2xl border-2 border-dashed border-gray-300 shadow-sm flex flex-col items-center justify-center text-center hover:border-blue-300 transition-colors">
                     <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
-                        <span className="text-3xl">⏳</span>
+                        <span className="text-3xl">{timeLeft === null ? '🎧' : '⏳'}</span>
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-700">Đang suy nghĩ...</h3>
-                    <p className="text-gray-500 mt-2">Thẻ sẽ tự động lật khi hết thời gian đếm ngược.</p>
+                    <h3 className="text-xl font-semibold text-gray-700">{timeLeft === null ? 'Đang nghe câu hỏi...' : 'Đang suy nghĩ...'}</h3>
+                    <p className="text-gray-500 mt-2">{timeLeft === null ? 'Vui lòng tập trung lắng nghe giám khảo.' : 'Thẻ sẽ tự động lật khi hết thời gian đếm ngược.'}</p>
                 </div>
 
                 {/* Back (Answer state) */}
-                <div className="absolute inset-0 backface-hidden rotate-y-180 bg-blue-50/90 p-5 md:p-6 rounded-2xl border border-blue-200 shadow-lg backdrop-blur-sm flex flex-col justify-center text-left">
-                    <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2 text-sm uppercase tracking-wider">
-                        <span className="w-2 h-2 rounded-full bg-blue-500"></span> Nội dung câu hỏi
+                <div className="absolute inset-0 backface-hidden rotate-y-180 bg-blue-50/90 p-4 md:p-5 rounded-2xl border border-blue-200 shadow-lg backdrop-blur-sm flex flex-col justify-center text-left">
+                    <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2 text-xs uppercase tracking-wider">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Nội dung câu hỏi
                     </h4>
-                    <p className="text-xl md:text-2xl font-semibold text-gray-900 mb-4">{currentQ.question_text}</p>
+                    <p className="text-lg font-bold text-gray-900 mb-3">{currentQ.question_text}</p>
                     
                     {currentQ.vietnamese_meaning && (
-                        <div className="mt-2 pt-4 border-t border-blue-200/50">
-                            <h4 className="font-semibold text-gray-700 mb-1 text-sm uppercase tracking-wider opacity-80">Nghĩa Tiếng Việt</h4>
-                            <p className="text-lg md:text-xl text-gray-800 font-medium">{currentQ.vietnamese_meaning}</p>
+                        <div className="mt-1 pt-3 border-t border-blue-200/50">
+                            <h4 className="font-semibold text-gray-700 mb-1 text-xs uppercase tracking-wider opacity-80">Nghĩa Tiếng Việt</h4>
+                            <p className="text-base text-gray-800 font-medium">{currentQ.vietnamese_meaning}</p>
                         </div>
                     )}
                 </div>
             </div>
 
             {/* Actions */}
-            <div className={`flex flex-col sm:flex-row gap-3 md:gap-4 transition-all duration-700 ${isFlipped ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
+            <div className={`flex flex-col sm:flex-row gap-2.5 md:gap-3 transition-all duration-700 ${isFlipped ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
                 <Button 
                     variant="outline" 
-                    className="flex-1 h-14 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 rounded-xl font-bold text-base transition-all hover:shadow-md hover:-translate-y-1" 
+                    className="flex-1 h-11 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 rounded-xl font-semibold text-sm transition-all hover:shadow-sm hover:-translate-y-0.5" 
                     onClick={onNotKnown}
                 >
-                    <XCircle className="w-5 h-5 mr-2" /> [Chưa thuộc] Lặp lại sau
+                    <XCircle className="w-4 h-4 mr-1.5" /> [Chưa thuộc] Lặp lại sau
                 </Button>
                 <Button 
-                    className="flex-1 h-14 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-base transition-all hover:shadow-lg shadow-green-200 hover:-translate-y-1" 
+                    className="flex-1 h-11 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold text-sm transition-all hover:shadow-md shadow-green-200 hover:-translate-y-0.5" 
                     onClick={onKnown}
                 >
-                    <CheckCircle className="w-5 h-5 mr-2" /> [Đã thuộc] Hoàn thành
+                    <CheckCircle className="w-4 h-4 mr-1.5" /> [Đã thuộc] Hoàn thành
                 </Button>
             </div>
         </div>
@@ -276,9 +353,15 @@ export function WordSortMode({ currentQ, onKnown }: ListenModeProps) {
                 <div className="flex flex-col items-center animate-in zoom-in-95 fade-in duration-300 pt-2">
                     {isCorrect ? (
                         <>
-                            <div className="text-green-600 font-bold text-lg mb-4 flex items-center gap-2">
+                            <div className="text-green-600 font-bold text-lg mb-3 flex items-center gap-2">
                                 <CheckCircle className="w-6 h-6" /> Ghép câu chính xác!
                             </div>
+                            {currentQ.vietnamese_meaning && (
+                                <div className="text-gray-700 bg-gray-50 px-6 py-3 rounded-xl border border-gray-200 mb-5 font-medium text-center max-w-md w-full shadow-sm">
+                                    <span className="text-xs uppercase text-gray-500 font-bold block mb-1 tracking-wide">Nghĩa Tiếng Việt</span>
+                                    {currentQ.vietnamese_meaning}
+                                </div>
+                            )}
                             <Button onClick={onKnown} className="bg-green-600 hover:bg-green-700 px-8 rounded-xl h-14 text-base shadow-lg shadow-green-200 transition-all hover:scale-105">
                                 Tiếp tục học <CheckCircle className="w-5 h-5 ml-2" />
                             </Button>

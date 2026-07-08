@@ -71,10 +71,7 @@ export function Leaderboard({ leaderboard, currentUserRank }: LeaderboardProps) 
                 <div className="order-2 flex flex-col items-center">
                     {top1 && (
                         <div className="bg-white rounded-2xl border-2 border-yellow-300 shadow-md w-full pt-8 pb-5 px-2 md:px-4 flex flex-col items-center gap-3 relative transform hover:-translate-y-1 transition-transform z-10 scale-105">
-                            <div className="absolute -top-7 text-3xl drop-shadow-md">👑</div>
-                            <div className="absolute -top-4 bg-yellow-100 text-yellow-700 w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shadow-sm border border-yellow-300">
-                                1
-                            </div>
+                            <div className="absolute -top-7 text-4xl drop-shadow-[0_0_15px_rgba(250,204,21,0.8)] hover:scale-125 hover:-rotate-12 transition-all duration-300 z-20 cursor-default" title="Hạng 1">👑</div>
                             <img src={top1.avatar} alt="avatar" className="w-20 h-20 rounded-full bg-blue-50 border-4 border-yellow-100" />
                             <div className="text-center w-full min-w-0">
                                 <p className="text-base md:text-lg font-bold text-gray-900 truncate">{top1.name}</p>

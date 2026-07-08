@@ -10,11 +10,12 @@ import { FlashcardMode, MeaningQuizMode, WordSortMode } from './ListenOnlyModes'
 interface InterviewPracticeScreenProps {
     questions: any[]
     mode: 'flashcard' | 'meaning_quiz' | 'word_sort' | 'ai_mock'
-    onFinish: (answers?: Record<string, string>) => void
+    onFinish: (answers?: Record<string, string>, newlyMasteredIds?: string[]) => void
     onBack?: () => void
+    initialAutoPlay?: boolean
 }
 
-export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: InterviewPracticeScreenProps) {
+export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, initialAutoPlay = false }: InterviewPracticeScreenProps) {
     const [queue, setQueue] = useState<number[]>(questions.map((_, i) => i))
     const currentQIndex = queue.length > 0 ? queue[0] : null
     const currentQ = currentQIndex !== null ? questions[currentQIndex] : null
@@ -23,6 +24,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
 
     const isListenOnly = mode !== 'ai_mock'
     const [playbackRate, setPlaybackRate] = useState<number>(1.0)
+    const [isAutoPlay, setIsAutoPlay] = useState<boolean>(initialAutoPlay)
 
     // Audio states
     const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -48,6 +50,8 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
     } = useSpeechRecognition(recognitionLang)
 
     const reviewModesRef = useRef<Record<number, 'meaning_quiz' | 'word_sort'>>({})
+    const failedIdsRef = useRef<Set<string>>(new Set())
+    const masteredIdsRef = useRef<Set<string>>(new Set())
 
     const jumpToQuestion = (index: number) => {
         const newQueue = [...queue];
@@ -127,7 +131,9 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
     
     const handleAudioEnded = () => {
         setAudioState('ended')
-        const countdownSeconds = currentQ.countdown_after_audio || 5
+        let countdownSeconds = currentQ.countdown_after_audio || 5
+        if (isAutoPlay) countdownSeconds = 1 // Flip faster in auto-play mode
+
         setTimeLeft(countdownSeconds)
 
         // Start countdown timer
@@ -173,16 +179,22 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
     }
 
     const handleKnown = () => {
+        if (!failedIdsRef.current.has(currentQ.id)) {
+            masteredIdsRef.current.add(currentQ.id)
+        }
+
         if (queue.length <= 1) {
-            onFinish(answers)
+            onFinish(answers, Array.from(masteredIdsRef.current))
         } else {
             setQueue(prev => prev.slice(1))
         }
     }
 
     const handleNotKnown = () => {
+        failedIdsRef.current.add(currentQ.id)
+
         if (queue.length <= 1) {
-            onFinish(answers)
+            onFinish(answers, Array.from(masteredIdsRef.current))
         } else {
             setQueue(prev => {
                 const newQ = [...prev.slice(1)]
@@ -240,71 +252,99 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
                         {isListenOnly ? 'Chỉ luyện nghe' : 'Thi thử với AI'}
                     </span>
                     {isListenOnly && (
-                        <div className="flex items-center gap-1 ml-2 bg-gray-50 rounded-full border p-0.5">
-                            <span className="text-xs text-gray-500 pl-2 pr-1 font-medium">Tốc độ:</span>
-                            {[0.8, 1.0, 1.2].map(rate => (
-                                <button 
-                                    key={rate}
-                                    onClick={() => setPlaybackRate(rate)}
-                                    className={`px-2 py-0.5 rounded-full text-xs font-semibold transition-all ${playbackRate === rate ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}
+                        <div className="flex flex-wrap items-center gap-2 ml-auto md:ml-2">
+                            <div className="flex items-center bg-gray-50/80 rounded-full border border-gray-200 p-0.5 shadow-sm">
+                                <span className="text-[11px] uppercase tracking-wider text-gray-500 pl-2 pr-1 font-bold">Tốc độ</span>
+                                <div className="flex items-center gap-0.5">
+                                    {[0.8, 1.0, 1.2].map(rate => (
+                                        <button 
+                                            key={rate}
+                                            onClick={() => setPlaybackRate(rate)}
+                                            className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all duration-200 ${playbackRate === rate ? 'bg-blue-600 text-white shadow-md scale-105' : 'text-gray-600 hover:bg-gray-200'}`}
+                                        >
+                                            {rate}x
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            {mode === 'flashcard' && (
+                                <button
+                                    onClick={() => setIsAutoPlay(!isAutoPlay)}
+                                    className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full border text-sm font-bold transition-all duration-300 shadow-sm ${isAutoPlay ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent shadow-indigo-200 shadow-lg scale-105' : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'}`}
+                                    title="Tự động lật và chuyển câu"
                                 >
-                                    {rate}x
+                                    {isAutoPlay ? <Square className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+                                    <span className="hidden sm:inline">Tự động phát</span>
                                 </button>
-                            ))}
+                            )}
                         </div>
                     )}
                 </div>
-                <div className="text-xs md:text-sm font-semibold text-gray-600 bg-gray-50 border px-4 py-1.5 rounded-full w-full md:w-auto text-center">
-                    Còn {queue.length} câu (Tổng: {questions.length})
+                <div className="flex items-center gap-3 w-full md:w-56 shrink-0 bg-gray-50/50 px-3 py-2 rounded-full border border-gray-100">
+                    <div className="text-xs font-bold text-gray-500 whitespace-nowrap min-w-[3rem] text-right">
+                        {questions.length - queue.length + 1} / {questions.length}
+                    </div>
+                    <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                        <div 
+                            className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500 ease-out relative" 
+                            style={{ width: `${Math.max(5, ((questions.length - queue.length + 1) / questions.length) * 100)}%` }}
+                        >
+                            <div className="absolute top-0 right-0 bottom-0 left-0 bg-white/20 animate-pulse"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             {/* Main Question Area */}
             <div className="bg-white rounded-2xl border shadow-sm p-5 md:p-8 text-center space-y-6 md:space-y-8 relative overflow-hidden">
-                {/* Visualizer / Timer */}
-                {mode !== 'word_sort' && (
-                    <div className="h-32 flex flex-col items-center justify-center">
+                {/* Timer and Replay (Non-Autoplay) */}
+                {mode !== 'word_sort' && !isAutoPlay && (
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 min-h-[4rem]">
+                        {/* Status / Visualizer */}
                         {audioState === 'playing' && (
-                            <div className="flex items-center gap-2">
-                                <div className="w-2 h-8 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                                <div className="w-2 h-12 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '100ms' }}></div>
-                                <div className="w-2 h-8 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '200ms' }}></div>
-                                <span className="ml-4 text-blue-600 font-medium">Giám khảo đang đọc câu hỏi...</span>
+                            <div className="flex items-center gap-2 bg-blue-50/50 px-5 py-2.5 rounded-full border border-blue-100">
+                                <div className="w-1.5 h-4 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                                <div className="w-1.5 h-6 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '100ms' }}></div>
+                                <div className="w-1.5 h-4 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '200ms' }}></div>
+                                <span className="ml-2 text-sm text-blue-600 font-medium">Giám khảo đang đọc câu hỏi...</span>
                             </div>
                         )}
 
+                        {/* Timer */}
                         {audioState === 'ended' && timeLeft !== null && (
-                            <div className="flex flex-col items-center animate-in fade-in zoom-in duration-300">
-                                <div className={`text-5xl md:text-6xl font-black ${timeLeft > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
-                                    {timeLeft}s
+                            <div className="flex items-center gap-3">
+                                <div className={`flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full border-4 shadow-sm animate-in zoom-in duration-300 ${timeLeft > 0 ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                                    <span className="text-xl md:text-2xl font-black">
+                                        {timeLeft.toString().padStart(2, '0')}
+                                    </span>
                                 </div>
-                                {timeLeft > 0 ? (
-                                    <p className="text-gray-500 mt-2 font-medium">Thời gian suy nghĩ...</p>
-                                ) : (
-                                    <p className="text-gray-500 mt-2 font-medium">Hết thời gian suy nghĩ!</p>
-                                )}
+                                <div className="text-left">
+                                    {timeLeft > 0 ? (
+                                        <p className="text-blue-600/80 text-sm font-semibold uppercase tracking-wider">Thời gian suy nghĩ</p>
+                                    ) : (
+                                        <p className="text-gray-500 text-sm font-semibold uppercase tracking-wider">Đã hết thời gian!</p>
+                                    )}
+                                </div>
                             </div>
                         )}
                         
                         {audioState === 'error' && (
-                            <div className="text-red-500 font-medium">Lỗi tải âm thanh. Bạn có thể bỏ qua hoặc thử lại.</div>
+                            <div className="text-red-500 text-sm font-medium">Lỗi tải âm thanh. Bạn có thể thử lại.</div>
+                        )}
+
+                        {/* Replay Button */}
+                        {(audioState === 'ended' || audioState === 'error') && (
+                            <Button variant="outline" size="sm" onClick={replayAudio} className="rounded-full h-10 md:h-12 px-5 text-sm md:text-base hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors">
+                                <Play className="w-4 h-4 mr-2" />
+                                Nghe lại câu hỏi
+                            </Button>
                         )}
                     </div>
                 )}
 
-                {/* Actions */}
-                <div className="flex flex-col items-center justify-center gap-6">
-                    {/* Replay audio button (always available after playing once) */}
-                    {(audioState === 'ended' || audioState === 'error') && (
-                        <Button variant="outline" onClick={replayAudio} className="rounded-full">
-                            <Play className="w-4 h-4 mr-2" />
-                            Nghe lại câu hỏi
-                        </Button>
-                    )}
-
-                    {/* Mode Specific UI */}
-                    {audioState === 'ended' && (timeLeft !== null || mode === 'word_sort') && (
-                        <div className="w-full max-w-2xl mt-4 transition-all duration-500">
+                {/* Mode Specific UI */}
+                {(isAutoPlay || (isListenOnly && audioState === 'playing') || (audioState === 'ended' && (timeLeft !== null || mode === 'word_sort'))) && (
+                    <div className={`w-full max-w-2xl mx-auto transition-all duration-500 ${isAutoPlay ? 'mt-0' : 'mt-2'}`}>
                             {isListenOnly ? (
                                 <div className="space-y-4">
                                     {mode === 'flashcard' && (
@@ -312,7 +352,9 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
                                             currentQ={currentQ} 
                                             onKnown={handleKnown} 
                                             onNotKnown={handleNotKnown} 
-                                            timeLeft={timeLeft || 0} 
+                                            timeLeft={timeLeft} 
+                                            isAutoPlay={isAutoPlay}
+                                            questions={questions}
                                         />
                                     )}
                                     {mode === 'meaning_quiz' && (
@@ -320,7 +362,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
                                             currentQ={currentQ} 
                                             onKnown={handleKnown} 
                                             onNotKnown={handleNotKnown} 
-                                            timeLeft={timeLeft || 0}
+                                            timeLeft={timeLeft}
                                             questions={questions}
                                         />
                                     )}
@@ -329,6 +371,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
                                             currentQ={currentQ} 
                                             onKnown={handleKnown} 
                                             onNotKnown={handleNotKnown} 
+                                            timeLeft={timeLeft} 
                                         />
                                     )}
                                 </div>
@@ -396,7 +439,6 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack }: I
                             )}
                         </div>
                     )}
-                </div>
             </div>
 
             {/* Footer Nav & FAB */}

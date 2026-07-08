@@ -84,6 +84,13 @@ export function UserNav() {
                             <UserIcon className="mr-2 h-4 w-4" />
                             <span>Hồ sơ của tôi</span>
                         </DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer" onSelect={(e) => {
+                            e.preventDefault()
+                            router.push('/settings')
+                        }}>
+                            <Settings className="mr-2 h-4 w-4" />
+                            <span>Cài đặt</span>
+                        </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>

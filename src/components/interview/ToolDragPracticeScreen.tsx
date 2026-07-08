@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 
 interface ToolDragPracticeScreenProps {
     questions: any[]
-    onFinish: () => void
+    onFinish: (answers?: any, newlyMasteredIds?: string[]) => void
     onBack?: () => void
 }
 
@@ -37,6 +37,8 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
     // Result
     const [result, setResult] = useState<'idle' | 'correct' | 'incorrect'>('idle')
     const [droppedZone, setDroppedZone] = useState<string | null>(null)
+    const failedIdsRef = useRef<Set<string>>(new Set())
+    const masteredIdsRef = useRef<Set<string>>(new Set())
 
     // Drag states
     const [isDragging, setIsDragging] = useState(false)
@@ -178,8 +180,12 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
             // Chấm điểm
             if (zoneId === currentQ.target_zone_id) {
                 setResult('correct')
+                if (!failedIdsRef.current.has(currentQ.id)) {
+                    masteredIdsRef.current.add(currentQ.id)
+                }
             } else {
                 setResult('incorrect')
+                failedIdsRef.current.add(currentQ.id)
             }
             if (timerRef.current) clearInterval(timerRef.current)
         } else {
@@ -192,7 +198,7 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
         if (currentIndex < questions.length - 1) {
             setCurrentIndex(prev => prev + 1)
         } else {
-            onFinish()
+            onFinish(undefined, Array.from(masteredIdsRef.current))
         }
     }
 
@@ -213,8 +219,18 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
                         Sử dụng công cụ
                     </span>
                 </div>
-                <div className="text-sm font-semibold text-gray-600">
-                    Câu {currentIndex + 1} / {questions.length}
+                <div className="flex items-center gap-3 w-full md:w-56 shrink-0 bg-gray-50/50 px-3 py-2 rounded-full border border-gray-100">
+                    <div className="text-xs font-bold text-gray-500 whitespace-nowrap min-w-[3rem] text-right">
+                        {currentIndex + 1} / {questions.length}
+                    </div>
+                    <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                        <div 
+                            className="h-full bg-gradient-to-r from-orange-400 to-amber-500 rounded-full transition-all duration-500 ease-out relative" 
+                            style={{ width: `${Math.max(5, ((currentIndex + 1) / questions.length) * 100)}%` }}
+                        >
+                            <div className="absolute top-0 right-0 bottom-0 left-0 bg-white/20 animate-pulse"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

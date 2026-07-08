@@ -204,7 +204,21 @@ export function MeaningQuizMode({ currentQ, onKnown, onNotKnown, timeLeft = 0, q
     return (
         <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
             <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-200 shadow-sm text-center relative overflow-hidden">
-                <p className="text-gray-500 font-medium mb-6">Chọn nghĩa Tiếng Việt chính xác nhất với câu vừa nghe</p>
+                {timeLeft === null ? (
+                    <div className="flex flex-col items-center gap-2 mb-6">
+                        <div className="flex items-center gap-2 bg-blue-50 px-4 py-1.5 rounded-full border border-blue-100">
+                            <span className="text-blue-700 font-bold text-sm">Đang đọc câu hỏi</span>
+                            <div className="flex gap-1 items-end h-3.5">
+                                <div className="w-1 h-full bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                                <div className="w-1 h-2/3 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                <div className="w-1 h-full bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                            </div>
+                        </div>
+                        <p className="text-gray-400 text-xs">Hãy tập trung lắng nghe</p>
+                    </div>
+                ) : (
+                    <p className="text-gray-600 font-semibold mb-6">Chọn nghĩa Tiếng Việt chính xác nhất với câu vừa nghe</p>
+                )}
                 
                 <div className="grid grid-cols-2 gap-3 md:gap-4">
                     {options.map((opt, idx) => {
@@ -226,7 +240,7 @@ export function MeaningQuizMode({ currentQ, onKnown, onNotKnown, timeLeft = 0, q
                                 variant="outline"
                                 className={`h-auto min-h-[70px] p-4 text-left justify-start text-base whitespace-normal transition-all duration-300 ${btnStyle}`}
                                 onClick={() => handleSelect(opt)}
-                                disabled={selectedAnswer !== null || timeLeft > 0}
+                                disabled={selectedAnswer !== null || (timeLeft !== null && timeLeft > 0)}
                             >
                                 {opt}
                             </Button>
@@ -234,7 +248,7 @@ export function MeaningQuizMode({ currentQ, onKnown, onNotKnown, timeLeft = 0, q
                     })}
                 </div>
                 
-                {timeLeft > 0 && selectedAnswer === null && (
+                {timeLeft !== null && timeLeft > 0 && selectedAnswer === null && (
                     <div className="absolute top-0 left-0 right-0 h-1 bg-blue-100">
                         <div className="h-full bg-blue-500 animate-pulse" style={{ width: '100%' }}></div>
                     </div>
@@ -313,8 +327,22 @@ export function WordSortMode({ currentQ, onKnown }: ListenModeProps) {
 
     return (
         <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
+            {timeLeft === null && (
+                <div className="flex flex-col items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 bg-blue-50 px-4 py-1.5 rounded-full border border-blue-100">
+                        <span className="text-blue-700 font-bold text-sm">Đang đọc câu hỏi</span>
+                        <div className="flex gap-1 items-end h-3.5">
+                            <div className="w-1 h-full bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                            <div className="w-1 h-2/3 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                            <div className="w-1 h-full bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        </div>
+                    </div>
+                    <p className="text-gray-400 text-xs">Hãy tập trung lắng nghe</p>
+                </div>
+            )}
+            
             {/* Answer Area */}
-            <div className="bg-white p-6 md:p-8 rounded-[2rem] border-2 border-dashed border-gray-300 shadow-sm flex flex-wrap content-start gap-3 min-h-[140px] transition-colors hover:border-blue-300">
+            <div className={`bg-white p-6 md:p-8 rounded-[2rem] border-2 border-dashed ${timeLeft === null ? 'border-blue-200' : 'border-gray-300 hover:border-blue-300'} shadow-sm flex flex-wrap content-start gap-3 min-h-[140px] transition-all`}>
                 {selectedWords.map((w, i) => (
                     <Button
                         key={w.id}

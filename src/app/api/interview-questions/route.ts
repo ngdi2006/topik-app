@@ -20,10 +20,10 @@ export async function GET(request: Request) {
             const categories = category.split(',')
             query = query.in('category', categories)
             if (!categories.includes('Khẩu lệnh') && industry) {
-                query = query.eq('industry', industry)
+                query = query.or(`industry.eq.${industry},industry.eq.COMMON`)
             }
         } else if (industry) {
-            query = query.or(`industry.eq.${industry},category.eq.Khẩu lệnh`)
+            query = query.or(`industry.eq.${industry},industry.eq.COMMON,category.eq.Khẩu lệnh`)
         }
 
         const { data, error } = await query

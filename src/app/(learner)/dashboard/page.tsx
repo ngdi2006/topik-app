@@ -17,6 +17,7 @@ import { PracticeHub } from "@/components/practice/PracticeHub"
 import { PaymentModal } from "@/components/payment/PaymentModal"
 import { Leaderboard } from "@/components/leaderboard/Leaderboard"
 import { InterviewPracticeHub } from "@/components/interview/InterviewPracticeHub"
+import { VocabularyPracticeHub } from "@/components/interview/VocabularyPracticeHub"
 
 type ActiveMenu = 'bai-hoc' | 'luyen-tap' | 'thi-thu' | 'ai-chat' | 'kiem-tra' | 'phong-van' | 'tu-vung-vong-2' | 'bang-xep-hang'
 
@@ -90,7 +91,7 @@ const learnerMenuMeta: Record<ActiveMenu, LearnerMenuMeta> = {
     },
     'tu-vung-vong-2': {
         label: 'Từ vựng & Biển báo',
-        Icon: ShoppingCart, // using ShoppingCart temp, will change icon maybe Image or FileText
+        Icon: BookOpen,
         description: 'Luyện tập Flashcard, Trắc nghiệm, Ghép chữ, Nhận diện với AI',
         buttonText: 'Vào Luyện Từ Vựng',
         highlight: true,
@@ -135,7 +136,7 @@ export default function DashboardPage() {
 
     const enabledMenuItems = useMemo(
         () => enabledMenuSettings
-            .filter((item) => item.is_enabled && item.key in learnerMenuMeta)
+            .filter((item) => item.is_enabled && item.key in learnerMenuMeta && item.key !== 'tu-vung-vong-2')
             .map((item) => ({ ...item, ...learnerMenuMeta[item.key] })),
         [enabledMenuSettings]
     )
@@ -766,34 +767,7 @@ export default function DashboardPage() {
 
                         {/* TỪ VỰNG VÒNG 2 */}
                         {activeMenu === 'tu-vung-vong-2' && activeMenuItem && (
-                            <>
-                                <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-                                    <activeMenuItem.Icon className="w-8 h-8 text-primary" />
-                                    {activeMenuItem.label}
-                                </h1>
-                                <Card className="border-primary/50 bg-primary/5">
-                                    <CardHeader>
-                                        <CardTitle className="text-primary flex items-center gap-2">
-                                            <activeMenuItem.Icon className="w-5 h-5" />
-                                            {activeMenuItem.label}
-                                            <span className="relative flex h-3 w-3">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-                                            </span>
-                                        </CardTitle>
-                                        <CardDescription>{activeMenuItem.description}</CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <Button
-                                            variant="default"
-                                            className="w-full"
-                                            onClick={() => router.push('/vocabulary-practice')}
-                                        >
-                                            {activeMenuItem.buttonText}
-                                        </Button>
-                                    </CardContent>
-                                </Card>
-                            </>
+                            <VocabularyPracticeHub onBackToDashboard={() => setActiveMenu(null)} />
                         )}
                         {/* BẢNG XẾP HẠNG */}
                         {activeMenu === 'bang-xep-hang' && activeMenuItem && (

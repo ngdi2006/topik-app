@@ -17,11 +17,12 @@ export async function GET(request: Request) {
             .order('created_at', { ascending: false })
 
         if (industry && industry !== 'ALL') {
-            query = query.in('industry', [industry, 'ALL'])
+            query = query.in('industry', [industry, 'COMMON', 'ALL'])
         }
 
         if (type) {
-            query = query.eq('type', type)
+            const types = type.split(',')
+            query = query.in('type', types)
         }
 
         const { data, error } = await query

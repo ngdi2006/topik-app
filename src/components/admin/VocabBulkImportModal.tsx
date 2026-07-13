@@ -450,7 +450,7 @@ export function VocabBulkImportModal({ isOpen, onClose, onSuccess }: BulkImportM
                                                 <td className="px-4 py-3 text-center">
                                                     {row.previewAudioUrl ? (
                                                         <button 
-                                                            onClick={() => new Audio(row.previewAudioUrl).play()}
+                                                            onClick={() => { new Audio(row.previewAudioUrl).play().catch(() => {}) }}
                                                             className="p-2 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors mx-auto block"
                                                             title="Nghe thử"
                                                         >

@@ -18,7 +18,7 @@ export async function GET(request: Request) {
         }
 
         if (industry && industry !== 'all') {
-            query = query.eq('industry', industry)
+            query = query.or(`industry.eq.${industry},industry.eq.COMMON`)
         }
 
         const { data, error } = await query

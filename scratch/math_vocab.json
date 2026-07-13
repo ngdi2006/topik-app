@@ -1,0 +1,101 @@
+[
+  {
+    "industry": "COMMON",
+    "type": "MATH",
+    "word_kr": "이거 무게가 얼마예요?",
+    "word_vi": "Trọng lượng vật này là bao nhiêu vậy?",
+    "description_vi": "오점 칠 킬로그램/ 십이점 오킬로그램/ 이십일점 삼킬로그램입니다. (Là 5.7kg / 12.5kg / 21.3kg)",
+    "image_url": null,
+    "audio_url": "https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=%EC%9D%B4%EA%B1%B0%20%EB%AC%B4%EA%B2%8C%EA%B0%80%20%EC%96%BC%EB%A7%88%EC%98%88%EC%9A%94%3F"
+  },
+  {
+    "industry": "COMMON",
+    "type": "MATH",
+    "word_kr": "일 킬로미터가 몇 미터입니까?",
+    "word_vi": "1km là bao nhiêu m?",
+    "description_vi": "천 미터입니다. (Là 1000m.)",
+    "image_url": null,
+    "audio_url": "https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=%EC%9D%BC%20%ED%82%AC%EB%A1%9C%EB%AF%B8%ED%84%B0%EA%B0%80%20%EB%AA%87%20%EB%AF%B8%ED%84%B0%EC%9E%85%EB%8B%88%EA%B9%8C%3F"
+  },
+  {
+    "industry": "COMMON",
+    "type": "MATH",
+    "word_kr": "삼 킬로미터가 몇 미터입니까?",
+    "word_vi": "3km là bao nhiêu m?",
+    "description_vi": "삼천 미터입니다. (Là 3000m.)",
+    "image_url": null,
+    "audio_url": "https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=%EC%82%BC%20%ED%82%AC%EB%A1%9C%EB%AF%B8%ED%84%B0%EA%B0%80%20%EB%AA%87%20%EB%AF%B8%ED%84%B0%EC%9E%85%EB%8B%88%EA%B9%8C%3F"
+  },
+  {
+    "industry": "COMMON",
+    "type": "MATH",
+    "word_kr": "이천 미터가 몇 킬로미터입니까?",
+    "word_vi": "2000m là bao nhiêu km?",
+    "description_vi": "이 킬로미터입니다. (Là 2km.)",
+    "image_url": null,
+    "audio_url": "https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=%EC%9D%B4%EC%B2%9C%20%EB%AF%B8%ED%84%B0%EA%B0%80%20%EB%AA%87%20%ED%82%AC%EB%A1%9C%EB%AF%B8%ED%84%B0%EC%9E%85%EB%8B%88%EA%B9%8C%3F"
+  },
+  {
+    "industry": "COMMON",
+    "type": "MATH",
+    "word_kr": "일 킬로그램이 몇 그램입니까?",
+    "word_vi": "1kg là bao nhiêu g?",
+    "description_vi": "천 그램입니다. (Là 1000g.)",
+    "image_url": null,
+    "audio_url": "https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=%EC%9D%BC%20%ED%82%AC%EB%A1%9C%EA%B7%B8%EB%9E%A8%EC%9D%B4%20%EB%AA%87%20%EA%B7%B8%EB%9E%A8%EC%9E%85%EB%8B%88%EA%B9%8C%3F"
+  },
+  {
+    "industry": "COMMON",
+    "type": "MATH",
+    "word_kr": "사 킬로그램이 몇 그램입니까?",
+    "word_vi": "4kg là bao nhiêu g?",
+    "description_vi": "사천 그램입니다. (Là 4000g.)",
+    "image_url": null,
+    "audio_url": "https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=%EC%82%AC%20%ED%82%AC%EB%A1%9C%EA%B7%B8%EB%9E%A8%EC%9D%B4%20%EB%AA%87%20%EA%B7%B8%EB%9E%A8%EC%9E%85%EB%8B%88%EA%B9%8C%3F"
+  },
+  {
+    "industry": "COMMON",
+    "type": "MATH",
+    "word_kr": "삼천 그램이 몇 킬로그램입니까?",
+    "word_vi": "3000g là mấy kg?",
+    "description_vi": "삼 킬로그램입니다. (Là 3kg.)",
+    "image_url": null,
+    "audio_url": "https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=%EC%82%BC%EC%B2%9C%20%EA%B7%B8%EB%9E%A8%EC%9D%B4%20%EB%AA%87%20%ED%82%AC%EB%A1%9C%EA%B7%B8%EB%9E%A8%EC%9E%85%EB%8B%88%EA%B9%8C%3F"
+  },
+  {
+    "industry": "COMMON",
+    "type": "MATH",
+    "word_kr": "삼 곱하기 삼하면 얼마입니까?",
+    "word_vi": "3 nhân 3 là bao nhiêu?",
+    "description_vi": "구입니다. (Là 9.)",
+    "image_url": null,
+    "audio_url": "https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=%EC%82%BC%20%EA%B3%B1%ED%95%98%EA%B8%B0%20%EC%82%BC%ED%95%98%EB%A9%B4%20%EC%96%BC%EB%A7%88%EC%9E%85%EB%8B%88%EA%B9%8C%3F"
+  },
+  {
+    "industry": "COMMON",
+    "type": "MATH",
+    "word_kr": "십 나누기 오하면 얼마입니까?",
+    "word_vi": "10 chia 5 là bao nhiêu?",
+    "description_vi": "이입니다. (Là 2.)",
+    "image_url": null,
+    "audio_url": "https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=%EC%8B%AD%20%EB%82%98%EB%88%84%EA%B8%B0%20%EC%98%A4%ED%95%98%EB%A9%B4%20%EC%96%BC%EB%A7%88%EC%9E%85%EB%8B%88%EA%B9%8C%3F"
+  },
+  {
+    "industry": "COMMON",
+    "type": "MATH",
+    "word_kr": "오 더하기 사하면 얼마입니까?",
+    "word_vi": "5 cộng 4 là bao nhiêu?",
+    "description_vi": "구입니다. (Là 9.)",
+    "image_url": null,
+    "audio_url": "https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=%EC%98%A4%20%EB%8D%94%ED%95%98%EA%B8%B0%20%EC%82%AC%ED%95%98%EB%A9%B4%20%EC%96%BC%EB%A7%88%EC%9E%85%EB%8B%88%EA%B9%8C%3F"
+  },
+  {
+    "industry": "COMMON",
+    "type": "MATH",
+    "word_kr": "이십 빼기 오하면 얼마입니까?",
+    "word_vi": "20 trừ 5 là bao nhiêu?",
+    "description_vi": "십오입니다. (Là 15.)",
+    "image_url": null,
+    "audio_url": "https://translate.google.com/translate_tts?ie=UTF-8&tl=ko&client=tw-ob&q=%EC%9D%B4%EC%8B%AD%20%EB%B9%BC%EA%B8%B0%20%EC%98%A4%ED%95%98%EB%A9%B4%20%EC%96%BC%EB%A7%88%EC%9E%85%EB%8B%88%EA%B9%8C%3F"
+  }
+]

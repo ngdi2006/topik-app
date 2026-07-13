@@ -344,7 +344,7 @@ export default function ListeningPage() {
                         // Ignore abort error which happens when load() is called again before play() finishes
                         return;
                     }
-                    console.error('Audio play error:', err)
+                    console.warn('Audio play error:', err)
                     setAudioError(true)
                     setAudioPlaying(false)
                     // Don't start timer yet - wait for user to manually play or skip
@@ -529,7 +529,7 @@ export default function ListeningPage() {
                                                         setAudioPlaying(true)
                                                         setAudioError(false)
                                                     }).catch((err) => {
-                                                        console.error('Manual play error:', err)
+                                                        console.warn('Manual play error:', err)
                                                         toast.error('Lỗi phát audio: File có thể bị lỗi, không đúng định dạng (.mp3) hoặc không có quyền truy cập.')
                                                     })
                                                 }

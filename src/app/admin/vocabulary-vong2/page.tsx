@@ -186,7 +186,7 @@ export default function VocabularyVong2AdminPage() {
                                                         onClick={() => {
                                                             const audio = new Audio(item.audio_url);
                                                             audio.play().catch(e => {
-                                                                console.error('Lỗi phát âm thanh:', e);
+                                                                console.warn('Lỗi phát âm thanh:', e);
                                                             });
                                                         }}
                                                         className="p-2 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"

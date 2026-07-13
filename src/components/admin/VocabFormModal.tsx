@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { Upload, X, Music } from 'lucide-react'
 
@@ -28,6 +29,7 @@ interface VocabFormModalProps {
 export function VocabFormModal({ isOpen, onClose, onSuccess, editData }: VocabFormModalProps) {
     const [wordKr, setWordKr] = useState('')
     const [wordVi, setWordVi] = useState('')
+    const [descriptionVi, setDescriptionVi] = useState('')
     const [industry, setIndustry] = useState('COMMON')
     const [type, setType] = useState('TOOL')
     
@@ -44,6 +46,7 @@ export function VocabFormModal({ isOpen, onClose, onSuccess, editData }: VocabFo
             if (editData) {
                 setWordKr(editData.word_kr || '')
                 setWordVi(editData.word_vi || '')
+                setDescriptionVi(editData.description_vi || '')
                 setIndustry(editData.industry || 'COMMON')
                 setType(editData.type || 'TOOL')
                 let imgUrl = editData.image_url || null;
@@ -59,6 +62,7 @@ export function VocabFormModal({ isOpen, onClose, onSuccess, editData }: VocabFo
             } else {
                 setWordKr('')
                 setWordVi('')
+                setDescriptionVi('')
                 setIndustry('COMMON')
                 setType('TOOL')
                 setImageFile(null)
@@ -126,6 +130,7 @@ export function VocabFormModal({ isOpen, onClose, onSuccess, editData }: VocabFo
             const payload = {
                 word_kr: wordKr,
                 word_vi: wordVi,
+                description_vi: descriptionVi.trim() || null,
                 industry,
                 type,
                 image_url: finalImageUrl,
@@ -180,6 +185,19 @@ export function VocabFormModal({ isOpen, onClose, onSuccess, editData }: VocabFo
                         <div className="space-y-2">
                             <label className="text-sm font-semibold">Tiếng Việt *</label>
                             <Input value={wordVi} onChange={e => setWordVi(e.target.value)} placeholder="Ví dụ: Cái búa" />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold flex items-center gap-1">
+                                Giải thích / Ý nghĩa
+                                <span className="text-xs text-slate-400 font-normal">(tùy chọn — dùng cho biển báo)</span>
+                            </label>
+                            <Textarea
+                                value={descriptionVi}
+                                onChange={e => setDescriptionVi(e.target.value)}
+                                placeholder={type === 'SIGN' ? 'Ví dụ: Bắt buộc mặc áo phản quang khi làm việc trong khu vực thi công' : 'Ghi chú về cách dùng, ngữ cảnh...'}
+                                className="resize-none text-sm"
+                                rows={3}
+                            />
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-semibold">Ngành nghề</label>

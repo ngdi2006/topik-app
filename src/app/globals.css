@@ -127,15 +127,36 @@
 
 @layer utilities {
   .perspective-1000 {
+    -webkit-perspective: 1000px;
     perspective: 1000px;
   }
   .transform-style-3d {
+    -webkit-transform-style: preserve-3d;
     transform-style: preserve-3d;
   }
   .backface-hidden {
+    -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
   }
   .rotate-y-180 {
+    -webkit-transform: rotateY(180deg);
     transform: rotateY(180deg);
+  }
+  
+  @keyframes wiggle {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px) rotate(-3deg); }
+    75% { transform: translateX(4px) rotate(3deg); }
+  }
+  @keyframes flash {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 0.3; }
+  }
+  
+  .animate-wiggle {
+    animation: wiggle 0.3s ease-in-out infinite;
+  }
+  .animate-flash {
+    animation: flash 0.5s ease-in-out infinite;
   }
 }

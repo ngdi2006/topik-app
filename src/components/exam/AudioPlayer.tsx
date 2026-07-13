@@ -56,7 +56,11 @@ export function AudioPlayer({ src, title = "Listening Audio" }: AudioPlayerProps
         if (isPlaying) {
             audio.pause()
         } else {
-            audio.play()
+            audio.play().catch(err => {
+                if (err.name !== 'AbortError') {
+                    console.warn("AudioPlayer play error:", err)
+                }
+            })
         }
         setIsPlaying(!isPlaying)
     }

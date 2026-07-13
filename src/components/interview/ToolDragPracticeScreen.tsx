@@ -63,7 +63,7 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
                 if (err.name === 'AbortError') {
                     console.warn('Audio play interrupted (Strict Mode/Cleanup):', err)
                 } else {
-                    console.error("Audio error:", err)
+                    console.warn("Audio error:", err)
                     setAudioState('error')
                 }
             })
@@ -119,7 +119,11 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
     const replayAudio = () => {
         if (currentQ.question_audio_url && audioRef.current) {
             audioRef.current.currentTime = 0
-            audioRef.current.play().catch(console.error)
+            audioRef.current.play().catch(err => {
+                if (err.name !== 'AbortError') {
+                    console.warn("Audio replay error:", err)
+                }
+            })
         } else if (currentQ.question_text && 'speechSynthesis' in window) {
             const utterance = new SpeechSynthesisUtterance(currentQ.question_text)
             utterance.lang = 'ko-KR'

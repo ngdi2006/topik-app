@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Mic, Square, Play, Eye, RefreshCw, CheckCircle, XCircle, ArrowLeft, Menu } from 'lucide-react'
+import { Mic, Square, Play, Eye, EyeOff, RefreshCw, CheckCircle, XCircle, ArrowLeft, Menu } from 'lucide-react'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { toast } from 'sonner'
 import { FlashcardMode, MeaningQuizMode, WordSortMode } from './ListenOnlyModes'
@@ -15,12 +15,171 @@ interface InterviewPracticeScreenProps {
     initialAutoPlay?: boolean
 }
 
+const CHUNK_DICTIONARY: Record<string, string> = {
+    '성함이': 'Tên (kính ngữ)',
+    '어떻게': 'như thế nào / làm sao',
+    '되세요': 'là / trở thành',
+    '되십니까': 'là / trở thành',
+    '이름이': 'Tên (thông thường)',
+    '무엇인가요': 'là cái gì?',
+    '무엇입니까': 'là cái gì?',
+    '뭐예요': 'là gì?',
+    '올해': 'Năm nay',
+    '연세가': 'Tuổi (kính ngữ)',
+    '나이가': 'Tuổi (thường)',
+    '몇': 'mấy',
+    '살인가요': 'tuổi?',
+    '살입니까': 'tuổi?',
+    '살이에요': 'tuổi?',
+    '생일이': 'Sinh nhật',
+    '언제인가요': 'khi nào?',
+    '언제입니까': 'khi nào?',
+    '언제예요': 'khi nào?',
+    '생신이': 'Sinh nhật (kính ngữ)',
+    '생년월일이': 'Ngày sinh',
+    '태어났나요': 'sinh ra?',
+    '태어났습니까': 'sinh ra?',
+    '태어났어요': 'sinh ra?',
+    '고향이': 'Quê hương',
+    '어디인가요': 'ở đâu?',
+    '어디입니까': 'ở đâu?',
+    '어디예요': 'ở đâu?',
+    '어디에서': 'ở đâu / từ đâu',
+    '왔나요': 'đã đến?',
+    '왔습니까': 'đã đến?',
+    '왔어요': 'đã đến?',
+    '주소가': 'Địa chỉ',
+    '결혼했나요': 'đã kết hôn?',
+    '결혼했습니까': 'đã kết hôn?',
+    '결혼했어요': 'đã kết hôn?',
+    '키가': 'Chiều cao',
+    '센티미터예요': 'cm?',
+    '센티미터입니까': 'cm?',
+    '센티미터인가요': 'cm?',
+    '몸무게가': 'Cân nặng',
+    '체중이': 'Thể trọng (cân nặng)',
+    '얼마예요': 'bao nhiêu?',
+    '얼마입니까': 'bao nhiêu?',
+    '얼마인가요': 'bao nhiêu?',
+    '가족이': 'Gia đình',
+    '명인가요': 'người?',
+    '명입니까': 'người?',
+    '명이에요': 'người?',
+    '형제자매가': 'Anh chị em',
+    '남매가': 'Anh chị em (trai gái)',
+    '아버지': 'Bố',
+    '어머니': 'Mẹ',
+    '남편': 'Chồng',
+    '아내': 'Vợ',
+    '직업이': 'Nghề nghiệp',
+    '무슨': 'gì / nào',
+    '일을': 'việc (tân ngữ)',
+    '하세요': 'làm?',
+    '하십니까': 'làm?',
+    '하나요': 'làm?',
+    '합니까': 'làm?',
+    '해요': 'làm?',
+    '부모님은': 'Bố mẹ',
+    '남편은': 'Chồng',
+    '아내는': 'Vợ',
+    '지금': 'bây giờ',
+    '어디에': 'ở đâu',
+    '살고': 'sống',
+    '계세요': 'đang (kính ngữ)',
+    '계십니까': 'đang (kính ngữ)',
+    '사나요': 'sống?',
+    '사세요': 'sống?',
+    '사십니까': 'sống?',
+    '삽니까': 'sống?',
+    '사요': 'sống?',
+    '취미가': 'Sở thích',
+    '왜': 'Tại sao',
+    '좋아하세요': 'thích?',
+    '좋아하십니까': 'thích?',
+    '좋아하나요': 'thích?',
+    '좋아합니까': 'thích?',
+    '좋아해요': 'thích?',
+    '꿈은': 'Ước mơ',
+    '운동을': 'thể thao (tân ngữ)',
+    '제일': 'nhất',
+    '색깔을': 'màu sắc (tân ngữ)',
+    '한국에': 'đến Hàn Quốc',
+    '가고': 'đi',
+    '싶어요': 'muốn',
+    '싶습니까': 'muốn',
+    '가는': 'đi / việc đi',
+    '이유가': 'lý do',
+    '목적이': 'mục đích',
+    '한국에서': 'tại Hàn Quốc',
+    '일하고': 'làm việc',
+    '먼저': 'trước / đầu tiên',
+    '하고': 'làm',
+    '싶은': 'muốn',
+    '일이': 'việc (chủ ngữ)',
+    '중요한': 'quan trọng',
+    '한국어를': 'tiếng Hàn',
+    '얼마나': 'bao lâu / bao nhiêu',
+    '얼마': 'bao nhiêu',
+    '동안': 'khoảng / trong',
+    '배웠어요': 'đã học?',
+    '배웠나요': 'đã học?',
+    '배웠습니까': 'đã học?',
+    '배우셨어요': 'đã học? (kính ngữ)',
+    '배우셨습니까': 'đã học? (kính ngữ)',
+    '한국어는': 'tiếng Hàn',
+    '어떻습니까': 'như thế nào?',
+    '어떠세요': 'như thế nào?',
+    '어떤가요': 'như thế nào?',
+    '어려워요': 'khó?',
+    '어려운가요': 'khó?',
+    '쉬워요': 'dễ?',
+    '쉬운가요': 'dễ?',
+    '의사소통이': 'giao tiếp',
+    '설명할': 'giải thích',
+    '수': 'có thể',
+    '있나요': 'không?',
+    '방해하는': 'cản trở',
+    '요소들은': 'các yếu tố',
+    '시예요': 'giờ?',
+    '인가요': 'không? / là?',
+    '어제는': 'Hôm qua',
+    '요일이었어요': 'là thứ mấy?',
+    '오늘은': 'Hôm nay',
+    '요일이에요': 'là thứ mấy?',
+    '내일은': 'Ngày mai',
+    '며칠이었어요': 'ngày mấy?',
+    '며칠이에요': 'ngày mấy?',
+    '지난': 'trước / vừa qua',
+    '달은': 'tháng',
+    '몇월이었어요': 'tháng mấy?',
+    '몇월이에요': 'tháng mấy?',
+    '작년은': 'Năm ngoái',
+    '년이었어요': 'năm mấy?',
+    '올해는': 'Năm nay',
+    '년이에요': 'năm mấy?',
+    '내년은': 'Năm sau',
+    '날씨가': 'thời tiết',
+    '어때요': 'thế nào?',
+    '여기에': 'đến đây',
+    '오셨습니까': 'đã đến?',
+    '오나요': 'đến?',
+    '아침을': 'bữa sáng',
+    '드셨습니까': 'đã ăn?'
+}
+
 export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, initialAutoPlay = false }: InterviewPracticeScreenProps) {
     const [queue, setQueue] = useState<number[]>(questions.map((_, i) => i))
     const currentQIndex = queue.length > 0 ? queue[0] : null
     const currentQ = currentQIndex !== null ? questions[currentQIndex] : null
 
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+    const [showQuestionText, setShowQuestionText] = useState(false)
+
+    useEffect(() => {
+        if (currentQ) {
+            setShowQuestionText(mode === 'ai_mock' && currentQ.category === 'Toán học')
+        }
+    }, [currentQIndex, currentQ, mode])
 
     const isListenOnly = mode !== 'ai_mock'
     const [playbackRate, setPlaybackRate] = useState<number>(1.0)
@@ -77,7 +236,10 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
             timerRef.current = null
         }
 
-        if (currentQ.question_audio_url && audioRef.current) {
+        const isGoogleTTS = currentQ.question_audio_url && currentQ.question_audio_url.includes('translate.google.com')
+        const hasRealAudio = currentQ.question_audio_url && !isGoogleTTS
+
+        if (hasRealAudio && audioRef.current) {
             audioRef.current.src = currentQ.question_audio_url
             audioRef.current.playbackRate = playbackRate
             // Do NOT call load() to avoid race conditions
@@ -85,7 +247,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
                 if (err.name === 'AbortError') {
                     console.warn('Audio play interrupted (Strict Mode/Cleanup):', err)
                 } else {
-                    console.error("Audio play error:", err)
+                    console.warn("Audio play error:", err)
                     setAudioState('error')
                 }
             })
@@ -131,7 +293,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
     
     const handleAudioEnded = () => {
         setAudioState('ended')
-        let countdownSeconds = currentQ.countdown_after_audio || 5
+        let countdownSeconds = 3
         if (isAutoPlay) countdownSeconds = 1 // Flip faster in auto-play mode
 
         setTimeLeft(countdownSeconds)
@@ -151,14 +313,21 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
 
     const handleAudioError = () => {
         setAudioState('error')
-        toast.error('Lỗi khi tải file nghe')
+        handleAudioEnded()
     }
 
     const replayAudio = () => {
-        if (currentQ.question_audio_url && audioRef.current) {
+        const isGoogleTTS = currentQ.question_audio_url && currentQ.question_audio_url.includes('translate.google.com')
+        const hasRealAudio = currentQ.question_audio_url && !isGoogleTTS
+
+        if (hasRealAudio && audioRef.current) {
             audioRef.current.currentTime = 0
             audioRef.current.playbackRate = playbackRate
-            audioRef.current.play().catch(console.error)
+            audioRef.current.play().catch(err => {
+                if (err.name !== 'AbortError') {
+                    console.warn("Audio replay error:", err)
+                }
+            })
         } else if (currentQ.question_text && 'speechSynthesis' in window) {
             const utterance = new SpeechSynthesisUtterance(currentQ.question_text)
             utterance.lang = 'ko-KR'
@@ -196,16 +365,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
         if (queue.length <= 1) {
             onFinish(answers, Array.from(masteredIdsRef.current))
         } else {
-            setQueue(prev => {
-                const newQ = [...prev.slice(1)]
-                newQ.push(prev[0])
-                return newQ
-            })
-            // Reset for the next question
-            setAudioState('idle')
-            setTimeLeft(null)
-            resetTranscript()
-            replayAudio()
+            setQueue(prev => prev.slice(1))
         }
     }
 
@@ -222,13 +382,13 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
     }
 
     const handleNext = () => {
-        handleKnown()
+        handleNotKnown()
     }
 
     if (!currentQ) return null
 
     return (
-        <div className="max-w-4xl mx-auto p-3 md:p-8 space-y-4 md:space-y-8">
+        <div className="min-h-[500px] flex flex-col max-w-4xl mx-auto">
             <audio
                 ref={audioRef}
                 onPlay={handleAudioPlay}
@@ -237,218 +397,342 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
                 className="hidden"
             />
 
-            {/* Header / Progress */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white p-4 rounded-xl border shadow-sm">
-                <div className="flex flex-wrap items-center gap-2">
+            {/* Header synced with Math/Vocabulary sections */}
+            <div className="pb-3 border-b border-slate-200 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
                     {onBack && (
-                        <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0 mr-1" title="Quay lại thiết lập">
-                            <ArrowLeft className="w-5 h-5 text-gray-500" />
+                        <Button 
+                            variant="ghost" 
+                            onClick={onBack} 
+                            className="h-9 w-9 p-0 text-slate-600 hover:bg-slate-100 flex-shrink-0 rounded-full flex items-center justify-center"
+                            title="Quay lại"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
                         </Button>
                     )}
-                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs md:text-sm font-semibold hidden md:inline-block">
-                        {currentQ.category}
-                    </span>
-                    <span className="text-xs md:text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                        {isListenOnly ? 'Chỉ luyện nghe' : 'Thi thử với AI'}
-                    </span>
-                    {isListenOnly && (
-                        <div className="flex flex-wrap items-center gap-2 ml-auto md:ml-2">
-                            <div className="flex items-center bg-gray-50/80 rounded-full border border-gray-200 p-0.5 shadow-sm">
-                                <span className="text-[11px] uppercase tracking-wider text-gray-500 pl-2 pr-1 font-bold">Tốc độ</span>
-                                <div className="flex items-center gap-0.5">
-                                    {[0.8, 1.0, 1.2].map(rate => (
-                                        <button 
-                                            key={rate}
-                                            onClick={() => setPlaybackRate(rate)}
-                                            className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all duration-200 ${playbackRate === rate ? 'bg-blue-600 text-white shadow-md scale-105' : 'text-gray-600 hover:bg-gray-200'}`}
-                                        >
-                                            {rate}x
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            {mode === 'flashcard' && (
-                                <button
-                                    onClick={() => setIsAutoPlay(!isAutoPlay)}
-                                    className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full border text-sm font-bold transition-all duration-300 shadow-sm ${isAutoPlay ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent shadow-indigo-200 shadow-lg scale-105' : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'}`}
-                                    title="Tự động lật và chuyển câu"
-                                >
-                                    {isAutoPlay ? <Square className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
-                                    <span className="hidden sm:inline">Tự động phát</span>
-                                </button>
-                            )}
-                        </div>
-                    )}
-                </div>
-                <div className="flex items-center gap-3 w-full md:w-56 shrink-0 bg-gray-50/50 px-3 py-2 rounded-full border border-gray-100">
-                    <div className="text-xs font-bold text-gray-500 whitespace-nowrap min-w-[3rem] text-right">
-                        {questions.length - queue.length + 1} / {questions.length}
+                    <div className="min-w-0">
+                        <h2 className="text-base font-extrabold text-slate-800 tracking-tight leading-tight">
+                            {currentQ?.category || "Khẩu lệnh"}
+                        </h2>
+                        <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                            {questions.length} câu hỏi hiển thị • {currentQ?.category || "Chủ đề"}
+                        </p>
                     </div>
-                    <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                </div>
+
+                {/* Speed selector (no text, simplified Segmented control) */}
+                {isListenOnly && (
+                    <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/50 rounded-xl p-0.5 shadow-sm">
+                        {[0.8, 1.0, 1.2].map(rate => (
+                            <button 
+                                key={rate}
+                                onClick={() => setPlaybackRate(rate)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all duration-200 cursor-pointer ${
+                                    playbackRate === rate 
+                                        ? 'bg-blue-600 text-white shadow-sm scale-105' 
+                                        : 'text-slate-650 hover:bg-slate-100'
+                                }`}
+                            >
+                                {rate}x
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Content view matching vocabulary/math layout */}
+            <div className="flex-1 overflow-auto py-6 space-y-6">
+
+            {/* Stats & Progress section (placed below header) */}
+            {/* Stats & Progress section (placed below header) */}
+            {mode !== 'flashcard' && mode !== 'meaning_quiz' && (
+                <div className="space-y-2 pt-2">
+                    <div className="flex items-center justify-between px-1">
+                        <div className="text-sm font-bold text-slate-550">
+                            Câu hỏi: <span className="text-blue-600 font-black">{questions.length - queue.length + 1}</span>/{questions.length}
+                        </div>
+                    </div>
+                    {/* Progress bar */}
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
                         <div 
                             className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500 ease-out relative" 
                             style={{ width: `${Math.max(5, ((questions.length - queue.length + 1) / questions.length) * 100)}%` }}
                         >
-                            <div className="absolute top-0 right-0 bottom-0 left-0 bg-white/20 animate-pulse"></div>
+                            <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* Main Question Area */}
-            <div className="bg-white rounded-2xl border shadow-sm p-5 md:p-8 text-center space-y-6 md:space-y-8 relative overflow-hidden">
-                {/* Timer and Replay (Non-Autoplay) */}
-                {mode !== 'word_sort' && !isAutoPlay && (
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 min-h-[4rem]">
-                        {/* Status / Visualizer */}
-                        {audioState === 'playing' && (
-                            <div className="flex items-center gap-2 bg-blue-50/50 px-5 py-2.5 rounded-full border border-blue-100">
-                                <div className="w-1.5 h-4 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                                <div className="w-1.5 h-6 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '100ms' }}></div>
-                                <div className="w-1.5 h-4 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '200ms' }}></div>
-                                <span className="ml-2 text-sm text-blue-600 font-medium">Giám khảo đang đọc câu hỏi...</span>
-                            </div>
-                        )}
-
-                        {/* Timer */}
-                        {audioState === 'ended' && timeLeft !== null && (
-                            <div className="flex items-center gap-3">
-                                <div className={`flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full border-4 shadow-sm animate-in zoom-in duration-300 ${timeLeft > 0 ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
-                                    <span className="text-xl md:text-2xl font-black">
-                                        {timeLeft.toString().padStart(2, '0')}
-                                    </span>
+            {mode === 'meaning_quiz' ? (
+                <MeaningQuizMode 
+                    currentQ={currentQ} 
+                    onKnown={handleKnown} 
+                    onNotKnown={handleNotKnown} 
+                    timeLeft={timeLeft}
+                    questions={questions}
+                    playbackRate={playbackRate}
+                />
+            ) : mode === 'flashcard' ? (
+                <FlashcardMode
+                    currentQ={currentQ}
+                    onKnown={handleKnown}
+                    onNotKnown={handleNotKnown}
+                    questions={questions}
+                />
+            ) : (
+                <div className={`bg-white rounded-2xl border shadow-sm text-center relative ${
+                    isListenOnly ? 'p-4 md:p-6 space-y-4 md:space-y-5' : 'p-5 md:p-8 space-y-6 md:space-y-8'
+                }`}>
+                    {/* Timer and Replay (Non-Autoplay) */}
+                    {mode !== 'word_sort' && !isAutoPlay && (
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
+                            {/* Status / Visualizer */}
+                            {audioState === 'playing' && (
+                                <div className="flex items-center gap-2 bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 mx-auto">
+                                    <div className="w-1 h-3.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                                    <div className="w-1 h-5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '100ms' }}></div>
+                                    <div className="w-1 h-3.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '200ms' }}></div>
+                                    <span className="ml-1 text-xs text-blue-650 font-bold">Giám khảo đang đọc câu hỏi...</span>
                                 </div>
-                                <div className="text-left">
-                                    {timeLeft > 0 ? (
-                                        <p className="text-blue-600/80 text-sm font-semibold uppercase tracking-wider">Thời gian suy nghĩ</p>
-                                    ) : (
-                                        <p className="text-gray-500 text-sm font-semibold uppercase tracking-wider">Đã hết thời gian!</p>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                        
-                        {audioState === 'error' && (
-                            <div className="text-red-500 text-sm font-medium">Lỗi tải âm thanh. Bạn có thể thử lại.</div>
-                        )}
+                            )}
 
-                        {/* Replay Button */}
-                        {(audioState === 'ended' || audioState === 'error') && (
-                            <Button variant="outline" size="sm" onClick={replayAudio} className="rounded-full h-10 md:h-12 px-5 text-sm md:text-base hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors">
-                                <Play className="w-4 h-4 mr-2" />
-                                Nghe lại câu hỏi
-                            </Button>
-                        )}
-                    </div>
-                )}
-
-                {/* Mode Specific UI */}
-                {(isAutoPlay || (isListenOnly && audioState === 'playing') || (audioState === 'ended' && (timeLeft !== null || mode === 'word_sort'))) && (
-                    <div className={`w-full max-w-2xl mx-auto transition-all duration-500 ${isAutoPlay ? 'mt-0' : 'mt-2'}`}>
-                            {isListenOnly ? (
-                                <div className="space-y-4">
-                                    {mode === 'flashcard' && (
-                                        <FlashcardMode 
-                                            currentQ={currentQ} 
-                                            onKnown={handleKnown} 
-                                            onNotKnown={handleNotKnown} 
-                                            timeLeft={timeLeft} 
-                                            isAutoPlay={isAutoPlay}
-                                            questions={questions}
-                                        />
-                                    )}
-                                    {mode === 'meaning_quiz' && (
-                                        <MeaningQuizMode 
-                                            currentQ={currentQ} 
-                                            onKnown={handleKnown} 
-                                            onNotKnown={handleNotKnown} 
-                                            timeLeft={timeLeft}
-                                            questions={questions}
-                                        />
-                                    )}
-                                    {mode === 'word_sort' && (
-                                        <WordSortMode 
-                                            currentQ={currentQ} 
-                                            onKnown={handleKnown} 
-                                            onNotKnown={handleNotKnown} 
-                                            timeLeft={timeLeft} 
-                                        />
-                                    )}
-                                </div>
-                            ) : (
-                                // AI MOCK MODE
-                                <div className="space-y-6">
-                                    {!hasBrowserSupport && (
-                                        <div className="text-red-500 text-sm">
-                                            Trình duyệt của bạn không hỗ trợ nhận diện giọng nói. Vui lòng sử dụng Chrome/Edge.
-                                        </div>
-                                    )}
-                                    
-                                    <div className="flex flex-col items-center gap-4">
-                                        <Button
-                                            size="lg"
-                                            variant={isRecording ? "destructive" : "default"}
-                                            className={`w-16 h-16 md:w-20 md:h-20 rounded-full shadow-lg transition-all ${isRecording ? 'scale-110 shadow-red-200 shadow-2xl' : 'hover:scale-105'}`}
-                                            onClick={toggleRecording}
-                                            disabled={!hasBrowserSupport || (timeLeft || 0) > 0}
-                                        >
-                                            {isRecording ? <Square className="w-6 h-6 md:w-8 md:h-8" /> : <Mic className="w-6 h-6 md:w-8 md:h-8" />}
-                                        </Button>
-
-                                        {isRecording && (
-                                            <div className="flex items-center justify-center gap-1.5 h-8 mt-2">
-                                                <div className="w-1.5 h-full bg-red-500 rounded-full animate-[bounce_1s_infinite]" style={{ animationDelay: '0ms' }}></div>
-                                                <div className="w-1.5 h-2/3 bg-red-400 rounded-full animate-[bounce_0.8s_infinite]" style={{ animationDelay: '100ms' }}></div>
-                                                <div className="w-1.5 h-full bg-red-500 rounded-full animate-[bounce_1.2s_infinite]" style={{ animationDelay: '200ms' }}></div>
-                                                <div className="w-1.5 h-1/2 bg-red-400 rounded-full animate-[bounce_0.9s_infinite]" style={{ animationDelay: '150ms' }}></div>
-                                                <div className="w-1.5 h-4/5 bg-red-500 rounded-full animate-[bounce_1.1s_infinite]" style={{ animationDelay: '300ms' }}></div>
-                                            </div>
-                                        )}
-                                        
-                                        <div className="text-sm text-gray-500 font-medium flex flex-col items-center gap-2">
-                                            <span>
-                                                {(timeLeft || 0) > 0 
-                                                    ? 'Vui lòng chờ hết thời gian suy nghĩ' 
-                                                    : isRecording ? 'Đang ghi âm... Chạm để kết thúc' : 'Chạm 1 lần để bắt đầu trả lời'}
-                                            </span>
-                                            {currentQ?.category === 'Khẩu lệnh' && (timeLeft || 0) <= 0 && !isRecording && (
-                                                <span className="text-blue-700 bg-blue-100 px-3 py-1 rounded-full text-xs font-bold animate-pulse">
-                                                    💡 Yêu cầu: Trả lời bằng Tiếng Việt
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {(transcript || interimTranscript) && (
-                                            <div className="w-full bg-gray-50 p-3 md:p-4 rounded-lg border text-left mt-2">
-                                                <p className="text-sm font-semibold text-gray-600 mb-1">Bạn đang nói:</p>
-                                                <p className="text-sm md:text-base text-gray-900">{transcript} <span className="text-gray-400">{interimTranscript}</span></p>
-                                                {!isRecording && transcript && (
-                                                    <div className="flex gap-2 mt-4">
-                                                        <Button variant="outline" size="sm" onClick={resetTranscript} className="flex-1">
-                                                            <RefreshCw className="w-4 h-4 mr-2" /> Nói lại
-                                                        </Button>
-                                                        <Button size="sm" onClick={handleSaveAnswer} className="flex-1">
-                                                            {queue.length > 1 ? 'Ghi nhận & Tiếp tục' : 'Nộp bài & Chấm điểm'}
-                                                        </Button>
-                                                    </div>
-                                                )}
-                                            </div>
+                            {/* Timer */}
+                            {audioState === 'ended' && timeLeft !== null && (
+                                <div className="flex items-center gap-3">
+                                    <div className={`flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full border-4 shadow-sm animate-in zoom-in duration-300 ${timeLeft > 0 ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                                        <span className="text-xl md:text-2xl font-black">
+                                            {timeLeft.toString().padStart(2, '0')}
+                                        </span>
+                                    </div>
+                                    <div className="text-left">
+                                        {timeLeft > 0 ? (
+                                            <p className="text-blue-600/80 text-sm font-semibold uppercase tracking-wider">Thời gian suy nghĩ</p>
+                                        ) : (
+                                            <p className="text-gray-500 text-sm font-semibold uppercase tracking-wider">Đã hết thời gian!</p>
                                         )}
                                     </div>
                                 </div>
                             )}
+                            
+                            {audioState === 'error' && (
+                                <div className="text-red-500 text-sm font-medium">Lỗi tải âm thanh. Bạn có thể thử lại.</div>
+                            )}
+
+                            {/* Replay Button */}
+                            {(audioState === 'ended' || audioState === 'error') && (
+                                <Button variant="outline" size="sm" onClick={replayAudio} className="rounded-full h-10 md:h-12 px-5 text-sm md:text-base hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors">
+                                    <Play className="w-4 h-4 mr-2" />
+                                    Nghe lại câu hỏi
+                                </Button>
+                            )}
                         </div>
                     )}
-            </div>
+
+                    {/* Reveal Question Button for AI Mock Mode */}
+                    {!isListenOnly && (
+                        <div className="flex flex-col items-center gap-3 pt-2">
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => setShowQuestionText(!showQuestionText)}
+                                className="rounded-full text-slate-500 hover:text-indigo-600 hover:bg-indigo-50/50 transition-colors cursor-pointer"
+                            >
+                                {showQuestionText ? (
+                                    <>
+                                        <EyeOff className="w-4 h-4 mr-2" />
+                                        Ẩn câu hỏi
+                                    </>
+                                ) : (
+                                    <>
+                                        <Eye className="w-4 h-4 mr-2" />
+                                        Xem câu hỏi & Nghĩa
+                                    </>
+                                )}
+                            </Button>
+
+                            {showQuestionText && (
+                                <div className="w-full max-w-2xl mx-auto p-6 md:p-8 bg-indigo-50/20 backdrop-blur-sm rounded-3xl border border-indigo-100/60 text-center space-y-4 animate-in fade-in slide-in-from-top-3 duration-300 shadow-sm relative overflow-hidden">
+                                    <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-indigo-300 via-indigo-500 to-purple-400"></div>
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-100/70 border border-indigo-200/50 text-indigo-800 text-[10px] font-black tracking-wider uppercase rounded-full">
+                                        <span>📝</span> Đề bài câu hỏi
+                                    </div>
+                                    <div className="space-y-2.5">
+                                        <h3 className="text-xl md:text-2xl font-black text-indigo-950 tracking-wide leading-relaxed">
+                                            {currentQ.question_text}
+                                        </h3>
+                                        <p className="text-sm md:text-base font-bold text-slate-500 max-w-lg mx-auto">
+                                            {currentQ.vietnamese_meaning}
+                                        </p>
+                                    </div>
+
+                                    {/* Chunk breakdown */}
+                                    {currentQ.category === 'Giao tiếp' && (
+                                        <div className="pt-4 border-t border-indigo-100/40 text-left space-y-2">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">🔍 Phân tích cụm từ (Nghe ngắt nghỉ):</span>
+                                            <div className="flex flex-wrap gap-2">
+                                                {currentQ.question_text.split(/\s+/).map((word: string, i: number) => {
+                                                    const cleanWord = word.replace(/[?,.!?]/g, '');
+                                                    let translation = CHUNK_DICTIONARY[cleanWord] || CHUNK_DICTIONARY[word];
+                                                    if (!translation) {
+                                                        const foundKey = Object.keys(CHUNK_DICTIONARY).find(k => cleanWord.includes(k) || k.includes(cleanWord));
+                                                        if (foundKey) translation = CHUNK_DICTIONARY[foundKey];
+                                                    }
+                                                    return (
+                                                        <div key={i} className="px-3 py-1.5 bg-white/80 rounded-xl border border-indigo-100 shadow-sm flex flex-col items-center min-w-[60px] text-center hover:border-indigo-300 transition-colors">
+                                                            <span className="text-sm font-black text-slate-800">{word}</span>
+                                                            <span className="text-[10px] text-slate-500 font-bold">{translation || '...'}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Mode Specific UI */}
+                    {(isAutoPlay || 
+                      (isListenOnly && audioState === 'playing') || 
+                      ((audioState === 'ended' || audioState === 'error') && (timeLeft !== null || mode === 'word_sort' || mode === 'ai_mock'))
+                     ) && (
+                        <div className={`w-full max-w-2xl mx-auto transition-all duration-500 ${isAutoPlay ? 'mt-0' : 'mt-2'}`}>
+                                {isListenOnly ? (
+                                    <div className="space-y-4">
+                                        {(mode as string) === 'flashcard' && (
+                                            <FlashcardMode 
+                                                currentQ={currentQ} 
+                                                onKnown={handleKnown} 
+                                                onNotKnown={handleNotKnown} 
+                                                timeLeft={timeLeft} 
+                                                isAutoPlay={isAutoPlay}
+                                                questions={questions}
+                                            />
+                                        )}
+                                        {(mode as string) === 'meaning_quiz' && (
+                                            <MeaningQuizMode 
+                                                currentQ={currentQ} 
+                                                onKnown={handleKnown} 
+                                                onNotKnown={handleNotKnown} 
+                                                timeLeft={timeLeft}
+                                                questions={questions}
+                                            />
+                                        )}
+                                        {(mode as string) === 'word_sort' && (
+                                            <WordSortMode 
+                                                currentQ={currentQ} 
+                                                onKnown={handleKnown} 
+                                                onNotKnown={handleNotKnown} 
+                                                timeLeft={timeLeft} 
+                                                questions={questions}
+                                            />
+                                        )}
+                                    </div>
+                                ) : (
+                                    // AI MOCK MODE
+                                    <div className="space-y-6">
+                                        {!hasBrowserSupport && (
+                                            <div className="text-red-500 text-sm">
+                                                Trình duyệt của bạn không hỗ trợ nhận diện giọng nói. Vui lòng sử dụng Chrome/Edge.
+                                            </div>
+                                        )}
+                                        
+                                        <div className="flex flex-col items-center gap-4">
+                                            <Button
+                                                size="lg"
+                                                variant={isRecording ? "destructive" : "default"}
+                                                className={`w-16 h-16 md:w-20 md:h-20 rounded-full shadow-lg transition-all ${isRecording ? 'scale-110 shadow-red-200 shadow-2xl' : 'hover:scale-105'}`}
+                                                onClick={toggleRecording}
+                                                disabled={!hasBrowserSupport || (timeLeft || 0) > 0}
+                                            >
+                                                {isRecording ? <Square className="w-6 h-6 md:w-8 md:h-8" /> : <Mic className="w-6 h-6 md:w-8 md:h-8" />}
+                                            </Button>
+
+                                            {/* Beautiful audio visualizer soundwave */}
+                                            <div className="flex items-center gap-1.5 h-10 justify-center px-4 mt-2">
+                                                <style>{`
+                                                    @keyframes soundWaveInterview {
+                                                        0%, 100% { transform: scaleY(0.15); }
+                                                        50% { transform: scaleY(1.0); }
+                                                    }
+                                                    .wave-bar-interview-active {
+                                                        animation: soundWaveInterview 1s ease-in-out infinite;
+                                                        transform-origin: center;
+                                                    }
+                                                `}</style>
+                                                {[...Array(19)].map((_, i) => {
+                                                    const delay = (i * 0.05).toFixed(2);
+                                                    const duration = (0.5 + Math.random() * 0.5).toFixed(2);
+                                                    
+                                                    return (
+                                                        <div
+                                                            key={i}
+                                                            className={`w-1 rounded-full transition-all duration-500 h-8 ${
+                                                                isRecording 
+                                                                    ? 'bg-gradient-to-t from-red-400 to-red-600 scale-y-100 wave-bar-interview-active' 
+                                                                    : 'bg-slate-200 scale-y-[0.15]'
+                                                            }`}
+                                                            style={{
+                                                                animationDelay: isRecording ? `${delay}s` : undefined,
+                                                                animationDuration: isRecording ? `${duration}s` : undefined,
+                                                                transformOrigin: 'center'
+                                                            }}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+                                            
+                                            <div className="text-sm text-gray-500 font-medium flex flex-col items-center gap-2">
+                                                <span>
+                                                    {(timeLeft || 0) > 0 
+                                                        ? 'Vui lòng chờ hết thời gian suy nghĩ' 
+                                                        : isRecording ? 'Đang ghi âm... Chạm để kết thúc' : 'Chạm 1 lần để bắt đầu trả lời'}
+                                                </span>
+                                                {currentQ?.category === 'Khẩu lệnh' && (timeLeft || 0) <= 0 && !isRecording && (
+                                                    <span className="text-blue-700 bg-blue-100 px-3 py-1 rounded-full text-xs font-bold animate-pulse">
+                                                        💡 Yêu cầu: Trả lời bằng Tiếng Việt
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {(transcript || interimTranscript) && (
+                                                <div className="w-full bg-gray-50 p-3 md:p-4 rounded-lg border text-left mt-2">
+                                                    <p className="text-sm font-semibold text-gray-600 mb-1">Bạn đang nói:</p>
+                                                    <p className="text-sm md:text-base text-gray-900">{transcript} <span className="text-gray-400">{interimTranscript}</span></p>
+                                                    {!isRecording && transcript && (
+                                                        <div className="flex gap-2 mt-4">
+                                                            <Button variant="outline" size="sm" onClick={resetTranscript} className="flex-1">
+                                                                <RefreshCw className="w-4 h-4 mr-2" /> Nói lại
+                                                            </Button>
+                                                            <Button size="sm" onClick={handleSaveAnswer} className="flex-1">
+                                                                {queue.length > 1 ? 'Ghi nhận & Tiếp tục' : 'Nộp bài & Chấm điểm'}
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Footer Nav & FAB */}
             <div className="flex justify-between items-center pt-4">
                 <Button variant="outline" size="lg" onClick={() => setIsDrawerOpen(true)} className="rounded-full font-semibold text-gray-700 bg-white hover:text-blue-600 hover:bg-blue-50 border-gray-200 shadow-sm">
                     <Menu className="w-5 h-5 mr-2" /> Danh sách câu
                 </Button>
-                <Button size="lg" onClick={handleNext} className="rounded-xl px-8 shadow-sm">
-                    {queue.length > 1 ? 'Câu tiếp theo' : 'Hoàn thành'}
-                </Button>
+                {mode !== 'meaning_quiz' && (
+                    <Button size="lg" onClick={handleNext} className="rounded-xl px-8 shadow-sm">
+                        {queue.length > 1 ? 'Câu tiếp theo' : 'Hoàn thành'}
+                    </Button>
+                )}
+            </div>
             </div>
 
             {/* Side Drawer for Questions List */}

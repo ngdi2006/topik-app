@@ -16,7 +16,7 @@ function shuffleArray<T>(array: T[]): T[] {
     return newArr
 }
 
-export default function SpellingMode({ vocabList, onBack }: { vocabList: any[], onBack: () => void }) {
+export default function SpellingMode({ vocabList, onBack, hideHeader = false }: { vocabList: any[], onBack: () => void, hideHeader?: boolean }) {
     const [currentIndex, setCurrentIndex] = useState(0)
     const [scrambled, setScrambled] = useState<string[]>([])
     const [selected, setSelected] = useState<number[]>([]) // indexes of selected characters
@@ -84,13 +84,16 @@ export default function SpellingMode({ vocabList, onBack }: { vocabList: any[], 
 
     if (vocabList.length === 0) return null
     const currentVocab = vocabList[currentIndex]
+    if (!currentVocab) return null
     const wordLength = currentVocab.word_kr.length
 
     return (
         <div className="max-w-3xl mx-auto p-4 md:p-8 space-y-6">
-            <Button variant="ghost" onClick={onBack}>
-                <ArrowLeft className="w-4 h-4 mr-2" /> Quay lại
-            </Button>
+            {!hideHeader && (
+                <Button variant="ghost" onClick={onBack}>
+                    <ArrowLeft className="w-4 h-4 mr-2" /> Quay lại
+                </Button>
+            )}
 
             <div className="text-center font-medium text-slate-500">
                 Từ vựng {currentIndex + 1} / {vocabList.length}

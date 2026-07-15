@@ -90,12 +90,13 @@ const TOPICS = [
         borderColor: 'border-indigo-100 hover:border-indigo-300',
         shadow: 'hover:shadow-indigo-200/50',
         apiCategory: 'Khẩu lệnh',
-        mode: 'listen_only'
+        mode: 'listen_only',
+        usesAI: false
     },
     { 
         id: 'vocabulary', 
         name: 'Từ vựng & Biển báo', 
-        description: 'Flashcard, Trắc nghiệm, Ghép chữ, AI chấm điểm.',
+        description: 'Học từ vựng qua Flashcard, Trắc nghiệm và Ghép chữ.',
         icon: Presentation,
         color: 'text-pink-600',
         gradient: 'from-pink-50 to-pink-100/50',
@@ -103,7 +104,8 @@ const TOPICS = [
         borderColor: 'border-pink-100 hover:border-pink-300',
         shadow: 'hover:shadow-pink-200/50',
         action: 'navigate',
-        href: '/vocabulary-practice'
+        href: '/vocabulary-practice',
+        usesAI: false
     },
     { 
         id: 'math', 
@@ -116,12 +118,13 @@ const TOPICS = [
         borderColor: 'border-rose-100 hover:border-rose-300',
         shadow: 'hover:shadow-rose-200/50',
         apiCategory: 'Toán học',
-        mode: 'listen_only'
+        mode: 'listen_only',
+        usesAI: true
     },
     { 
         id: 'tools', 
         name: 'Sử dụng công cụ', 
-        description: 'Chạy game kéo thả vật phẩm vào đúng vị trí.',
+        description: 'Mô phỏng thực hành sử dụng công cụ 3 bước thực tế.',
         icon: Wrench,
         color: 'text-orange-600',
         gradient: 'from-orange-50 to-orange-100/50',
@@ -129,7 +132,8 @@ const TOPICS = [
         borderColor: 'border-orange-100 hover:border-orange-300',
         shadow: 'hover:shadow-orange-200/50',
         apiCategory: 'Sử dụng công cụ',
-        mode: 'tools'
+        mode: 'tools',
+        usesAI: false
     },
     { 
         id: 'communication', 
@@ -142,7 +146,8 @@ const TOPICS = [
         borderColor: 'border-emerald-100 hover:border-emerald-300',
         shadow: 'hover:shadow-emerald-200/50',
         apiCategory: 'Giao tiếp',
-        mode: 'ai_mock'
+        mode: 'ai_mock',
+        usesAI: true
     },
     { 
         id: 'situation', 
@@ -155,9 +160,11 @@ const TOPICS = [
         borderColor: 'border-violet-100 hover:border-violet-300',
         shadow: 'hover:shadow-violet-200/50',
         apiCategory: 'Xử lý tình huống',
-        mode: 'ai_mock'
+        mode: 'ai_mock',
+        usesAI: true
     },
 ]
+
 
 function shuffleArray<T>(array: T[]): T[] {
     const newArr = [...array]
@@ -322,12 +329,23 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
             
             finalQuestions = filterDuplicateTypes(finalQuestions)
 
+            // Xác định chế độ ôn tổng hợp (all groups) để tăng số lượng câu hỏi
+            const isAllGroups = (topic.id === 'communication' && selectedCommunicationGroup === 'all')
+                || (topic.id === 'situation' && selectedSituationGroup === 'all');
+            const isAiMockConversation = (topic.mode === 'ai_mock' && !listenMode);
+
             if (topic.mode === 'listen_only') {
                 finalQuestions = finalQuestions.slice(0, 10)
-            } else if (topic.mode === 'ai_mock') {
+            } else if (isAiMockConversation) {
+                // AI mock conversation: luôn 5 câu (không tăng)
                 finalQuestions = finalQuestions.slice(0, 5)
             } else if (topic.mode === 'tools') {
                 finalQuestions = finalQuestions.slice(0, 5)
+            } else if (isAllGroups) {
+                // Ôn tổng hợp: tăng số câu để đa dạng chủ đề
+                finalQuestions = finalQuestions.slice(0, 20)
+            } else {
+                finalQuestions = finalQuestions.slice(0, 10)
             }
 
             if (finalQuestions.length === 0) {
@@ -342,10 +360,10 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
         setLoading(true)
         try {
             const url = `/api/interview-questions?category=${encodeURIComponent(topic.apiCategory)}&industry=${encodeURIComponent(selectedIndustry)}`
-            
+
             const res = await fetch(url, { cache: 'no-store' })
             const data = await res.json()
-            
+
             if (!data.success) throw new Error(data.error)
 
             // Lấy dữ liệu thống kê từ localStorage
@@ -358,7 +376,7 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
 
             unmastered = shuffleArray(unmastered)
             mastered = shuffleArray(mastered)
-            
+
             let finalQuestions = [...unmastered, ...mastered]
 
             finalQuestions = filterDuplicateTypes(finalQuestions)
@@ -814,9 +832,12 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
 
     if (step === 'speed_quiz') {
         const filteredSpeedQs = filterDuplicateTypes(questions)
+        const isAllGroups = (selectedTopicObj?.id === 'communication' && selectedCommunicationGroup === 'all')
+            || (selectedTopicObj?.id === 'situation' && selectedSituationGroup === 'all');
         return (
             <SpeedQuizScreen
                 questions={filteredSpeedQs}
+                maxQuestions={isAllGroups ? 20 : 10}
                 onFinish={(results, masteredIds) => {
                     handleFinishPractice(undefined, masteredIds)
                 }}
@@ -1270,7 +1291,18 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
                                             <Icon className="w-8 h-8 md:w-10 md:h-10" />
                                         </div>
                                         <div className="relative z-10 flex-1">
-                                            <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-2 group-hover:text-slate-900 transition-colors">{topic.name}</h3>
+                                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                <h3 className="text-xl md:text-2xl font-bold text-slate-800 group-hover:text-slate-900 transition-colors">{topic.name}</h3>
+                                                {topic.usesAI ? (
+                                                    <span className="px-2 py-0.5 text-[9px] md:text-[10px] font-black uppercase tracking-wider bg-rose-500 text-white rounded-full shadow-sm animate-pulse shrink-0">
+                                                        Có sử dụng AI
+                                                    </span>
+                                                ) : (
+                                                    <span className="px-2 py-0.5 text-[9px] md:text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-white rounded-full shadow-sm shrink-0">
+                                                        Không sử dụng AI
+                                                    </span>
+                                                )}
+                                            </div>
                                             <p className="text-sm md:text-base font-medium text-slate-600 leading-relaxed">{topic.description}</p>
                                         </div>
                                         {loading && selectedTopicObj?.id === topic.id && (

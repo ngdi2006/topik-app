@@ -44,13 +44,14 @@ const TIME_LIMIT = 8000 // 8 seconds per question
 
 interface Props {
     questions: any[]
+    maxQuestions?: number
     onFinish: (results: SpeedQuizResult[], masteredIds: string[]) => void
     onBack: () => void
 }
 
-export function SpeedQuizScreen({ questions, onFinish, onBack }: Props) {
+export function SpeedQuizScreen({ questions, maxQuestions = 10, onFinish, onBack }: Props) {
     const [quizItems] = useState<SpeedQuizQuestion[]>(() =>
-        shuffleArray(questions.slice(0, 10)).map(q => ({
+        shuffleArray(questions.slice(0, maxQuestions)).map(q => ({
             q,
             options: buildOptions(questions, q),
             correct: q.vietnamese_meaning || '',

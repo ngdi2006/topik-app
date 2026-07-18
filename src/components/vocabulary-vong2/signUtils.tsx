@@ -13,7 +13,8 @@ const mappings: Record<string, { shortKr: string; hlKr: string; shortVi: string;
     "hlKr": "indigo(\"안전모 착용\") + \" (머리 보호)\"",
     "shortVi": "Đội mũ bảo hộ để tránh chấn thương do vật rơi.",
     "hlVi": "indigo(\"Bắt buộc đội mũ bảo hộ\") + \" để bảo vệ đầu khỏi \" + amber(\"vật rơi\")"
-  }, jlkskcjfdmak[onabort, kl0fkfgdnYOOIAJDJSOKVIOMOJJKSJFOPKFOPSKFPSKFKLNSLJOLFXVUƯ]
+  },
+
   "보호장갑을 착용하시오": {
     "shortKr": "손 상해와 위험 물질 접촉을 막기 위해 안전장갑을 착용하십시오.",
     "hlKr": "indigo(\"안전장갑 착용\") + \" (손 보호)\"",

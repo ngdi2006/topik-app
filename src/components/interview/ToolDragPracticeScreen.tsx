@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Play, ArrowLeft, Volume2, CheckCircle2, AlertTriangle, Sparkles, HelpCircle, RotateCcw, Eye } from 'lucide-react'
 import toolConfigMap from './tool_config_map.json'
+import { speakText, stopTTS } from '@/lib/tts'
 
 interface ToolDragPracticeScreenProps {
     questions: any[]
@@ -319,24 +320,21 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
                     setAudioState('error')
                 }
             })
-        } else if (currentQ.question_text && 'speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(currentQ.question_text)
-            utterance.lang = 'ko-KR'
-            utterance.rate = speed * 0.95
-            
-            utterance.onstart = () => setAudioState('playing')
-            utterance.onend = () => handleAudioEnded()
-            utterance.onerror = () => handleAudioEnded()
-            
-            window.speechSynthesis.cancel()
-            window.speechSynthesis.speak(utterance)
+        } else if (currentQ.question_text) {
+            speakText(
+                currentQ.question_text,
+                speed * 0.95,
+                () => setAudioState('playing'),
+                () => handleAudioEnded(),
+                () => handleAudioEnded()
+            )
         } else {
             handleAudioEnded()
         }
 
         return () => {
             if (audioRef.current) audioRef.current.pause()
-            if ('speechSynthesis' in window) window.speechSynthesis.cancel()
+            stopTTS()
             if (timerRef.current) clearInterval(timerRef.current)
         }
     }, [currentIndex, currentQ])
@@ -367,14 +365,14 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
                     console.warn("Audio replay error:", err)
                 }
             })
-        } else if (currentQ.question_text && 'speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(currentQ.question_text)
-            utterance.lang = 'ko-KR'
-            utterance.rate = speed * 0.95
-            utterance.onstart = () => setAudioState('playing')
-            utterance.onend = () => setAudioState('ended')
-            window.speechSynthesis.cancel()
-            window.speechSynthesis.speak(utterance)
+        } else if (currentQ.question_text) {
+            speakText(
+                currentQ.question_text,
+                speed * 0.95,
+                () => setAudioState('playing'),
+                () => setAudioState('ended'),
+                () => setAudioState('ended')
+            )
         }
     }
 

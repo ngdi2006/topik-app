@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { GoogleGenAI } from '@google/genai'
 
-const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY || "placeholder-api-key" });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || "placeholder-api-key" });
 
 export async function POST(request: Request) {
     try {
@@ -48,7 +48,7 @@ Hãy đánh giá và cho điểm theo 3 tiêu chí:
 3. Độ trôi chảy (fluency_score): mức độ hoàn chỉnh và mạch lạc của câu trả lời.
 
 Quy tắc chấm điểm:
-- Nếu câu trả lời hoàn toàn sai về mặt ngữ nghĩa (ví dụ hỏi chiều cao bằng centimet mà trả lời bằng "kilômet" hoặc trả lời linh tinh), điểm Ngữ pháp & Từ vựng (grammar_score) phải cực kỳ thấp (dưới 40) và "is_correct" là false.
+- Nếu câu trả lời hoàn toàn không liên quan đến câu hỏi (ví dụ: hỏi về cách xử lý sản phẩm lỗi mà học viên chỉ nói lời chào hỏi xã giao '안녕하세요' hoặc trả lời lạc đề sang chuyện khác), điểm Ngữ pháp & Từ vựng (grammar_score) phải ở mức tối thiểu (dưới 10), điểm tổng thể (score) phải dưới 20 và "is_correct" bắt buộc phải là false.
 - Điểm tổng thể (score) là trung bình cộng của 3 tiêu chí trên.
 - "is_correct" là true nếu điểm tổng thể >= 70.
 
@@ -59,15 +59,15 @@ Trả về kết quả chấm điểm dưới dạng JSON duy nhất với cấu
   "pronunciation_score": <điểm từ 0 đến 100>,
   "grammar_score": <điểm từ 0 đến 100>,
   "fluency_score": <điểm từ 0 đến 100>,
-  "user_transcript_meaning": "<Dịch nghĩa tiếng Việt câu học viên đã trả lời. Nếu câu học viên nói có lỗi từ vựng/ngữ pháp hoặc vô lý/phi thực tế, hãy giải thích rõ nghĩa đen của câu đó là gì và tại sao nó chưa đúng ngữ cảnh câu hỏi>",
-  "feedback_vi": "<Nhận xét chi tiết bằng tiếng Việt: Chỉ rõ học viên phát âm đúng/sai từ nào, cấu trúc ngữ pháp có chính xác không, đã trả lời đúng trọng tâm câu hỏi chưa, chỉ ra từ sai nếu có>"
+  "user_transcript_meaning": "<Dịch nghĩa tiếng Việt CHÍNH XÁC của câu học viên thực tế đã nói. Ví dụ nếu họ nói '안녕하세요' thì phải dịch là 'Xin chào', không được dịch câu hỏi hay câu mẫu chuẩn>",
+  "feedback_vi": "<Nhận xét chi tiết bằng tiếng Việt khách quan: Chỉ rõ học viên phát âm đúng/sai từ nào, cấu trúc ngữ pháp có chính xác không, đã trả lời đúng trọng tâm câu hỏi chưa, chỉ ra từ sai nếu có>"
 }
 
 Chỉ trả về chuỗi JSON thô, không nằm trong khối markdown \`\`\`json, không giải thích gì thêm ngoài JSON.
 `;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-2.0-flash',
+                model: 'gemini-2.5-flash',
                 contents: prompt,
                 config: {
                     temperature: 0.1,
@@ -81,18 +81,24 @@ Chỉ trả về chuỗi JSON thô, không nằm trong khối markdown \`\`\`jso
             console.error("Gemini evaluation error, using fallback mock:", err);
             // Fallback mock
             const hasKorean = /[\u3131-\uD79D]/ugi.test(transcript);
-            const is_correct = hasKorean && transcript.length > 5;
-            const score = is_correct ? Math.floor(Math.random() * 40) + 60 : 30;
+            const isGreeting = transcript.includes('안녕') || transcript.includes('반갑') || transcript.includes('감사') || transcript.includes('수고');
+            const isTooShort = transcript.trim().length < 6;
+            const is_correct = hasKorean && !isGreeting && !isTooShort;
+            const score = is_correct ? Math.floor(Math.random() * 20) + 70 : 15;
             evaluation = {
                 is_correct,
                 score,
-                pronunciation_score: is_correct ? 85 : 30,
-                grammar_score: is_correct ? 80 : 25,
-                fluency_score: is_correct ? 75 : 35,
-                user_transcript_meaning: is_correct ? 'Dịch nghĩa câu trả lời mẫu.' : 'Câu trả lời chưa rõ ràng hoặc vô lý.',
+                pronunciation_score: is_correct ? 80 : 20,
+                grammar_score: is_correct ? 75 : 10,
+                fluency_score: is_correct ? 70 : 15,
+                user_transcript_meaning: isGreeting 
+                    ? 'Lời chào hỏi xã giao (Xin chào, Cám ơn, v.v.)' 
+                    : (hasKorean ? 'Dịch nghĩa tiếng Việt thực tế của câu nói.' : 'Câu trả lời không có tiếng Hàn hoặc quá ngắn.'),
                 feedback_vi: is_correct 
-                    ? 'Bạn phát âm khá tốt và trả lời đúng trọng tâm. Tuy nhiên cần chú ý thêm về ngữ điệu.' 
-                    : 'Câu trả lời chưa rõ ràng hoặc không đúng trọng tâm. Vui lòng thử lại.'
+                    ? 'Bạn phát âm ổn. Cần cải thiện ngữ điệu trôi chảy hơn.' 
+                    : (isGreeting 
+                        ? 'Lỗi: Câu hỏi yêu cầu giải pháp chuyên môn, học viên chỉ chào hỏi nên không đạt.' 
+                        : 'Câu trả lời không đúng trọng tâm hoặc quá ngắn. Vui lòng thử lại.')
             };
         }
 

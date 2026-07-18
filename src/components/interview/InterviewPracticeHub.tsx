@@ -191,18 +191,17 @@ function filterDuplicateTypes(array: any[]): any[] {
 }
 
 const GIAO_TIEP_GROUPS = [
-    { id: 'all', label: 'Ôn tổng hợp', emoji: '🎯', desc: 'Trộn tất cả các chủ đề', color: 'from-slate-500 to-slate-700', bg: 'from-slate-50 to-slate-100', border: 'border-slate-200 hover:border-slate-400', keywords: [] },
     { id: 'personal', label: '1. Bản thân & Lai lịch', emoji: '👤', desc: 'Tên, tuổi, ngày sinh, quê quán, địa chỉ, chiều cao, cân nặng, hôn nhân', color: 'from-blue-500 to-indigo-655', bg: 'from-blue-50 to-indigo-50', border: 'border-blue-200 hover:border-blue-400', keywords: ['tên', 'tuổi', 'sinh nhật', '생일', '생신', '생년월일', '태어났', 'quê', 'đến từ', '주소', '결혼', '키가', '몸무게', '체중'] },
     { id: 'family', label: '2. Gia đình & Người thân', emoji: '👨‍👩‍👧‍👦', desc: 'Thành viên gia đình, thông tin người thân (bố, mẹ, vợ, chồng)', color: 'from-emerald-500 to-teal-655', bg: 'from-emerald-50 to-teal-50', border: 'border-emerald-200 hover:border-emerald-400', keywords: ['가족', '형제자매', '남매', '아버지', '어머니', '남편', '아내'] },
     { id: 'life', label: '3. Đời sống cá nhân', emoji: '🎨', desc: 'Sở thích, lý do thích, ước mơ, thể thao, màu sắc yêu thích', color: 'from-pink-500 to-rose-655', bg: 'from-pink-50 to-rose-50', border: 'border-pink-200 hover:border-pink-400', keywords: ['취미', '좋아하', '꿈은', '운동', '색깔'] },
     { id: 'korea', label: '4. Mục tiêu sang Hàn Quốc', emoji: '🇰🇷', desc: 'Lý do sang Hàn Quốc, động lực làm việc, học tiếng Hàn bao lâu, ở đâu', color: 'from-cyan-500 to-sky-655', bg: 'from-cyan-50 to-sky-50', border: 'border-cyan-200 hover:border-cyan-400', keywords: ['한국', '배웠', '배우셨'] },
     { id: 'skills', label: '5. Kiến thức Giao tiếp', emoji: '💬', desc: 'Tầm quan trọng của giao tiếp, yếu tố cản trở giao tiếp trong công xưởng', color: 'from-violet-500 to-purple-655', bg: 'from-violet-50 to-purple-50', border: 'border-violet-200 hover:border-violet-400', keywords: ['의사소통', '방해'] },
     { id: 'time_weather', label: '6. Thời gian & Thời tiết', emoji: '🌤️', desc: 'Hỏi giờ, thứ/ngày/tháng/năm, thời tiết hiện tại', color: 'from-amber-500 to-orange-655', bg: 'from-amber-50 to-orange-50', border: 'border-amber-200 hover:border-amber-400', keywords: ['몇 시', '요일', '며칠', '몇월', '몇 년', '날씨'] },
-    { id: 'daily', label: '7. Sinh hoạt hàng ngày', emoji: '🚗', desc: 'Phương tiện di chuyển, món ăn sáng', color: 'from-fuchsia-500 to-purple-755', bg: 'from-fuchsia-50 to-purple-50', border: 'border-fuchsia-200 hover:border-fuchsia-400', keywords: ['어떻게 오', '아침을'] }
+    { id: 'daily', label: '7. Sinh hoạt hàng ngày', emoji: '🚗', desc: 'Phương tiện di chuyển, món ăn sáng', color: 'from-fuchsia-500 to-purple-755', bg: 'from-fuchsia-50 to-purple-50', border: 'border-fuchsia-200 hover:border-fuchsia-400', keywords: ['어떻게 오', '아침을'] },
+    { id: 'all', label: 'Ôn tập tổng hợp & Thi thử với AI', emoji: '🎯', desc: 'Trộn tất cả các chủ đề', color: 'from-slate-500 to-slate-700', bg: 'from-slate-50 to-slate-100', border: 'border-slate-200 hover:border-slate-400', keywords: [] }
 ];
 
 const XU_LY_TINH_HUONG_GROUPS = [
-    { id: 'all', label: 'Ôn tổng hợp', emoji: '🎯', desc: 'Trộn tất cả các chủ đề', color: 'from-slate-500 to-slate-700', bg: 'from-slate-50 to-slate-100', border: 'border-slate-200 hover:border-slate-400', keywords: [] },
     { id: 'skills_cert', label: '1. Kỹ năng & Bằng cấp', emoji: '🎓', desc: 'Trình độ kỹ thuật, chứng chỉ, kinh nghiệm làm việc', color: 'from-blue-500 to-indigo-655', bg: 'from-blue-50 to-indigo-50', border: 'border-blue-200 hover:border-blue-400', keywords: ['기술', '자격증', 'kỹ thuật', 'bằng cấp', 'trình độ'] },
     { id: 'errors', label: '2. Sai sót & Sự cố', emoji: '⚠️', desc: 'Sai lầm, sản phẩm lỗi, sự cố khi làm việc', color: 'from-red-500 to-rose-655', bg: 'from-red-50 to-rose-50', border: 'border-red-200 hover:border-red-400', keywords: ['실수', '불량품', '사고', 'sai lầm', 'sự cố', 'lỗi', 'phạm phải'] },
     { id: 'health_safety', label: '3. Sức khỏe & An toàn', emoji: '🚨', desc: 'Đau ốm, hỏa hoạn, an toàn lao động', color: 'from-rose-500 to-red-655', bg: 'from-rose-50 to-red-50', border: 'border-rose-200 hover:border-rose-400', keywords: ['아프', '불이 나', '병원', 'đau ốm', 'hỏa hoạn', 'sức khỏe'] },
@@ -211,18 +210,19 @@ const XU_LY_TINH_HUONG_GROUPS = [
     { id: 'coworker', label: '6. Quan hệ đồng nghiệp', emoji: '🤝', desc: 'Giúp đỡ đồng nghiệp, mâu thuẫn, hòa hợp với mọi người', color: 'from-teal-500 to-emerald-655', bg: 'from-teal-50 to-emerald-50', border: 'border-teal-200 hover:border-teal-400', keywords: ['동료', '갈등', '싸우', '잘 지내', 'đồng nghiệp', '바쁘'] },
     { id: 'workload', label: '7. Khối lượng công việc', emoji: '📊', desc: 'Nhiều việc, ít việc, công ty khó khăn', color: 'from-orange-500 to-amber-655', bg: 'from-orange-50 to-amber-50', border: 'border-orange-200 hover:border-orange-400', keywords: ['일이 많', '일이 적', '어려울', 'nhiều việc', 'ít việc'] },
     { id: 'lost', label: '8. Mất mát tài sản', emoji: '🔍', desc: 'Mất tiền, mất đồ vật tại công ty', color: 'from-cyan-500 to-sky-655', bg: 'from-cyan-50 to-sky-50', border: 'border-cyan-200 hover:border-cyan-400', keywords: ['잃어버리', 'mất tiền', 'mất đồ'] },
-    { id: 'etiquette', label: '9. Phép tắc & Đúng giờ', emoji: '⏰', desc: 'Phép tắc giữa mọi người, tuân thủ thời gian', color: 'from-fuchsia-500 to-purple-755', bg: 'from-fuchsia-50 to-purple-50', border: 'border-fuchsia-200 hover:border-fuchsia-400', keywords: ['예절', '정해진 시간', 'phép tắc', 'đúng giờ', 'tuân thủ'] }
+    { id: 'etiquette', label: '9. Phép tắc & Đúng giờ', emoji: '⏰', desc: 'Phép tắc giữa mọi người, tuân thủ thời gian', color: 'from-fuchsia-500 to-purple-755', bg: 'from-fuchsia-50 to-purple-50', border: 'border-fuchsia-200 hover:border-fuchsia-400', keywords: ['예절', '정해진 시간', 'phép tắc', 'đúng giờ', 'tuân thủ'] },
+    { id: 'all', label: 'Ôn tập tổng hợp & Thi thử với AI', emoji: '🎯', desc: 'Trộn tất cả các chủ đề', color: 'from-slate-500 to-slate-700', bg: 'from-slate-50 to-slate-100', border: 'border-slate-200 hover:border-slate-400', keywords: [] }
 ];
 
 function filterQuestionsByGroup(questionsList: any[], groupId: string, groupsList: any[]): any[] {
     if (groupId === 'all') return questionsList;
-    const group = GIAO_TIEP_GROUPS.find(g => g.id === groupId);
+    const group = groupsList.find(g => g.id === groupId);
     if (!group || !group.keywords) return questionsList;
     
     return questionsList.filter(q => {
         const text = (q.vietnamese_meaning || '').toLowerCase();
         const textKo = (q.question_text || '').toLowerCase();
-        return group.keywords.some(kw => text.includes(kw.toLowerCase()) || textKo.includes(kw.toLowerCase()));
+        return group.keywords.some((kw: string) => text.includes(kw.toLowerCase()) || textKo.includes(kw.toLowerCase()));
     });
 }
 
@@ -1361,66 +1361,47 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
                                 </div>
                             </div>
 
-                            {selectedTopicObj?.id === 'math' ? (
-                                <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1 md:col-span-2" onClick={() => startPractice({ ...selectedTopicObj, mode: 'ai_mock' }, null, questions)}>
-                                    <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-slate-200/60 bg-gradient-to-br from-rose-800 to-indigo-900 hover:border-rose-400 shadow-sm hover:shadow-xl hover:shadow-rose-200">
-                                        <div className="flex items-start justify-between mb-4">
-                                            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-rose-400/20 text-rose-300 transition-colors">
-                                                <Mic className="w-6 h-6" />
-                                            </div>
-                                            <span className="bg-gradient-to-r from-orange-500 to-rose-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg uppercase tracking-wider animate-pulse">
-                                                Luyện Nói
-                                            </span>
+                            <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={handleStartSpeedQuiz}>
+                                <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-slate-200/60 bg-gradient-to-br from-slate-800 to-indigo-900 hover:border-indigo-400 shadow-sm hover:shadow-xl hover:shadow-indigo-200">
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-yellow-400/20 text-yellow-400 transition-colors">
+                                            <Zap className="w-6 h-6" fill="currentColor" />
                                         </div>
-                                        <h4 className="text-lg font-bold text-white mb-2">Thi thử với AI 🎙️</h4>
-                                        <p className="text-slate-300 text-sm leading-relaxed">Nghe câu hỏi toán học → bấm ghi âm phát âm câu trả lời tiếng Hàn, chấm điểm tự động.</p>
+                                        <span className="bg-gradient-to-r from-orange-500 to-rose-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg uppercase tracking-wider animate-pulse">
+                                            Mới
+                                        </span>
                                     </div>
+                                    <h4 className="text-lg font-bold text-white mb-2">Kiểm tra siêu tốc ⚡</h4>
+                                    <p className="text-slate-300 text-sm leading-relaxed">Nghe câu lệnh chọn nghĩa trong 8 giây, luyện phản xạ siêu tốc.</p>
                                 </div>
-                            ) : (
-                                <>
-                                    <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={handleStartSpeedQuiz}>
-                                        <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-slate-200/60 bg-gradient-to-br from-slate-800 to-indigo-900 hover:border-indigo-400 shadow-sm hover:shadow-xl hover:shadow-indigo-200">
-                                            <div className="flex items-start justify-between mb-4">
-                                                <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-yellow-400/20 text-yellow-400 transition-colors">
-                                                    <Zap className="w-6 h-6" fill="currentColor" />
-                                                </div>
-                                                <span className="bg-gradient-to-r from-orange-500 to-rose-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg uppercase tracking-wider animate-pulse">
-                                                    Mới
-                                                </span>
-                                            </div>
-                                            <h4 className="text-lg font-bold text-white mb-2">Kiểm tra siêu tốc ⚡</h4>
-                                            <p className="text-slate-300 text-sm leading-relaxed">Nghe câu lệnh chọn nghĩa trong 8 giây, luyện phản xạ siêu tốc.</p>
-                                        </div>
-                                    </div>
+                            </div>
 
-                                    <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={() => setStep('podcast')}>
-                                        <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-slate-200/60 bg-white hover:border-violet-400 shadow-sm hover:shadow-xl">
-                                            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-violet-100 text-violet-600 transition-colors">
-                                                <Headphones className="w-6 h-6" />
-                                            </div>
-                                            <h4 className="text-lg font-bold text-slate-900 mb-2">Nghe Thụ Động</h4>
-                                            <p className="text-slate-500 text-sm leading-relaxed">Phát âm thanh câu lệnh và dịch nghĩa tiếng Việt tự động liên tục để ghi nhớ.</p>
-                                        </div>
+                            <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={() => setStep('podcast')}>
+                                <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-slate-200/60 bg-white hover:border-violet-400 shadow-sm hover:shadow-xl">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-violet-100 text-violet-600 transition-colors">
+                                        <Headphones className="w-6 h-6" />
                                     </div>
-
-                                    {(selectedTopicObj?.id === 'communication' || selectedTopicObj?.id === 'situation') && (
+                                    <h4 className="text-lg font-bold text-slate-900 mb-2">Nghe Thụ Động</h4>
+                                    <p className="text-slate-500 text-sm leading-relaxed">Phát âm thanh câu lệnh và dịch nghĩa tiếng Việt tự động liên tục để ghi nhớ.</p>
+                                </div>
+                            </div>
+                                    {((selectedTopicObj?.id === 'communication' && selectedCommunicationGroup === 'all') ||
+                                      (selectedTopicObj?.id === 'situation' && selectedSituationGroup === 'all')) && (
                                         <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1 md:col-span-2" onClick={() => startPractice(selectedTopicObj, null, questions)}>
-                                            <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-slate-200/60 bg-gradient-to-br from-emerald-800 to-indigo-900 hover:border-emerald-400 shadow-sm hover:shadow-xl hover:shadow-emerald-200">
+                                            <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-emerald-300/60 bg-gradient-to-br from-emerald-800 to-indigo-900 hover:border-emerald-400 shadow-lg hover:shadow-xl hover:shadow-emerald-200 ring-2 ring-emerald-400/30">
                                                 <div className="flex items-start justify-between mb-4">
-                                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-emerald-400/20 text-emerald-300 transition-colors">
-                                                        <Mic className="w-6 h-6" />
+                                                    <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-emerald-400/30 text-emerald-200 transition-colors ring-2 ring-emerald-300/50">
+                                                        <Mic className="w-7 h-7" />
                                                     </div>
-                                                    <span className="bg-gradient-to-r from-orange-500 to-emerald-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg uppercase tracking-wider animate-pulse">
+                                                    <span className="bg-gradient-to-r from-orange-500 to-emerald-500 text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-lg uppercase tracking-wider animate-pulse">
                                                         Luyện Nói · AI Chấm
                                                     </span>
                                                 </div>
-                                                <h4 className="text-lg font-bold text-white mb-2">Hội thoại AI & Thi thử 🎙️</h4>
-                                                <p className="text-slate-300 text-sm leading-relaxed">Đóng vai hội thoại với Giám khảo AI · Thu âm câu trả lời · AI nhận xét và chấm điểm phát âm tự động.</p>
+                                                <h4 className="text-xl font-bold text-white mb-2.5">Ôn tổng hợp & Thi thử với AI 🎙️</h4>
+                                                <p className="text-slate-200 text-sm leading-relaxed font-medium">Đóng vai hội thoại với Giám khảo AI · Thu âm câu trả lời · AI nhận xét và chấm điểm phát âm tự động.</p>
                                             </div>
                                         </div>
                                     )}
-                                </>
-                            )}
                         </div>
                         {loading && (
                             <div className="absolute inset-0 bg-white/70 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-2xl md:rounded-[2rem]">

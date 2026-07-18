@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, CheckCircle, RotateCcw } from 'lucide-react'
+import { ArrowLeft, CheckCircle, RotateCcw, Lightbulb } from 'lucide-react'
 
 // Utilities for Hangul
 // For simplicity in spelling mode, we might just scramble the characters of the string directly.
@@ -22,6 +22,8 @@ export default function SpellingMode({ vocabList, onBack, hideHeader = false }: 
     const [selected, setSelected] = useState<number[]>([]) // indexes of selected characters
     const [isFinished, setIsFinished] = useState(false)
     const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
+    const [wrongCount, setWrongCount] = useState(0)
+    const [showHint, setShowHint] = useState(false)
 
     useEffect(() => {
         if (currentIndex < vocabList.length) {
@@ -36,6 +38,8 @@ export default function SpellingMode({ vocabList, onBack, hideHeader = false }: 
         setScrambled(shuffleArray(chars))
         setSelected([])
         setIsCorrect(null)
+        setWrongCount(0)
+        setShowHint(false)
     }
 
     const handleSelectChar = (index: number) => {
@@ -61,6 +65,7 @@ export default function SpellingMode({ vocabList, onBack, hideHeader = false }: 
                 }, 1500)
             } else {
                 setIsCorrect(false)
+                setWrongCount(prev => prev + 1)
                 setTimeout(() => {
                     setSelected([])
                     setIsCorrect(null)
@@ -99,7 +104,7 @@ export default function SpellingMode({ vocabList, onBack, hideHeader = false }: 
                 Từ vựng {currentIndex + 1} / {vocabList.length}
             </div>
 
-            <Card className="p-6 md:p-8 rounded-3xl shadow-lg border-2 border-slate-100 bg-white">
+            <Card className="p-6 md:p-8 rounded-3xl shadow-lg border-2 border-slate-100 bg-white relative">
                 <div className="flex justify-center mb-8 h-48 md:h-64">
                     {currentVocab.image_url ? (
                         <img src={currentVocab.image_url} alt="Vocab" className="h-full object-contain rounded-xl" />
@@ -109,6 +114,22 @@ export default function SpellingMode({ vocabList, onBack, hideHeader = false }: 
                         </div>
                     )}
                 </div>
+
+                {showHint && (
+                    <div className="flex justify-center -mt-4 mb-6">
+                        <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-800 px-4 py-2 rounded-full border border-amber-200 text-sm md:text-base font-semibold shadow-sm animate-fade-in">
+                            <Lightbulb className="w-5 h-5 text-amber-500 fill-amber-300" />
+                            <span>
+                                Gợi ý: <span className="font-bold text-lg select-all text-amber-950">{currentVocab.word_kr}</span>
+                                {currentVocab.word_vi && (
+                                    <span className="text-sm font-normal text-amber-700 ml-1.5">
+                                        ({currentVocab.word_vi})
+                                    </span>
+                                )}
+                            </span>
+                        </div>
+                    </div>
+                )}
 
                 <div className="space-y-12">
                     {/* Slots */}
@@ -143,6 +164,21 @@ export default function SpellingMode({ vocabList, onBack, hideHeader = false }: 
                         >
                             <RotateCcw className="w-6 h-6 text-slate-500" />
                         </Button>
+                        {wrongCount >= 2 && (
+                            <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className={`w-14 h-14 md:w-16 md:h-16 rounded-xl transition-all duration-300 ${
+                                    showHint 
+                                        ? 'bg-amber-100 text-amber-600 hover:bg-amber-200' 
+                                        : 'text-slate-400 hover:bg-amber-50 hover:text-amber-500'
+                                }`}
+                                onClick={() => setShowHint(!showHint)}
+                                title="Xem gợi ý"
+                            >
+                                <Lightbulb className={`w-6 h-6 ${showHint ? 'fill-amber-300 text-amber-500' : ''}`} />
+                            </Button>
+                        )}
                     </div>
 
                     {/* Scrambled Characters */}

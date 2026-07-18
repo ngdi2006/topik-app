@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, CheckCircle, XCircle, Timer, Info, Volume2, AlertCircle, Zap, Bookmark, Calculator } from 'lucide-react'
+import { speakText, stopTTS } from '@/lib/tts'
 
 interface VocabItem {
     id: string
@@ -61,12 +62,14 @@ function buildQuestions(vocabList: VocabItem[]): QuizQuestion[] {
                 })
             }
 
-            // Secondary quiz: Korean → Vietnamese
-            questions.push({
-                vocab,
-                variant: 'kr_to_vi',
-                options: shuffleArray([vocab, ...pool.slice(0, 3)])
-            })
+            // Secondary quiz: Korean → Vietnamese (no image, just text)
+            if (vocab.type !== 'MATH') {
+                questions.push({
+                    vocab,
+                    variant: 'kr_to_vi',
+                    options: shuffleArray([vocab, ...pool.slice(0, 3)])
+                })
+            }
 
             // For SIGN with description: what does the sign mean?
             if (vocab.type === 'SIGN' && vocab.description_vi) {
@@ -82,48 +85,27 @@ function buildQuestions(vocabList: VocabItem[]): QuizQuestion[] {
         }
     }
 
-    // Limit to reasonable number and shuffle
-    return shuffleArray(questions).slice(0, Math.min(questions.length, vocabList.length * 2))
+    // Limit to 20 questions and shuffle
+    return shuffleArray(questions).slice(0, 20)
 }
 
 function playAudio(url?: string, wordKr?: string, onEnd?: () => void) {
-    let played = false;
-    const triggerEnd = () => {
-        if (!played) {
-            played = true;
-            if (onEnd) onEnd();
-        }
-    }
-
-    if ('speechSynthesis' in window && wordKr) {
-        window.speechSynthesis.cancel()
-        const utterance = new SpeechSynthesisUtterance(wordKr)
-        utterance.lang = 'ko-KR'
-        utterance.rate = 0.8
-        utterance.onend = () => {
-            triggerEnd()
-        }
-        utterance.onerror = () => {
-            triggerEnd()
-        }
-        window.speechSynthesis.speak(utterance)
-        // Safety timeout of 4 seconds in case onend is not fired by the browser
-        setTimeout(triggerEnd, 4000)
+    if (wordKr) {
+        speakText(wordKr, 0.8, undefined, onEnd)
+        // Safety timeout of 5 seconds in case onEnd is not fired
+        setTimeout(() => { if (onEnd) onEnd() }, 5000)
     } else if (url) {
+        let played = false;
+        const triggerEnd = () => {
+            if (!played) { played = true; if (onEnd) onEnd(); }
+        }
         const audio = new Audio(url)
-        audio.onended = () => {
-            triggerEnd()
-        }
-        audio.onerror = () => {
-            triggerEnd()
-        }
-        audio.play().catch(() => {
-            triggerEnd()
-        })
-        // Safety timeout of 3 seconds
+        audio.onended = triggerEnd
+        audio.onerror = triggerEnd
+        audio.play().catch(triggerEnd)
         setTimeout(triggerEnd, 3000)
     } else {
-        triggerEnd()
+        if (onEnd) onEnd()
     }
 }
 
@@ -390,9 +372,6 @@ export default function QuizMode({ vocabList, onBack, hideHeader = false }: { vo
                                     {current.vocab.word_kr}
                                 </h2>
                             </div>
-                            {current.vocab.image_url && current.vocab.type !== 'SIGN' && (
-                                <img src={current.vocab.image_url} alt="" className="max-h-24 object-contain rounded-xl opacity-30 mx-auto mt-2" />
-                            )}
                         </div>
                     )}
                     {current.variant === 'sign_meaning' && (

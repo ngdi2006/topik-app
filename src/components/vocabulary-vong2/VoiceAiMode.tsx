@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ArrowLeft, Mic, CheckCircle, XCircle, Loader2, Volume2 } from 'lucide-react'
+import { speakText, stopTTS } from '@/lib/tts'
 
 // Simple normalize for comparison
 const normalizeKorean = (text: string) => {
@@ -59,11 +60,7 @@ export default function VoiceAiMode({ vocabList, onBack }: { vocabList: any[], o
     }, [currentIndex, vocabList])
 
     const playQuestion = () => {
-        if ('speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance("이것이 무엇입니까?")
-            utterance.lang = 'ko-KR'
-            window.speechSynthesis.speak(utterance)
-        }
+        speakText("이것이 무엇입니까?", 0.9)
     }
 
     const startRecording = () => {

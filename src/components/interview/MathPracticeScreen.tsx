@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Volume2, CheckCircle, XCircle, Mic, Square, RefreshCw, ChevronRight, Calculator, Eye, EyeOff } from 'lucide-react'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
+import { speakText, stopTTS } from '@/lib/tts'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface MathQuestion {
@@ -51,18 +52,13 @@ function MathFlashcard({ questions, onFinish }: { questions: MathQuestion[], onF
     const answer = getAnswer(q)
 
     const speak = (text: string) => {
-        if (!synth) return
-        synth.cancel()
-        const u = new SpeechSynthesisUtterance(text)
-        u.lang = 'ko-KR'
-        u.rate = 0.85
-        synth.speak(u)
+        speakText(text, 0.85)
     }
 
     useEffect(() => {
         setFlipped(false)
         speak(q.question_text)
-        return () => { synth?.cancel() }
+        return () => { stopTTS() }
     }, [idx, q])
 
     const masteredIdsRef = useRef<string[]>([])
@@ -269,18 +265,13 @@ function MathNumberQuiz({ questions, onFinish }: { questions: MathQuestion[], on
     }, [idx, questions, correctShort])
 
     const speak = (text: string) => {
-        if (!synth) return
-        synth.cancel()
-        const u = new SpeechSynthesisUtterance(text)
-        u.lang = 'ko-KR'
-        u.rate = 0.85
-        synth.speak(u)
+        speakText(text, 0.85)
     }
 
     useEffect(() => {
         setSelected(null)
         speak(q.question_text)
-        return () => { synth?.cancel() }
+        return () => { stopTTS() }
     }, [idx])
 
     const masteredIdsRef = useRef<string[]>([])
@@ -412,12 +403,7 @@ function MathSpeakingPractice({ questions, onFinish }: { questions: MathQuestion
     const { hasBrowserSupport, isRecording, transcript, interimTranscript, startRecording, stopRecording, resetTranscript } = useSpeechRecognition('ko-KR')
 
     const speak = (text: string) => {
-        if (!synth) return
-        synth.cancel()
-        const u = new SpeechSynthesisUtterance(text)
-        u.lang = 'ko-KR'
-        u.rate = 0.85
-        synth.speak(u)
+        speakText(text, 0.85)
     }
 
     useEffect(() => {
@@ -425,7 +411,7 @@ function MathSpeakingPractice({ questions, onFinish }: { questions: MathQuestion
         resetTranscript()
         if (isRecording) stopRecording()
         speak(q.question_text)
-        return () => { synth?.cancel() }
+        return () => { stopTTS() }
     }, [idx])
 
     const handleToggleRecord = () => {

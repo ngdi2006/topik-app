@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, XCircle, ArrowLeft, Volume2, ShieldAlert, Sparkles, Play, ShieldCheck, AlertTriangle } from 'lucide-react'
+import { speakText, stopTTS } from '@/lib/tts'
 
 interface ActionConfig {
     text: string        // Short action label
@@ -367,15 +368,11 @@ export function FactoryScenarioScreen({ questions, onFinish, onBack }: Props) {
     }
 
     const playTTS = useCallback(() => {
-        if (current?.q?.question_text && 'speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(current.q.question_text)
-            utterance.lang = 'ko-KR'
-            utterance.rate = 0.85
-            utterance.onstart = () => setAudioState('playing')
-            utterance.onend = () => setAudioState('done')
-            utterance.onerror = () => setAudioState('done')
-            window.speechSynthesis.cancel()
-            window.speechSynthesis.speak(utterance)
+        if (current?.q?.question_text) {
+            speakText(current.q.question_text, 0.85,
+                () => setAudioState('playing'),
+                () => setAudioState('done')
+            )
         } else {
             setAudioState('done')
         }
@@ -387,10 +384,7 @@ export function FactoryScenarioScreen({ questions, onFinish, onBack }: Props) {
             audioRef.current.pause()
             audioRef.current.src = ''
         }
-        
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel()
-        }
+        stopTTS()
 
         const audioUrl = current.q.question_audio_url
         if (audioUrl) {
@@ -416,9 +410,7 @@ export function FactoryScenarioScreen({ questions, onFinish, onBack }: Props) {
                 audioRef.current.pause()
                 audioRef.current.src = ''
             }
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel()
-            }
+            stopTTS()
         }
     }, [idx, phase, playAudio])
 

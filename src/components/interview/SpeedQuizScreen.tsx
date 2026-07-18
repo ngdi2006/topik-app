@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Zap, CheckCircle, XCircle, Trophy, RotateCcw, ArrowLeft, Volume2, Timer } from 'lucide-react'
+import { speakText, stopTTS } from '@/lib/tts'
 
 interface SpeedQuizQuestion {
     q: any
@@ -139,15 +140,14 @@ export function SpeedQuizScreen({ questions, maxQuestions = 10, onFinish, onBack
 
     // Play audio on each new question
     const playTTS = useCallback(() => {
-        if (current?.q?.question_text && 'speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(current.q.question_text)
-            utterance.lang = 'ko-KR'
-            utterance.rate = 0.9
-            utterance.onstart = () => setAudioState('playing')
-            utterance.onend = () => setAudioState('done')
-            utterance.onerror = () => setAudioState('done')
-            window.speechSynthesis.cancel()
-            window.speechSynthesis.speak(utterance)
+        if (current?.q?.question_text) {
+            speakText(
+                current.q.question_text,
+                0.9,
+                () => setAudioState('playing'),
+                () => setAudioState('done'),
+                () => setAudioState('done')
+            )
         } else {
             setAudioState('done')
         }
@@ -167,11 +167,10 @@ export function SpeedQuizScreen({ questions, maxQuestions = 10, onFinish, onBack
             audioRef.current.src = ''
         }
 
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel()
-        }
+        stopTTS()
 
-        const audioUrl = current.q.question_audio_url
+        const forceElevenLabs = true;
+        const audioUrl = forceElevenLabs ? null : current.q.question_audio_url
         if (audioUrl) {
             const audio = new Audio(audioUrl)
             audioRef.current = audio
@@ -189,9 +188,7 @@ export function SpeedQuizScreen({ questions, maxQuestions = 10, onFinish, onBack
                 audioRef.current.pause()
                 audioRef.current.src = ''
             }
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel()
-            }
+            stopTTS()
         }
     }, [idx]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -204,9 +201,7 @@ export function SpeedQuizScreen({ questions, maxQuestions = 10, onFinish, onBack
                 audioRef.current.pause()
                 audioRef.current.src = ''
             }
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel()
-            }
+            stopTTS()
         }
     }, [])
 

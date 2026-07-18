@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { Eye, CheckCircle, XCircle, Volume2, ChevronRight, Repeat, Bookmark, Info } from 'lucide-react'
+import { speakText, stopTTS } from '@/lib/tts'
 
 // --- Types ---
 export interface ListenModeProps {
@@ -215,7 +216,8 @@ export function FlashcardMode({ currentQ, onKnown, onNotKnown, questions }: List
 
     const playAudio = useCallback(() => {
         if (!currentQ) return
-        if (currentQ.question_audio_url && !currentQ.question_audio_url.includes('translate.google.com')) {
+        const forceElevenLabs = true;
+        if (currentQ.question_audio_url && !currentQ.question_audio_url.includes('translate.google.com') && !forceElevenLabs) {
             if (audioRef.current) {
                 audioRef.current.pause()
                 audioRef.current.currentTime = 0
@@ -223,12 +225,8 @@ export function FlashcardMode({ currentQ, onKnown, onNotKnown, questions }: List
             const audio = new Audio(currentQ.question_audio_url)
             audioRef.current = audio
             audio.play().catch(e => console.warn(e))
-        } else if ('speechSynthesis' in window && currentQ.question_text) {
-            window.speechSynthesis.cancel()
-            const utterance = new SpeechSynthesisUtterance(currentQ.question_text)
-            utterance.lang = 'ko-KR'
-            utterance.rate = 0.8
-            window.speechSynthesis.speak(utterance)
+        } else if (currentQ.question_text) {
+            speakText(currentQ.question_text, 0.8)
         }
     }, [currentQ])
 
@@ -468,16 +466,13 @@ export function MeaningQuizMode({ currentQ, onKnown, onNotKnown, timeLeft = 0, q
     const [score, setScore] = useState(0)
 
     const speak = (text: string) => {
-        if (currentQ?.question_audio_url && !currentQ.question_audio_url.includes('translate.google.com')) {
+        const forceElevenLabs = true;
+        if (currentQ?.question_audio_url && !currentQ.question_audio_url.includes('translate.google.com') && !forceElevenLabs) {
             const a = new Audio(currentQ.question_audio_url)
             a.playbackRate = playbackRate
             a.play().catch(e => console.warn(e))
-        } else if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel()
-            const utterance = new SpeechSynthesisUtterance(text)
-            utterance.lang = 'ko-KR'
-            utterance.rate = 0.9 * playbackRate
-            window.speechSynthesis.speak(utterance)
+        } else {
+            speakText(text, 0.9 * playbackRate)
         }
     }
 
@@ -654,13 +649,7 @@ export function WordSortMode({ currentQ, onKnown, onNotKnown, timeLeft, question
     const [isAnswerCorrect, setIsAnswerCorrect] = useState<boolean | null>(null)
 
     const speak = (text: string) => {
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel()
-            const utterance = new SpeechSynthesisUtterance(text)
-            utterance.lang = 'ko-KR'
-            utterance.rate = 0.8
-            window.speechSynthesis.speak(utterance)
-        }
+        speakText(text, 0.8)
     }
 
     // Auto play question speech on load

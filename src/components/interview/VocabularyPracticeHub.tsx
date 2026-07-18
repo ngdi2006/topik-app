@@ -8,6 +8,7 @@ import FlashcardMode, { getKoreanDescription } from '@/components/vocabulary-von
 import QuizMode from '@/components/vocabulary-vong2/QuizMode'
 import SpellingMode from '@/components/vocabulary-vong2/SpellingMode'
 import PodcastMode from '@/components/vocabulary-vong2/PodcastMode'
+import { speakText, stopTTS } from '@/lib/tts'
 
 const INDUSTRIES = ['MANUFACTURING', 'FISHERY', 'AGRICULTURE', 'FORESTRY', 'SERVICE', 'CONSTRUCTION']
 const INDUSTRY_LABELS: Record<string, string> = {
@@ -266,12 +267,8 @@ function SignGallery({ vocabList, onBack }: { vocabList: any[], onBack: () => vo
     const [activeCategory, setActiveCategory] = useState('ALL')
 
     const playAudio = (url?: string, wordKr?: string) => {
-        if ('speechSynthesis' in window && wordKr) {
-            window.speechSynthesis.cancel()
-            const utterance = new SpeechSynthesisUtterance(wordKr)
-            utterance.lang = 'ko-KR'
-            utterance.rate = 0.8
-            window.speechSynthesis.speak(utterance)
+        if (wordKr) {
+            speakText(wordKr, 0.8)
         } else if (url) {
             new Audio(url).play().catch(() => {})
         }
@@ -585,12 +582,8 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
     }
 
     const playWordAudio = (wordKr: string) => {
-        if ('speechSynthesis' in window && wordKr) {
-            window.speechSynthesis.cancel()
-            const utterance = new SpeechSynthesisUtterance(wordKr)
-            utterance.lang = 'ko-KR'
-            utterance.rate = 0.8
-            window.speechSynthesis.speak(utterance)
+        if (wordKr) {
+            speakText(wordKr, 0.8)
         }
     }
 

@@ -6,6 +6,7 @@ import { Mic, Square, Play, Eye, EyeOff, RefreshCw, CheckCircle, XCircle, ArrowL
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { toast } from 'sonner'
 import { FlashcardMode, MeaningQuizMode, WordSortMode } from './ListenOnlyModes'
+import { speakText, stopTTS } from '@/lib/tts'
 
 interface InterviewPracticeScreenProps {
     questions: any[]
@@ -238,8 +239,9 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
 
         const isGoogleTTS = currentQ.question_audio_url && currentQ.question_audio_url.includes('translate.google.com')
         const hasRealAudio = currentQ.question_audio_url && !isGoogleTTS
+        const forceElevenLabs = true;
 
-        if (hasRealAudio && audioRef.current) {
+        if (hasRealAudio && audioRef.current && !forceElevenLabs) {
             audioRef.current.src = currentQ.question_audio_url
             audioRef.current.playbackRate = playbackRate
             // Do NOT call load() to avoid race conditions
@@ -251,26 +253,15 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
                     setAudioState('error')
                 }
             })
-        } else if (currentQ.question_text && 'speechSynthesis' in window) {
-            // Fallback to Browser's Built-in TTS AI (Text-to-Speech)
-            const utterance = new SpeechSynthesisUtterance(currentQ.question_text)
-            utterance.lang = 'ko-KR'
-            utterance.rate = 0.9 * playbackRate // Read slightly slower for clarity
-            
-            utterance.onstart = () => setAudioState('playing')
-            utterance.onend = () => handleAudioEnded()
-            utterance.onerror = (err: any) => {
-                if (err.error === 'interrupted' || err.error === 'canceled') {
-                    console.warn("TTS interrupted (Strict Mode/Cleanup):", err.error)
-                } else {
-                    console.error("TTS Error:", err.error)
-                    // Bỏ qua lỗi TTS (ví dụ máy ko có giọng Hàn), cho phép chuyển luôn sang bước đếm ngược
-                    handleAudioEnded()
-                }
-            }
-            
-            window.speechSynthesis.cancel() // Stop any previous speech
-            window.speechSynthesis.speak(utterance)
+        } else if (currentQ.question_text) {
+            // Fallback to ElevenLabs TTS stream
+            speakText(
+                currentQ.question_text,
+                0.9 * playbackRate,
+                () => setAudioState('playing'),
+                () => handleAudioEnded(),
+                () => handleAudioEnded()
+            )
         } else {
             // No audio and no TTS support, just trigger ended immediately
             handleAudioEnded()
@@ -278,7 +269,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
 
         return () => {
             if (audioRef.current) audioRef.current.pause()
-            if ('speechSynthesis' in window) window.speechSynthesis.cancel()
+            stopTTS()
             if (timerRef.current) clearInterval(timerRef.current)
         }
     }, [currentQIndex, currentQ, playbackRate])
@@ -319,8 +310,9 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
     const replayAudio = () => {
         const isGoogleTTS = currentQ.question_audio_url && currentQ.question_audio_url.includes('translate.google.com')
         const hasRealAudio = currentQ.question_audio_url && !isGoogleTTS
+        const forceElevenLabs = true;
 
-        if (hasRealAudio && audioRef.current) {
+        if (hasRealAudio && audioRef.current && !forceElevenLabs) {
             audioRef.current.currentTime = 0
             audioRef.current.playbackRate = playbackRate
             audioRef.current.play().catch(err => {
@@ -328,14 +320,14 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
                     console.warn("Audio replay error:", err)
                 }
             })
-        } else if (currentQ.question_text && 'speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(currentQ.question_text)
-            utterance.lang = 'ko-KR'
-            utterance.rate = 0.9 * playbackRate
-            utterance.onstart = () => setAudioState('playing')
-            utterance.onend = () => handleAudioEnded()
-            window.speechSynthesis.cancel()
-            window.speechSynthesis.speak(utterance)
+        } else if (currentQ.question_text) {
+            speakText(
+                currentQ.question_text,
+                0.9 * playbackRate,
+                () => setAudioState('playing'),
+                () => handleAudioEnded(),
+                () => handleAudioEnded()
+            )
         }
     }
 

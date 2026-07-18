@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
+import os from 'os'
 
 export async function GET(request: Request) {
     try {
@@ -24,25 +25,36 @@ export async function GET(request: Request) {
         const hash = crypto.createHash('sha256').update(text + '_' + voiceId).digest('hex')
         const filename = `${hash}.mp3`
         
-        // Define directory paths
-        const cacheDir = path.join(process.cwd(), 'public', 'audio', 'tts')
+        // Define directory paths: Use OS temp dir on Vercel/production (read-only filesystem)
+        const isServerless = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production'
+        const cacheDir = isServerless 
+            ? path.join(os.tmpdir(), 'audio-tts') 
+            : path.join(process.cwd(), 'public', 'audio', 'tts')
         const filePath = path.join(cacheDir, filename)
 
-        // 1. Check if the file is already cached
-        if (fs.existsSync(filePath)) {
-            console.log(`[ElevenLabs TTS] Serving cached audio for: "${text.substring(0, 15)}..."`)
-            const fileBuffer = fs.readFileSync(filePath)
-            return new NextResponse(fileBuffer, {
-                headers: {
-                    'Content-Type': 'audio/mpeg',
-                    'Content-Length': fileBuffer.length.toString(),
-                }
-            })
+        // 1. Check if the file is already cached (safely check exist)
+        try {
+            if (fs.existsSync(filePath)) {
+                console.log(`[ElevenLabs TTS] Serving cached audio for: "${text.substring(0, 15)}..."`)
+                const fileBuffer = fs.readFileSync(filePath)
+                return new NextResponse(fileBuffer, {
+                    headers: {
+                        'Content-Type': 'audio/mpeg',
+                        'Content-Length': fileBuffer.length.toString(),
+                    }
+                })
+            }
+        } catch (readError) {
+            console.warn(`[ElevenLabs TTS] Failed to read cache:`, readError)
         }
 
         // 2. Ensure cache folder exists
-        if (!fs.existsSync(cacheDir)) {
-            fs.mkdirSync(cacheDir, { recursive: true })
+        try {
+            if (!fs.existsSync(cacheDir)) {
+                fs.mkdirSync(cacheDir, { recursive: true })
+            }
+        } catch (mkdirError) {
+            console.warn(`[ElevenLabs TTS] Failed to create cache directory:`, mkdirError)
         }
 
         // 3. Request audio generation from ElevenLabs
@@ -73,9 +85,13 @@ export async function GET(request: Request) {
         const arrayBuffer = await response.arrayBuffer()
         const buffer = Buffer.from(arrayBuffer)
 
-        // 4. Save to static cache folder
-        fs.writeFileSync(filePath, buffer)
-        console.log(`[ElevenLabs TTS] Cached generated file: ${filename}`)
+        // 4. Save to static cache folder (safely write)
+        try {
+            fs.writeFileSync(filePath, buffer)
+            console.log(`[ElevenLabs TTS] Cached generated file: ${filename}`)
+        } catch (writeError) {
+            console.warn(`[ElevenLabs TTS] Failed to write cache file (this is normal on serverless read-only filesystems):`, writeError)
+        }
 
         return new NextResponse(buffer, {
             headers: {

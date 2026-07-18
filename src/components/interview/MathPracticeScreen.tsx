@@ -621,7 +621,7 @@ export function MathPracticeScreen({ questions, mathMode, onFinish, onBack }: Ma
     const topicId = topicTag ? topicTag.replace('__topic__:', '') : 'all'
 
     const TOPIC_LABELS: Record<string, string> = {
-        all: 'Ôn tổng hợp',
+        all: 'Ôn tập tổng hợp & Thi thử với AI',
         arithmetic: 'Phép tính cơ bản',
         length: 'Đơn vị Độ dài',
         weight: 'Đơn vị Khối lượng',

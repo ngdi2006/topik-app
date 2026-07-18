@@ -682,11 +682,11 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
 
     if (step === 'math_topic') {
         const MATH_TOPICS = [
-            { id: 'all', label: 'Ôn tổng hợp', emoji: '🎯', desc: 'Trộn tất cả 4 chủ đề', color: 'from-slate-500 to-slate-700', bg: 'from-slate-50 to-slate-100', border: 'border-slate-200 hover:border-slate-400' },
             { id: 'arithmetic', label: 'Phép tính cơ bản', emoji: '➕', desc: 'Cộng · Trừ · Nhân · Chia', color: 'from-rose-500 to-red-600', bg: 'from-rose-50 to-red-50', border: 'border-rose-200 hover:border-rose-400' },
             { id: 'length', label: 'Đơn vị Độ dài', emoji: '📏', desc: 'km ↔ m ↔ cm ↔ mm', color: 'from-blue-500 to-cyan-600', bg: 'from-blue-50 to-cyan-50', border: 'border-blue-200 hover:border-blue-400' },
             { id: 'weight', label: 'Đơn vị Khối lượng', emoji: '⚖️', desc: 'tấn ↔ kg ↔ g', color: 'from-emerald-500 to-teal-600', bg: 'from-emerald-50 to-teal-50', border: 'border-emerald-200 hover:border-emerald-400' },
             { id: 'time', label: 'Thời gian & Nhiệt độ', emoji: '🕐', desc: 'giờ · phút · độ C', color: 'from-violet-500 to-purple-600', bg: 'from-violet-50 to-purple-50', border: 'border-violet-200 hover:border-violet-400' },
+            { id: 'all', label: 'Ôn tập tổng hợp & Thi thử với AI', emoji: '🎯', desc: 'Trộn tất cả 4 chủ đề', color: 'from-slate-500 to-slate-700', bg: 'from-slate-50 to-slate-100', border: 'border-slate-200 hover:border-slate-400' },
         ]
 
         const MATH_MODES = [
@@ -704,13 +704,13 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
                 desc: 'Nghe câu hỏi · Chọn đáp án đúng trong 4 lựa chọn',
                 color: 'bg-blue-600 hover:bg-blue-700 shadow-blue-200',
             },
-            {
+            ...(selectedMathTopic === 'all' ? [{
                 id: 'speak_answer' as const,
                 label: 'Luyện phát âm',
                 emoji: '🎤',
                 desc: 'Nghe câu hỏi · Tính kết quả · Nói to đáp án bằng tiếng Hàn',
                 color: 'bg-violet-600 hover:bg-violet-700 shadow-violet-200',
-            },
+            }] : [])
         ]
 
         const filteredQs = selectedMathTopic === 'all'
@@ -747,7 +747,12 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
                             {MATH_TOPICS.map(t => (
                                 <button
                                     key={t.id}
-                                    onClick={() => setSelectedMathTopic(t.id)}
+                                    onClick={() => {
+                                        setSelectedMathTopic(t.id)
+                                        if (t.id !== 'all' && mathMode === 'speak_answer') {
+                                            setMathMode('listen_card')
+                                        }
+                                    }}
                                     className={`p-4 rounded-2xl border-2 text-left transition-all duration-200 hover:-translate-y-1 hover:shadow-lg bg-gradient-to-br ${t.bg} ${t.border} ${selectedMathTopic === t.id ? 'ring-2 ring-indigo-500 ring-offset-2 shadow-md scale-[1.02]' : ''}`}
                                 >
                                     <div className="text-2xl mb-2">{t.emoji}</div>

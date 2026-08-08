@@ -31,7 +31,7 @@ interface Transaction {
         package_name: string
         credits: number
         price_vnd: number
-    }
+    } | null
 }
 
 export default function AdminPaymentsPage() {
@@ -58,7 +58,7 @@ export default function AdminPaymentsPage() {
             } else {
                 toast.error('Không thể tải danh sách giao dịch')
             }
-        } catch (error) {
+        } catch {
             toast.error('Lỗi kết nối')
         } finally {
             setLoading(false)
@@ -91,7 +91,7 @@ export default function AdminPaymentsPage() {
             } else {
                 toast.error(data.error || 'Có lỗi xảy ra')
             }
-        } catch (error) {
+        } catch {
             toast.error('Lỗi xử lý giao dịch')
         } finally {
             setProcessing(false)
@@ -135,7 +135,7 @@ export default function AdminPaymentsPage() {
                 <p className="text-muted-foreground">Duyệt và quản lý các giao dịch mua lượt làm bài</p>
             </div>
 
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'pending' | 'completed' | 'failed')}>
                 <TabsList>
                     <TabsTrigger value="pending" className="gap-2">
                         <Clock className="w-4 h-4" />
@@ -213,7 +213,7 @@ export default function AdminPaymentsPage() {
                                             <div className="flex items-start gap-3">
                                                 <Package className="w-5 h-5 text-muted-foreground mt-0.5" />
                                                 <div>
-                                                    <p className="text-sm font-medium">{tx.payment_packages.package_name}</p>
+                                                    <p className="text-sm font-medium">{tx.payment_packages?.package_name || 'Gói đã xóa'}</p>
                                                     <p className="text-xs text-muted-foreground">{tx.credits_purchased} lượt</p>
                                                 </div>
                                             </div>

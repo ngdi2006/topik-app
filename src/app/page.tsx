@@ -43,14 +43,14 @@ export default function Home() {
           <span className="hidden sm:inline-block bg-clip-text text-transparent bg-gradient-to-r from-blue-900 to-indigo-800 font-extrabold">Korea Link</span>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/login">
+          <Link href="/register">
             <Button variant="ghost" className="font-bold text-slate-600 hover:text-blue-600 hover:bg-blue-50 px-5 rounded-xl hidden sm:flex h-11">
-              Đăng nhập
+              Đăng ký miễn phí
             </Button>
           </Link>
-          <Link href="/register">
+          <Link href="/login">
             <Button className="font-bold shadow-lg shadow-blue-500/30 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white h-11">
-              Bắt đầu ngay
+              Đăng nhập
             </Button>
           </Link>
         </div>
@@ -99,13 +99,13 @@ export default function Home() {
                 </svg>
               </div>
 
-              <Link href="/login" className="w-full sm:w-auto">
+              <Link href="/register" className="w-full sm:w-auto">
                 <Button size="lg" className="w-full sm:w-auto text-base h-14 px-8 rounded-2xl shadow-xl shadow-blue-500/30 group transition-all hover:-translate-y-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-lg">
                   Bắt đầu học miễn phí
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
-              <Link href="/dashboard" className="w-full sm:w-auto">
+              <Link href="#tinh-nang" className="w-full sm:w-auto">
                 <Button size="lg" variant="outline" className="w-full sm:w-auto text-base h-14 px-8 rounded-2xl bg-white/80 border-slate-200 hover:bg-slate-50 hover:text-blue-600 font-bold transition-all hover:-translate-y-1 shadow-sm text-slate-700 text-lg">
                   <PlayCircle className="w-5 h-5 mr-2" />
                   Xem Demo
@@ -217,7 +217,7 @@ export default function Home() {
         </section>
 
         {/* FEATURES SECTION */}
-        <section className="relative z-10 bg-white py-24 sm:py-32 border-y border-slate-200">
+        <section className="relative z-10 scroll-mt-6 bg-white py-24 sm:py-32 border-y border-slate-200" id="tinh-nang">
           <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-16 text-center">
             
             {/* Title Deco */}

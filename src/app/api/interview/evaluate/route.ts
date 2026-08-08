@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { GoogleGenAI } from '@google/genai'
+import { consumeInterviewAiQuota, getInterviewAccess } from '@/features/interview-access/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || "placeholder-api-key" });
 
 export async function POST(request: Request) {
+    const startedAt = Date.now()
     try {
         const body = await request.json()
         const { question_id, transcript } = body
@@ -13,8 +16,20 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: false, error: 'Thiếu thông tin' }, { status: 400 })
         }
 
-        // Fetch question details for context
         const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return NextResponse.json({ success: false, error: 'Vui lòng đăng nhập' }, { status: 401 })
+
+        const access = await getInterviewAccess(supabase, user)
+        if (!access.hasFullAccess) {
+            return NextResponse.json({ success: false, code: 'INTERVIEW_SUBSCRIPTION_REQUIRED', error: 'Tính năng AI cần gói Vòng 2 đang hoạt động' }, { status: 403 })
+        }
+        const quota = await consumeInterviewAiQuota(supabase, user.id)
+        if (!quota.allowed) {
+            return NextResponse.json({ success: false, code: 'AI_DAILY_LIMIT_REACHED', error: `Bạn đã dùng hết ${quota.limit} lượt AI hôm nay`, quota }, { status: 429 })
+        }
+
+        // Fetch question details for context
         const { data: question } = await supabase
             .from('interview_questions')
             .select('*')
@@ -114,14 +129,27 @@ Chỉ trả về chuỗi JSON thô, không nằm trong khối markdown \`\`\`jso
             feedback_vi: evaluation.feedback_vi
         };
 
+        void createAdminClient().from('interview_api_usage_logs').insert({
+            user_id: user.id,
+            feature: 'interview_evaluation',
+            provider: 'google_gemini',
+            character_count: transcript.length,
+            status: 'success',
+            latency_ms: Date.now() - startedAt,
+        }).then(({ error }) => {
+            if (error) console.warn('Failed to log interview AI usage:', error.message)
+        })
+
         return NextResponse.json({
             success: true,
-            data: responseData
+            data: responseData,
+            quota
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Không thể chấm điểm'
         return NextResponse.json(
-            { success: false, error: error.message },
+            { success: false, error: message },
             { status: 500 }
         )
     }

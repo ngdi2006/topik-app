@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { InterviewPlansAdmin } from '@/components/admin/InterviewPlansAdmin'
 
 interface PaymentPackage {
     id: string
@@ -20,6 +21,7 @@ interface PaymentPackage {
 }
 
 export default function PaymentPackagesPage() {
+    const [activeProduct, setActiveProduct] = useState<'eps' | 'interview'>('interview')
     const [packages, setPackages] = useState<PaymentPackage[]>([])
     const [loading, setLoading] = useState(true)
     const [dialogOpen, setDialogOpen] = useState(false)
@@ -39,7 +41,7 @@ export default function PaymentPackagesPage() {
             const res = await fetch('/api/admin/payment-packages')
             const json = await res.json()
             if (json.success) setPackages(json.data)
-        } catch (error) {
+        } catch {
             toast.error('Không thể tải danh sách gói')
         } finally {
             setLoading(false)
@@ -96,8 +98,8 @@ export default function PaymentPackagesPage() {
             toast.success(editing ? 'Đã cập nhật gói' : 'Đã tạo gói mới', { id: toastId })
             setDialogOpen(false)
             fetchPackages()
-        } catch (error: any) {
-            toast.error(error.message || 'Có lỗi xảy ra', { id: toastId })
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : 'Có lỗi xảy ra', { id: toastId })
         }
     }
 
@@ -114,8 +116,8 @@ export default function PaymentPackagesPage() {
 
             toast.success(pkg.is_active ? 'Đã tắt gói' : 'Đã bật gói', { id: toastId })
             fetchPackages()
-        } catch (error: any) {
-            toast.error(error.message, { id: toastId })
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : 'Không thể cập nhật gói', { id: toastId })
         }
     }
 
@@ -130,8 +132,8 @@ export default function PaymentPackagesPage() {
 
             toast.success('Đã xóa gói', { id: toastId })
             fetchPackages()
-        } catch (error: any) {
-            toast.error(error.message, { id: toastId })
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : 'Không thể xóa gói', { id: toastId })
         }
     }
 
@@ -146,13 +148,20 @@ export default function PaymentPackagesPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold">Gói thanh toán</h1>
-                <Button onClick={openCreate}>
+                {activeProduct === 'eps' && <Button onClick={openCreate}>
                     <Plus className="w-4 h-4 mr-2" />
                     Thêm gói
-                </Button>
+                </Button>}
             </div>
 
-            <div className="rounded-lg border overflow-x-auto">
+            <div className="inline-flex rounded-xl border bg-slate-50 p-1">
+                <button type="button" onClick={() => setActiveProduct('interview')} className={`rounded-lg px-4 py-2 text-sm font-bold transition ${activeProduct === 'interview' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:bg-white'}`}>Gói Phỏng vấn Vòng 2</button>
+                <button type="button" onClick={() => setActiveProduct('eps')} className={`rounded-lg px-4 py-2 text-sm font-bold transition ${activeProduct === 'eps' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-white'}`}>Lượt thi EPS-TOPIK</button>
+            </div>
+
+            {activeProduct === 'interview' ? <InterviewPlansAdmin /> : null}
+
+            <div className={`rounded-lg border overflow-x-auto ${activeProduct === 'eps' ? '' : 'hidden'}`}>
                 <table className="w-full text-sm">
                     <thead className="bg-muted/50">
                         <tr>

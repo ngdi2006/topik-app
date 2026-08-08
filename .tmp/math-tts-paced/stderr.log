@@ -1,0 +1,9 @@
+(node:14956) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/TOPIK-IBT/topik-app/src/lib/math-tts.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to E:\TOPIK-IBT\topik-app\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+npm notice
+npm notice New major version of npm available! 10.9.3 -> 12.0.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+npm notice To update run: npm install -g npm@12.0.2
+npm notice

@@ -257,7 +257,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
             // Fallback to ElevenLabs TTS stream
             speakText(
                 currentQ.question_text,
-                0.9 * playbackRate,
+                playbackRate,
                 () => setAudioState('playing'),
                 () => handleAudioEnded(),
                 () => handleAudioEnded()
@@ -323,7 +323,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
         } else if (currentQ.question_text) {
             speakText(
                 currentQ.question_text,
-                0.9 * playbackRate,
+                playbackRate,
                 () => setAudioState('playing'),
                 () => handleAudioEnded(),
                 () => handleAudioEnded()
@@ -433,7 +433,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
             </div>
 
             {/* Content view matching vocabulary/math layout */}
-            <div className="flex-1 overflow-auto py-6 space-y-6">
+            <div className={`flex-1 overflow-auto ${mode === 'meaning_quiz' ? 'space-y-3 py-3 md:space-y-6 md:py-6' : 'space-y-6 py-6'}`}>
 
             {/* Stats & Progress section (placed below header) */}
             {/* Stats & Progress section (placed below header) */}
@@ -715,9 +715,9 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
             )}
 
             {/* Footer Nav & FAB */}
-            <div className="flex justify-between items-center pt-4">
-                <Button variant="outline" size="lg" onClick={() => setIsDrawerOpen(true)} className="rounded-full font-semibold text-gray-700 bg-white hover:text-blue-600 hover:bg-blue-50 border-gray-200 shadow-sm">
-                    <Menu className="w-5 h-5 mr-2" /> Danh sách câu
+            <div className={`flex items-center justify-between ${mode === 'meaning_quiz' ? 'pt-1 md:pt-4' : 'pt-4'}`}>
+                <Button variant="outline" size="lg" onClick={() => setIsDrawerOpen(true)} className={`rounded-full border-gray-200 bg-white font-semibold text-gray-700 shadow-sm hover:bg-blue-50 hover:text-blue-600 ${mode === 'meaning_quiz' ? 'h-9 px-3 text-xs md:h-11 md:px-5 md:text-sm' : ''}`}>
+                    <Menu className={`${mode === 'meaning_quiz' ? 'mr-1.5 size-4 md:mr-2 md:size-5' : 'mr-2 size-5'}`} /> Danh sách câu
                 </Button>
                 {mode !== 'meaning_quiz' && (
                     <Button size="lg" onClick={handleNext} className="rounded-xl px-8 shadow-sm">

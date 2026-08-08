@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import * as XLSX from 'xlsx'
 import JSZip from 'jszip'
 import { toast } from 'sonner'
+import { analyzeToolQuestionText, type ToolQuestionConfig } from '@/components/interview/toolQuestionAnalysis'
 
 interface BulkImportModalProps {
     isOpen: boolean
@@ -29,10 +30,21 @@ type PreviewRow = {
     suggested_answers: string[] | null;
     target_zone_id: string | null;
     tool_image_url: string | null; // Raw image name from Excel
+    tool_config: ToolQuestionConfig | null;
 
     imageFile?: File;
     previewImageUrl?: string;
 };
+
+type ExcelRow = Record<string, string | number | null | undefined>
+
+function getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : 'Unknown error'
+}
+
+function cellText(value: string | number | null | undefined) {
+    return value == null ? '' : String(value)
+}
 
 export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalProps) {
     const [step, setStep] = useState<1 | 2>(1)
@@ -89,13 +101,13 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
             setProgressPercent(60)
             const wb = XLSX.read(bstr, { type: 'binary' })
             const ws = wb.Sheets[wb.SheetNames[0]]
-            const rawData = XLSX.utils.sheet_to_json(ws)
+            const rawData = XLSX.utils.sheet_to_json<ExcelRow>(ws)
 
             setProgressStatus('Đang phân tích dữ liệu câu hỏi...')
             
             const parsedRows: PreviewRow[] = []
             
-            rawData.forEach((row: any, index: number) => {
+            rawData.forEach((row, index: number) => {
                 const errors: string[] = []
                 let isValid = true
                 
@@ -112,22 +124,23 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
                         'CONSTRUCTION': 'Xây dựng',
                         'COMMON': 'Chung (Tất cả ngành)',
                     }
-                    industry = industryMap[upperInd] || rawInd
+                    industry = industryMap[upperInd] || String(rawInd)
                 }
 
-                const category = row['Phân loại'] || row['category'] || ''
+                const category = cellText(row['Phân loại'] || row['category'])
                 if (!category) {
                     errors.push('Thiếu phân loại')
                     isValid = false
                 }
 
-                const question_text = row['Câu hỏi'] || row['question_text'] || ''
+                const question_text = cellText(row['Câu hỏi'] || row['question_text'])
                 if (!question_text) {
                     // Skip completely empty rows based on question text missing
                     return 
                 }
 
-                const imgName = row['Tên File Ảnh'] || row['Link Ảnh công cụ'] || row['tool_image_file'] || row['tool_image_url'] || null
+                const imgNameRaw = row['Tên File Ảnh'] || row['Link Ảnh công cụ'] || row['tool_image_file'] || row['tool_image_url'] || null
+                const imgName = imgNameRaw ? String(imgNameRaw) : null
                 let imageFile: File | undefined = undefined
                 let previewImageUrl: string | undefined = undefined
 
@@ -154,6 +167,9 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
                     }
                 }
 
+                const vietnamese_meaning = cellText(row['Dịch nghĩa'] || row['vietnamese_meaning'])
+                const isToolQuestion = category === 'Sử dụng công cụ'
+
                 parsedRows.push({
                     originalIndex: index + 2, // +2 because Excel index usually excludes header (1) and array is 0-indexed
                     isValid,
@@ -161,12 +177,13 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
                     industry,
                     category,
                     question_text,
-                    vietnamese_meaning: row['Dịch nghĩa'] || row['vietnamese_meaning'] || '',
-                    countdown_after_audio: parseInt(row['Giây đếm ngược'] || row['countdown_after_audio'] || '5', 10),
-                    question_audio_url: row['Link Audio'] || row['question_audio_url'] || null,
+                    vietnamese_meaning,
+                    countdown_after_audio: parseInt(cellText(row['Giây đếm ngược'] || row['countdown_after_audio'] || '5'), 10),
+                    question_audio_url: cellText(row['Link Audio'] || row['question_audio_url']) || null,
                     suggested_answers: parsedAnswers && parsedAnswers.length > 0 ? parsedAnswers : null,
-                    target_zone_id: row['ID Ô thả'] || row['target_zone_id'] || null,
+                    target_zone_id: cellText(row['ID Ô thả'] || row['target_zone_id']) || null,
                     tool_image_url: imgName || null,
+                    tool_config: isToolQuestion ? analyzeToolQuestionText(question_text, vietnamese_meaning) : null,
                     imageFile,
                     previewImageUrl
                 })
@@ -175,8 +192,8 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
             setPreviewData(parsedRows)
             setStep(2)
             setProgressPercent(100)
-        } catch (error: any) {
-            toast.error('Lỗi khi phân tích: ' + error.message)
+        } catch (error: unknown) {
+            toast.error('Lỗi khi phân tích: ' + getErrorMessage(error))
         } finally {
             setIsImporting(false)
         }
@@ -241,6 +258,7 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
                     suggested_answers: r.suggested_answers,
                     target_zone_id: r.target_zone_id,
                     tool_image_url: finalUrl,
+                    tool_config: r.tool_config,
                 }
             })
 
@@ -264,9 +282,10 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
                 onClose()
             }, 1000)
 
-        } catch (error: any) {
-            toast.error('Lỗi khi import: ' + error.message)
-            setProgressStatus('Lỗi: ' + error.message)
+        } catch (error: unknown) {
+            const message = getErrorMessage(error)
+            toast.error('Lỗi khi import: ' + message)
+            setProgressStatus('Lỗi: ' + message)
         } finally {
             setIsImporting(false)
         }
@@ -500,4 +519,3 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
         </Dialog>
     )
 }
-

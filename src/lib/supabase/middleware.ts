@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { sanitizeNextPath } from '@/lib/auth-flow'
 
 export async function updateSession(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
@@ -53,6 +54,10 @@ export async function updateSession(request: NextRequest) {
         !user &&
         !request.nextUrl.pathname.startsWith('/login') &&
         !request.nextUrl.pathname.startsWith('/register') &&
+        !request.nextUrl.pathname.startsWith('/forgot-password') &&
+        !request.nextUrl.pathname.startsWith('/reset-password') &&
+        !request.nextUrl.pathname.startsWith('/check-email') &&
+        !request.nextUrl.pathname.startsWith('/industrial-interview') &&
         !request.nextUrl.pathname.startsWith('/api/auth') &&
         !request.nextUrl.pathname.startsWith('/api/payment/webhook') &&
         request.nextUrl.pathname !== '/'
@@ -65,6 +70,7 @@ export async function updateSession(request: NextRequest) {
         // no user, redirect to login page
         const url = request.nextUrl.clone()
         url.pathname = '/login'
+        url.searchParams.set('next', sanitizeNextPath(`${request.nextUrl.pathname}${request.nextUrl.search}`))
         return NextResponse.redirect(url)
     }
 
@@ -73,9 +79,9 @@ export async function updateSession(request: NextRequest) {
         user &&
         (request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register'))
     ) {
-        const url = request.nextUrl.clone()
-        url.pathname = '/dashboard'
-        return NextResponse.redirect(url)
+        return NextResponse.redirect(
+            new URL(sanitizeNextPath(request.nextUrl.searchParams.get('next')), request.url)
+        )
     }
 
     // Role-Based Access Control logic for /admin routes

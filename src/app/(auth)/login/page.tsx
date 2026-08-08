@@ -1,157 +1,138 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
+import { ArrowLeft, Eye, EyeOff, Loader2, LockKeyhole, Sparkles } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { getVietnameseAuthError, sanitizeNextPath } from "@/lib/auth-flow"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
-import { unstable_noStore as noStore } from 'next/cache';
 
-export default function LoginPage() {
-    noStore(); // Bỏ qua prerendering cho page này
-
+function LoginForm() {
+    const searchParams = useSearchParams()
+    const supabase = useMemo(() => createClient(), [])
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
+    const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
-    const supabase = createClient()
+    const [errorMessage, setErrorMessage] = useState<string | null>(null)
+    const nextPath = sanitizeNextPath(searchParams.get('next'))
+    const callbackError = searchParams.get('error_description') || searchParams.get('error')
+    const displayedError = errorMessage || (callbackError ? getVietnameseAuthError(callbackError) : null)
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault()
+    useEffect(() => {
+        if (searchParams.get('reset') === 'success') toast.success('Mật khẩu đã được cập nhật. Vui lòng đăng nhập lại.')
+    }, [searchParams])
+
+    const handleLogin = async (event: React.FormEvent) => {
+        event.preventDefault()
+        setErrorMessage(null)
         setIsLoading(true)
 
-        const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password
-        })
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
 
         if (error) {
-            toast.error("Đăng nhập thất bại: " + error.message)
+            setErrorMessage(getVietnameseAuthError(error.message))
             setIsLoading(false)
-        } else {
-            toast.success("Đăng nhập thành công!")
-            // Force reload to make sure middleware/session recognizes the change properly
-            setTimeout(() => {
-                window.location.href = "/dashboard"
-            }, 500)
+            return
         }
+
+        window.location.assign(nextPath)
     }
 
     const handleGoogleLogin = async () => {
-        // Detect in-app browsers like Zalo, Facebook which block Google Auth
-        const ua = navigator.userAgent || navigator.vendor || (window as any).opera;
-        const isEmbedded = /FBAN|FBAV|Zalo|Instagram|Line|TikTok/i.test(ua);
-        
-        if (isEmbedded) {
-            toast.error("Vui lòng mở bằng trình duyệt (Chrome/Safari) để đăng nhập Google", {
-                description: "Nhấn vào dấu 3 chấm góc phải trên cùng và chọn 'Mở bằng trình duyệt' hoặc 'Mở trong Safari'.",
+        const userAgent = navigator.userAgent || navigator.vendor
+        if (/FBAN|FBAV|Zalo|Instagram|Line|TikTok/i.test(userAgent)) {
+            toast.error("Hãy mở trang bằng Chrome hoặc Safari để đăng nhập Google.", {
+                description: "Mở menu của ứng dụng hiện tại và chọn “Mở bằng trình duyệt” hoặc “Mở trong Safari”.",
                 duration: 8000,
-            });
-            return;
+            })
+            return
         }
 
+        setErrorMessage(null)
         setIsLoading(true)
+        const callback = new URL('/api/auth/callback', window.location.origin)
+        callback.searchParams.set('next', nextPath)
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
-            options: {
-                redirectTo: `${window.location.origin}/api/auth/callback`,
-            },
+            options: { redirectTo: callback.toString() },
         })
 
         if (error) {
-            toast.error(error.message)
+            setErrorMessage(getVietnameseAuthError(error.message))
             setIsLoading(false)
         }
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
-            <Card className="w-full max-w-md">
-                <CardHeader className="space-y-1 text-center">
-                    <CardTitle className="text-2xl font-bold">Đăng nhập</CardTitle>
-                    <CardDescription>
-                        Đăng nhập vào hệ thống THI THỬ EPS-TOPIK CÙNG KOREA LINK
-                    </CardDescription>
+        <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 p-4">
+            <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(#dbeafe_1px,transparent_1px)] [background-size:18px_18px] opacity-60" />
+            <div aria-hidden="true" className="absolute -left-32 top-0 size-96 rounded-full bg-blue-200/50 blur-3xl" />
+            <div aria-hidden="true" className="absolute -right-32 bottom-0 size-96 rounded-full bg-violet-200/40 blur-3xl" />
+
+            <Card className="relative w-full max-w-md overflow-hidden border-slate-200/80 bg-white/95 shadow-2xl shadow-slate-900/10 backdrop-blur">
+                <CardHeader className="space-y-3 pb-5 text-center">
+                    <Link aria-label="Về trang chủ" className="absolute left-4 top-4 rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600" href="/">
+                        <ArrowLeft aria-hidden="true" className="size-5" />
+                    </Link>
+                    <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200">
+                        <LockKeyhole aria-hidden="true" className="size-6" />
+                    </div>
+                    <div>
+                        <CardTitle className="text-2xl font-black tracking-tight">Chào mừng trở lại</CardTitle>
+                        <CardDescription className="mt-1">Đăng nhập để tiếp tục lộ trình EPS‑TOPIK.</CardDescription>
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={handleGoogleLogin}
-                        disabled={isLoading}
-                    >
-                        <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                            <path
-                                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                                fill="#4285F4"
-                            />
-                            <path
-                                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                                fill="#34A853"
-                            />
-                            <path
-                                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                                fill="#FBBC05"
-                            />
-                            <path
-                                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                                fill="#EA4335"
-                            />
-                            <path d="M1 1h22v22H1z" fill="none" />
-                        </svg>
+                    <Button className="min-h-11 w-full" disabled={isLoading} onClick={handleGoogleLogin} variant="outline">
+                        <Sparkles aria-hidden="true" className="size-4 text-blue-600" />
                         Tiếp tục với Google
                     </Button>
 
                     <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <Separator />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-background px-2 text-muted-foreground">
-                                Hoặc tiếp tục với email
-                            </span>
-                        </div>
+                        <div className="absolute inset-0 flex items-center"><Separator /></div>
+                        <div className="relative flex justify-center text-xs"><span className="bg-white px-2 text-slate-500">Hoặc đăng nhập bằng email</span></div>
                     </div>
 
-                    <form onSubmit={handleLogin} className="space-y-4">
-                        <div className="space-y-2">
+                    <form className="space-y-4" onSubmit={handleLogin}>
+                        <div className="space-y-1.5">
                             <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                placeholder="m@example.com"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                            />
+                            <Input autoComplete="email" id="email" inputMode="email" name="email" onChange={(event) => setEmail(event.target.value)} placeholder="tenban@example.com…" required spellCheck={false} type="email" value={email} />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="password">Mật khẩu</Label>
-                            <Input
-                                id="password"
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                            />
+                        <div className="space-y-1.5">
+                            <div className="flex items-center justify-between gap-3">
+                                <Label htmlFor="password">Mật khẩu</Label>
+                                <Link className="text-xs font-bold text-blue-700 hover:text-blue-900 hover:underline" href="/forgot-password">Quên mật khẩu?</Link>
+                            </div>
+                            <div className="relative">
+                                <Input autoComplete="current-password" className="pr-11" id="password" name="password" onChange={(event) => setPassword(event.target.value)} required type={showPassword ? 'text' : 'password'} value={password} />
+                                <button aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} className="absolute right-1 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600" onClick={() => setShowPassword((visible) => !visible)} type="button">
+                                    {showPassword ? <EyeOff aria-hidden="true" className="size-4" /> : <Eye aria-hidden="true" className="size-4" />}
+                                </button>
+                            </div>
                         </div>
-                        <Button type="submit" className="w-full" disabled={isLoading}>
-                            {isLoading ? "Đang xử lý..." : "Đăng nhập"}
+
+                        {displayedError ? <p aria-live="polite" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700" role="alert">{displayedError}</p> : null}
+
+                        <Button className="min-h-11 w-full font-bold" disabled={isLoading} type="submit">
+                            {isLoading ? <><Loader2 aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" /> Đang đăng nhập…</> : 'Đăng nhập'}
                         </Button>
                     </form>
                 </CardContent>
-                <CardFooter className="flex justify-center flex-col gap-2">
-                    <div className="text-sm text-muted-foreground">
-                        Chưa có tài khoản?{" "}
-                        <Link href="/register" className="text-primary hover:underline">
-                            Đăng ký ngay
-                        </Link>
-                    </div>
+                <CardFooter className="justify-center border-t border-slate-100 py-4 text-sm text-slate-600">
+                    Chưa có tài khoản?&nbsp;<Link className="font-bold text-blue-700 hover:underline" href={`/register?next=${encodeURIComponent(nextPath)}`}>Đăng ký miễn phí</Link>
                 </CardFooter>
             </Card>
-        </div>
+        </main>
     )
+}
+
+export default function LoginPage() {
+    return <Suspense fallback={<main className="min-h-screen bg-slate-50" />}><LoginForm /></Suspense>
 }

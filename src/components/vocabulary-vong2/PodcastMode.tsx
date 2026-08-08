@@ -5,12 +5,12 @@ import { Card } from '@/components/ui/card'
 import { ArrowLeft, CheckCircle, Volume2, Pause, Play, Info, SkipBack, SkipForward, RotateCcw, Bookmark } from 'lucide-react'
 import { speakText, stopTTS } from '@/lib/tts'
 
-export default function PodcastMode({ vocabList, onBack, hideHeader = false }: { vocabList: any[], onBack: () => void, hideHeader?: boolean }) {
+export default function PodcastMode({ vocabList, onBack, hideHeader = false, onNextRound }: { vocabList: any[], onBack: () => void, hideHeader?: boolean, onNextRound?: () => void }) {
     const [currentIndex, setCurrentIndex] = useState(0)
     const [isPlaying, setIsPlaying] = useState(true)
     const [showMeaning, setShowMeaning] = useState(false)
     const [isFinished, setIsFinished] = useState(false)
-    const [speed, setSpeed] = useState(0.8)
+    const [speed, setSpeed] = useState(1.0)
     const [speechTrigger, setSpeechTrigger] = useState(0)
     const timerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -130,15 +130,20 @@ export default function PodcastMode({ vocabList, onBack, hideHeader = false }: {
                     <div className="flex flex-col gap-2 pt-2">
                         <Button 
                             onClick={() => {
+                                if (onNextRound) {
+                                    onNextRound()
+                                    return
+                                }
                                 setCurrentIndex(0)
                                 setIsFinished(false)
                                 setIsPlaying(true)
+                                setSpeed(1.0)
                                 setSpeechTrigger(prev => prev + 1)
                             }} 
                             size="lg" 
                             className="w-full h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shadow-sm"
                         >
-                            Nghe lại từ đầu
+                            {onNextRound ? 'Nghe 20 câu mới' : 'Nghe lại từ đầu'}
                         </Button>
                         <Button 
                             variant="outline" 

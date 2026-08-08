@@ -495,11 +495,11 @@ const mappings: Record<string, { shortKr: string; hlKr: string; shortVi: string;
       "shortVi": "Chỉ dẫn vị trí cửa sổ cứu hộ cứu nạn.",
         "hlVi": "emerald(\"Chỉ dẫn vị trí cửa sổ cứu hộ\") + \" cứu nạn\""
 },
-"심장박동기": {
-  "shortKr": "심정지 환자 발생 시 응급 처치를 위한 장비 안내입니다.",
-    "hlKr": "emerald(\"심장충격기/제세동기\") + \" (응급 처치)\"",
-      "shortVi": "Chỉ dẫn vị trí đặt máy tạo nhịp tim cấp cứu.",
-        "hlVi": "emerald(\"Chỉ dẫn vị trí đặt máy tạo nhịp tim\") + \" cấp cứu\""
+"자동 심장박동기": {
+  "shortKr": "심정지 환자에게 사용하는 자동 심장박동기의 위치를 안내합니다.",
+    "hlKr": "emerald(\"자동 심장박동기 위치\") + \" (응급 처치)\"",
+      "shortVi": "Chỉ dẫn vị trí đặt máy khử rung tim ngoài tự động.",
+        "hlVi": "emerald(\"Máy khử rung tim ngoài tự động\") + \" (AED)\""
 },
 "오른쪽 슬라이딩 도어": {
   "shortKr": "문을 오른쪽으로 밀어 열어야 하는 미닫이문입니다.",
@@ -585,7 +585,6 @@ const mappings: Record<string, { shortKr: string; hlKr: string; shortVi: string;
 const red = (text: string) => <span className="text-rose-600 font-extrabold">{text}</span>;
 const amber = (text: string) => <span className="text-amber-600 font-extrabold">{text}</span>;
 const indigo = (text: string) => <span className="text-indigo-600 font-extrabold">{text}</span>;
-const emerald = (text: string) => <span className="text-emerald-600 font-extrabold">{text}</span>;
 
 /**
  * Gets a short, concise plain-text Korean explanation matching a Vietnamese description or Korean word.
@@ -611,17 +610,14 @@ export function getKoreanDescription(descVi: string, wordKr: string): string {
 }
 
 /**
- * Renders a concise, keyword-highlighted Korean description.
+ * Renders the verified Korean explanation as React content.
+ * Do not evaluate the legacy highlight expression: adding React elements with
+ * `+` coerces them to "[object Object]" and corrupts the sentence.
  */
 export function renderDescriptionKr(descVi: string, wordKr: string): React.ReactNode {
   const entry = mappings[wordKr];
   if (entry) {
-    // Evaluate highlight JSX expression
-    try {
-      return eval(entry.hlKr);
-    } catch (e) {
-      return <span>{entry.shortKr}</span>;
-    }
+    return <span>{entry.shortKr}</span>;
   }
 
   // Dynamic patterns
@@ -638,16 +634,12 @@ export function renderDescriptionKr(descVi: string, wordKr: string): React.React
 }
 
 /**
- * Renders a concise, keyword-highlighted Vietnamese description.
+ * Renders the verified Vietnamese explanation as React content.
  */
 export function renderDescriptionVi(descVi: string, wordVi: string = '', wordKr: string = ''): React.ReactNode {
   const entry = mappings[wordKr];
   if (entry) {
-    try {
-      return eval(entry.hlVi);
-    } catch (e) {
-      return <span>{entry.shortVi}</span>;
-    }
+    return <span>{entry.shortVi}</span>;
   }
   return <span className="font-medium text-slate-650">{descVi}</span>;
 }

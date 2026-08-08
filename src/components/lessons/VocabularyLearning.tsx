@@ -66,7 +66,7 @@ export function VocabularyLearning({ vocabulary, onComplete }: VocabularyLearnin
     if ('speechSynthesis' in window) {
       const utterance = new SpeechSynthesisUtterance(text)
       utterance.lang = 'ko-KR'
-      utterance.rate = 0.8
+      utterance.rate = 1.0
       window.speechSynthesis.speak(utterance)
     }
   }

@@ -37,6 +37,43 @@ function getAnswer(q: MathQuestion): string {
     return ans
 }
 
+function getSpeakingGivenValue(q: MathQuestion): string {
+    const combinedText = `${getAnswer(q)} ${q.vietnamese_meaning || ''}`
+    const parentheticalValues = [...combinedText.matchAll(/\(([^)]+)\)/g)]
+        .map(match => match[1].trim())
+    const readableParenthetical = parentheticalValues.find(value =>
+        /\d/.test(value) && /(kg|g|킬로그램|그램|cm|m|mm|l|ml|원|개|명|시간|분|초)/i.test(value)
+    )
+    if (readableParenthetical) return readableParenthetical
+
+    const numericValue = combinedText.match(
+        /\d+(?:[.,]\d+)?\s*(?:kg|g|킬로그램|그램|cm|mm|m|km|l|ml|원|개|명|시간|분|초)/i
+    )
+    return numericValue?.[0]?.trim() || ''
+}
+
+function getSpeakingGivenLabel(q: MathQuestion): string {
+    const text = `${q.question_text} ${q.vietnamese_meaning}`.toLowerCase()
+    if (/무게|trọng lượng|cân nặng/.test(text)) return 'Trọng lượng'
+    if (/길이|chiều dài/.test(text)) return 'Chiều dài'
+    if (/가격|얼마|giá tiền/.test(text)) return 'Giá trị'
+    if (/시간|thời gian/.test(text)) return 'Thời gian'
+    return 'Giá trị cần đọc'
+}
+
+function shouldShowSpeakingGivenValue(q: MathQuestion): boolean {
+    const korean = q.question_text.toLowerCase()
+    const vietnamese = (q.vietnamese_meaning || '').toLowerCase()
+    const isDirectWeightQuestion =
+        /(?:이거|이것|물건).*(?:무게|몇\s*(?:킬로|kg)).*(?:얼마|입니까|예요)/i.test(korean) ||
+        /(?:trọng lượng|cân nặng).*(?:vật này|cái này).*(?:bao nhiêu)/i.test(vietnamese)
+    const containsCalculationOrConversion =
+        /\d/.test(`${korean} ${vietnamese}`) ||
+        /더하|빼|곱하|나누|합|차|계산|바꾸|변환|환산|cộng|trừ|nhân|chia|tính|đổi|quy đổi|chuyển đổi/i.test(`${korean} ${vietnamese}`)
+
+    return isDirectWeightQuestion && !containsCalculationOrConversion
+}
+
 // ─── Mode 1: Nghe & Nhớ (Flashcard toán) ────────────────────────────────────
 function MathFlashcard({ questions, onFinish }: { questions: MathQuestion[], onFinish: (masteredIds: string[]) => void }) {
     const [idx, setIdx] = useState(0)
@@ -52,7 +89,9 @@ function MathFlashcard({ questions, onFinish }: { questions: MathQuestion[], onF
     const answer = getAnswer(q)
 
     const speak = (text: string) => {
-        speakText(text, 0.85)
+        speakText(text, 1.0, undefined, undefined, undefined, {
+            profile: 'math-paced-v1',
+        })
     }
 
     useEffect(() => {
@@ -265,7 +304,9 @@ function MathNumberQuiz({ questions, onFinish }: { questions: MathQuestion[], on
     }, [idx, questions, correctShort])
 
     const speak = (text: string) => {
-        speakText(text, 0.85)
+        speakText(text, 1.0, undefined, undefined, undefined, {
+            profile: 'math-paced-v1',
+        })
     }
 
     useEffect(() => {
@@ -392,6 +433,7 @@ function MathNumberQuiz({ questions, onFinish }: { questions: MathQuestion[], on
 function MathSpeakingPractice({ questions, onFinish }: { questions: MathQuestion[], onFinish: (masteredIds: string[]) => void }) {
     const [idx, setIdx] = useState(0)
     const [showAnswer, setShowAnswer] = useState(false)
+    const [awaitingConfirmation, setAwaitingConfirmation] = useState(false)
     const [hideKorean, setHideKorean] = useState(true)
     const [hideVietnamese, setHideVietnamese] = useState(true)
     const synth = typeof window !== 'undefined' ? window.speechSynthesis : null
@@ -399,15 +441,20 @@ function MathSpeakingPractice({ questions, onFinish }: { questions: MathQuestion
     const q = questions[idx]
     const answer = getAnswer(q)
     const answerKorean = answer.split('(')[0].replace(/입니다\./g, '').trim()
+    const givenValue = shouldShowSpeakingGivenValue(q) ? getSpeakingGivenValue(q) : ''
+    const givenValueLabel = getSpeakingGivenLabel(q)
 
     const { hasBrowserSupport, isRecording, transcript, interimTranscript, startRecording, stopRecording, resetTranscript } = useSpeechRecognition('ko-KR')
 
     const speak = (text: string) => {
-        speakText(text, 0.85)
+        speakText(text, 1.0, undefined, undefined, undefined, {
+            profile: 'math-paced-v1',
+        })
     }
 
     useEffect(() => {
         setShowAnswer(false)
+        setAwaitingConfirmation(false)
         resetTranscript()
         if (isRecording) stopRecording()
         speak(q.question_text)
@@ -417,11 +464,24 @@ function MathSpeakingPractice({ questions, onFinish }: { questions: MathQuestion
     const handleToggleRecord = () => {
         if (isRecording) {
             stopRecording()
-            setShowAnswer(true)
+            setAwaitingConfirmation(true)
         } else {
+            setShowAnswer(false)
+            setAwaitingConfirmation(false)
             resetTranscript()
             startRecording()
         }
+    }
+
+    const handleAcceptAnswer = () => {
+        setAwaitingConfirmation(false)
+        setShowAnswer(true)
+    }
+
+    const handleRetryRecording = () => {
+        setShowAnswer(false)
+        setAwaitingConfirmation(false)
+        resetTranscript()
     }
 
     const masteredIdsRef = useRef<string[]>([])
@@ -434,7 +494,7 @@ function MathSpeakingPractice({ questions, onFinish }: { questions: MathQuestion
         else setIdx(i => i + 1)
     }
 
-    const userSaid = transcript.trim()
+    const userSaid = (transcript || interimTranscript).trim()
     const isCorrect = userSaid && answerKorean && userSaid.includes(answerKorean.trim())
 
     return (
@@ -490,6 +550,17 @@ function MathSpeakingPractice({ questions, onFinish }: { questions: MathQuestion
                         ) : (
                             <p className="text-slate-500 font-medium mb-6 animate-in fade-in duration-300">{q.vietnamese_meaning}</p>
                         )}
+
+                        {givenValue ? (
+                            <div className="mx-auto mt-5 mb-6 w-fit min-w-36 rounded-2xl border-2 border-violet-200 bg-violet-50 px-7 py-4 shadow-sm">
+                                <p className="mb-1 text-[11px] font-extrabold uppercase tracking-widest text-violet-500">
+                                    {givenValueLabel}
+                                </p>
+                                <p className="text-3xl font-black tabular-nums text-slate-900">
+                                    {givenValue}
+                                </p>
+                            </div>
+                        ) : null}
                     </div>
                     <div className="flex justify-center gap-3">
                         <button
@@ -515,7 +586,11 @@ function MathSpeakingPractice({ questions, onFinish }: { questions: MathQuestion
                 ) : (
                     <div className="bg-white rounded-3xl border border-slate-200 shadow-md p-8 flex flex-col items-center gap-5">
                         <p className="text-slate-500 text-sm font-semibold">
-                            {isRecording ? '🎙️ Đang ghi âm — Nhấn nút để kết thúc' : 'Nhấn nút micro bên dưới và nói đáp án bằng tiếng Hàn'}
+                            {isRecording
+                                ? '🎙️ Đang ghi âm — Nhấn nút để kết thúc'
+                                : awaitingConfirmation
+                                    ? 'Hãy kiểm tra phần đã đọc, sau đó chấp nhận đáp án'
+                                    : 'Nhấn nút micro bên dưới và nói đáp án bằng tiếng Hàn'}
                         </p>
 
                         {/* Beautiful audio visualizer soundwave */}
@@ -552,16 +627,18 @@ function MathSpeakingPractice({ questions, onFinish }: { questions: MathQuestion
                             })}
                         </div>
 
-                        <button
-                            onClick={handleToggleRecord}
-                            className={`w-20 h-20 rounded-full flex items-center justify-center shadow-xl transition-all duration-300 ${isRecording
-                                ? 'bg-red-500 hover:bg-red-600 shadow-red-300 scale-110 animate-pulse'
-                                : 'bg-violet-600 hover:bg-violet-700 shadow-violet-300 hover:scale-105'}`}
-                        >
-                            {isRecording
-                                ? <Square className="w-8 h-8 text-white fill-white" />
-                                : <Mic className="w-8 h-8 text-white" />}
-                        </button>
+                        {!awaitingConfirmation ? (
+                            <button
+                                onClick={handleToggleRecord}
+                                className={`w-20 h-20 rounded-full flex items-center justify-center shadow-xl transition-all duration-300 ${isRecording
+                                    ? 'bg-red-500 hover:bg-red-600 shadow-red-300 scale-110 animate-pulse'
+                                    : 'bg-violet-600 hover:bg-violet-700 shadow-violet-300 hover:scale-105'}`}
+                            >
+                                {isRecording
+                                    ? <Square className="w-8 h-8 text-white fill-white" />
+                                    : <Mic className="w-8 h-8 text-white" />}
+                            </button>
+                        ) : null}
 
                         {(transcript || interimTranscript) && (
                             <div className="w-full bg-slate-50 rounded-2xl p-4 text-center border border-slate-200">
@@ -569,6 +646,25 @@ function MathSpeakingPractice({ questions, onFinish }: { questions: MathQuestion
                                 <p className="text-lg font-black text-slate-800">{transcript}<span className="text-slate-400">{interimTranscript}</span></p>
                             </div>
                         )}
+
+                        {awaitingConfirmation ? (
+                            <div className="grid w-full grid-cols-2 gap-3">
+                                <Button
+                                    variant="outline"
+                                    onClick={handleToggleRecord}
+                                    className="h-12 rounded-xl font-bold"
+                                >
+                                    <RefreshCw className="mr-2 h-4 w-4" /> Đọc lại
+                                </Button>
+                                <Button
+                                    onClick={handleAcceptAnswer}
+                                    disabled={!(transcript || interimTranscript).trim()}
+                                    className="h-12 rounded-xl bg-violet-600 font-bold text-white shadow-lg shadow-violet-200 hover:bg-violet-700"
+                                >
+                                    <CheckCircle className="mr-2 h-4 w-4" /> Chấp nhận đáp án
+                                </Button>
+                            </div>
+                        ) : null}
                     </div>
                 )}
 
@@ -596,7 +692,7 @@ function MathSpeakingPractice({ questions, onFinish }: { questions: MathQuestion
                         )}
 
                         <div className="flex gap-3">
-                            <Button variant="outline" onClick={() => { setShowAnswer(false); resetTranscript() }} className="flex-1 rounded-xl font-bold h-12">
+                            <Button variant="outline" onClick={handleRetryRecording} className="flex-1 rounded-xl font-bold h-12">
                                 <RefreshCw className="w-4 h-4 mr-2" /> Thử lại
                             </Button>
                             <Button onClick={handleNext} className="flex-1 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold h-12 shadow-lg shadow-violet-200">
@@ -632,7 +728,7 @@ export function MathPracticeScreen({ questions, mathMode, onFinish, onBack }: Ma
     const MODE_LABELS: Record<string, string> = {
         listen_card: 'Nghe & Nhớ (Flashcard)',
         number_quiz: 'Nghe & Chọn số',
-        speak_answer: 'Luyện phát âm'
+        speak_answer: 'Luyện phát âm với AI'
     }
     const modeLabel = MODE_LABELS[mathMode] || 'Luyện tập'
 
@@ -669,4 +765,3 @@ export function MathPracticeScreen({ questions, mathMode, onFinish, onBack }: Ma
         </div>
     )
 }
-

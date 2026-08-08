@@ -1,0 +1,102 @@
+
+> topik-app@0.1.0 tts:math
+> node scripts/generate_math_tts_cache.mjs --execute
+
+Toán học: 390 bản ghi, 65 câu đọc duy nhất.
+Profile: math-paced-v1; voice: pNI...JgB.
+
+Mẫu 1 (3 nhịp nghỉ):
+이 <break time="0.55s" /> 더하기 <break time="0.7s" /> 삼하면 <break time="0.55s" /> 얼마입니까?
+
+Mẫu 2 (3 nhịp nghỉ):
+오 <break time="0.55s" /> 더하기 <break time="0.7s" /> 사하면 <break time="0.55s" /> 얼마입니까?
+
+Mẫu 3 (3 nhịp nghỉ):
+칠 <break time="0.55s" /> 더하기 <break time="0.7s" /> 팔하면 <break time="0.55s" /> 얼마입니까?
+
+Mẫu 4 (3 nhịp nghỉ):
+십이 <break time="0.55s" /> 더하기 <break time="0.7s" /> 육하면 <break time="0.55s" /> 얼마입니까?
+
+Mẫu 5 (3 nhịp nghỉ):
+이십 <break time="0.55s" /> 더하기 <break time="0.7s" /> 오하면 <break time="0.55s" /> 얼마입니까?
+
+Mẫu 6 (3 nhịp nghỉ):
+십 <break time="0.55s" /> 빼기 <break time="0.7s" /> 사하면 <break time="0.55s" /> 얼마입니까?
+
+Mẫu 7 (3 nhịp nghỉ):
+이십 <break time="0.55s" /> 빼기 <break time="0.7s" /> 오하면 <break time="0.55s" /> 얼마입니까?
+
+Mẫu 8 (3 nhịp nghỉ):
+삼십 <break time="0.55s" /> 빼기 <break time="0.7s" /> 십이하면 <break time="0.55s" /> 얼마입니까?
+
+Mẫu 9 (3 nhịp nghỉ):
+오십 <break time="0.55s" /> 빼기 <break time="0.7s" /> 이십오하면 <break time="0.55s" /> 얼마입니까?
+
+Mẫu 10 (3 nhịp nghỉ):
+백 <break time="0.55s" /> 빼기 <break time="0.7s" /> 사십오하면 <break time="0.55s" /> 얼마입니까?
+[1/65] OK
+[2/65] OK
+[3/65] OK
+[4/65] OK
+[5/65] OK
+[6/65] OK
+[7/65] OK
+[8/65] OK
+[9/65] OK
+[10/65] OK
+[11/65] OK
+[12/65] OK
+[13/65] OK
+[14/65] OK
+[15/65] OK
+[16/65] OK
+[17/65] OK
+[18/65] OK
+[19/65] OK
+[20/65] OK
+[21/65] OK
+[22/65] OK
+[23/65] OK
+[24/65] OK
+[25/65] OK
+[26/65] OK
+[27/65] OK
+[28/65] OK
+[29/65] OK
+[30/65] OK
+[31/65] OK
+[32/65] OK
+[33/65] OK
+[34/65] OK
+[35/65] OK
+[36/65] OK
+[37/65] OK
+[38/65] OK
+[39/65] OK
+[40/65] OK
+[41/65] OK
+[42/65] OK
+[43/65] OK
+[44/65] OK
+[45/65] OK
+[46/65] OK
+[47/65] OK
+[48/65] OK
+[49/65] OK
+[50/65] OK
+[51/65] OK
+[52/65] OK
+[53/65] OK
+[54/65] OK
+[55/65] OK
+[56/65] OK
+[57/65] OK
+[58/65] OK
+[59/65] OK
+[60/65] OK
+[61/65] OK
+[62/65] OK
+[63/65] OK
+[64/65] OK
+[65/65] OK
+{ reused: 9, generated: 56, failed: 0, completed: 65, remaining: 0 }

@@ -20,13 +20,47 @@ const BANK_CODES: Record<string, string> = {
     'SACOMBANK': '970403',
 }
 
-function generateBankQR(amount: number, transactionCode: string) {
-    const bankCode = process.env.SEPAY_BANK_CODE || 'MB'
-    const bankId = BANK_CODES[bankCode] || '970422'
-    const accountNo = process.env.SEPAY_ACCOUNT_NUMBER || '0123456789'
-    const accountName = encodeURIComponent(process.env.SEPAY_ACCOUNT_NAME || 'KOREA LINK')
+const BANK_NAMES: Record<string, string> = {
+    'MB': 'MB Bank',
+    'VCB': 'Vietcombank',
+    'TCB': 'Techcombank',
+    'ACB': 'ACB',
+    'BIDV': 'BIDV',
+    'VPB': 'VPBank',
+    'TPB': 'TPBank',
+    'VIETINBANK': 'VietinBank',
+    'MSB': 'MSB',
+    'OCB': 'OCB',
+}
 
-    return `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${amount}&addInfo=${transactionCode}&accountName=${accountName}`
+function getBankConfig() {
+    const bankCode = process.env.SEPAY_BANK_CODE?.trim().toUpperCase()
+    const bankBin = process.env.SEPAY_BANK_BIN?.trim()
+    const accountNo = process.env.SEPAY_ACCOUNT_NUMBER?.trim()
+    const accountName = process.env.SEPAY_ACCOUNT_NAME?.trim()
+
+    if ((!bankCode && !bankBin) || !accountNo || !accountName) {
+        throw new Error('Missing SePay bank configuration')
+    }
+
+    const bankId = bankBin || BANK_CODES[bankCode || '']
+    if (!bankId) {
+        throw new Error(`Unsupported SePay bank code: ${bankCode}`)
+    }
+
+    return {
+        bankCode: bankCode || bankId,
+        bankId,
+        bankName: bankCode ? (BANK_NAMES[bankCode] || bankCode) : bankId,
+        accountNo,
+        accountName
+    }
+}
+
+function generateBankQR(amount: number, transactionCode: string, bankConfig: ReturnType<typeof getBankConfig>) {
+    const accountName = encodeURIComponent(bankConfig.accountName)
+
+    return `https://img.vietqr.io/image/${bankConfig.bankId}-${bankConfig.accountNo}-compact2.png?amount=${amount}&addInfo=${transactionCode}&accountName=${accountName}`
 }
 
 export async function POST(request: NextRequest) {
@@ -57,11 +91,13 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Package not found' }, { status: 404 })
         }
 
+        const bankConfig = getBankConfig()
+
         // Generate unique transaction code (must start with SEVQR for VietinBank API)
         const transactionCode = `SEVQR${Date.now()}${Math.random().toString(36).substring(2, 7).toUpperCase()}`
 
         // Generate QR code
-        const qrCodeUrl = generateBankQR(pkg.price_vnd, transactionCode)
+        const qrCodeUrl = generateBankQR(pkg.price_vnd, transactionCode, bankConfig)
 
         // Create transaction record
         const { data: transaction, error: txError } = await supabase
@@ -81,35 +117,22 @@ export async function POST(request: NextRequest) {
 
         if (txError) throw txError
 
-        const BANK_NAMES: Record<string, string> = {
-            'MB': 'MB Bank',
-            'VCB': 'Vietcombank',
-            'TCB': 'Techcombank',
-            'ACB': 'ACB',
-            'BIDV': 'BIDV',
-            'VPB': 'VPBank',
-            'TPB': 'TPBank',
-            'VIETINBANK': 'VietinBank',
-            'MSB': 'MSB',
-            'OCB': 'OCB',
-        }
-        const bankCode = process.env.SEPAY_BANK_CODE || 'MB'
-
         return NextResponse.json({
             transaction,
             qr_code_url: qrCodeUrl,
             bank_info: {
-                bank_name: BANK_NAMES[bankCode] || bankCode,
-                account_no: process.env.SEPAY_ACCOUNT_NUMBER || '0123456789',
-                account_name: process.env.SEPAY_ACCOUNT_NAME || 'KOREA LINK',
+                bank_name: bankConfig.bankName,
+                account_no: bankConfig.accountNo,
+                account_name: bankConfig.accountName,
                 amount: pkg.price_vnd,
                 content: transactionCode
             }
         })
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Failed to create payment'
         console.error('Error creating payment:', error)
         return NextResponse.json(
-            { error: error.message || 'Failed to create payment' },
+            { error: message },
             { status: 500 }
         )
     }

@@ -1,10 +1,18 @@
+import { KOREAN_PRONUNCIATION_VERSION, toKoreanPronunciationText } from '@/lib/korean-pronunciation'
+
 let activeAudio: HTMLAudioElement | null = null;
+
+export type TtsProfile = 'default' | 'math-paced-v1'
+
+interface SpeakTextOptions {
+    profile?: TtsProfile
+}
 
 export function stopTTS() {
     if (activeAudio) {
         try {
             activeAudio.pause();
-        } catch (e) {
+        } catch {
             // Ignore pause errors on already stopped streams
         }
         activeAudio = null;
@@ -12,7 +20,7 @@ export function stopTTS() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         try {
             window.speechSynthesis.cancel();
-        } catch (e) {
+        } catch {
             // Ignore speech synthesis cancels
         }
     }
@@ -23,14 +31,23 @@ export function speakText(
     rate: number = 1.0, 
     onStart?: () => void, 
     onEnd?: () => void, 
-    onError?: (err: any) => void
+    onError?: (err: unknown) => void,
+    options?: SpeakTextOptions,
 ) {
     stopTTS();
     
     if (typeof window === 'undefined') return;
 
     // Build the query url for ElevenLabs stream endpoint
-    const audioUrl = `/api/speech/generate?text=${encodeURIComponent(text)}`;
+    const spokenText = options?.profile === 'math-paced-v1'
+        ? text
+        : toKoreanPronunciationText(text)
+    const params = new URLSearchParams({ text: spokenText })
+    params.set('pronunciation', KOREAN_PRONUNCIATION_VERSION)
+    if (options?.profile && options.profile !== 'default') {
+        params.set('profile', options.profile)
+    }
+    const audioUrl = `/api/speech/generate?${params.toString()}`;
     const audio = new Audio(audioUrl);
     audio.playbackRate = rate;
     activeAudio = audio;
@@ -50,9 +67,9 @@ export function speakText(
         if ('speechSynthesis' in window) {
             try {
                 window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(text);
+                const utterance = new SpeechSynthesisUtterance(spokenText);
                 utterance.lang = 'ko-KR';
-                utterance.rate = 0.9 * rate;
+                utterance.rate = rate;
                 if (onStart) utterance.onstart = () => onStart();
                 if (onEnd) utterance.onend = () => onEnd();
                 if (onError) utterance.onerror = () => onEnd ? onEnd() : null;

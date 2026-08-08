@@ -83,7 +83,7 @@ export default function FlashcardMode({ vocabList, onBack, hideHeader = false }:
 
     const playAudio = useCallback(() => {
         if (!current) return
-        speakText(current.word_kr, 0.8)
+        speakText(current.word_kr, 1.0)
     }, [current])
 
 

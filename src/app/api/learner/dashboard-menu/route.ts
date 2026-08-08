@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 const fallbackMenu = [
     { key: 'bai-hoc', label: 'Bài học', is_enabled: true, sort_order: 1 },
     { key: 'luyen-tap', label: 'Luyện Tập', is_enabled: true, sort_order: 2 },
-    { key: 'thi-thu', label: 'Thi Thử', is_enabled: true, sort_order: 3 },
+    { key: 'thi-thu', label: 'Thi Thử EPS-TOPIK', is_enabled: true, sort_order: 3 },
     { key: 'ai-chat', label: 'Luyện giao tiếp AI', is_enabled: true, sort_order: 4 },
     { key: 'kiem-tra', label: 'Kiểm Tra', is_enabled: true, sort_order: 5 },
     { key: 'phong-van', label: 'Phỏng Vấn V2', is_enabled: true, sort_order: 6 },

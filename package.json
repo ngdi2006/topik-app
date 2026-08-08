@@ -7,7 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "import:lessons": "node scripts/import_lessons.js"
+    "import:lessons": "node scripts/import_lessons.js",
+    "tts:setup": "node scripts/generate_tts_cache.mjs --setup",
+    "tts:generate": "node scripts/generate_tts_cache.mjs",
+    "tts:vocab-fixes": "node scripts/generate_vocabulary_pronunciation_fixes.mjs",
+    "tts:math": "node scripts/generate_math_tts_cache.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.43.0",

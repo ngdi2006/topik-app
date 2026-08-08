@@ -41,16 +41,18 @@ function buildOptions(questions: any[], currentQ: any): string[] {
     return shuffleArray([correct, ...distractors])
 }
 
-const TIME_LIMIT = 8000 // 8 seconds per question
+const DEFAULT_TIME_LIMIT_SECONDS = 8
 
 interface Props {
     questions: any[]
     maxQuestions?: number
+    timeLimitSeconds?: number
     onFinish: (results: SpeedQuizResult[], masteredIds: string[]) => void
     onBack: () => void
 }
 
-export function SpeedQuizScreen({ questions, maxQuestions = 10, onFinish, onBack }: Props) {
+export function SpeedQuizScreen({ questions, maxQuestions = 10, timeLimitSeconds = DEFAULT_TIME_LIMIT_SECONDS, onFinish, onBack }: Props) {
+    const timeLimitMs = timeLimitSeconds * 1000
     const [quizItems] = useState<SpeedQuizQuestion[]>(() =>
         shuffleArray(questions.slice(0, maxQuestions)).map(q => ({
             q,
@@ -60,7 +62,7 @@ export function SpeedQuizScreen({ questions, maxQuestions = 10, onFinish, onBack
     )
     const [idx, setIdx] = useState(0)
     const [results, setResults] = useState<SpeedQuizResult[]>([])
-    const [timeLeft, setTimeLeft] = useState(TIME_LIMIT)
+    const [timeLeft, setTimeLeft] = useState(timeLimitMs)
     const [answered, setAnswered] = useState<string | null>(null)
     const [phase, setPhase] = useState<'playing' | 'result'>('playing')
     const [audioState, setAudioState] = useState<'loading' | 'playing' | 'done'>('loading')
@@ -85,10 +87,10 @@ export function SpeedQuizScreen({ questions, maxQuestions = 10, onFinish, onBack
             answeredRef.current = null
             setIdx(nextIdx)
             setAnswered(null)
-            setTimeLeft(TIME_LIMIT)
+            setTimeLeft(timeLimitMs)
             setAudioState('loading')
         }
-    }, [quizItems.length])
+    }, [quizItems.length, timeLimitMs])
 
     const handleAnswer = useCallback((choice: string | null) => {
         if (answeredRef.current !== null) return
@@ -157,7 +159,7 @@ export function SpeedQuizScreen({ questions, maxQuestions = 10, onFinish, onBack
         if (!current?.q) return
         answeredRef.current = null
         setAnswered(null)
-        setTimeLeft(TIME_LIMIT)
+        setTimeLeft(timeLimitMs)
         setAudioState('loading')
         if (timerRef.current) clearInterval(timerRef.current)
         if (advanceRef.current) clearTimeout(advanceRef.current)
@@ -275,7 +277,7 @@ export function SpeedQuizScreen({ questions, maxQuestions = 10, onFinish, onBack
                         setIdx(0)
                         setResults([])
                         setAnswered(null)
-                        setTimeLeft(TIME_LIMIT)
+                        setTimeLeft(timeLimitMs)
                         setAudioState('loading')
                         setPhase('playing')
                     }}>
@@ -289,7 +291,7 @@ export function SpeedQuizScreen({ questions, maxQuestions = 10, onFinish, onBack
     // --- QUIZ SCREEN ---
     if (!current) return null // guard during phase transition
 
-    const progressPct = (timeLeft / TIME_LIMIT) * 100
+    const progressPct = (timeLeft / timeLimitMs) * 100
     const timerColor = progressPct > 50 ? '#3b82f6' : progressPct > 25 ? '#f59e0b' : '#ef4444'
     const circumference = 2 * Math.PI * 22
 

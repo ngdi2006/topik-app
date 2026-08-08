@@ -369,7 +369,7 @@ export function FactoryScenarioScreen({ questions, onFinish, onBack }: Props) {
 
     const playTTS = useCallback(() => {
         if (current?.q?.question_text) {
-            speakText(current.q.question_text, 0.85,
+            speakText(current.q.question_text, 1.0,
                 () => setAudioState('playing'),
                 () => setAudioState('done')
             )

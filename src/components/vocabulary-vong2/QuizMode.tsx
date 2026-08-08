@@ -1,7 +1,7 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, CheckCircle, XCircle, Timer, Info, Volume2, AlertCircle, Zap, Bookmark, Calculator } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, Info, Volume2, AlertCircle, Zap, Bookmark, Calculator } from 'lucide-react'
 import { speakText, stopTTS } from '@/lib/tts'
 
 interface VocabItem {
@@ -36,7 +36,6 @@ interface QuizQuestion {
 }
 
 function buildQuestions(vocabList: VocabItem[]): QuizQuestion[] {
-    const hasSignWithDesc = vocabList.some(v => v.type === 'SIGN' && v.description_vi)
 
     const questions: QuizQuestion[] = []
     const shuffled = shuffleArray(vocabList)
@@ -52,6 +51,16 @@ function buildQuestions(vocabList: VocabItem[]): QuizQuestion[] {
                 variant: 'sign_meaning',
                 options: shuffleArray([vocab, ...pool.slice(0, 3)])
             })
+        } else if (vocab.type === 'SIGN') {
+            // Sign quizzes focus on visual recognition: image -> Korean label.
+            // Vietnamese meanings stay in the learning and sign-gallery modes.
+            if (vocab.image_url) {
+                questions.push({
+                    vocab,
+                    variant: 'image_to_kr',
+                    options: shuffleArray([vocab, ...pool.slice(0, 3)])
+                })
+            }
         } else {
             // Primary quiz: image → Korean word
             if (vocab.image_url) {
@@ -71,17 +80,6 @@ function buildQuestions(vocabList: VocabItem[]): QuizQuestion[] {
                 })
             }
 
-            // For SIGN with description: what does the sign mean?
-            if (vocab.type === 'SIGN' && vocab.description_vi) {
-                const othersWithDesc = vocabList.filter(v => v.type === 'SIGN' && v.description_vi && v.id !== vocab.id)
-                if (othersWithDesc.length >= 3) {
-                    questions.push({
-                        vocab,
-                        variant: 'sign_meaning',
-                        options: shuffleArray([vocab, ...shuffleArray(othersWithDesc).slice(0, 3)])
-                    })
-                }
-            }
         }
     }
 
@@ -90,22 +88,38 @@ function buildQuestions(vocabList: VocabItem[]): QuizQuestion[] {
 }
 
 function playAudio(url?: string, wordKr?: string, onEnd?: () => void) {
+    let completed = false
+    let safetyTimer: ReturnType<typeof setTimeout> | null = null
+    let audio: HTMLAudioElement | null = null
+
+    const triggerEnd = () => {
+        if (completed) return
+        completed = true
+        if (safetyTimer) clearTimeout(safetyTimer)
+        onEnd?.()
+    }
+
     if (wordKr) {
-        speakText(wordKr, 0.8, undefined, onEnd)
-        // Safety timeout of 5 seconds in case onEnd is not fired
-        setTimeout(() => { if (onEnd) onEnd() }, 5000)
+        speakText(wordKr, 1.0, undefined, triggerEnd)
+        safetyTimer = setTimeout(triggerEnd, 5000)
     } else if (url) {
-        let played = false;
-        const triggerEnd = () => {
-            if (!played) { played = true; if (onEnd) onEnd(); }
-        }
-        const audio = new Audio(url)
+        audio = new Audio(url)
         audio.onended = triggerEnd
         audio.onerror = triggerEnd
         audio.play().catch(triggerEnd)
-        setTimeout(triggerEnd, 3000)
+        safetyTimer = setTimeout(triggerEnd, 3000)
     } else {
-        if (onEnd) onEnd()
+        triggerEnd()
+    }
+
+    return () => {
+        completed = true
+        if (safetyTimer) clearTimeout(safetyTimer)
+        if (audio) {
+            audio.pause()
+            audio.onended = null
+            audio.onerror = null
+        }
     }
 }
 
@@ -113,22 +127,24 @@ export default function QuizMode({ vocabList, onBack, hideHeader = false }: { vo
     const [questions] = useState<QuizQuestion[]>(() => buildQuestions(vocabList))
     const [currentIndex, setCurrentIndex] = useState(0)
     const [selectedId, setSelectedId] = useState<string | null>(null)
-    const [timeLeft, setTimeLeft] = useState(12)
     const [score, setScore] = useState(0)
     const [streak, setStreak] = useState(0)
     const [maxStreak, setMaxStreak] = useState(0)
     const [isFinished, setIsFinished] = useState(false)
     const [wrongAnswers, setWrongAnswers] = useState<VocabItem[]>([])
     const [savedNotebook, setSavedNotebook] = useState(false)
+    const answerLockedRef = useRef(false)
+    const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const audioCleanupRef = useRef<(() => void) | null>(null)
 
     const saveToNotebook = () => {
         try {
             const stored = localStorage.getItem('saved_review_words')
-            const parsed = stored ? JSON.parse(stored) : []
+            const parsed: VocabItem[] = stored ? JSON.parse(stored) as VocabItem[] : []
             
             // Deduplicate wrong answers
             const uniqueWrong = []
-            const seenIds = new Set(parsed.map((item: any) => item.id))
+            const seenIds = new Set(parsed.map((item) => item.id))
             
             for (const item of wrongAnswers) {
                 if (!seenIds.has(item.id)) {
@@ -148,30 +164,32 @@ export default function QuizMode({ vocabList, onBack, hideHeader = false }: { vo
     const current = questions[currentIndex]
     const isAnswered = selectedId !== null
 
-    // Reset timer on new question
+    // Reset question-scoped locks and dispose callbacks from the previous question.
     useEffect(() => {
-        setTimeLeft(12)
-        setSelectedId(null)
+        answerLockedRef.current = false
+        if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current)
+        advanceTimerRef.current = null
+        audioCleanupRef.current?.()
+        audioCleanupRef.current = null
     }, [currentIndex])
 
-    // Countdown timer
     useEffect(() => {
-        if (isAnswered || isFinished || !current) return
-        if (timeLeft <= 0) {
-            handleSelect('__timeout__')
-            return
+        return () => {
+            if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current)
+            audioCleanupRef.current?.()
+            stopTTS()
         }
-        const t = setInterval(() => setTimeLeft(p => p - 1), 1000)
-        return () => clearInterval(t)
-    }, [timeLeft, isAnswered, isFinished, current])
+    }, [])
 
     const handleSelect = useCallback((selectedVocabId: string) => {
-        if (isAnswered) return
+        if (answerLockedRef.current || isAnswered) return
+        answerLockedRef.current = true
         setSelectedId(selectedVocabId)
 
         const isCorrect = selectedVocabId === current.vocab.id
 
         const goNext = () => {
+            setSelectedId(null)
             if (currentIndex + 1 >= questions.length) {
                 setIsFinished(true)
             } else {
@@ -186,9 +204,9 @@ export default function QuizMode({ vocabList, onBack, hideHeader = false }: { vo
                 setMaxStreak(m => Math.max(m, next))
                 return next
             })
-            // Play audio, and only move to next question after it finishes speaking (plus a 600ms gap)
-            playAudio(current.vocab.audio_url, current.vocab.word_kr, () => {
-                setTimeout(goNext, 600)
+            // The audio callback and its safety timeout are guarded to finish once.
+            audioCleanupRef.current = playAudio(current.vocab.audio_url, current.vocab.word_kr, () => {
+                advanceTimerRef.current = setTimeout(goNext, 600)
             })
         } else {
             setStreak(0)
@@ -196,14 +214,14 @@ export default function QuizMode({ vocabList, onBack, hideHeader = false }: { vo
                 setWrongAnswers(p => [...p, current.vocab])
             }
             // For incorrect answers, wait 1.8 seconds so user can see correct answer highlighted
-            setTimeout(goNext, 1800)
+            advanceTimerRef.current = setTimeout(goNext, 1800)
         }
     }, [isAnswered, current, currentIndex, questions.length])
 
     // Keyboard shortcuts
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
-            if (isAnswered) return
+            if (e.repeat || answerLockedRef.current || isAnswered) return
             const numKey = parseInt(e.key)
             if (numKey >= 1 && numKey <= 4 && current) {
                 const opt = current.options[numKey - 1]
@@ -284,7 +302,7 @@ export default function QuizMode({ vocabList, onBack, hideHeader = false }: { vo
                                         title="Bấm để phát âm"
                                     >
                                         <span>{w.word_kr}</span>
-                                        <span className="text-[10px] text-slate-400 font-normal">({w.word_vi})</span>
+                                        {w.type !== 'SIGN' && <span className="text-[10px] text-slate-400 font-normal">({w.word_vi})</span>}
                                         <Volume2 className="w-3.5 h-3.5 text-rose-450" />
                                     </span>
                                 ))}
@@ -303,9 +321,6 @@ export default function QuizMode({ vocabList, onBack, hideHeader = false }: { vo
 
     if (!current) return null
 
-    const timePercent = (timeLeft / 12) * 100
-    const timeColor = timeLeft <= 3 ? 'bg-red-500' : timeLeft <= 6 ? 'bg-amber-500' : 'bg-indigo-500'
-
     const variantLabel: Record<QuizVariant, string> = {
         image_to_kr: '🖼️ Chọn đúng từ tiếng Hàn',
         kr_to_vi: '🇰🇷 Chọn đúng nghĩa tiếng Việt',
@@ -314,9 +329,9 @@ export default function QuizMode({ vocabList, onBack, hideHeader = false }: { vo
     }
 
     return (
-        <div className="max-w-2xl mx-auto p-4 md:p-6 space-y-4">
+        <div className="mx-auto max-w-2xl space-y-2.5 p-2.5 sm:p-4 md:space-y-4 md:p-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="grid grid-cols-3 items-center px-1">
                 {!hideHeader ? (
                     <Button variant="ghost" onClick={onBack} className="gap-2 text-slate-600 -ml-2">
                         <ArrowLeft className="w-4 h-4" /> Quay lại
@@ -324,7 +339,10 @@ export default function QuizMode({ vocabList, onBack, hideHeader = false }: { vo
                 ) : (
                     <div />
                 )}
-                <div className="flex items-center gap-3">
+                <p className="text-center text-xs font-semibold tabular-nums text-slate-400">
+                    Câu {currentIndex + 1}/{questions.length}
+                </p>
+                <div className="flex items-center justify-end gap-3">
                     {streak >= 3 && (
                         <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-600 rounded-full text-sm font-bold border border-amber-200 animate-pulse">
                             🔥 {streak} chuỗi
@@ -338,32 +356,19 @@ export default function QuizMode({ vocabList, onBack, hideHeader = false }: { vo
                 </div>
             </div>
 
-            {/* Timer bar */}
-            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                    className={`h-full rounded-full transition-all duration-1000 ${timeColor}`}
-                    style={{ width: `${timePercent}%` }}
-                />
-            </div>
-
-            {/* Question progress */}
-            <p className="text-xs text-center text-slate-400 font-medium">
-                Câu {currentIndex + 1} / {questions.length}
-            </p>
-
             {/* Question card */}
-            <div className="bg-white rounded-3xl border-2 border-slate-100 shadow-lg overflow-hidden">
+            <div className="overflow-hidden rounded-2xl border-2 border-slate-100 bg-white shadow-md sm:rounded-3xl sm:shadow-lg">
                 {/* Variant label */}
-                <div className="px-5 py-3 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-slate-100">
-                    <p className="text-sm font-bold text-indigo-700">
+                <div className="border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-purple-50 px-4 py-2.5 sm:px-5 sm:py-3">
+                    <p className="text-xs font-bold text-indigo-700 sm:text-sm">
                         {current.vocab.type === 'MATH' ? 'Giải toán tiếng Hàn' : variantLabel[current.variant]}
                     </p>
                 </div>
 
                 {/* Stimulus */}
-                <div className="p-5 flex justify-center items-center bg-slate-50/50 min-h-[160px]">
+                <div className="flex min-h-[120px] items-center justify-center bg-slate-50/50 p-3 sm:min-h-[160px] sm:p-5">
                     {current.variant === 'image_to_kr' && current.vocab.image_url && (
-                        <img src={current.vocab.image_url} alt="?" className="max-h-40 object-contain rounded-xl drop-shadow" />
+                        <img src={current.vocab.image_url} alt="?" className="max-h-32 rounded-xl object-contain drop-shadow sm:max-h-40" />
                     )}
                     {current.variant === 'kr_to_vi' && (
                         <div className="text-center space-y-2 w-full px-4 flex flex-col items-center justify-center">
@@ -381,7 +386,7 @@ export default function QuizMode({ vocabList, onBack, hideHeader = false }: { vo
                                     <Calculator className="w-9 h-9" />
                                 </div>
                             ) : current.vocab.image_url ? (
-                                <img src={current.vocab.image_url} alt="?" className="max-h-36 object-contain rounded-xl drop-shadow mx-auto" />
+                                <img src={current.vocab.image_url} alt="?" className="mx-auto max-h-28 rounded-xl object-contain drop-shadow sm:max-h-36" />
                             ) : (
                                 <div className="w-24 h-24 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto">
                                     <AlertCircle className="w-12 h-12 text-amber-500" />
@@ -395,13 +400,12 @@ export default function QuizMode({ vocabList, onBack, hideHeader = false }: { vo
                 </div>
 
                 {/* Options */}
-                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2 sm:gap-3 sm:p-4">
                     {current.options.map((opt, i) => {
                         const isCorrectOpt = opt.id === current.vocab.id
                         const isSelectedOpt = selectedId === opt.id
-                        const isTimeout = selectedId === '__timeout__'
 
-                        let cls = 'relative min-h-[56px] rounded-2xl border-2 text-sm font-bold transition-all duration-200 px-4 py-3 text-left flex items-center gap-3 '
+                        let cls = 'relative min-h-12 rounded-xl sm:rounded-2xl border-2 text-sm font-bold transition-all duration-200 px-3 py-2.5 sm:px-4 sm:py-3 text-left flex items-center gap-2.5 sm:gap-3 '
 
                         if (!isAnswered) {
                             cls += 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-sm cursor-pointer active:scale-95'
@@ -417,7 +421,6 @@ export default function QuizMode({ vocabList, onBack, hideHeader = false }: { vo
 
                         // Display text per variant
                         let displayText = ''
-                        let displayImg: string | undefined = undefined
                         if (current.variant === 'image_to_kr') {
                             displayText = opt.word_kr
                         } else if (current.variant === 'kr_to_vi') {
@@ -433,7 +436,7 @@ export default function QuizMode({ vocabList, onBack, hideHeader = false }: { vo
                                 onClick={() => !isAnswered && handleSelect(opt.id)}
                                 disabled={isAnswered}
                             >
-                                <span className={`flex-shrink-0 w-7 h-7 rounded-full text-xs font-black flex items-center justify-center ${
+                                <span className={`flex size-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-black sm:size-7 sm:text-xs ${
                                     !isAnswered ? 'bg-slate-100 text-slate-500' :
                                     isCorrectOpt ? 'bg-emerald-400 text-white' :
                                     isSelectedOpt ? 'bg-red-400 text-white' :

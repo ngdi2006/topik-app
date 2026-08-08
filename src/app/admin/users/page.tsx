@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Search, Plus, Coins, Trash2, History, Upload, Download } from "lucide-react"
+import { Search, Plus, Coins, Trash2, History, Upload, Download, ShieldCheck, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import * as XLSX from "xlsx"
 import { useUserStore } from "@/store/userStore"
@@ -26,6 +26,14 @@ interface UserProfile {
     remainingCredits: number
     status: string
     joinedAt: string
+    interviewAccess: {
+        id: string
+        active: boolean
+        source: 'sepay' | 'admin_internal' | 'promotion'
+        startsAt: string
+        expiresAt: string
+        planName: string | null
+    } | null
 }
 
 type HistoryRecord = {
@@ -39,6 +47,13 @@ type HistoryRecord = {
         level?: string
         title?: string
     }
+}
+
+type ExportUserRecord = {
+    name: string
+    email: string
+    groupName?: string
+    attempts?: Array<{ completedAt?: string; examTitle?: string; score?: number }>
 }
 
 type CreditAction = 'add' | 'deduct'
@@ -131,10 +146,18 @@ export default function AdminUsersPage() {
     const [selectedUserForCredits, setSelectedUserForCredits] = useState<UserProfile | null>(null)
     const [grantForm, setGrantForm] = useState(initialGrantForm)
     const [isGrantingCredits, setIsGrantingCredits] = useState(false)
+    const [selectedUserForInterview, setSelectedUserForInterview] = useState<UserProfile | null>(null)
+    const [interviewDays, setInterviewDays] = useState(30)
+    const [interviewAccessAction, setInterviewAccessAction] = useState<'extend' | 'set_expiry' | 'revoke'>('extend')
+    const [interviewExpiryDate, setInterviewExpiryDate] = useState('')
+    const [isGrantingInterview, setIsGrantingInterview] = useState(false)
 
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
     const [isBulkGrantDialogOpen, setIsBulkGrantDialogOpen] = useState(false)
     const [bulkGrantForm, setBulkGrantForm] = useState(initialGrantForm)
+    const [isBulkInterviewDialogOpen, setIsBulkInterviewDialogOpen] = useState(false)
+    const [bulkInterviewDays, setBulkInterviewDays] = useState(30)
+    const [isBulkGrantingInterview, setIsBulkGrantingInterview] = useState(false)
 
     const [isHistoryOpen, setIsHistoryOpen] = useState(false)
     const [selectedUserHistory, setSelectedUserHistory] = useState<HistoryRecord[]>([])
@@ -185,6 +208,145 @@ export default function AdminUsersPage() {
         setSelectedUserForCredits(user)
         setGrantForm(initialGrantForm)
         setIsGrantDialogOpen(true)
+    }
+
+    const openInterviewAccessDialog = (user: UserProfile) => {
+        setSelectedUserForInterview(user)
+        setInterviewDays(30)
+        setInterviewAccessAction('extend')
+        setInterviewExpiryDate(user.interviewAccess?.expiresAt?.slice(0, 10) || '')
+    }
+
+    const grantInterviewAccess = async () => {
+        if (!selectedUserForInterview) return
+        setIsGrantingInterview(true)
+        try {
+            const response = await fetch('/api/admin/interview-access', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: selectedUserForInterview.id,
+                    days: interviewDays,
+                    note: `Cấp thêm tại trang Người dùng: ${interviewDays} ngày`,
+                }),
+            })
+            const payload = await response.json().catch(() => null)
+            if (!response.ok) throw new Error(payload?.error || 'Không thể kích hoạt gói Vòng 2')
+
+            const entitlement = Array.isArray(payload.entitlement)
+                ? payload.entitlement[0]
+                : payload.entitlement
+            setUsers((currentUsers) => currentUsers.map((user) => user.id === selectedUserForInterview.id
+                ? {
+                    ...user,
+                    interviewAccess: {
+                        id: entitlement?.id || user.interviewAccess?.id || '',
+                        active: true,
+                        source: 'admin_internal',
+                        startsAt: entitlement?.starts_at || new Date().toISOString(),
+                        expiresAt: entitlement?.expires_at || user.interviewAccess?.expiresAt || new Date().toISOString(),
+                        planName: 'Gói nội bộ Phỏng vấn Vòng 2',
+                    },
+                }
+                : user))
+            toast.success(`Đã ${selectedUserForInterview.interviewAccess?.active ? 'cộng thêm' : 'kích hoạt'} ${interviewDays} ngày cho ${selectedUserForInterview.name}`)
+            setSelectedUserForInterview(null)
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Không thể kích hoạt gói Vòng 2'))
+        } finally {
+            setIsGrantingInterview(false)
+        }
+    }
+
+    const adjustInterviewAccess = async () => {
+        if (!selectedUserForInterview || interviewAccessAction === 'extend') return void grantInterviewAccess()
+        if (interviewAccessAction === 'revoke' && !confirm(`Hủy quyền Phỏng vấn Vòng 2 của ${selectedUserForInterview.name} ngay bây giờ?`)) return
+        setIsGrantingInterview(true)
+        try {
+            const response = await fetch('/api/admin/interview-access', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: selectedUserForInterview.id,
+                    action: interviewAccessAction,
+                    expires_at: interviewAccessAction === 'set_expiry' ? `${interviewExpiryDate}T23:59:59+07:00` : undefined,
+                }),
+            })
+            const payload = await response.json().catch(() => null)
+            if (!response.ok) throw new Error(payload?.error || 'Không thể điều chỉnh gói Vòng 2')
+            setUsers((currentUsers) => currentUsers.map((user) => user.id === selectedUserForInterview.id
+                ? {
+                    ...user,
+                    interviewAccess: interviewAccessAction === 'revoke' ? (user.interviewAccess ? { ...user.interviewAccess, active: false } : null) : {
+                        id: payload.entitlement?.id || user.interviewAccess?.id || '',
+                        active: true,
+                        source: 'admin_internal',
+                        startsAt: payload.entitlement?.starts_at || new Date().toISOString(),
+                        expiresAt: payload.entitlement?.expires_at,
+                        planName: 'Gói nội bộ Phỏng vấn Vòng 2',
+                    },
+                }
+                : user))
+            toast.success(interviewAccessAction === 'revoke' ? 'Đã hủy quyền truy cập' : 'Đã cập nhật ngày hết hạn')
+            setSelectedUserForInterview(null)
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Không thể điều chỉnh gói Vòng 2'))
+        } finally {
+            setIsGrantingInterview(false)
+        }
+    }
+
+    const grantBulkInterviewAccess = async () => {
+        const learnerIds = users
+            .filter((user) => selectedUserIds.includes(user.id) && user.role === 'learner')
+            .map((user) => user.id)
+        if (learnerIds.length === 0) {
+            toast.error('Vui lòng chọn ít nhất một học viên')
+            return
+        }
+
+        setIsBulkGrantingInterview(true)
+        try {
+            const response = await fetch('/api/admin/interview-access', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_ids: learnerIds,
+                    days: bulkInterviewDays,
+                    note: `Kích hoạt hàng loạt tại trang Người dùng: ${bulkInterviewDays} ngày`,
+                }),
+            })
+            const payload = await response.json().catch(() => null)
+            if (!response.ok) throw new Error(payload?.error || 'Không thể kích hoạt hàng loạt')
+
+            const successfulAccess = new Map<string, { id?: string; starts_at?: string; expires_at?: string }>()
+            for (const rawEntitlement of payload.entitlements || []) {
+                const entitlement = Array.isArray(rawEntitlement) ? rawEntitlement[0] : rawEntitlement
+                if (entitlement?.user_id) successfulAccess.set(entitlement.user_id, entitlement)
+            }
+            setUsers((currentUsers) => currentUsers.map((user) => {
+                const entitlement = successfulAccess.get(user.id)
+                if (!entitlement) return user
+                return {
+                    ...user,
+                    interviewAccess: {
+                        id: entitlement.id || user.interviewAccess?.id || '',
+                        active: true,
+                        source: 'admin_internal',
+                        startsAt: entitlement.starts_at || new Date().toISOString(),
+                        expiresAt: entitlement.expires_at || user.interviewAccess?.expiresAt || new Date().toISOString(),
+                        planName: 'Gói nội bộ Phỏng vấn Vòng 2',
+                    },
+                }
+            }))
+            toast.success(`Đã cấp gói cho ${payload.successCount || 0} học viên${payload.errorCount ? `, ${payload.errorCount} tài khoản lỗi` : ''}`)
+            setIsBulkInterviewDialogOpen(false)
+            setSelectedUserIds([])
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Không thể kích hoạt hàng loạt'))
+        } finally {
+            setIsBulkGrantingInterview(false)
+        }
     }
 
     const handleViewHistory = async (userId: string, userName: string) => {
@@ -473,16 +635,16 @@ export default function AdminUsersPage() {
                 body: JSON.stringify({ userIds })
             })
 
-            const responseData = await res.json()
+            const responseData = await res.json() as { error?: string; data: ExportUserRecord[] }
             if (!res.ok) throw new Error(responseData.error || "Lỗi xuất dữ liệu")
 
             const maxAttempts = Math.max(
                 0,
-                ...responseData.data.map((item: any) => (item.attempts ? item.attempts.length : 0))
+                ...responseData.data.map((item) => item.attempts?.length ?? 0)
             )
 
-            const exportData = responseData.data.map((item: any, index: number) => {
-                const row: any = {
+            const exportData = responseData.data.map((item, index: number) => {
+                const row: Record<string, string | number> = {
                     'STT': index + 1,
                     'Họ Tên': item.name,
                     'Email': item.email,
@@ -497,9 +659,9 @@ export default function AdminUsersPage() {
 
                 for (let i = 0; i < maxAttempts; i++) {
                     const attempt = item.attempts ? item.attempts[i] : null
-                    row[`Ngày giờ lần ${i + 1}`] = attempt ? attempt.completedAt : ''
-                    row[`Đề thi lần ${i + 1}`] = attempt ? attempt.examTitle : ''
-                    row[`Điểm số lần ${i + 1}`] = attempt ? attempt.score : ''
+                    row[`Ngày giờ lần ${i + 1}`] = attempt?.completedAt ?? ''
+                    row[`Đề thi lần ${i + 1}`] = attempt?.examTitle ?? ''
+                    row[`Điểm số lần ${i + 1}`] = attempt?.score ?? ''
                 }
 
                 return row
@@ -521,10 +683,14 @@ export default function AdminUsersPage() {
     }
 
     const uniqueGroups = Array.from(new Set(users.map(u => u.groupName).filter(Boolean)))
+    const selectedLearnerCount = users.reduce(
+        (count, user) => count + Number(selectedUserIds.includes(user.id) && user.role === 'learner'),
+        0,
+    )
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight">Quản lý Người Dùng</h2>
                     <p className="text-muted-foreground mt-1 mb-4">
@@ -539,6 +705,10 @@ export default function AdminUsersPage() {
                             <span className="text-xs text-green-600 font-medium uppercase tracking-wider">Học viên</span>
                             <span className="text-lg font-bold text-green-900">{users.filter(u => u.role === 'learner').length}</span>
                         </div>
+                        <div className="flex min-w-[140px] flex-col rounded-md border border-violet-100 bg-violet-50 px-3 py-1.5">
+                            <span className="text-xs font-medium uppercase tracking-wider text-violet-600">Gói Vòng 2</span>
+                            <span className="text-lg font-bold text-violet-900">{users.filter(u => u.interviewAccess?.active).length} đang dùng</span>
+                        </div>
                         {!isTeacher && (
                             <div className="bg-yellow-50 border border-yellow-100 px-3 py-1.5 rounded-md flex flex-col min-w-[120px]">
                                 <span className="text-xs text-yellow-600 font-medium uppercase tracking-wider">Giáo viên</span>
@@ -547,13 +717,26 @@ export default function AdminUsersPage() {
                         )}
                     </div>
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex flex-wrap justify-end gap-2">
                     {selectedUserIds.length > 0 && (
                         <>
                             {!isTeacher && (
                                 <Button variant="destructive" onClick={() => { generateMathProblem(); setIsBulkDeleteDialogOpen(true); }} className="bg-red-600 hover:bg-red-700">
                                     <Trash2 className="w-4 h-4 mr-2" />
                                     Xóa ({selectedUserIds.length})
+                                </Button>
+                            )}
+                            {!isTeacher && (
+                                <Button
+                                    onClick={() => {
+                                        setBulkInterviewDays(30)
+                                        setIsBulkInterviewDialogOpen(true)
+                                    }}
+                                    disabled={selectedLearnerCount === 0}
+                                    className="bg-violet-600 text-white hover:bg-violet-700"
+                                >
+                                    <ShieldCheck className="mr-2 size-4" />
+                                    Kích hoạt Vòng 2 ({selectedLearnerCount})
                                 </Button>
                             )}
                             <Button variant="secondary" onClick={() => setIsBulkGrantDialogOpen(true)} className="bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300">
@@ -630,6 +813,7 @@ export default function AdminUsersPage() {
                             <th className="px-6 py-4 font-medium">Vai trò</th>
                             <th className="px-6 py-4 font-medium">Nhóm/Lớp</th>
                             <th className="px-6 py-4 font-medium">Lượt</th>
+                            <th className="px-6 py-4 font-medium">Gói Phỏng vấn Vòng 2</th>
                             <th className="px-6 py-4 font-medium">Trạng thái</th>
                             <th className="px-6 py-4 font-medium">Ngày tham gia</th>
                             <th className="px-6 py-4 font-medium text-right">Thao tác</th>
@@ -638,13 +822,13 @@ export default function AdminUsersPage() {
                     <tbody className="divide-y divide-gray-200">
                         {isLoading ? (
                             <tr>
-                                <td colSpan={9} className="px-6 py-8 text-center text-muted-foreground">
+                                <td colSpan={10} className="px-6 py-8 text-center text-muted-foreground">
                                     Đang tải dữ liệu...
                                 </td>
                             </tr>
                         ) : filteredUsers.length === 0 ? (
                             <tr>
-                                <td colSpan={9} className="px-6 py-8 text-center text-muted-foreground">
+                                <td colSpan={10} className="px-6 py-8 text-center text-muted-foreground">
                                     Không tìm thấy dữ liệu nào phù hợp.
                                 </td>
                             </tr>
@@ -696,12 +880,39 @@ export default function AdminUsersPage() {
                                     </td>
                                     <td className="px-6 py-4 font-medium text-blue-700">{formatCredits(user.remainingCredits)}</td>
                                     <td className="px-6 py-4">
+                                        {user.interviewAccess?.active ? (
+                                            <div className="space-y-1">
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
+                                                    <ShieldCheck className="size-3.5" /> Đang hoạt động
+                                                </span>
+                                                <p className="whitespace-nowrap text-[11px] text-slate-500">
+                                                    Đến {new Date(user.interviewAccess.expiresAt).toLocaleDateString('vi-VN')}
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                                                {user.interviewAccess ? 'Đã hết hạn' : 'Chưa kích hoạt'}
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4">
                                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${user.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                                             {user.status}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-gray-500">{user.joinedAt}</td>
                                     <td className="px-6 py-4 text-right space-x-2">
+                                        {!isTeacher && (user.role === 'learner' || Boolean(user.interviewAccess)) && (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => openInterviewAccessDialog(user)}
+                                                className="h-8 w-8 bg-violet-50 text-violet-700 hover:bg-violet-100"
+                                                title={user.interviewAccess?.active ? 'Gia hạn Phỏng vấn Vòng 2' : 'Kích hoạt Phỏng vấn Vòng 2'}
+                                            >
+                                                <ShieldCheck className="h-4 w-4" />
+                                            </Button>
+                                        )}
                                         <Button
                                             variant="ghost"
                                             size="icon"
@@ -867,6 +1078,118 @@ export default function AdminUsersPage() {
                             </Button>
                         </DialogFooter>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isBulkInterviewDialogOpen} onOpenChange={(open) => !open && setIsBulkInterviewDialogOpen(false)}>
+                <DialogContent className="sm:max-w-[460px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <span className="flex size-9 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+                                <ShieldCheck className="size-5" />
+                            </span>
+                            Kích hoạt Vòng 2 hàng loạt
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="grid grid-cols-2 gap-3 rounded-2xl border border-violet-100 bg-violet-50 p-3">
+                            <div>
+                                <span className="block text-[10px] font-bold uppercase tracking-wide text-violet-600">Đã chọn</span>
+                                <strong className="text-xl text-violet-950">{selectedUserIds.length} tài khoản</strong>
+                            </div>
+                            <div>
+                                <span className="block text-[10px] font-bold uppercase tracking-wide text-violet-600">Đủ điều kiện</span>
+                                <strong className="text-xl text-violet-950">{selectedLearnerCount} học viên</strong>
+                            </div>
+                        </div>
+                        <p className="text-xs leading-5 text-slate-500">Chỉ tài khoản có vai trò học viên được cấp gói. Tài khoản đã có gói sẽ được cộng dồn thời hạn.</p>
+                        <div className="space-y-2">
+                            <Label>Số ngày cấp thêm</Label>
+                            <div className="grid grid-cols-4 gap-2">
+                                {[30, 90, 180, 365].map((days) => (
+                                    <button
+                                        key={days}
+                                        type="button"
+                                        onClick={() => setBulkInterviewDays(days)}
+                                        className={`rounded-xl border px-2 py-2.5 text-sm font-bold transition ${bulkInterviewDays === days ? 'border-violet-600 bg-violet-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:border-violet-300'}`}
+                                    >
+                                        {days} ngày
+                                    </button>
+                                ))}
+                            </div>
+                            <Input min={1} max={3650} type="number" value={bulkInterviewDays} onChange={(event) => setBulkInterviewDays(Number(event.target.value))} />
+                            <p className="text-xs text-slate-500">Có thể nhập số ngày bất kỳ. Thời hạn được cộng tiếp từ ngày hết hạn hiện tại.</p>
+                        </div>
+                        <div className="rounded-xl bg-emerald-50 px-3 py-2.5 text-xs font-semibold leading-5 text-emerald-800">
+                            Mỗi học viên được mở toàn bộ P2–P7, thi thử, củng cố và báo cáo.
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsBulkInterviewDialogOpen(false)}>Hủy</Button>
+                        <Button type="button" disabled={isBulkGrantingInterview || selectedLearnerCount === 0} onClick={() => void grantBulkInterviewAccess()} className="bg-violet-600 hover:bg-violet-700">
+                            {isBulkGrantingInterview ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
+                            Cấp gói cho {selectedLearnerCount} học viên
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={Boolean(selectedUserForInterview)} onOpenChange={(open) => !open && setSelectedUserForInterview(null)}>
+                <DialogContent className="sm:max-w-[440px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <span className="flex size-9 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+                                <ShieldCheck className="size-5" />
+                            </span>
+                            Quản lý quyền Phỏng vấn Vòng 2
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm">
+                            <strong className="block text-slate-950">{selectedUserForInterview?.name}</strong>
+                            <span className="text-slate-500">{selectedUserForInterview?.email}</span>
+                            {selectedUserForInterview?.interviewAccess?.active ? (
+                                <p className="mt-2 text-xs font-semibold text-emerald-700">
+                                    Đang dùng đến {new Date(selectedUserForInterview.interviewAccess.expiresAt).toLocaleDateString('vi-VN')}. Thời gian mới sẽ được cộng dồn.
+                                </p>
+                            ) : null}
+                        </div>
+                        <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
+                            {([
+                                ['extend', 'Cộng ngày'],
+                                ['set_expiry', 'Đặt hạn'],
+                                ['revoke', 'Hủy quyền'],
+                            ] as const).map(([action, label]) => (
+                                <button key={action} type="button" onClick={() => setInterviewAccessAction(action)} className={`rounded-lg px-2 py-2 text-xs font-bold transition ${interviewAccessAction === action ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-600'}`}>{label}</button>
+                            ))}
+                        </div>
+                        {interviewAccessAction === 'extend' ? <div className="space-y-2">
+                            <Label>Số ngày cấp thêm</Label>
+                            <div className="grid grid-cols-4 gap-2">
+                                {[10, 30, 60, 90].map((days) => (
+                                    <button
+                                        key={days}
+                                        type="button"
+                                        onClick={() => setInterviewDays(days)}
+                                        className={`rounded-xl border px-2 py-2.5 text-sm font-bold transition ${interviewDays === days ? 'border-violet-600 bg-violet-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:border-violet-300'}`}
+                                    >
+                                        {days} ngày
+                                    </button>
+                                ))}
+                            </div>
+                            <Input min={1} max={3650} type="number" value={interviewDays} onChange={(event) => setInterviewDays(Number(event.target.value))} />
+                            <p className="text-xs leading-5 text-slate-500">Nhập số ngày tùy ý; thời gian còn lại được giữ nguyên và cộng dồn.</p>
+                        </div> : null}
+                        {interviewAccessAction === 'set_expiry' ? <div className="space-y-2"><Label>Ngày hết hạn mới</Label><Input min={new Date().toISOString().slice(0, 10)} type="date" value={interviewExpiryDate} onChange={(event) => setInterviewExpiryDate(event.target.value)} /><p className="text-xs text-slate-500">Dùng khi cần sửa chính xác hạn dùng đã cấp nhầm.</p></div> : null}
+                        {interviewAccessAction === 'revoke' ? <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-5 text-red-700">Khóa quyền truy cập ngay. Tài khoản, kết quả học và lịch sử cấp gói vẫn được giữ lại.</div> : null}
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setSelectedUserForInterview(null)}>Hủy</Button>
+                        <Button type="button" disabled={isGrantingInterview || (interviewAccessAction === 'set_expiry' && !interviewExpiryDate)} onClick={() => void adjustInterviewAccess()} className={interviewAccessAction === 'revoke' ? 'bg-red-600 hover:bg-red-700' : 'bg-violet-600 hover:bg-violet-700'}>
+                            {isGrantingInterview ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
+                            {interviewAccessAction === 'extend' ? `${selectedUserForInterview?.interviewAccess?.active ? 'Cộng thêm' : 'Kích hoạt'} ${interviewDays} ngày` : interviewAccessAction === 'set_expiry' ? 'Lưu ngày hết hạn' : 'Hủy quyền ngay'}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 

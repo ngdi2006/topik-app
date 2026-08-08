@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+function getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : 'Unknown error'
+}
+
 export async function GET(
     request: Request,
     context: { params: Promise<{ id: string }> }
@@ -18,9 +22,9 @@ export async function GET(
         if (error) throw error
 
         return NextResponse.json({ success: true, data })
-    } catch (error: any) {
+    } catch (error: unknown) {
         return NextResponse.json(
-            { success: false, error: error.message },
+            { success: false, error: getErrorMessage(error) },
             { status: 500 }
         )
     }
@@ -47,6 +51,7 @@ export async function PUT(
                 countdown_after_audio: body.countdown_after_audio,
                 tool_image_url: body.tool_image_url,
                 target_zone_id: body.target_zone_id,
+                tool_config: body.tool_config,
                 updated_at: new Date().toISOString()
             })
             .eq('id', id)
@@ -56,9 +61,9 @@ export async function PUT(
         if (error) throw error
 
         return NextResponse.json({ success: true, data })
-    } catch (error: any) {
+    } catch (error: unknown) {
         return NextResponse.json(
-            { success: false, error: error.message },
+            { success: false, error: getErrorMessage(error) },
             { status: 500 }
         )
     }
@@ -80,9 +85,9 @@ export async function DELETE(
         if (error) throw error
 
         return NextResponse.json({ success: true })
-    } catch (error: any) {
+    } catch (error: unknown) {
         return NextResponse.json(
-            { success: false, error: error.message },
+            { success: false, error: getErrorMessage(error) },
             { status: 500 }
         )
     }

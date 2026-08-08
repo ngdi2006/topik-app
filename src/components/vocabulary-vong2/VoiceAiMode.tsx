@@ -60,7 +60,7 @@ export default function VoiceAiMode({ vocabList, onBack }: { vocabList: any[], o
     }, [currentIndex, vocabList])
 
     const playQuestion = () => {
-        speakText("이것이 무엇입니까?", 0.9)
+        speakText("이것이 무엇입니까?", 1.0)
     }
 
     const startRecording = () => {

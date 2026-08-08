@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Loader2, CheckCircle2, Copy } from 'lucide-react'
+import { Loader2, CheckCircle2, Copy, AlertTriangle, TicketCheck, Mic2, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
+import { InterviewSubscriptionDialog } from '@/components/interview/InterviewSubscriptionDialog'
 
 interface PaymentPackage {
     id: string
@@ -37,6 +38,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     const [transactionCode, setTransactionCode] = useState<string | null>(null)
     const [processingPayment, setProcessingPayment] = useState(false)
     const [paymentComplete, setPaymentComplete] = useState(false)
+    const [interviewDialogOpen, setInterviewDialogOpen] = useState(false)
     const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
     const stopPolling = useCallback(() => {
@@ -122,7 +124,8 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                 setTransactionCode(data.transaction.transaction_code)
                 startPolling(data.transaction.transaction_code)
             } else {
-                alert('Không thể tạo giao dịch. Vui lòng thử lại.')
+                const data = await res.json().catch(() => null)
+                alert(data?.error || 'Không thể tạo giao dịch. Vui lòng thử lại.')
                 setSelectedPackage(null)
             }
         } catch (error) {
@@ -166,8 +169,9 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     }
 
     return (
+        <>
         <Dialog open={open} onOpenChange={handleClose}>
-            <DialogContent className={`max-h-[90vh] overflow-y-auto border border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl transition-all duration-300 ${!selectedPackage && !loading ? 'max-w-[95vw] sm:max-w-4xl' : 'max-w-md'}`}>
+            <DialogContent className={`max-h-[92dvh] gap-3 overflow-y-auto rounded-3xl border border-border/50 bg-background/95 p-4 backdrop-blur-xl shadow-2xl transition-all duration-300 sm:p-6 ${!selectedPackage && !loading ? 'max-w-[calc(100vw-1.5rem)] sm:max-w-4xl' : 'max-w-md'}`}>
                 {paymentComplete && (
                     <div className="absolute inset-0 bg-background/95 backdrop-blur-md z-50 flex flex-col items-center justify-center rounded-lg">
                         <CheckCircle2 className="w-16 h-16 text-emerald-500 mb-4 animate-bounce" />
@@ -175,14 +179,14 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                         <p className="text-sm text-muted-foreground">Đang cập nhật số lượt...</p>
                     </div>
                 )}
-                <DialogHeader>
-                    <DialogTitle className="text-2xl font-bold tracking-tight">
-                        {selectedPackage ? 'Thanh toán' : 'Mua lượt làm bài'}
+                <DialogHeader className="gap-1 text-left">
+                    <DialogTitle className="text-xl font-black tracking-tight sm:text-2xl">
+                        {selectedPackage ? 'Thanh toán' : 'Mua thêm'}
                     </DialogTitle>
-                    <DialogDescription className="text-muted-foreground font-medium">
+                    <DialogDescription className="text-sm font-medium text-muted-foreground">
                         {selectedPackage
                             ? 'Quét mã QR hoặc chuyển khoản theo thông tin bên dưới'
-                            : 'Chọn gói phù hợp với nhu cầu luyện thi của bạn'}
+                            : 'Chọn nội dung bạn muốn mua'}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -221,6 +225,13 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                             Nếu không mở được app ngân hàng, hãy quét mã QR hoặc sao chép thông tin bên dưới.
                         </p>
 
+                        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900 flex items-start gap-2 shadow-sm">
+                            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" />
+                            <p className="font-semibold">
+                                Bắt buộc giữ nguyên nội dung chuyển khoản. Hệ thống chỉ tự động kích hoạt khi giao dịch có đúng mã {transactionCode}.
+                            </p>
+                        </div>
+
                         <div className="rounded-xl border border-border/50 bg-card/30 divide-y divide-border/50 text-sm overflow-hidden">
                             <div className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
                                 <span className="text-muted-foreground">Ngân hàng</span>
@@ -258,10 +269,13 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                                     </Button>
                                 </div>
                             </div>
-                            <div className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors bg-red-50/30">
-                                <span className="text-muted-foreground">Nội dung CK</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-bold text-red-600 text-xs break-all">{transactionCode}</span>
+                            <div className="flex items-start justify-between gap-3 px-4 py-3 hover:bg-muted/30 transition-colors bg-red-50/30">
+                                <div>
+                                    <span className="text-muted-foreground">Nội dung CK</span>
+                                    <p className="text-[11px] font-medium text-red-600">Không sửa, không thêm bớt mã này.</p>
+                                </div>
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <span className="font-bold text-red-600 text-xs break-all text-right">{transactionCode}</span>
                                     <Button
                                         variant="ghost"
                                         size="icon"
@@ -294,8 +308,44 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                     </div>
                 ) : (
                     // Package Selection Screen
-                    <div className="space-y-4 md:space-y-6 pt-2">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mt-2 w-full max-w-4xl mx-auto">
+                    <div className="space-y-3 pt-1 sm:space-y-5">
+                        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-700 via-indigo-600 to-blue-600 p-4 text-white shadow-lg shadow-violet-200/70 sm:p-5">
+                            <div aria-hidden="true" className="absolute -right-8 -top-10 size-28 rounded-full border-[18px] border-white/10" />
+                            <div className="relative flex items-center gap-3">
+                                <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
+                                    <Mic2 className="size-5" />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <span className="inline-flex rounded-full bg-amber-300 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-950">Đang ưu tiên</span>
+                                    <h3 className="mt-1 text-lg font-black sm:text-xl">Phỏng vấn Vòng 2</h3>
+                                    <p className="text-xs text-blue-100 sm:text-sm">Chọn gói học 10 ngày hoặc 30 ngày.</p>
+                                </div>
+                            </div>
+                            <Button
+                                className="relative mt-4 h-10 w-full rounded-xl bg-white font-extrabold text-indigo-700 shadow-sm hover:bg-blue-50 hover:text-indigo-800"
+                                onClick={() => {
+                                    handleClose()
+                                    setInterviewDialogOpen(true)
+                                }}
+                                type="button"
+                            >
+                                Xem gói Phỏng vấn
+                                <ChevronRight className="size-4" />
+                            </Button>
+                        </div>
+
+                        <div className="border-t border-slate-200 pt-3 sm:pt-4">
+                        <div className="flex items-center gap-2">
+                            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 ring-1 ring-slate-200">
+                                <TicketCheck className="size-4.5" />
+                            </span>
+                            <div>
+                                <h3 className="text-sm font-extrabold text-slate-800 sm:text-base">Lượt thi thử EPS-TOPIK</h3>
+                                <p className="text-xs text-muted-foreground">Luyện đề bổ sung theo nhu cầu.</p>
+                            </div>
+                        </div>
+                        </div>
+                        <div className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-2.5 md:grid-cols-3 md:gap-4">
                             {packages.map((pkg) => {
                                 const isPopular = pkg.credits === 20
                                 const isBest = pkg.credits === 50
@@ -308,25 +358,25 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                                         className={`
                                             group flex flex-col text-left transition-all duration-300 disabled:opacity-60 relative
                                             ${isPopular
-                                                ? 'p-3 sm:p-6 rounded-2xl border-2 border-primary/50 bg-card/60 backdrop-blur-2xl shadow-xl shadow-primary/10 hover:border-primary scale-100 md:scale-105 z-10'
+                                                ? 'p-3 sm:p-5 rounded-2xl border-2 border-primary/50 bg-blue-50/40 shadow-md shadow-primary/10 hover:border-primary scale-100 md:scale-[1.03] z-10'
                                                 : isBest 
-                                                    ? 'p-3 sm:p-6 rounded-2xl border border-border/50 bg-card/30 backdrop-blur-xl hover:border-teal-500/50 hover:shadow-lg'
-                                                    : 'p-3 sm:p-6 rounded-2xl border border-border/50 bg-card/30 backdrop-blur-xl hover:border-border hover:shadow-lg'
+                                                    ? 'p-3 sm:p-5 rounded-2xl border border-emerald-200 bg-emerald-50/30 hover:border-teal-500/50 hover:shadow-lg'
+                                                    : 'p-3 sm:p-5 rounded-2xl border border-slate-200 bg-white hover:border-blue-200 hover:shadow-lg'
                                             }
                                         `}
                                     >
                                         {isPopular && (
-                                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gradient-to-r from-primary to-blue-500 text-white text-[10px] font-bold rounded-full uppercase tracking-widest shadow-md whitespace-nowrap">
+                                            <div className="absolute right-2 top-2 rounded-full bg-gradient-to-r from-primary to-blue-500 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white shadow-sm whitespace-nowrap">
                                                 ⭐ Phổ biến nhất
                                             </div>
                                         )}
                                         {isBest && (
-                                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[10px] font-bold rounded-full uppercase tracking-widest shadow-md whitespace-nowrap">
+                                            <div className="absolute right-2 top-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white shadow-sm whitespace-nowrap">
                                                 💎 Tiết kiệm nhất
                                             </div>
                                         )}
 
-                                        <div className="flex flex-row md:flex-col items-center md:items-start justify-between w-full mt-1 md:mt-0">
+                                        <div className={`flex w-full flex-row items-center justify-between md:flex-col md:items-start ${isPopular || isBest ? 'mt-5 md:mt-4' : ''}`}>
                                             <div className="flex flex-col md:block text-left">
                                                 <h3 className={`text-base sm:text-xl font-bold tracking-tight mb-0.5 md:mb-1 ${isPopular ? 'text-primary' : isBest ? 'bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 to-teal-500' : ''}`}>{pkg.package_name}</h3>
                                                 <p className="text-muted-foreground mb-0 md:mb-3 text-[11px] sm:text-sm font-medium">{pkg.credits} lượt làm bài</p>
@@ -348,7 +398,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
 
                                         <div className="mt-2 md:mt-auto w-full">
                                             <div className={`
-                                                w-full rounded-lg sm:rounded-xl h-8 sm:h-11 flex items-center justify-center font-bold text-[11px] sm:text-sm transition-all
+                                                w-full rounded-xl h-8 sm:h-10 flex items-center justify-center font-bold text-[11px] sm:text-sm transition-all
                                                 ${isPopular
                                                     ? 'bg-primary hover:bg-primary/90 text-white shadow-md sm:shadow-lg shadow-primary/25'
                                                     : isBest
@@ -366,8 +416,8 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                             })}
                         </div>
 
-                        <div className="mt-4 flex items-center justify-center">
-                            <p className="text-sm text-muted-foreground font-medium text-center">
+                        <div className="flex items-center justify-center">
+                            <p className="text-center text-xs font-medium text-muted-foreground sm:text-sm">
                                 Mỗi tài khoản được tặng <span className="font-bold text-red-500">3 lượt miễn phí</span>.
                             </p>
                         </div>
@@ -375,5 +425,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                 )}
             </DialogContent>
         </Dialog>
+        <InterviewSubscriptionDialog open={interviewDialogOpen} onOpenChange={setInterviewDialogOpen} />
+        </>
     )
 }

@@ -1,6 +1,20 @@
 import { NextResponse } from 'next/server'
+import type { User } from '@supabase/supabase-js'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+
+type ProfileRow = { id: string; full_name?: string | null; role?: string | null; group_name?: string | null }
+type CreditRow = { user_id: string; remaining_credits: number }
+type InterviewPlanRow = { name?: string | null; code?: string | null }
+type InterviewEntitlementRow = {
+    id: string
+    user_id: string
+    source: 'sepay' | 'admin_internal' | 'promotion'
+    status: string
+    starts_at: string
+    expires_at: string
+    interview_subscription_plans: InterviewPlanRow | InterviewPlanRow[] | null
+}
 
 export async function GET() {
     try {
@@ -18,7 +32,7 @@ export async function GET() {
         // 2. Fetch all users using Admin Service Role Key
         const adminAuthClient = createAdminClient()
 
-        const allAuthUsers: any[] = [];
+        const allAuthUsers: User[] = [];
         let authPage = 1;
         let authHasMore = true;
         while (authHasMore) {
@@ -33,7 +47,7 @@ export async function GET() {
         }
 
         // Fetch profiles for roles and names
-        const allProfiles: any[] = [];
+        const allProfiles: ProfileRow[] = [];
         let profilePage = 0;
         let profileHasMore = true;
         while (profileHasMore) {
@@ -47,7 +61,7 @@ export async function GET() {
             }
         }
 
-        const allCredits: any[] = [];
+        const allCredits: CreditRow[] = [];
         let creditPage = 0;
         let creditHasMore = true;
         while (creditHasMore) {
@@ -61,10 +75,42 @@ export async function GET() {
             }
         }
 
+        const allInterviewEntitlements: InterviewEntitlementRow[] = [];
+        let entitlementPage = 0;
+        let entitlementHasMore = true;
+        while (entitlementHasMore) {
+            const { data, error } = await adminAuthClient
+                .from('user_interview_entitlements')
+                .select('id, user_id, source, status, starts_at, expires_at, interview_subscription_plans(name, code)')
+                .order('expires_at', { ascending: false })
+                .range(entitlementPage * 1000, (entitlementPage + 1) * 1000 - 1);
+            if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+            allInterviewEntitlements.push(...(data as unknown as InterviewEntitlementRow[]));
+            entitlementHasMore = data.length === 1000;
+            entitlementPage++;
+        }
+
+        const latestInterviewAccessByUser = new Map<string, InterviewEntitlementRow>();
+        for (const entitlement of allInterviewEntitlements) {
+            const current = latestInterviewAccessByUser.get(entitlement.user_id)
+            const entitlementIsActive = entitlement.status === 'active' && new Date(entitlement.expires_at).getTime() > Date.now()
+            const currentIsActive = current?.status === 'active' && new Date(current.expires_at).getTime() > Date.now()
+            if (!current || (entitlementIsActive && !currentIsActive)) {
+                latestInterviewAccessByUser.set(entitlement.user_id, entitlement);
+            }
+        }
+
         // 3. Mapping data
         const result = allAuthUsers.map(u => {
             const prof = allProfiles.find(p => p.id === u.id)
             const credit = allCredits.find(c => c.user_id === u.id)
+            const entitlement = latestInterviewAccessByUser.get(u.id)
+            const plan = Array.isArray(entitlement?.interview_subscription_plans)
+                ? entitlement.interview_subscription_plans[0]
+                : entitlement?.interview_subscription_plans
+            const accessActive = Boolean(
+                entitlement?.status === 'active' && new Date(entitlement.expires_at).getTime() > Date.now(),
+            )
             return {
                 id: u.id,
                 email: u.email,
@@ -73,7 +119,15 @@ export async function GET() {
                 groupName: prof?.group_name || '',
                 remainingCredits: credit?.remaining_credits ?? 0,
                 status: 'Active',
-                joinedAt: new Date(u.created_at).toISOString().split('T')[0]
+                joinedAt: new Date(u.created_at).toISOString().split('T')[0],
+                interviewAccess: entitlement ? {
+                    id: entitlement.id,
+                    active: accessActive,
+                    source: entitlement.source,
+                    startsAt: entitlement.starts_at,
+                    expiresAt: entitlement.expires_at,
+                    planName: plan?.name || null,
+                } : null,
             }
         })
 
@@ -89,7 +143,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        let { name, email, password, role, groupName, dateOfBirth } = await request.json()
+        const body = await request.json()
+        const { name, email, password, groupName, dateOfBirth } = body
+        let { role } = body
 
         // 1. Authentication & Authorization Check
         const supabase = await createClient()

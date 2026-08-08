@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import * as XLSX from 'xlsx'
 import { Button } from '@/components/ui/button'
@@ -9,13 +9,41 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { Plus, Edit, Trash2, Search, Filter, Upload, Download } from 'lucide-react'
+import { Plus, Edit, Trash2, Search, Filter, Upload, Download, FileSpreadsheet } from 'lucide-react'
 import { BulkImportModal } from '@/components/admin/BulkImportModal'
+import { resolveToolQuestionConfig, definitionLabel, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type ToolQuestionConfig, type VocabularyItem } from '@/components/interview/toolQuestionAnalysis'
+
+type InterviewQuestionRow = {
+    id: string
+    industry?: string | null
+    category: string
+    question_text: string
+    vietnamese_meaning?: string | null
+    question_audio_url?: string | null
+    suggested_answers?: string[] | string | null
+    countdown_after_audio?: number | null
+    tool_image_url?: string | null
+    target_zone_id?: string | null
+    tool_config?: ToolQuestionConfig | null
+}
+
+type ApiResponse<T> = {
+    success: boolean
+    data?: T
+    total?: number
+    error?: string
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+    return error instanceof Error ? error.message : fallback
+}
 
 export default function InterviewModuleAdminPage() {
     const router = useRouter()
-    const [questions, setQuestions] = useState<any[]>([])
+    const [questions, setQuestions] = useState<InterviewQuestionRow[]>([])
     const [loading, setLoading] = useState(true)
+    const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(() => new Set())
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false)
     
     // Filters
     const [searchQuery, setSearchQuery] = useState('')
@@ -37,6 +65,23 @@ export default function InterviewModuleAdminPage() {
     const [activeIndustryTab, setActiveIndustryTab] = useState("Sản xuất chế tạo")
     const [savingSettings, setSavingSettings] = useState(false)
 
+    const visibleQuestions = useMemo(() => {
+        const normalizedQuery = searchQuery.trim().toLowerCase()
+
+        return questions
+            .filter((question) =>
+                filterCategory === 'Tất cả' || question.category === filterCategory
+            )
+            .filter((question) =>
+                !normalizedQuery
+                || question.question_text.toLowerCase().includes(normalizedQuery)
+                || question.vietnamese_meaning?.toLowerCase().includes(normalizedQuery)
+            )
+    }, [filterCategory, questions, searchQuery])
+
+    const allVisibleSelected = visibleQuestions.length > 0
+        && visibleQuestions.every((question) => selectedQuestionIds.has(question.id))
+
     useEffect(() => {
         fetchQuestions()
         fetchSettings()
@@ -45,11 +90,11 @@ export default function InterviewModuleAdminPage() {
     const fetchQuestions = async () => {
         try {
             const res = await fetch('/api/admin/interview-questions')
-            const data = await res.json()
+            const data = await res.json() as ApiResponse<InterviewQuestionRow[]>
             if (data.success) {
-                setQuestions(data.data)
+                setQuestions(data.data || [])
             }
-        } catch (error) {
+        } catch {
             toast.error('Lỗi tải danh sách câu hỏi')
         } finally {
             setLoading(false)
@@ -59,14 +104,15 @@ export default function InterviewModuleAdminPage() {
     const fetchSettings = async () => {
         try {
             const res = await fetch('/api/admin/system-settings')
-            const data = await res.json()
-            if (data.success && data.data) {
-                setAiPrompt(data.data.ai_global_prompt || '')
-                if (data.data.industry_prompts) {
-                    setIndustryPrompts(prev => ({...prev, ...data.data.industry_prompts}))
+            const data = await res.json() as ApiResponse<{ ai_global_prompt?: string; industry_prompts?: Record<string, string> }>
+            const settings = data.data
+            if (data.success && settings) {
+                setAiPrompt(settings.ai_global_prompt || '')
+                if (settings.industry_prompts) {
+                    setIndustryPrompts(prev => ({...prev, ...settings.industry_prompts}))
                 }
             }
-        } catch (error) {
+        } catch {
             toast.error('Lỗi tải cấu hình')
         }
     }
@@ -83,11 +129,11 @@ export default function InterviewModuleAdminPage() {
                     industry_prompts: industryPrompts
                 })
             })
-            const data = await res.json()
+            const data = await res.json() as ApiResponse<unknown>
             if (!data.success) throw new Error(data.error)
             toast.success('Đã lưu cấu hình thành công!', { id: toastId })
-        } catch (error: any) {
-            toast.error(error.message || 'Lỗi khi lưu cấu hình', { id: toastId })
+        } catch (error: unknown) {
+            toast.error(getErrorMessage(error, 'Lỗi khi lưu cấu hình'), { id: toastId })
         } finally {
             setSavingSettings(false)
         }
@@ -100,12 +146,76 @@ export default function InterviewModuleAdminPage() {
             const res = await fetch(`/api/admin/interview-questions/${id}`, {
                 method: 'DELETE'
             })
-            const data = await res.json()
+            const data = await res.json() as ApiResponse<unknown>
             if (!data.success) throw new Error(data.error)
             toast.success('Đã xóa câu hỏi!', { id: toastId })
+            setSelectedQuestionIds((current) => {
+                const next = new Set(current)
+                next.delete(id)
+                return next
+            })
             fetchQuestions()
-        } catch (error: any) {
-            toast.error(error.message || 'Lỗi khi xóa', { id: toastId })
+        } catch (error: unknown) {
+            toast.error(getErrorMessage(error, 'Lỗi khi xóa'), { id: toastId })
+        }
+    }
+
+    const toggleQuestionSelection = (id: string) => {
+        setSelectedQuestionIds((current) => {
+            const next = new Set(current)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
+    }
+
+    const toggleAllVisibleQuestions = () => {
+        setSelectedQuestionIds((current) => {
+            const next = new Set(current)
+            if (allVisibleSelected) {
+                visibleQuestions.forEach((question) => next.delete(question.id))
+            } else {
+                visibleQuestions.forEach((question) => next.add(question.id))
+            }
+            return next
+        })
+    }
+
+    const handleBulkDelete = async () => {
+        const ids = Array.from(selectedQuestionIds)
+        if (ids.length === 0) return
+        if (!window.confirm(`Bạn có chắc muốn xoá ${ids.length} câu hỏi đã chọn? Thao tác này không thể hoàn tác.`)) return
+
+        setIsBulkDeleting(true)
+        const toastId = toast.loading(`Đang xoá ${ids.length} câu hỏi…`)
+        try {
+            const res = await fetch('/api/admin/interview-questions', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids }),
+            })
+            const data = await res.json() as ApiResponse<{ deleted: number }>
+            if (!res.ok || !data.success) throw new Error(data.error)
+
+            setQuestions((current) => current.filter((question) => !selectedQuestionIds.has(question.id)))
+            setSelectedQuestionIds(new Set())
+            toast.success(`Đã xoá ${data.data?.deleted ?? ids.length} câu hỏi.`, { id: toastId })
+        } catch (error: unknown) {
+            toast.error(getErrorMessage(error, 'Không thể xoá các câu hỏi đã chọn'), { id: toastId })
+            await fetchQuestions()
+        } finally {
+            setIsBulkDeleting(false)
+        }
+    }
+
+    const getToolAnalysisSummary = (q: InterviewQuestionRow) => {
+        if (q.category !== 'Sử dụng công cụ') return null
+        const config = resolveToolQuestionConfig(q.question_text || '', q.vietnamese_meaning || '', q.tool_config)
+        return {
+            tool: definitionLabel(TOOL_DEFINITIONS, config.correct_tool),
+            target: definitionLabel(TARGET_DEFINITIONS, config.target_object),
+            action: config.requires_action ? definitionLabel(ACTION_DEFINITIONS, config.correct_action || '') : 'Đặt/cất đúng vị trí',
+            vocabulary: config.vocabulary_analysis || []
         }
     }
 
@@ -196,6 +306,82 @@ export default function InterviewModuleAdminPage() {
         XLSX.writeFile(wb, "Template_Phong_Van_Vong_2.xlsx")
     }
 
+    const handleExportExcel = () => {
+        const selectedRows = selectedQuestionIds.size > 0
+            ? questions.filter((question) => selectedQuestionIds.has(question.id))
+            : visibleQuestions
+
+        if (selectedRows.length === 0) {
+            toast.error('Không có dữ liệu để xuất')
+            return
+        }
+
+        const exportRows = selectedRows.map((question, index) => {
+            const resolvedToolConfig = question.category === 'Sử dụng công cụ'
+                ? resolveToolQuestionConfig(question.question_text, question.vietnamese_meaning || '', question.tool_config)
+                : null
+            const suggestedAnswers = Array.isArray(question.suggested_answers)
+                ? question.suggested_answers.join('|')
+                : question.suggested_answers || ''
+
+            return {
+                'STT': index + 1,
+                'ID': question.id,
+                'Ngành nghề': question.industry || 'COMMON',
+                'Phân loại': question.category,
+                'Câu hỏi': question.question_text,
+                'Dịch nghĩa': question.vietnamese_meaning || '',
+                'Giây đếm ngược': question.countdown_after_audio ?? '',
+                'Link Audio': question.question_audio_url || '',
+                'Gợi ý trả lời': suggestedAnswers,
+                'Tên File Ảnh': question.tool_image_url || '',
+                'ID Ô thả': question.target_zone_id || '',
+                'Công cụ chính xác': resolvedToolConfig
+                    ? definitionLabel(TOOL_DEFINITIONS, resolvedToolConfig.correct_tool)
+                    : '',
+                'Mã công cụ': resolvedToolConfig?.correct_tool || '',
+                'Vật thể/Vật tư': resolvedToolConfig
+                    ? definitionLabel(TARGET_DEFINITIONS, resolvedToolConfig.target_object)
+                    : '',
+                'Mã vật thể': resolvedToolConfig?.target_object || '',
+                'Thao tác': resolvedToolConfig?.requires_action
+                    ? definitionLabel(ACTION_DEFINITIONS, resolvedToolConfig.correct_action || '')
+                    : '',
+                'Mã thao tác': resolvedToolConfig?.correct_action || '',
+                'Cấu hình công cụ (JSON)': resolvedToolConfig ? JSON.stringify(resolvedToolConfig) : ''
+            }
+        })
+
+        const worksheet = XLSX.utils.json_to_sheet(exportRows)
+        worksheet['!cols'] = [
+            { wch: 7 }, { wch: 38 }, { wch: 20 }, { wch: 20 }, { wch: 48 }, { wch: 48 },
+            { wch: 16 }, { wch: 42 }, { wch: 36 }, { wch: 36 }, { wch: 22 }, { wch: 24 },
+            { wch: 22 }, { wch: 24 }, { wch: 22 }, { wch: 24 }, { wch: 22 }, { wch: 80 }
+        ]
+        worksheet['!autofilter'] = { ref: worksheet['!ref'] || 'A1:R1' }
+
+        const summary = XLSX.utils.aoa_to_sheet([
+            ['BÁO CÁO DỮ LIỆU PHỎNG VẤN VÒNG 2'],
+            ['Thời gian xuất', new Date().toLocaleString('vi-VN')],
+            ['Bộ lọc', filterCategory],
+            ['Từ khóa', searchQuery || 'Không có'],
+            ['Số bản ghi', selectedRows.length],
+            ['Phạm vi', selectedQuestionIds.size > 0 ? 'Các câu đã chọn' : 'Danh sách đang hiển thị']
+        ])
+        summary['!cols'] = [{ wch: 24 }, { wch: 55 }]
+
+        const workbook = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Danh sách câu hỏi')
+        XLSX.utils.book_append_sheet(workbook, summary, 'Thông tin xuất')
+
+        const date = new Date().toISOString().slice(0, 10)
+        const categorySlug = filterCategory === 'Tất cả'
+            ? 'Tat-ca'
+            : filterCategory.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/\s+/g, '-')
+        XLSX.writeFile(workbook, `Phong_Van_Vong_2_${categorySlug}_${date}.xlsx`)
+        toast.success(`Đã xuất ${selectedRows.length} câu hỏi ra Excel`)
+    }
+
     return (
         <div className="max-w-6xl mx-auto space-y-6">
             <div>
@@ -237,6 +423,10 @@ export default function InterviewModuleAdminPage() {
                             </Select>
                         </div>
                         <div className="flex gap-2 w-full md:w-auto shrink-0 flex-wrap justify-end">
+                            <Button variant="outline" onClick={handleExportExcel} className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800">
+                                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                                Xuất Excel{selectedQuestionIds.size > 0 ? ` (${selectedQuestionIds.size})` : ''}
+                            </Button>
                             <Button variant="outline" onClick={handleDownloadTemplate}>
                                 <Download className="w-4 h-4 mr-2" />
                                 Mẫu Excel
@@ -252,6 +442,37 @@ export default function InterviewModuleAdminPage() {
                         </div>
                     </div>
 
+                    {!loading ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-2.5 text-sm">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-semibold text-slate-700">
+                                    {filterCategory === 'Tất cả' ? 'Tất cả câu hỏi' : filterCategory}
+                                </span>
+                                {selectedQuestionIds.size > 0 ? (
+                                    <span className="rounded-full bg-blue-700 px-2.5 py-1 text-xs font-bold text-white">
+                                        Đã chọn {selectedQuestionIds.size}
+                                    </span>
+                                ) : null}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {selectedQuestionIds.size > 0 ? (
+                                    <Button
+                                        className="h-8 bg-red-600 px-3 text-xs font-bold text-white hover:bg-red-700"
+                                        disabled={isBulkDeleting}
+                                        onClick={handleBulkDelete}
+                                        size="sm"
+                                    >
+                                        <Trash2 aria-hidden="true" className="size-3.5" />
+                                        {isBulkDeleting ? 'Đang xoá…' : `Xoá ${selectedQuestionIds.size} câu`}
+                                    </Button>
+                                ) : null}
+                                <span className="rounded-full bg-white px-3 py-1 font-bold text-blue-700 shadow-sm ring-1 ring-blue-100">
+                                    Hiển thị {visibleQuestions.length} / {questions.length} câu
+                                </span>
+                            </div>
+                        </div>
+                    ) : null}
+
                     {loading ? (
                         <div className="text-center py-10">Đang tải...</div>
                     ) : (
@@ -259,20 +480,35 @@ export default function InterviewModuleAdminPage() {
                             <table className="w-full text-sm text-left">
                                 <thead className="bg-gray-50 border-b">
                                     <tr>
+                                        <th className="w-12 px-4 py-3 text-center">
+                                            <input
+                                                aria-label={`Chọn tất cả ${visibleQuestions.length} câu hỏi đang hiển thị`}
+                                                checked={allVisibleSelected}
+                                                className="size-4 cursor-pointer rounded border-gray-300 accent-blue-600"
+                                                onChange={toggleAllVisibleQuestions}
+                                                type="checkbox"
+                                            />
+                                        </th>
                                         <th className="px-6 py-3 font-semibold text-gray-600">Ngành nghề / Phân loại</th>
                                         <th className="px-6 py-3 font-semibold text-gray-600">Câu hỏi (Tiếng Hàn)</th>
                                         <th className="px-6 py-3 font-semibold text-gray-600 text-right">Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
-                                    {questions
-                                        .filter(q => filterCategory === 'Tất cả' || q.category === filterCategory)
-                                        .filter(q => 
-                                            q.question_text.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                                            (q.vietnamese_meaning && q.vietnamese_meaning.toLowerCase().includes(searchQuery.toLowerCase()))
-                                        )
-                                        .map((q) => (
-                                        <tr key={q.id} className="hover:bg-gray-50">
+                                    {visibleQuestions.map((q) => (
+                                        <tr
+                                            key={q.id}
+                                            className={`${selectedQuestionIds.has(q.id) ? 'bg-blue-50/70' : 'hover:bg-gray-50'} [content-visibility:auto] [contain-intrinsic-size:auto_72px]`}
+                                        >
+                                            <td className="px-4 py-4 text-center align-top">
+                                                <input
+                                                    aria-label={`Chọn câu hỏi ${q.question_text}`}
+                                                    checked={selectedQuestionIds.has(q.id)}
+                                                    className="size-4 cursor-pointer rounded border-gray-300 accent-blue-600"
+                                                    onChange={() => toggleQuestionSelection(q.id)}
+                                                    type="checkbox"
+                                                />
+                                            </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex flex-col gap-1 items-start">
                                                     <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
@@ -286,11 +522,22 @@ export default function InterviewModuleAdminPage() {
                                             <td className="px-6 py-4">
                                                 <div className="font-medium">{q.question_text}</div>
                                                 <div className="text-gray-500 text-xs mt-1 line-clamp-1">{q.vietnamese_meaning}</div>
+                                                {getToolAnalysisSummary(q) && (
+                                                    <div className="mt-2 rounded-md border border-orange-100 bg-orange-50 px-2 py-1.5 text-xs text-orange-900">
+                                                        <div className="font-medium">
+                                                            Công cụ: {getToolAnalysisSummary(q)?.tool} | Vật thể: {getToolAnalysisSummary(q)?.target} | Thao tác: {getToolAnalysisSummary(q)?.action}
+                                                        </div>
+                                                        <div className="mt-1 text-orange-700 line-clamp-1">
+                                                            {getToolAnalysisSummary(q)?.vocabulary.map((item: VocabularyItem) => `${item.term}: ${item.meaning}`).join(' · ')}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <Button 
                                                     variant="ghost" 
                                                     size="icon" 
+                                                    aria-label="Chỉnh sửa câu hỏi"
                                                     onClick={() => router.push(`/admin/interview-module/${q.id}`)}
                                                 >
                                                     <Edit className="w-4 h-4 text-blue-600" />
@@ -298,6 +545,7 @@ export default function InterviewModuleAdminPage() {
                                                 <Button 
                                                     variant="ghost" 
                                                     size="icon"
+                                                    aria-label="Xoá câu hỏi"
                                                     onClick={() => handleDelete(q.id)}
                                                 >
                                                     <Trash2 className="w-4 h-4 text-red-600" />
@@ -305,10 +553,10 @@ export default function InterviewModuleAdminPage() {
                                             </td>
                                         </tr>
                                     ))}
-                                    {questions.length === 0 && (
+                                    {visibleQuestions.length === 0 && (
                                         <tr>
-                                            <td colSpan={3} className="px-6 py-8 text-center text-gray-500">
-                                                Chưa có câu hỏi nào.
+                                            <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                                                Không tìm thấy câu hỏi phù hợp.
                                             </td>
                                         </tr>
                                     )}

@@ -9,6 +9,7 @@ import QuizMode from '@/components/vocabulary-vong2/QuizMode'
 import SpellingMode from '@/components/vocabulary-vong2/SpellingMode'
 import PodcastMode from '@/components/vocabulary-vong2/PodcastMode'
 import { speakText, stopTTS } from '@/lib/tts'
+import { InterviewFreePreviewBanner } from '@/components/interview/InterviewFreePreviewBanner'
 
 const INDUSTRIES = ['MANUFACTURING', 'FISHERY', 'AGRICULTURE', 'FORESTRY', 'SERVICE', 'CONSTRUCTION']
 const INDUSTRY_LABELS: Record<string, string> = {
@@ -268,7 +269,7 @@ function SignGallery({ vocabList, onBack }: { vocabList: any[], onBack: () => vo
 
     const playAudio = (url?: string, wordKr?: string) => {
         if (wordKr) {
-            speakText(wordKr, 0.8)
+            speakText(wordKr, 1.0)
         } else if (url) {
             new Audio(url).play().catch(() => {})
         }
@@ -279,53 +280,55 @@ function SignGallery({ vocabList, onBack }: { vocabList: any[], onBack: () => vo
         : vocabList.filter(item => getSignCategory(item.image_url) === activeCategory)
 
     return (
-        <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                <div className="flex items-start gap-2.5">
+        <div className="mx-auto max-w-4xl space-y-3 p-3 md:space-y-5 md:p-6">
+            <div className="flex items-center justify-between gap-2.5 border-b border-slate-100 pb-3 md:gap-4 md:pb-4">
+                <div className="flex min-w-0 items-center gap-2">
                     <Button 
                         variant="ghost" 
                         onClick={onBack} 
-                        className="h-9 w-9 p-0 text-slate-600 hover:bg-slate-100 flex-shrink-0 rounded-full flex items-center justify-center"
+                        className="flex size-8 flex-shrink-0 items-center justify-center rounded-full p-0 text-slate-600 hover:bg-slate-100 md:size-9"
                         title="Quay lại"
                     >
                         <ArrowLeft className="w-4 h-4" />
                     </Button>
                     <div className="min-w-0">
-                        <h2 className="text-lg font-extrabold text-slate-800 tracking-tight leading-tight">Biển báo trong ngành</h2>
-                        <p className="text-xs text-slate-500 mt-0.5 leading-snug">{filteredList.length} biển báo hiển thị • nhấn để xem giải thích</p>
+                        <h2 className="truncate text-base font-extrabold leading-tight tracking-tight text-slate-800 md:text-lg">Biển báo</h2>
+                        <p className="mt-0.5 truncate text-[11px] leading-snug text-slate-500 md:text-xs">{filteredList.length} mục · Chạm để xem</p>
                     </div>
                 </div>
                 
                 {/* Premium pill toggles */}
-                <div className="flex items-center gap-1.5 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/50 self-start sm:self-auto flex-shrink-0">
+                <div className="flex flex-shrink-0 items-center gap-1 rounded-xl border border-slate-200/50 bg-slate-100/80 p-1 md:gap-1.5 md:rounded-2xl md:p-1.5">
                     <button
                         onClick={() => setShowKr(!showKr)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 select-none active:scale-95 ${
+                        className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-bold transition-all duration-200 select-none active:scale-95 md:gap-1.5 md:rounded-xl md:px-3 md:text-xs ${
                             showKr 
                                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' 
                                 : 'bg-white text-slate-500 hover:text-slate-700 border border-slate-200/40 shadow-sm'
                         }`}
                     >
                         {showKr ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                        <span>Tiếng Hàn</span>
+                        <span className="md:hidden">Hàn</span><span className="hidden md:inline">Tiếng Hàn</span>
                     </button>
                     <button
                         onClick={() => setShowVi(!showVi)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 select-none active:scale-95 ${
+                        className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-bold transition-all duration-200 select-none active:scale-95 md:gap-1.5 md:rounded-xl md:px-3 md:text-xs ${
                             showVi 
                                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' 
                                 : 'bg-white text-slate-500 hover:text-slate-700 border border-slate-200/40 shadow-sm'
                         }`}
                     >
                         {showVi ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                        <span>Tiếng Việt</span>
+                        <span className="md:hidden">Việt</span><span className="hidden md:inline">Tiếng Việt</span>
                     </button>
                 </div>
             </div>
 
+            <InterviewFreePreviewBanner kind="sign" compact />
+
             {/* Category selection - Hidden Scrollbar */}
             <div 
-                className="flex items-center gap-2 overflow-x-auto pb-1.5 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-none"
+                className="scrollbar-none -mx-3 flex items-center gap-1.5 overflow-x-auto px-3 md:mx-0 md:gap-2 md:px-0"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
                 <style dangerouslySetInnerHTML={{__html: `
@@ -351,7 +354,7 @@ function SignGallery({ vocabList, onBack }: { vocabList: any[], onBack: () => vo
                                 setActiveCategory(cat.id);
                                 setSelected(null); // Clear selected item when switching categories
                             }}
-                            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 select-none active:scale-95 ${
+                            className={`flex-shrink-0 rounded-full px-2.5 py-1.5 text-[11px] font-semibold transition-all duration-200 select-none active:scale-95 md:px-3 md:text-xs ${
                                 getCategoryStyles(cat.id, isActive)
                             }`}
                         >
@@ -454,30 +457,30 @@ function SignGallery({ vocabList, onBack }: { vocabList: any[], onBack: () => vo
             )}
 
             {/* Grid of signs: 2 cols on mobile, 3 cols on sm, 4 cols on md+ */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 md:gap-4">
                 {filteredList.map(item => {
                     const isActive = selected?.id === item.id
                     return (
                         <button
                             key={item.id}
                             onClick={() => setSelected(isActive ? null : item)}
-                            className={`group flex flex-col items-center gap-3 p-4 sm:p-5 rounded-2xl border-2 transition-all duration-200 w-full text-center ${
+                            className={`group relative flex w-full flex-col items-center gap-2 rounded-2xl border-2 p-2.5 text-center transition-all duration-200 sm:gap-3 sm:p-4 md:p-5 ${
                                 isActive
                                     ? 'border-amber-400 bg-amber-50/70 shadow-lg scale-[1.02]'
                                     : 'border-slate-100 bg-white hover:border-amber-200 hover:bg-amber-50/30 hover:shadow-md'
                             }`}
                         >
                             {item.image_url ? (
-                                <img src={item.image_url} alt="" className="w-18 h-18 sm:w-20 sm:h-20 object-contain rounded-xl bg-white shadow-sm border p-1" />
+                                <img src={item.image_url} alt="" className="size-16 rounded-xl border bg-white object-contain p-1 shadow-sm sm:size-18 md:size-20" />
                             ) : (
-                                <div className="w-18 h-18 sm:w-20 sm:h-20 bg-amber-100 rounded-xl flex items-center justify-center">
+                                <div className="flex size-16 items-center justify-center rounded-xl bg-amber-100 sm:size-18 md:size-20">
                                     <AlertCircle className="w-8 h-8 text-amber-400" />
                                 </div>
                             )}
                             
-                            <div className="text-center w-full min-h-[44px] flex flex-col justify-center gap-1">
+                            <div className="flex min-h-9 w-full flex-col justify-center gap-0.5 text-center sm:min-h-11 sm:gap-1">
                                 {showKr ? (
-                                    <p className="text-xs sm:text-sm font-extrabold text-indigo-700 line-clamp-2 leading-snug">
+                                    <p className="line-clamp-1 text-xs font-extrabold leading-snug text-indigo-700 sm:line-clamp-2 sm:text-sm">
                                         {item.word_kr}
                                     </p>
                                 ) : (
@@ -486,7 +489,7 @@ function SignGallery({ vocabList, onBack }: { vocabList: any[], onBack: () => vo
                                     </p>
                                 )}
                                 {showVi ? (
-                                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 line-clamp-2 leading-snug">
+                                    <p className="line-clamp-1 text-[10px] font-bold leading-snug text-slate-500 sm:line-clamp-2 sm:text-xs">
                                         {item.word_vi}
                                     </p>
                                 ) : (
@@ -497,14 +500,14 @@ function SignGallery({ vocabList, onBack }: { vocabList: any[], onBack: () => vo
                             </div>
                             
                             {item.description_vi && (
-                                <div className="w-2.5 h-2.5 rounded-full bg-amber-400 flex-shrink-0" title="Có giải thích" />
+                                <div className="absolute right-2 top-2 size-2 rounded-full bg-amber-400" title="Có giải thích" />
                             )}
                         </button>
                     )
                 })}
             </div>
 
-            <div className="text-center pt-2 flex items-center justify-center gap-4 text-xs text-slate-400">
+            <div className="hidden items-center justify-center gap-4 pt-2 text-center text-xs text-slate-400 sm:flex">
                 <span>🟡 Chấm vàng = Có giải thích ý nghĩa</span>
                 <span>•</span>
                 <span>Tắt bớt chữ để tự kiểm tra ghi nhớ của bản thân</span>
@@ -583,7 +586,7 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
 
     const playWordAudio = (wordKr: string) => {
         if (wordKr) {
-            speakText(wordKr, 0.8)
+            speakText(wordKr, 1.0)
         }
     }
 
@@ -708,18 +711,18 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
         return (
             <div className="min-h-[500px] bg-[#f8fafc] rounded-2xl overflow-hidden border border-slate-100 flex flex-col">
                 {selectedMode !== 'gallery' && (
-                    <div className="bg-white px-4 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center justify-between border-b border-slate-100 bg-white px-3 py-2.5 sm:px-4 sm:pb-3 sm:pt-4">
                         <div className="flex items-center gap-2.5">
                             <Button 
                                 variant="ghost" 
                                 onClick={handlePracticeBack} 
-                                className="h-9 w-9 p-0 text-slate-600 hover:bg-slate-100 flex-shrink-0 rounded-full flex items-center justify-center"
+                                    className="flex size-8 flex-shrink-0 items-center justify-center rounded-full p-0 text-slate-600 hover:bg-slate-100 sm:size-9"
                                 title="Quay lại"
                             >
                                 <ArrowLeft className="w-4 h-4" />
                             </Button>
                             <div className="min-w-0">
-                                <h2 className="text-base font-extrabold text-slate-800 tracking-tight leading-tight">
+                                <h2 className="text-sm font-extrabold leading-tight tracking-tight text-slate-800 sm:text-base">
                                     {currentModeObj?.label || 'Luyện tập'}
                                 </h2>
                                 <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
@@ -731,9 +734,9 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
                 )}
 
                 {selectedTopic === 'SIGN' && selectedMode !== 'gallery' && (
-                    <div className="bg-white border-b border-slate-100 p-4">
+                    <div className="border-b border-slate-100 bg-white px-3 py-2.5 sm:p-4">
                         <div 
-                            className="flex items-center gap-2 overflow-x-auto pb-1.5 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-none"
+                            className="scrollbar-none -mx-3 flex items-center gap-1.5 overflow-x-auto px-3 sm:-mx-4 sm:gap-2 sm:px-4 md:mx-0 md:px-0"
                             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                         >
                             <style dangerouslySetInnerHTML={{__html: `
@@ -755,7 +758,7 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
                                     <button
                                         key={cat.id}
                                         onClick={() => setPracticeCategory(cat.id)}
-                                        className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 select-none active:scale-95 ${
+                                        className={`flex-shrink-0 rounded-full px-2.5 py-1.5 text-[11px] font-semibold transition-all duration-200 select-none active:scale-95 sm:px-3 sm:text-xs ${
                                             getCategoryStyles(cat.id, isActive)
                                         }`}
                                     >
@@ -783,18 +786,18 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
             <div className="absolute top-0 left-0 w-full h-80 bg-gradient-to-br from-indigo-50/60 via-purple-50/30 to-transparent -z-10" />
             <div className="absolute -top-24 -right-24 w-72 h-72 bg-purple-400/10 rounded-full blur-3xl -z-10" />
 
-            <div className="flex-1 w-full mx-auto p-4 md:p-8 space-y-6 relative z-10">
+            <div className="relative z-10 mx-auto w-full flex-1 space-y-4 p-4 md:space-y-6 md:p-8">
                 {/* Header */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5 md:gap-3">
                     <Button variant="ghost" size="icon" onClick={handleGoBack}
-                        className="h-10 w-10 rounded-full bg-white shadow-sm border border-slate-200 text-slate-600 hover:bg-slate-50">
-                        <ArrowLeft className="w-5 h-5" />
+                        className="size-9 rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 md:size-10">
+                        <ArrowLeft className="size-4.5 md:size-5" />
                     </Button>
-                    <div className="flex items-center gap-2.5">
-                        <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md">
-                            <BookOpen className="w-5 h-5 text-white" />
+                    <div className="flex min-w-0 items-center gap-2.5">
+                        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md md:size-10">
+                            <BookOpen className="size-4.5 text-white md:size-5" />
                         </div>
-                        <h1 className="text-xl md:text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-700 to-purple-700">
+                        <h1 className="truncate bg-gradient-to-r from-indigo-700 to-purple-700 bg-clip-text text-lg font-extrabold text-transparent md:text-2xl">
                             Từ vựng & Biển báo
                         </h1>
                     </div>
@@ -802,8 +805,8 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
 
                 {/* Breadcrumb */}
                 {step !== 'select_industry' && (
-                    <div className="flex items-center gap-2 text-sm text-slate-500 animate-in fade-in">
-                        <span className="font-semibold text-indigo-600">{INDUSTRY_EMOJI[selectedIndustry]} {INDUSTRY_LABELS[selectedIndustry]}</span>
+                    <div className="animate-in flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1.5 text-xs text-slate-500 fade-in md:bg-transparent md:px-0 md:py-0 md:text-sm">
+                        <span className="truncate font-semibold text-indigo-600">{INDUSTRY_EMOJI[selectedIndustry]} {INDUSTRY_LABELS[selectedIndustry]}</span>
                         {(step === 'select_mode' || step === 'saved_dashboard') && (
                             <>
                                 <ChevronRight className="w-4 h-4 text-slate-300" />
@@ -839,12 +842,12 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
 
                 {/* STEP: Select topic */}
                 {step === 'select_topic' && (
-                    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-3 duration-400">
-                        <div className="text-center space-y-1.5 mb-4">
-                            <h2 className="text-2xl md:text-3xl font-bold text-slate-800">Chọn Chủ Đề</h2>
-                            <p className="text-slate-500 text-sm">Chọn nội dung bạn muốn luyện tập</p>
+                    <div className="animate-in space-y-3 fade-in slide-in-from-bottom-3 duration-400 md:space-y-5">
+                        <div className="mb-3 text-left md:mb-4 md:text-center">
+                            <h2 className="text-xl font-bold text-slate-800 md:text-3xl">Chọn nội dung</h2>
+                            <p className="mt-0.5 text-xs text-slate-500 md:mt-1.5 md:text-sm">Bạn muốn luyện phần nào?</p>
                         </div>
-                        <div className="grid grid-cols-1 gap-4">
+                        <div className="grid grid-cols-1 gap-2.5 md:gap-4">
                              {TOPICS.map(topic => {
                                  const Icon = topic.icon
                                  const theme = TOPIC_THEME_STYLES[topic.id] || TOPIC_THEME_STYLES.TOOL
@@ -862,31 +865,31 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
                                                  setStep('select_mode');
                                              }
                                          }}
-                                         className={`group relative cursor-pointer rounded-2xl p-5 border-2 border-slate-100 bg-white ${theme.hoverBg} ${theme.borderColor} hover:shadow-lg hover:shadow-slate-100/70 transition-all duration-300 transform hover:-translate-y-0.5 flex items-center gap-4 overflow-hidden active:scale-98`}
+                                         className={`group relative flex cursor-pointer items-center gap-3 overflow-hidden rounded-2xl border-2 border-slate-100 bg-white p-3.5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-100/70 active:scale-98 md:gap-4 md:p-5 ${theme.hoverBg} ${theme.borderColor}`}
                                      >
                                          {/* Icon Container with ring & zoom effects */}
-                                         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm ${theme.iconContainer}`}>
-                                             <Icon className="w-6.5 h-6.5 transition-transform duration-300 group-hover:scale-110" />
+                                         <div className={`flex size-11 flex-shrink-0 items-center justify-center rounded-xl shadow-sm md:size-14 md:rounded-2xl ${theme.iconContainer}`}>
+                                             <Icon className="size-5 transition-transform duration-300 group-hover:scale-110 md:size-6.5" />
                                          </div>
 
                                          {/* Content */}
-                                         <div className="flex-1 min-w-0 space-y-1">
-                                             <div className="flex items-center gap-2.5">
-                                                 <h3 className="text-lg font-black text-slate-800 group-hover:text-slate-900 transition-colors">
+                                         <div className="min-w-0 flex-1">
+                                             <div className="flex items-center justify-between gap-2.5">
+                                                 <h3 className="truncate text-[15px] font-black text-slate-800 transition-colors group-hover:text-slate-900 md:text-lg">
                                                      {topic.label}
                                                  </h3>
-                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${theme.badgeBg} transition-all duration-300 group-hover:scale-105`}>
+                                                 <span className={`${topic.id === 'SAVED' ? 'inline-flex' : 'hidden sm:inline-flex'} shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wide transition-all duration-300 group-hover:scale-105 md:text-[10px] ${theme.badgeBg}`}>
                                                      {dynamicBadgeText}
                                                  </span>
                                              </div>
-                                             <p className="text-sm text-slate-500 font-medium leading-snug">
+                                             <p className="mt-0.5 truncate text-xs font-medium text-slate-500 md:mt-1 md:text-sm">
                                                  {topic.sublabel}
                                              </p>
                                          </div>
 
                                          {/* Right Chevron Arrow */}
-                                         <div className="self-center flex-shrink-0 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300 pr-1">
-                                             <ChevronRight className={`w-5 h-5 ${theme.chevronColor}`} />
+                                         <div className="self-center flex-shrink-0 pr-0.5 opacity-60 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100 md:translate-x-2 md:opacity-0">
+                                             <ChevronRight className={`size-4.5 md:size-5 ${theme.chevronColor}`} />
                                          </div>
                                      </div>
                                  )
@@ -897,14 +900,16 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
 
                 {/* STEP: Select mode */}
                 {step === 'select_mode' && (
-                    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-3 duration-400 relative">
-                        <div className="text-center space-y-1.5 mb-4">
-                            <h2 className="text-2xl md:text-3xl font-bold text-slate-800">Chọn Chế Độ Học</h2>
-                            <p className="text-slate-500 text-sm">Mỗi chế độ phù hợp cho một giai đoạn học tập khác nhau</p>
+                    <div className="relative animate-in space-y-3 fade-in slide-in-from-bottom-3 duration-400 md:space-y-5">
+                        <div className="mb-3 text-left md:mb-4 md:text-center">
+                            <h2 className="text-xl font-bold text-slate-800 md:text-3xl">Chọn chế độ</h2>
+                            <p className="mt-0.5 text-xs text-slate-500 md:mt-1.5 md:text-sm">Chọn cách học phù hợp với bạn.</p>
                         </div>
 
+                        <InterviewFreePreviewBanner kind={selectedTopic === 'SIGN' ? 'sign' : 'vocabulary'} />
+
                         {/* Suggested learning order banner */}
-                        <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-indigo-50/50 rounded-xl border border-indigo-100/40 text-[11px] font-semibold text-indigo-700 animate-in fade-in duration-300">
+                        <div className="hidden items-center gap-2.5 rounded-xl border border-indigo-100/40 bg-indigo-50/50 px-3.5 py-2.5 text-[11px] font-semibold text-indigo-700 animate-in fade-in duration-300 sm:flex">
                             <Info className="w-3.5 h-3.5 flex-shrink-0 text-indigo-500" />
                             <div className="flex flex-wrap items-center gap-1 leading-relaxed">
                                 <span className="text-slate-400 font-normal">Lộ trình ôn tập gợi ý:</span>
@@ -940,7 +945,7 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3.5">
                             {LEARN_MODES
                                 .filter(m => {
                                     if (m.signOnly && selectedTopic !== 'SIGN') return false
@@ -954,34 +959,34 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
                                         <div
                                             key={mode.id}
                                             onClick={() => handleStart(mode.id)}
-                                            className={`group relative cursor-pointer rounded-2xl p-5 border-2 border-slate-100 bg-white ${theme.hoverBg} ${theme.borderColor} hover:shadow-lg hover:shadow-slate-100/70 transition-all duration-300 transform hover:-translate-y-0.5 flex items-start gap-4 overflow-hidden active:scale-98`}
+                                            className={`group relative flex cursor-pointer items-center gap-3 overflow-hidden rounded-2xl border-2 border-slate-100 bg-white p-3.5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-100/70 active:scale-98 sm:items-start sm:gap-4 sm:p-5 ${theme.hoverBg} ${theme.borderColor}`}
                                         >
                                             {/* Left Icon Container with ring & zoom effects */}
-                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${theme.iconContainer}`}>
-                                                <Icon className="w-5.5 h-5.5 transition-transform duration-300 group-hover:scale-110" />
+                                            <div className={`flex size-10 flex-shrink-0 items-center justify-center rounded-xl shadow-sm sm:size-12 ${theme.iconContainer}`}>
+                                                <Icon className="size-5 transition-transform duration-300 group-hover:scale-110 sm:size-5.5" />
                                             </div>
 
                                             {/* Mid Content */}
-                                            <div className="flex-1 min-w-0 space-y-1">
-                                                <div className="flex items-center gap-2">
-                                                    <h4 className="font-black text-slate-800 text-[15px] md:text-base group-hover:text-slate-900 transition-colors">
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <h4 className="truncate text-[15px] font-black text-slate-800 transition-colors group-hover:text-slate-900 md:text-base">
                                                         {mode.label}
                                                     </h4>
-                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${theme.badgeBg} ${theme.badgeText} transition-all duration-300 group-hover:scale-105`}>
+                                                    <span className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide transition-all duration-300 group-hover:scale-105 sm:inline-flex ${theme.badgeBg} ${theme.badgeText}`}>
                                                         {mode.badge}
                                                     </span>
                                                 </div>
-                                                <p className="text-xs md:text-sm text-slate-500 font-medium leading-snug">
+                                                <p className="mt-0.5 truncate text-xs font-medium text-slate-500 md:text-sm">
                                                     {mode.sublabel}
                                                 </p>
-                                                <p className="text-[11px] text-slate-400 font-medium italic pt-0.5 flex items-center gap-1.5 transition-colors group-hover:text-slate-500">
+                                                <p className="hidden items-center gap-1.5 pt-0.5 text-[11px] font-medium italic text-slate-400 transition-colors group-hover:text-slate-500 sm:flex">
                                                     <span>💡</span> {mode.tip}
                                                 </p>
                                             </div>
 
                                             {/* Right Chevron Arrow */}
-                                            <div className="self-center flex-shrink-0 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300 pr-1">
-                                                <ChevronRight className={`w-5 h-5 ${theme.chevronColor}`} />
+                                            <div className="self-center flex-shrink-0 opacity-60 transition-all duration-300 group-hover:opacity-100 sm:translate-x-2 sm:opacity-0 sm:group-hover:translate-x-0">
+                                                <ChevronRight className={`size-4.5 sm:size-5 ${theme.chevronColor}`} />
                                             </div>
                                         </div>
                                     )
@@ -1000,10 +1005,10 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
 
                 {/* STEP: Saved Dashboard */}
                 {step === 'saved_dashboard' && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-400">
-                        <div className="text-center space-y-1.5 mb-2">
-                            <h2 className="text-2xl md:text-3xl font-bold text-slate-800">Sổ tay ôn tập</h2>
-                            <p className="text-slate-500 text-sm">Xem lại các từ đã trả lời sai hoặc bookmark để luyện tập nâng cao</p>
+                    <div className="animate-in space-y-4 fade-in slide-in-from-bottom-3 duration-400 md:space-y-6">
+                        <div className="mb-1 text-left md:mb-2 md:text-center">
+                            <h2 className="text-xl font-bold text-slate-800 md:text-3xl">Sổ tay ôn tập</h2>
+                            <p className="mt-0.5 text-xs text-slate-500 md:mt-1.5 md:text-sm">Ôn lại những từ đã lưu.</p>
                         </div>
 
                         {savedWords.length === 0 ? (
@@ -1025,12 +1030,12 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
                                 </Button>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-12 md:gap-6">
                                 {/* Left column: Saved Words List */}
-                                <div className="md:col-span-7 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm space-y-4">
+                                <div className="space-y-3 rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm md:col-span-7 md:space-y-4 md:p-5">
                                     <div className="flex justify-between items-center pb-2 border-b">
                                         <h3 className="font-extrabold text-slate-800 text-sm md:text-base flex items-center gap-2">
-                                            Danh sách từ vựng đã lưu
+                                            Từ đã lưu
                                             <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-600 text-xs rounded-full font-bold">
                                                 {savedWords.length}
                                             </span>
@@ -1050,25 +1055,25 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
                                         </Button>
                                     </div>
 
-                                    <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1 scrollbar-thin">
+                                    <div className="max-h-[400px] space-y-1.5 overflow-y-auto pr-1 scrollbar-thin md:space-y-2">
                                         {savedWords.map((item) => (
                                             <div 
                                                 key={item.id} 
-                                                className="flex items-center gap-3 p-3 bg-slate-50/50 hover:bg-slate-50 border border-slate-100 rounded-xl transition-all"
+                                                className="flex items-center gap-2.5 rounded-xl border border-slate-100 bg-slate-50/50 p-2.5 transition-all hover:bg-slate-50 md:gap-3 md:p-3"
                                             >
                                                 {item.image_url ? (
                                                     <img 
                                                         src={item.image_url} 
                                                         alt="" 
-                                                        className="w-12 h-12 object-contain bg-white border rounded-lg p-0.5 flex-shrink-0"
+                                                        className="size-10 flex-shrink-0 rounded-lg border bg-white object-contain p-0.5 md:size-12"
                                                     />
                                                 ) : (
-                                                    <div className="w-12 h-12 bg-indigo-50 border rounded-lg flex items-center justify-center flex-shrink-0 text-indigo-400">
+                                                    <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg border bg-indigo-50 text-indigo-400 md:size-12">
                                                         <BookOpen className="w-5 h-5" />
                                                     </div>
                                                 )}
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="font-bold text-slate-800 text-sm md:text-base truncate">
+                                                    <p className="truncate text-sm font-bold text-slate-800 md:text-base">
                                                         {item.word_kr}
                                                     </p>
                                                     <p className="font-medium text-emerald-600 text-xs md:text-sm truncate">
@@ -1101,50 +1106,50 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
                                 </div>
 
                                 {/* Right column: Launch Study Sessions */}
-                                <div className="md:col-span-5 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm space-y-4">
+                                <div className="space-y-3 rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm md:col-span-5 md:space-y-4 md:p-5">
                                     <h3 className="font-extrabold text-slate-800 text-sm md:text-base pb-2 border-b">
-                                        Bắt đầu ôn tập luyện tập
+                                        Chọn cách ôn tập
                                     </h3>
                                     <div className="space-y-3">
                                         {/* Flashcard Option */}
                                         <div 
                                             onClick={() => handleStart('flashcard')}
-                                            className="group cursor-pointer p-4 rounded-xl border-2 border-slate-100 hover:border-purple-300 hover:bg-purple-50/20 transition-all flex items-center gap-3"
+                                            className="group flex cursor-pointer items-center gap-3 rounded-xl border-2 border-slate-100 p-3 transition-all hover:border-purple-300 hover:bg-purple-50/20 md:p-4"
                                         >
                                             <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center shadow-sm flex-shrink-0">
                                                 <Layers className="w-5 h-5" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h4 className="font-bold text-slate-800 text-sm">⚡ Luyện tập Flashcard</h4>
-                                                <p className="text-[11px] text-slate-500 leading-snug">Gợi nhớ qua hình ảnh và tự lật thẻ xác nhận</p>
+                                                <h4 className="text-sm font-bold text-slate-800">Flashcard</h4>
+                                                <p className="truncate text-[11px] text-slate-500">Ôn bằng hình ảnh và lật thẻ.</p>
                                             </div>
                                         </div>
 
                                         {/* Quiz Option */}
                                         <div 
                                             onClick={() => handleStart('quiz')}
-                                            className="group cursor-pointer p-4 rounded-xl border-2 border-slate-100 hover:border-pink-300 hover:bg-pink-50/20 transition-all flex items-center gap-3"
+                                            className="group flex cursor-pointer items-center gap-3 rounded-xl border-2 border-slate-100 p-3 transition-all hover:border-pink-300 hover:bg-pink-50/20 md:p-4"
                                         >
                                             <div className="w-10 h-10 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center shadow-sm flex-shrink-0">
                                                 <AlertCircle className="w-5 h-5" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h4 className="font-bold text-slate-800 text-sm">✍️ Làm bài Trắc nghiệm</h4>
-                                                <p className="text-[11px] text-slate-500 leading-snug">Câu hỏi tính giờ để rèn phản xạ nhớ nhanh</p>
+                                                <h4 className="text-sm font-bold text-slate-800">Trắc nghiệm</h4>
+                                                <p className="truncate text-[11px] text-slate-500">Kiểm tra khả năng ghi nhớ.</p>
                                             </div>
                                         </div>
 
                                         {/* Podcast Option */}
                                         <div 
                                             onClick={() => handleStart('podcast')}
-                                            className="group cursor-pointer p-4 rounded-xl border-2 border-slate-100 hover:border-blue-300 hover:bg-blue-50/20 transition-all flex items-center gap-3"
+                                            className="group flex cursor-pointer items-center gap-3 rounded-xl border-2 border-slate-100 p-3 transition-all hover:border-blue-300 hover:bg-blue-50/20 md:p-4"
                                         >
                                             <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shadow-sm flex-shrink-0">
                                                 <Volume2 className="w-5 h-5" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h4 className="font-bold text-slate-800 text-sm">🔊 Nghe thụ động rèn luyện</h4>
-                                                <p className="text-[11px] text-slate-500 leading-snug">Tự động phát âm thanh tiếng Hàn/Việt tự động</p>
+                                                <h4 className="text-sm font-bold text-slate-800">Nghe thụ động</h4>
+                                                <p className="truncate text-[11px] text-slate-500">Nghe từ vựng tự động.</p>
                                             </div>
                                         </div>
                                     </div>

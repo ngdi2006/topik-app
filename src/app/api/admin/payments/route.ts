@@ -1,5 +1,36 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
+
+interface PaymentPackageSummary {
+    package_name: string
+    credits: number
+    price_vnd: number
+}
+
+interface PaymentTransactionRow {
+    id: string
+    transaction_code: string
+    user_id: string
+    package_id: string | null
+    amount_vnd: number
+    credits_purchased: number
+    payment_status: string
+    payment_method?: string
+    qr_code_url?: string | null
+    payment_proof_url?: string | null
+    verified_at?: string | null
+    verified_by?: string | null
+    notes?: string | null
+    created_at: string
+    updated_at?: string
+    payment_packages: PaymentPackageSummary | null
+}
+
+interface ProfileSummary {
+    id: string
+    full_name: string | null
+}
 
 // Admin: Get all pending transactions
 export async function GET(request: NextRequest) {
@@ -24,16 +55,12 @@ export async function GET(request: NextRequest) {
 
         const { searchParams } = new URL(request.url)
         const status = searchParams.get('status') || 'pending'
+        const adminClient = createAdminClient()
 
-        const { data: transactions, error } = await supabase
+        const { data: transactions, error } = await adminClient
             .from('payment_transactions')
             .select(`
                 *,
-                profiles:user_id (
-                    id,
-                    full_name,
-                    email
-                ),
                 payment_packages (
                     package_name,
                     credits,
@@ -45,11 +72,54 @@ export async function GET(request: NextRequest) {
 
         if (error) throw error
 
-        return NextResponse.json(transactions)
-    } catch (error: any) {
+        const transactionRows = (transactions || []) as PaymentTransactionRow[]
+        const userIds = Array.from(new Set(transactionRows.map((tx) => tx.user_id)))
+
+        const { data: profiles, error: profilesError } = userIds.length > 0
+            ? await adminClient
+                .from('profiles')
+                .select('id, full_name')
+                .in('id', userIds)
+            : { data: [], error: null }
+
+        if (profilesError) throw profilesError
+
+        const profileByUserId = new Map(
+            ((profiles || []) as ProfileSummary[]).map((profileRow) => [profileRow.id, profileRow])
+        )
+
+        const authUsers = await Promise.all(
+            userIds.map(async (userId) => {
+                const { data, error } = await adminClient.auth.admin.getUserById(userId)
+                if (error) {
+                    console.warn('Failed to fetch payment user email:', userId, error.message)
+                    return { id: userId, email: null }
+                }
+
+                return { id: userId, email: data.user?.email || null }
+            })
+        )
+        const emailByUserId = new Map(authUsers.map((authUser) => [authUser.id, authUser.email]))
+
+        const transactionsWithEmail = transactionRows.map((tx) => {
+            const userProfile = profileByUserId.get(tx.user_id)
+
+            return {
+            ...tx,
+            profiles: {
+                id: tx.user_id,
+                full_name: userProfile?.full_name || 'Hoc vien',
+                email: emailByUserId.get(tx.user_id) || ''
+            }
+        }
+        })
+
+        return NextResponse.json(transactionsWithEmail)
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Failed to fetch transactions'
         console.error('Error fetching transactions:', error)
         return NextResponse.json(
-            { error: error.message || 'Failed to fetch transactions' },
+            { error: message },
             { status: 500 }
         )
     }
@@ -150,10 +220,11 @@ export async function POST(request: NextRequest) {
                 message: 'Đã từ chối giao dịch'
             })
         }
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Failed to process transaction'
         console.error('Error processing transaction:', error)
         return NextResponse.json(
-            { error: error.message || 'Failed to process transaction' },
+            { error: message },
             { status: 500 }
         )
     }

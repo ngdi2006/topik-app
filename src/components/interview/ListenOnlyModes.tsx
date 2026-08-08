@@ -226,7 +226,7 @@ export function FlashcardMode({ currentQ, onKnown, onNotKnown, questions }: List
             audioRef.current = audio
             audio.play().catch(e => console.warn(e))
         } else if (currentQ.question_text) {
-            speakText(currentQ.question_text, 0.8)
+            speakText(currentQ.question_text, 1.0)
         }
     }, [currentQ])
 
@@ -472,7 +472,7 @@ export function MeaningQuizMode({ currentQ, onKnown, onNotKnown, timeLeft = 0, q
             a.playbackRate = playbackRate
             a.play().catch(e => console.warn(e))
         } else {
-            speakText(text, 0.9 * playbackRate)
+            speakText(text, playbackRate)
         }
     }
 
@@ -531,19 +531,19 @@ export function MeaningQuizMode({ currentQ, onKnown, onNotKnown, timeLeft = 0, q
     const currentIndex = questions.findIndex(x => x.id === currentQ.id)
 
     return (
-        <div className="space-y-6 max-w-2xl mx-auto animate-in fade-in duration-400">
+        <div className="mx-auto max-w-2xl space-y-3 animate-in fade-in duration-400 md:space-y-6">
             {/* Stats / Score row */}
             <div className="flex items-center justify-between px-1">
-                <div className="text-sm font-semibold text-slate-550">
+                <div className="text-xs font-semibold text-slate-550 md:text-sm">
                     Câu hỏi: <span className="text-blue-600 font-extrabold">{currentIndex + 1}</span>/{questions.length}
                 </div>
-                <span className="text-sm font-black bg-blue-100 text-blue-750 px-3 py-1 rounded-full shadow-sm">
+                <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-black text-blue-750 shadow-sm md:px-3 md:text-sm">
                     🏆 {score} điểm
                 </span>
             </div>
 
             {/* Progress bar */}
-            <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div className="h-1.5 overflow-hidden rounded-full bg-slate-200 md:h-2">
                 <div 
                     className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full transition-all duration-500"
                     style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }} 
@@ -551,8 +551,8 @@ export function MeaningQuizMode({ currentQ, onKnown, onNotKnown, timeLeft = 0, q
             </div>
 
             {/* Main Question Card */}
-            <div className="bg-white rounded-2xl md:rounded-3xl border border-blue-150 shadow-md p-5 md:p-8 text-center relative overflow-hidden">
-                <p className="text-xs font-black text-blue-600 uppercase tracking-widest mb-4">Nghe câu hỏi → Chọn đáp án đúng</p>
+            <div className="relative overflow-hidden rounded-2xl border border-blue-150 bg-white p-3.5 text-center shadow-sm md:rounded-3xl md:p-8 md:shadow-md">
+                <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-blue-600 md:mb-4 md:text-xs md:tracking-widest">Nghe và chọn đáp án đúng</p>
                 
                 {selectedAnswer ? (
                     <div className="animate-in fade-in duration-500 my-4">
@@ -564,22 +564,22 @@ export function MeaningQuizMode({ currentQ, onKnown, onNotKnown, timeLeft = 0, q
                         </p>
                     </div>
                 ) : (
-                    <div className="py-6 flex flex-col items-center justify-center gap-2 mb-3 animate-in fade-in duration-300">
-                        <Volume2 className="w-12 h-12 text-blue-500 animate-pulse" />
-                        <p className="text-slate-400 text-sm font-medium">Hãy nghe kỹ câu hỏi và chọn đáp án bên dưới</p>
+                    <div className="mb-2 flex flex-col items-center justify-center gap-1.5 py-2.5 animate-in fade-in duration-300 md:mb-3 md:gap-2 md:py-6">
+                        <Volume2 className="size-9 animate-pulse text-blue-500 md:size-12" />
+                        <p className="text-xs font-medium text-slate-400 md:text-sm">Nghe câu hỏi rồi chọn đáp án</p>
                     </div>
                 )}
 
                 <button
                     onClick={() => speak(currentQ.question_text)}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-full border border-blue-200 transition-colors text-sm shadow-sm"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-bold text-blue-600 shadow-sm transition-colors hover:bg-blue-100 md:gap-2 md:px-5 md:py-2.5 md:text-sm"
                 >
                     <Volume2 className="w-4 h-4" /> Nghe lại câu hỏi
                 </button>
             </div>
 
             {/* Options 2x2 grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 md:gap-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:gap-3">
                 {options.map((opt, i) => {
                     const correctVal = currentQ.vietnamese_meaning || "Không có dữ liệu nghĩa"
                     const isCorrectOpt = opt === correctVal
@@ -602,9 +602,12 @@ export function MeaningQuizMode({ currentQ, onKnown, onNotKnown, timeLeft = 0, q
                             key={i}
                             onClick={() => handleSelect(opt)}
                             disabled={isAnswered}
-                            className={`${cls} rounded-xl py-3 px-4 md:p-5 text-center font-bold text-sm md:text-base transition-all duration-300 cursor-pointer hover:-translate-y-0.5 min-h-[48px] md:min-h-[64px] flex items-center justify-center`}
+                            className={`${cls} flex min-h-11 cursor-pointer items-center justify-start gap-3 rounded-xl px-3 py-2 text-left text-xs font-bold leading-snug transition-all duration-300 hover:-translate-y-0.5 md:min-h-16 md:p-5 md:text-base`}
                         >
-                            {opt}
+                            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-black text-slate-600 shadow-sm md:size-8 md:text-sm">
+                                {i + 1}
+                            </span>
+                            <span className="min-w-0 flex-1">{opt}</span>
                         </button>
                     )
                 })}
@@ -649,7 +652,7 @@ export function WordSortMode({ currentQ, onKnown, onNotKnown, timeLeft, question
     const [isAnswerCorrect, setIsAnswerCorrect] = useState<boolean | null>(null)
 
     const speak = (text: string) => {
-        speakText(text, 0.8)
+        speakText(text, 1.0)
     }
 
     // Auto play question speech on load

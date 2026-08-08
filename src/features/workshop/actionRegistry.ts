@@ -1,0 +1,36 @@
+import type { WorkshopAction, WorkshopActionId } from './model'
+
+const actions: WorkshopAction[] = [
+    { id: 'tighten', nameKo: '조이다', nameVi: 'Siết', legacyIds: ['clockwise'] },
+    { id: 'loosen', nameKo: '풀다', nameVi: 'Tháo / nới', legacyIds: ['counter_clockwise'] },
+    { id: 'cut', nameKo: '자르다 / 절단하다', nameVi: 'Cắt' },
+    { id: 'hammer', nameKo: '박다', nameVi: 'Đóng' },
+    { id: 'bend', nameKo: '구부리다', nameVi: 'Uốn' },
+    { id: 'measure', nameKo: '재다 / 측정하다', nameVi: 'Đo' },
+    { id: 'drill', nameKo: '구멍을 뚫다', nameVi: 'Khoan' },
+    { id: 'paint', nameKo: '칠하다', nameVi: 'Sơn' },
+    { id: 'sand', nameKo: '샌딩하다', nameVi: 'Chà nhám' },
+    { id: 'clamp', nameKo: '고정하다', nameVi: 'Kẹp / cố định' },
+    { id: 'insert', nameKo: '끼우다', nameVi: 'Lắp vào' },
+    { id: 'remove', nameKo: '분리하다', nameVi: 'Tháo ra' },
+    { id: 'put_into', nameKo: '넣다', nameVi: 'Cho vào', legacyIds: ['push'] },
+    { id: 'take_out', nameKo: '꺼내다', nameVi: 'Lấy ra', legacyIds: ['pull'] },
+]
+
+export const WORKSHOP_ACTIONS = Object.freeze(actions)
+export const WORKSHOP_ACTION_REGISTRY = new Map(actions.map((action) => [action.id, action]))
+
+const legacyActionMap = new Map<string, WorkshopActionId>()
+for (const action of actions) {
+    legacyActionMap.set(action.id, action.id)
+    for (const legacyId of action.legacyIds || []) legacyActionMap.set(legacyId, action.id)
+}
+
+export function resolveWorkshopActionId(id?: string | null) {
+    return id ? legacyActionMap.get(id) : undefined
+}
+
+export function getWorkshopAction(id?: string | null) {
+    const resolved = resolveWorkshopActionId(id)
+    return resolved ? WORKSHOP_ACTION_REGISTRY.get(resolved) : undefined
+}

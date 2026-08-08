@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+function getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : 'Unknown error'
+}
+
+const SUPABASE_PAGE_SIZE = 1000
+
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url)
@@ -8,27 +14,39 @@ export async function GET(request: Request) {
         const industry = searchParams.get('industry')
         const adminClient = createAdminClient()
 
-        let query = adminClient
-            .from('interview_questions')
-            .select('*')
-            .order('created_at', { ascending: false })
+        const allQuestions: unknown[] = []
 
-        if (category && category !== 'all') {
-            query = query.eq('category', category)
+        for (let from = 0; ; from += SUPABASE_PAGE_SIZE) {
+            let query = adminClient
+                .from('interview_questions')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .range(from, from + SUPABASE_PAGE_SIZE - 1)
+
+            if (category && category !== 'all') {
+                query = query.eq('category', category)
+            }
+
+            if (industry && industry !== 'all') {
+                query = query.or(`industry.eq.${industry},industry.eq.COMMON`)
+            }
+
+            const { data, error } = await query
+            if (error) throw error
+
+            const page = data || []
+            allQuestions.push(...page)
+            if (page.length < SUPABASE_PAGE_SIZE) break
         }
 
-        if (industry && industry !== 'all') {
-            query = query.or(`industry.eq.${industry},industry.eq.COMMON`)
-        }
-
-        const { data, error } = await query
-
-        if (error) throw error
-
-        return NextResponse.json({ success: true, data })
-    } catch (error: any) {
+        return NextResponse.json({
+            success: true,
+            data: allQuestions,
+            total: allQuestions.length,
+        })
+    } catch (error: unknown) {
         return NextResponse.json(
-            { success: false, error: error.message },
+            { success: false, error: getErrorMessage(error) },
             { status: 500 }
         )
     }
@@ -50,7 +68,8 @@ export async function POST(request: Request) {
                 suggested_answers: body.suggested_answers,
                 countdown_after_audio: body.countdown_after_audio,
                 tool_image_url: body.tool_image_url,
-                target_zone_id: body.target_zone_id
+                target_zone_id: body.target_zone_id,
+                tool_config: body.tool_config
             })
             .select()
             .single()
@@ -58,9 +77,45 @@ export async function POST(request: Request) {
         if (error) throw error
 
         return NextResponse.json({ success: true, data }, { status: 201 })
-    } catch (error: any) {
+    } catch (error: unknown) {
         return NextResponse.json(
-            { success: false, error: error.message },
+            { success: false, error: getErrorMessage(error) },
+            { status: 500 }
+        )
+    }
+}
+
+export async function DELETE(request: Request) {
+    try {
+        const body = await request.json() as { ids?: unknown }
+        const ids = Array.isArray(body.ids)
+            ? [...new Set(body.ids.filter((id): id is string => typeof id === 'string' && id.length > 0))]
+            : []
+
+        if (ids.length === 0) {
+            return NextResponse.json(
+                { success: false, error: 'Vui lòng chọn ít nhất một câu hỏi' },
+                { status: 400 }
+            )
+        }
+
+        const adminClient = createAdminClient()
+        const batchSize = 200
+
+        for (let index = 0; index < ids.length; index += batchSize) {
+            const batch = ids.slice(index, index + batchSize)
+            const { error } = await adminClient
+                .from('interview_questions')
+                .delete()
+                .in('id', batch)
+
+            if (error) throw error
+        }
+
+        return NextResponse.json({ success: true, data: { deleted: ids.length } })
+    } catch (error: unknown) {
+        return NextResponse.json(
+            { success: false, error: getErrorMessage(error) },
             { status: 500 }
         )
     }

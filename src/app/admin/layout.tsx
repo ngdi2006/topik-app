@@ -1,7 +1,7 @@
 'use client'
 
 import Link from "next/link"
-import { Shield, Users, FileText, Settings, LayoutDashboard, BookOpen, Menu, X, GraduationCap, Target, CreditCard, Package, BrainCircuit } from "lucide-react"
+import { Shield, Users, FileText, Settings, LayoutDashboard, BookOpen, Menu, X, GraduationCap, Target, CreditCard, Package, BrainCircuit, ReceiptText, KeyRound } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useState } from "react"
 import { useUserStore } from "@/store/userStore"
@@ -149,6 +149,22 @@ export default function AdminLayout({
                             >
                                 <CreditCard className="w-5 h-5 mr-3" />
                                 Thanh Toán
+                            </Link>
+                            <Link
+                                href="/admin/interview-access"
+                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                onClick={() => setSidebarOpen(false)}
+                            >
+                                <KeyRound className="w-5 h-5 mr-3" />
+                                Báo cáo gói Vòng 2
+                            </Link>
+                            <Link
+                                href="/admin/sepay-logs"
+                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                onClick={() => setSidebarOpen(false)}
+                            >
+                                <ReceiptText className="w-5 h-5 mr-3" />
+                                Log SePay
                             </Link>
                             <Link
                                 href="/admin/payment-packages"

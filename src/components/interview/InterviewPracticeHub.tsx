@@ -1,19 +1,24 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { InterviewPracticeScreen } from '@/components/interview/InterviewPracticeScreen'
 import { ToolDragPracticeScreen } from '@/components/interview/ToolDragPracticeScreen'
+import { ToolDropGame } from '@/components/interview/ToolDropGame'
 import { CommandProgressDashboard } from '@/components/interview/CommandProgressDashboard'
 import { SpeedQuizScreen } from '@/components/interview/SpeedQuizScreen'
 import { FactoryScenarioScreen } from '@/components/interview/FactoryScenarioScreen'
 import { VocabularyPracticeHub } from '@/components/interview/VocabularyPracticeHub'
 import { MathPracticeScreen } from '@/components/interview/MathPracticeScreen'
+import { MockExamScreen } from '@/components/interview/MockExamScreen'
+import { SelfIntroductionPractice } from '@/components/interview/SelfIntroductionPractice'
+import { InterviewFreePreviewBanner } from '@/components/interview/InterviewFreePreviewBanner'
+import { saveSelfIntroductionCompletion } from '@/features/second-round-interview/storage'
 import PodcastMode from '@/components/vocabulary-vong2/PodcastMode'
 import { toast } from 'sonner'
-import { Headphones, Bot, ArrowLeft, Wrench, Mic, CheckCircle, Calculator, MessageSquare, Presentation, Factory, Fish, Trees, Tractor, Home, Coffee, Layers, RefreshCw, Play, MousePointer2, Zap, ShieldAlert, BookOpen } from 'lucide-react'
+import { Headphones, Bot, ArrowLeft, Wrench, Mic, CheckCircle, Calculator, MessageSquare, Presentation, Factory, Fish, Trees, Tractor, Home, Coffee, Layers, RefreshCw, Play, MousePointer2, Zap, ShieldAlert, BookOpen, Award, ChevronRight, FileText, UserRound } from 'lucide-react'
 
 const INDUSTRIES = [
     { 
@@ -78,7 +83,30 @@ const INDUSTRIES = [
     },
 ]
 
+const MOCK_EXAM_SECTIONS = [
+    { label: '1.A Hội thoại giao tiếp', detail: '2 câu', points: 4 },
+    { label: '1.B Mệnh lệnh hành động', detail: '2 câu', points: 4 },
+    { label: '2. Nhận diện dụng cụ', detail: '5 câu', points: 5 },
+    { label: '3. Thực hành thao tác', detail: '5 câu · giả lập 3 bước', points: 15 },
+    { label: '4. Năng lực nghề nghiệp', detail: '2 câu · toán & tình huống', points: 6 },
+    { label: '5. Hệ thống biển báo', detail: '2 câu', points: 6 },
+    { label: '6. An toàn chuyên sâu', detail: '2 câu', points: 10 },
+] as const
+
 const TOPICS = [
+    {
+        id: 'introduction',
+        name: 'Giới thiệu bản thân',
+        description: 'Cá nhân hoá bài mẫu và luyện nói theo tốc độ phù hợp.',
+        icon: UserRound,
+        color: 'text-blue-600',
+        gradient: 'from-blue-50 to-violet-100/50',
+        hoverGradient: 'hover:from-blue-100 hover:to-violet-200/50',
+        borderColor: 'border-blue-100 hover:border-blue-300',
+        shadow: 'hover:shadow-blue-200/50',
+        mode: 'self_introduction',
+        usesAI: false,
+    },
     { 
         id: 'command', 
         name: 'Khẩu lệnh phản xạ', 
@@ -235,17 +263,34 @@ const VN_TO_EN_INDUSTRY: Record<string, string> = {
     'Dịch vụ': 'SERVICE'
 }
 
-export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?: () => void }) {
+export function InterviewPracticeHub({
+    onBackToDashboard,
+    initialMode = 'practice',
+    initialIndustry = '',
+    initialTopicId,
+}: {
+    onBackToDashboard?: () => void
+    initialMode?: 'practice' | 'mock'
+    initialIndustry?: string
+    initialTopicId?: string
+}) {
     const router = useRouter()
-    const [step, setStep] = useState<'industry' | 'topic' | 'select_mode' | 'communication_topic' | 'situation_topic' | 'podcast' | 'math_topic' | 'math_practice' | 'flashcard_options' | 'command_dashboard' | 'speed_quiz' | 'scenario_simulation' | 'practice' | 'evaluating' | 'finished' | 'vocabulary_practice'>('industry')
+    const hasOpenedInitialTopic = useRef(false)
+    const [step, setStep] = useState<'industry' | 'topic' | 'loading_topic' | 'self_introduction' | 'select_mode' | 'communication_topic' | 'situation_topic' | 'podcast' | 'math_topic' | 'math_practice' | 'flashcard_options' | 'command_dashboard' | 'speed_quiz' | 'tool_drop_game' | 'scenario_simulation' | 'practice' | 'evaluating' | 'finished' | 'vocabulary_practice' | 'mock_intro' | 'mock_exam'>(
+        initialIndustry
+            ? (initialMode === 'mock' ? 'mock_intro' : initialTopicId ? 'loading_topic' : 'topic')
+            : 'industry'
+    )
     const [allQuestions, setAllQuestions] = useState<any[]>([])
     const [selectedMathTopic, setSelectedMathTopic] = useState<string>('all')
     const [selectedCommunicationGroup, setSelectedCommunicationGroup] = useState<string>('all')
     const [selectedSituationGroup, setSelectedSituationGroup] = useState<string>('all')
     const [mathMode, setMathMode] = useState<'listen_card' | 'number_quiz' | 'speak_answer'>('listen_card')
-    const [selectedIndustry, setSelectedIndustry] = useState<string>('')
+    const [selectedIndustry, setSelectedIndustry] = useState<string>(initialIndustry)
     const [selectedTopicObj, setSelectedTopicObj] = useState<any>(null)
     const [selectedListenMode, setSelectedListenMode] = useState<'flashcard' | 'meaning_quiz' | 'word_sort' | 'ai_mock'>('flashcard')
+    const [podcastQuestions, setPodcastQuestions] = useState<any[]>([])
+    const [podcastRound, setPodcastRound] = useState(0)
     const [initialAutoPlay, setInitialAutoPlay] = useState<boolean>(false)
     const [reviewQuestions, setReviewQuestions] = useState<any[]>([])
     
@@ -258,10 +303,20 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
 
     const handleSelectIndustry = (indId: string) => {
         setSelectedIndustry(indId)
-        setStep('topic')
+        if (initialMode === 'mock') {
+            setStep('mock_intro')
+        } else {
+            setStep('topic')
+        }
     }
 
     const handleSelectTopic = async (topic: any) => {
+        if (topic.id === 'introduction') {
+            setSelectedTopicObj(topic)
+            setStep('self_introduction')
+            return
+        }
+
         if (topic.id === 'vocabulary') {
             setStep('vocabulary_practice')
             return
@@ -274,7 +329,7 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
 
         setSelectedTopicObj(topic)
 
-        if (topic.mode === 'listen_only' || topic.id === 'communication' || topic.id === 'situation') {
+        if (topic.mode === 'listen_only' || topic.id === 'communication' || topic.id === 'situation' || topic.id === 'tools') {
             // Load questions first, then show dashboard
             loadQuestionsForDashboard(topic)
             return
@@ -282,6 +337,18 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
 
         startPractice(topic, null)
     }
+
+    useEffect(() => {
+        if (!initialTopicId || !initialIndustry || hasOpenedInitialTopic.current) return
+
+        const topic = TOPICS.find((item) => item.id === initialTopicId)
+        if (!topic) return
+
+        hasOpenedInitialTopic.current = true
+        void handleSelectTopic(topic)
+        // The initial deep link is intentionally handled once per mounted learning flow.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialIndustry, initialTopicId])
 
     const loadQuestionsForDashboard = async (topic: any) => {
         setLoading(true)
@@ -298,12 +365,14 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
             } else if (topic.id === 'communication') {
                 setStep('communication_topic')
             } else if (topic.id === 'situation') {
-                setStep('situation_topic')
+                setSelectedSituationGroup('all')
+                setStep('select_mode')
             } else {
                 setStep('select_mode')
             }
         } catch (error) {
             toast.error('Lỗi khi tải câu hỏi')
+            if (initialTopicId) setStep('topic')
         } finally {
             setLoading(false)
         }
@@ -334,7 +403,10 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
                 || (topic.id === 'situation' && selectedSituationGroup === 'all');
             const isAiMockConversation = (topic.mode === 'ai_mock' && !listenMode);
 
-            if (topic.mode === 'listen_only') {
+            if (topic.id === 'situation' && listenMode) {
+                // P7 has a compact bank: keep every listening mode to 10 questions.
+                finalQuestions = finalQuestions.slice(0, 10)
+            } else if (topic.mode === 'listen_only') {
                 finalQuestions = finalQuestions.slice(0, 10)
             } else if (isAiMockConversation) {
                 // AI mock conversation: luôn 5 câu (không tăng)
@@ -399,6 +471,7 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
             setStep('practice')
         } catch (error) {
             toast.error('Lỗi khi tải câu hỏi')
+            if (initialTopicId) setStep('topic')
         } finally {
             setLoading(false)
         }
@@ -523,9 +596,70 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
         setStep('select_mode')
     }
 
+    const returnToOuterDashboard = () => {
+        if (!initialTopicId || !onBackToDashboard) return false
+        onBackToDashboard()
+        return true
+    }
+
+    const handleReturnToTopicList = () => {
+        setSessionStats({ mastered: 0, total: 0 })
+        setSessionMasteredIds([])
+        setEvaluationResults([])
+        setAnswers({})
+
+        if (!returnToOuterDashboard()) {
+            setStep('topic')
+        }
+    }
+
+    const handleExitActivePractice = () => {
+        if (selectedTopicObj?.id === 'tools' && allQuestions.length > 0) {
+            setQuestions(allQuestions)
+        }
+        if (
+            selectedTopicObj?.mode === 'listen_only'
+            || selectedTopicObj?.id === 'math'
+            || selectedTopicObj?.id === 'communication'
+            || selectedTopicObj?.id === 'situation'
+            || selectedTopicObj?.id === 'tools'
+        ) {
+            setStep('select_mode')
+        } else if (returnToOuterDashboard()) {
+            return
+        } else {
+            setStep('topic')
+        }
+    }
+
     const handleGoBack = () => {
-        if (step === 'topic') {
-            setStep('industry')
+        if (initialTopicId && onBackToDashboard) {
+            if (step === 'select_mode' && selectedTopicObj?.id === 'communication') {
+                setStep('communication_topic')
+                return
+            }
+            if (step === 'flashcard_options') {
+                setStep('select_mode')
+                return
+            }
+            onBackToDashboard()
+            return
+        }
+
+        if (step === 'topic' || step === 'loading_topic') {
+            if (initialIndustry && onBackToDashboard) {
+                onBackToDashboard()
+            } else {
+                setStep('industry')
+            }
+        } else if (step === 'mock_intro' || step === 'mock_exam') {
+            if (initialMode === 'mock' && onBackToDashboard) {
+                onBackToDashboard()
+                return
+            }
+            setStep('topic')
+        } else if (step === 'self_introduction') {
+            if (!returnToOuterDashboard()) setStep('topic')
         } else if (step === 'command_dashboard') {
             setStep('topic')
         } else if (step === 'math_topic') {
@@ -536,7 +670,7 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
             if (selectedTopicObj?.id === 'communication') {
                 setStep('communication_topic')
             } else if (selectedTopicObj?.id === 'situation') {
-                setStep('situation_topic')
+                if (!returnToOuterDashboard()) setStep('topic')
             } else {
                 setStep('topic')
             }
@@ -544,7 +678,7 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
             setStep('topic')
         } else if (step === 'situation_topic') {
             setStep('topic')
-        } else if (step === 'flashcard_options' || step === 'scenario_simulation') {
+        } else if (step === 'flashcard_options' || step === 'scenario_simulation' || step === 'tool_drop_game') {
             setStep('select_mode')
         } else {
             if (onBackToDashboard) {
@@ -560,7 +694,43 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
             toast.error('Chưa có câu hỏi')
             return
         }
+        if (selectedTopicObj?.id === 'situation') {
+            setQuestions(shuffleArray(questions).slice(0, 10))
+        }
         setStep('speed_quiz')
+    }
+
+    const handleStartToolDropGame = () => {
+        // ToolDropGame supports both the canonical workshop schema and legacy
+        // rows inferred from their Korean/Vietnamese content. Filtering here by
+        // the old `correct_tool` field made the game appear unavailable.
+        const gameQuestions = shuffleArray(questions)
+            .filter((question) => Boolean(question.question_text?.trim()))
+            .slice(0, 10)
+
+        if (gameQuestions.length === 0) {
+            toast.error('Chưa có câu hỏi được cấu hình dụng cụ cho trò chơi')
+            return
+        }
+
+        setQuestions(gameQuestions)
+        setStep('tool_drop_game')
+    }
+
+    const handleStartPodcast = () => {
+        const pool = filterDuplicateTypes(allQuestions.length > 0 ? allQuestions : questions)
+        if (selectedTopicObj?.id !== 'tools') {
+            setPodcastQuestions(pool)
+            setStep('podcast')
+            return
+        }
+
+        const previousIds = new Set(podcastQuestions.map((question) => question.id))
+        const unseen = pool.filter((question) => !previousIds.has(question.id))
+        const source = unseen.length >= 20 ? unseen : pool
+        setPodcastQuestions(shuffleArray(source).slice(0, 20))
+        setPodcastRound((current) => current + 1)
+        setStep('podcast')
     }
 
     const handleStartScenarioSimulation = () => {
@@ -575,30 +745,36 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
         return (
             <VocabularyPracticeHub 
                 presetIndustry={VN_TO_EN_INDUSTRY[selectedIndustry] || 'MANUFACTURING'} 
-                onBackToDashboard={() => setStep('topic')} 
+                onBackToDashboard={() => {
+                    if (!returnToOuterDashboard()) {
+                        setStep('topic')
+                    }
+                }}
             />
         )
     }
 
     if (step === 'communication_topic') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 md:p-8">
+            <div className="min-h-[70vh] bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-3.5 md:min-h-screen md:p-8">
                 {/* Header */}
-                <div className="max-w-4xl mx-auto mb-8">
-                    <button onClick={handleGoBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-semibold mb-6 transition-colors">
-                        <ArrowLeft className="w-5 h-5" /> Quay lại
-                    </button>
-                    <div className="text-center">
-                        <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-700 text-sm font-black px-4 py-2 rounded-full mb-3 shadow-sm">
-                            <MessageSquare className="w-4 h-4" /> Kỹ năng giao tiếp
+                <div className="mx-auto mb-4 max-w-4xl md:mb-8">
+                    <div className="relative text-center">
+                        <button aria-label="Quay lại" onClick={handleGoBack} className="absolute left-0 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:text-slate-800 md:static md:mb-6 md:h-auto md:w-auto md:translate-y-0 md:justify-start md:border-0 md:bg-transparent md:shadow-none">
+                            <ArrowLeft className="size-4.5 md:size-5" />
+                        </button>
+                        <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-700 shadow-sm md:gap-2 md:px-4 md:py-2 md:text-sm">
+                            <MessageSquare className="size-3.5 md:size-4" /> Kỹ năng giao tiếp
                         </div>
-                        <h1 className="text-2xl md:text-3xl font-black text-slate-900 mb-2">Chọn Chủ Đề Luyện Tập</h1>
-                        <p className="text-slate-500 font-medium text-sm md:text-base">Học theo nhóm câu hỏi giúp củng cố phản xạ nghe-hiểu có trọng tâm</p>
+                    </div>
+                    <div className="mt-2 text-center md:mt-0">
+                        <h1 className="text-xl font-black text-slate-900 md:text-3xl">Chọn chủ đề</h1>
+                        <p className="mt-1 text-xs font-medium text-slate-500 md:mt-2 md:text-base">Luyện theo nhóm câu hỏi trọng tâm</p>
                     </div>
                 </div>
 
-                <div className="max-w-4xl mx-auto">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="mx-auto max-w-4xl">
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4">
                         {GIAO_TIEP_GROUPS.map(t => {
                             const groupQs = filterQuestionsByGroup(allQuestions, t.id, GIAO_TIEP_GROUPS);
                             return (
@@ -609,18 +785,23 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
                                         setSelectedCommunicationGroup(t.id);
                                         setStep('select_mode');
                                     }}
-                                    className="p-5 rounded-2xl border-2 text-left bg-white border-slate-200/80 hover:border-emerald-450 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 relative group flex items-start gap-4"
+                                    className={`group relative flex items-center gap-2.5 overflow-hidden rounded-xl border text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md md:items-start md:gap-4 md:rounded-2xl md:p-5 ${t.id === 'all' ? 'border-violet-500 bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 p-3 text-white shadow-lg shadow-violet-200/70 md:hover:border-violet-400' : 'border-slate-200/80 bg-white p-2.5 hover:border-emerald-400 md:border-2'}`}
                                 >
-                                    <div className="text-3xl p-3 rounded-xl bg-slate-50 group-hover:bg-emerald-50 transition-colors">
+                                    {t.id === 'all' && <div className="pointer-events-none absolute -right-5 -top-8 size-24 rounded-full bg-white/10" />}
+                                    <div className={`relative flex size-10 shrink-0 items-center justify-center rounded-xl text-xl transition-colors md:size-auto md:p-3 md:text-3xl ${t.id === 'all' ? 'bg-white/15 ring-1 ring-white/20' : 'bg-slate-50 group-hover:bg-emerald-50'}`}>
                                         {t.emoji}
                                     </div>
-                                    <div className="flex-1 space-y-1">
-                                        <div className="font-black text-slate-800 text-base">{t.label}</div>
-                                        <div className="text-xs text-slate-500 leading-relaxed font-medium">{t.desc}</div>
-                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 text-[10px] font-bold text-slate-600 border border-slate-100 group-hover:bg-emerald-50 group-hover:text-emerald-700 group-hover:border-emerald-100 transition-colors">
+                                    <div className="min-w-0 flex-1 space-y-0.5 md:space-y-1">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className={`min-w-0 truncate text-sm font-black leading-snug md:text-base ${t.id === 'all' ? 'text-white' : 'text-slate-800'}`}>{t.label}</div>
+                                            {t.id === 'all' && <span className="shrink-0 rounded-full bg-amber-300 px-1.5 py-0.5 text-[8px] font-black uppercase text-violet-950">AI</span>}
+                                        </div>
+                                        <div className={`truncate text-[10px] font-medium leading-snug md:line-clamp-2 md:whitespace-normal md:text-xs md:leading-relaxed ${t.id === 'all' ? 'text-violet-100' : 'text-slate-500'}`}>{t.desc}</div>
+                                        <div className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold transition-colors md:px-2.5 md:py-1 md:text-[10px] ${t.id === 'all' ? 'border-white/15 bg-white/10 text-white' : 'border-slate-100 bg-slate-50 text-slate-600 group-hover:border-emerald-100 group-hover:bg-emerald-50 group-hover:text-emerald-700'}`}>
                                             📊 {groupQs.length} câu hỏi
                                         </div>
                                     </div>
+                                    {t.id === 'all' && <ChevronRight className="relative size-4 shrink-0 text-white" />}
                                 </button>
                             );
                         })}
@@ -699,16 +880,16 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
             },
             {
                 id: 'number_quiz' as const,
-                label: 'Nghe & Chọn số',
+                label: 'Chọn số',
                 emoji: '🔢',
-                desc: 'Nghe câu hỏi · Chọn đáp án đúng trong 4 lựa chọn',
+                desc: 'Nghe và chọn 1 trong 4 đáp án',
                 color: 'bg-blue-600 hover:bg-blue-700 shadow-blue-200',
             },
             ...(selectedMathTopic === 'all' ? [{
                 id: 'speak_answer' as const,
-                label: 'Luyện phát âm',
-                emoji: '🎤',
-                desc: 'Nghe câu hỏi · Tính kết quả · Nói to đáp án bằng tiếng Hàn',
+                label: 'Nói đáp án với AI',
+                emoji: 'AI',
+                desc: 'Tính nhẩm · Trả lời bằng tiếng Hàn',
                 color: 'bg-violet-600 hover:bg-violet-700 shadow-violet-200',
             }] : [])
         ]
@@ -721,29 +902,31 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
             })
 
         return (
-            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-4 md:p-8">
+            <div className="min-h-[70vh] bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-3.5 md:min-h-screen md:p-8">
                 {/* Header */}
-                <div className="max-w-3xl mx-auto mb-8">
-                    <button onClick={handleGoBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-medium mb-6 transition-colors">
-                        <ArrowLeft className="w-5 h-5" /> Quay lại
-                    </button>
-                    <div className="text-center">
-                        <div className="inline-flex items-center gap-2 bg-indigo-100 text-indigo-700 text-sm font-black px-4 py-2 rounded-full mb-3">
-                            <Calculator className="w-4 h-4" /> Toán học & Tính toán
+                <div className="mx-auto mb-4 max-w-3xl md:mb-8">
+                    <div className="relative text-center">
+                        <button aria-label="Quay lại" onClick={handleGoBack} className="absolute left-0 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:text-slate-800 md:static md:mb-6 md:h-auto md:w-auto md:translate-y-0 md:justify-start md:gap-2 md:border-0 md:bg-transparent md:shadow-none">
+                            <ArrowLeft className="size-4.5 md:size-5" /><span className="hidden md:inline">Quay lại</span>
+                        </button>
+                        <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-black text-indigo-700 md:gap-2 md:px-4 md:py-2 md:text-sm">
+                            <Calculator className="size-3.5 md:size-4" /> Toán & Tính toán
                         </div>
-                        <h1 className="text-2xl md:text-3xl font-black text-slate-900 mb-2">Chọn chủ đề & Chế độ học</h1>
-                        <p className="text-slate-500 font-medium">Học nghe số · Tính toán · Phát âm kết quả bằng tiếng Hàn</p>
+                    </div>
+                    <div className="mt-2 text-center md:mt-0">
+                        <h1 className="text-xl font-black text-slate-900 md:text-3xl">Chọn nội dung học</h1>
+                        <p className="mt-1 text-xs font-medium text-slate-500 md:mt-2 md:text-base">Nghe số · Tính toán · Phát âm</p>
                     </div>
                 </div>
 
-                <div className="max-w-3xl mx-auto space-y-8">
+                <div className="mx-auto max-w-3xl space-y-5 md:space-y-8">
                     {/* Topic selector */}
                     <div>
-                        <h2 className="text-sm font-black text-slate-700 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <span className="w-6 h-6 bg-indigo-600 text-white rounded-full text-xs flex items-center justify-center font-black">1</span>
-                            Chọn chủ đề
+                        <h2 className="mb-2.5 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-700 md:mb-4 md:text-sm md:tracking-widest">
+                            <span className="flex size-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-black text-white md:size-6 md:text-xs">1</span>
+                            Chọn chủ đề <span className="ml-auto rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold normal-case tracking-normal text-slate-500">{filteredQs.length} câu</span>
                         </h2>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-3">
                             {MATH_TOPICS.map(t => (
                                 <button
                                     key={t.id}
@@ -753,38 +936,53 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
                                             setMathMode('listen_card')
                                         }
                                     }}
-                                    className={`p-4 rounded-2xl border-2 text-left transition-all duration-200 hover:-translate-y-1 hover:shadow-lg bg-gradient-to-br ${t.bg} ${t.border} ${selectedMathTopic === t.id ? 'ring-2 ring-indigo-500 ring-offset-2 shadow-md scale-[1.02]' : ''}`}
+                                    className={`flex min-h-[72px] items-center gap-2.5 rounded-2xl border-2 bg-gradient-to-br p-3 text-left transition-all duration-200 hover:-translate-y-1 hover:shadow-lg md:block md:min-h-0 md:p-4 ${t.id === 'all' ? 'col-span-2 md:col-span-1' : ''} ${t.bg} ${t.border} ${selectedMathTopic === t.id ? 'ring-2 ring-indigo-500 ring-offset-1 shadow-md md:ring-offset-2 md:scale-[1.02]' : ''}`}
                                 >
-                                    <div className="text-2xl mb-2">{t.emoji}</div>
-                                    <div className="font-black text-slate-800 text-sm mb-0.5">{t.label}</div>
-                                    <div className="text-xs text-slate-500">{t.desc}</div>
+                                    <div className="shrink-0 text-xl md:mb-2 md:text-2xl">{t.emoji}</div>
+                                    <div className="min-w-0"><div className="text-xs font-black leading-snug text-slate-800 md:mb-0.5 md:text-sm">{t.label}</div>
+                                    <div className="mt-0.5 truncate text-[10px] text-slate-500 md:text-xs">{t.desc}</div></div>
                                 </button>
                             ))}
                         </div>
-                        <p className="text-xs text-slate-500 mt-2 text-center">{filteredQs.length} câu hỏi cho chủ đề này</p>
                     </div>
 
                     {/* Mode selector */}
                     <div>
-                        <h2 className="text-sm font-black text-slate-700 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <span className="w-6 h-6 bg-indigo-600 text-white rounded-full text-xs flex items-center justify-center font-black">2</span>
+                        <h2 className="mb-2.5 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-700 md:mb-4 md:text-sm md:tracking-widest">
+                            <span className="flex size-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-black text-white md:size-6 md:text-xs">2</span>
                             Chọn chế độ học
                         </h2>
-                        <div className="space-y-3">
+                        <div className="space-y-2.5 md:space-y-3">
                             {MATH_MODES.map(m => (
                                 <button
                                     key={m.id}
                                     onClick={() => setMathMode(m.id)}
-                                    className={`w-full p-4 rounded-2xl border-2 text-left transition-all duration-200 hover:shadow-md ${mathMode === m.id ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-400 ring-offset-1' : 'border-slate-200 bg-white hover:border-indigo-300'}`}
+                                    className={`w-full rounded-2xl border-2 p-3 text-left transition-all duration-200 hover:shadow-md md:p-4 ${mathMode === m.id ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-400 ring-offset-1' : 'border-slate-200 bg-white hover:border-indigo-300'}`}
                                 >
-                                    <div className="flex items-center gap-4">
-                                        <div className="text-3xl">{m.emoji}</div>
-                                        <div className="flex-1">
-                                            <div className="font-black text-slate-800 text-base">{m.label}</div>
-                                            <div className="text-sm text-slate-500">{m.desc}</div>
+                                    <div className="flex items-center gap-3 md:gap-4">
+                                        {m.id === 'speak_answer' ? (
+                                            <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-500 shadow-lg shadow-purple-200">
+                                                <Bot className="h-7 w-7 text-white" strokeWidth={2.4} />
+                                                <span className="absolute -right-2 -top-2 rounded-full border-2 border-white bg-amber-400 px-1.5 py-0.5 text-[9px] font-black leading-none text-slate-900 shadow-sm">
+                                                    AI
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <div className="text-2xl md:text-3xl">{m.emoji}</div>
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex min-w-0 flex-wrap items-center gap-1.5 md:gap-2">
+                                                <div className="min-w-0 text-sm font-black leading-tight text-slate-800 md:text-base">{m.label}</div>
+                                                {m.id === 'speak_answer' ? (
+                                                    <span className="shrink-0 rounded-full bg-gradient-to-r from-violet-100 to-fuchsia-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-violet-700 md:px-2 md:text-[10px]">
+                                                        AI
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                            <div className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-slate-500 md:text-sm">{m.desc}</div>
                                         </div>
                                         {mathMode === m.id && (
-                                            <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center">
+                                            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-600">
                                                 <CheckCircle className="w-4 h-4 text-white" />
                                             </div>
                                         )}
@@ -815,7 +1013,7 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
                             setQuestions(finalQs)
                             setStep('math_practice')
                         }}
-                        className={`w-full h-16 rounded-2xl text-white font-black text-lg shadow-xl transition-all hover:-translate-y-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200`}
+                        className="h-12 w-full rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-base font-black text-white shadow-lg shadow-indigo-200 transition-all hover:-translate-y-1 hover:from-indigo-700 hover:to-purple-700 md:h-16 md:rounded-2xl md:text-lg md:shadow-xl"
                     >
                         🚀 Bắt đầu luyện tập
                     </Button>
@@ -830,7 +1028,7 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
                 questions={questions}
                 mathMode={mathMode}
                 onFinish={(masteredIds) => handleFinishPractice(undefined, masteredIds)}
-                onBack={() => loadQuestionsForDashboard(selectedTopicObj)}
+                onBack={() => void loadQuestionsForDashboard(selectedTopicObj)}
             />
         )
     }
@@ -843,23 +1041,24 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
             <SpeedQuizScreen
                 questions={filteredSpeedQs}
                 maxQuestions={isAllGroups ? 20 : 10}
+                timeLimitSeconds={selectedTopicObj?.id === 'tools' ? 10 : 8}
                 onFinish={(results, masteredIds) => {
                     handleFinishPractice(undefined, masteredIds)
                 }}
-                onBack={() => setStep('select_mode')}
+                onBack={handleExitActivePractice}
             />
         )
     }
 
     if (step === 'podcast') {
-        const filteredPodcastQs = filterDuplicateTypes(questions)
+        const filteredPodcastQs = podcastQuestions.length > 0 ? podcastQuestions : filterDuplicateTypes(questions)
         return (
             <div className="min-h-[500px] bg-[#f8fafc] rounded-2xl overflow-hidden border border-slate-100 flex flex-col max-w-4xl mx-auto">
                 <div className="bg-white px-4 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                         <Button 
                             variant="ghost" 
-                            onClick={() => setStep('select_mode')} 
+                            onClick={handleExitActivePractice}
                             className="h-9 w-9 p-0 text-slate-600 hover:bg-slate-100 flex-shrink-0 rounded-full flex items-center justify-center"
                             title="Quay lại"
                         >
@@ -877,7 +1076,8 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
                 </div>
 
                 <div className="flex-1 overflow-auto py-6">
-                    <PodcastMode 
+                    <PodcastMode
+                        key={podcastRound}
                         vocabList={filteredPodcastQs.map(q => ({
                             id: q.id,
                             word_kr: q.question_text,
@@ -885,10 +1085,26 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
                             type: 'COMMAND',
                             description_vi: null
                         }))}
-                        onBack={() => setStep('select_mode')}
+                        onBack={handleExitActivePractice}
                         hideHeader={true}
+                        onNextRound={selectedTopicObj?.id === 'tools' ? handleStartPodcast : undefined}
                     />
                 </div>
+            </div>
+        )
+    }
+
+    if (step === 'tool_drop_game') {
+        return (
+            <div className="min-h-screen rounded-2xl bg-slate-50 pt-3 md:pt-6">
+                <ToolDropGame
+                    questions={questions}
+                    onBack={() => {
+                        if (allQuestions.length > 0) setQuestions(allQuestions)
+                        setStep('select_mode')
+                    }}
+                    onFinish={handleFinishPractice}
+                />
             </div>
         )
     }
@@ -896,30 +1112,18 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
     if (step === 'practice') {
         return (
             <div className="min-h-screen bg-slate-50 pt-6 rounded-2xl">
-                {selectedTopicObj?.mode === 'tools' ? (
+                {selectedTopicObj?.mode === 'tools' && selectedListenMode === 'ai_mock' ? (
                     <ToolDragPracticeScreen
                         questions={questions}
                         onFinish={handleFinishPractice}
-                        onBack={() => {
-                            if (selectedTopicObj?.mode === 'listen_only' || selectedTopicObj?.id === 'math' || selectedTopicObj?.id === 'communication' || selectedTopicObj?.id === 'situation') {
-                                setStep('select_mode')
-                            } else {
-                                setStep('topic')
-                            }
-                        }}
+                        onBack={handleExitActivePractice}
                     />
                 ) : (
                     <InterviewPracticeScreen
                         questions={questions}
                         mode={selectedListenMode}
                         onFinish={handleFinishPractice}
-                        onBack={() => {
-                            if (selectedTopicObj?.mode === 'listen_only' || selectedTopicObj?.id === 'math' || selectedTopicObj?.id === 'communication' || selectedTopicObj?.id === 'situation') {
-                                setStep('select_mode')
-                            } else {
-                                setStep('topic')
-                            }
-                        }}
+                        onBack={handleExitActivePractice}
                         initialAutoPlay={initialAutoPlay}
                     />
                 )}
@@ -1160,7 +1364,7 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
                             >
                                 Luyện tập câu mới <CheckCircle className="w-4 h-4 ml-2" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setStep('topic')} className="text-slate-500 hover:text-slate-700 text-xs">
+                            <Button variant="ghost" size="sm" onClick={handleReturnToTopicList} className="text-slate-500 hover:text-slate-700 text-xs">
                                 ← Trở về danh sách chủ đề
                             </Button>
                         </div>
@@ -1223,6 +1427,12 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
         )
     }
 
+    const selectedPracticeGroup = selectedTopicObj?.id === 'communication'
+        ? GIAO_TIEP_GROUPS.find(group => group.id === selectedCommunicationGroup)
+        : selectedTopicObj?.id === 'situation'
+            ? { id: 'all', label: 'Toàn bộ tình huống', emoji: '🤖' }
+            : undefined
+
     return (
         <div className="relative overflow-hidden flex flex-col rounded-2xl bg-white shadow-sm border border-slate-100">
             {/* Background elements */}
@@ -1230,17 +1440,40 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
             <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-400/10 rounded-full blur-[100px] -z-10" />
             <div className="absolute top-40 -left-32 w-80 h-80 bg-emerald-400/10 rounded-full blur-[100px] -z-10" />
 
-            <div className="flex-1 w-full mx-auto p-4 md:p-8 space-y-6 md:space-y-8 relative z-10">
-                <div className="flex items-center gap-3 md:gap-4 mb-2">
+            <div className={`flex-1 w-full mx-auto p-4 md:p-8 relative z-10 ${step === 'self_introduction' ? 'space-y-0' : 'space-y-6 md:space-y-8'}`}>
+                <div className={step === 'mock_intro' || step === 'mock_exam' ? 'hidden' : step === 'self_introduction' ? 'absolute left-6 top-6 z-30 md:left-11 md:top-11' : step === 'select_mode' ? 'absolute left-4 top-4 z-30 md:static md:mb-2 md:flex md:items-center' : 'mb-2 flex items-center gap-3 md:gap-4'}>
                     <Button 
                         variant="ghost" 
                         size="icon" 
                         onClick={handleGoBack} 
-                        className="hover:bg-slate-100 text-slate-600 rounded-full h-10 w-10 md:h-12 md:w-12 shrink-0 bg-white shadow-sm border border-slate-200"
+                        className={`rounded-full h-10 w-10 md:h-12 md:w-12 shrink-0 shadow-sm border ${step === 'self_introduction' ? 'border-white/25 bg-white/15 text-white hover:bg-white/25 hover:text-white backdrop-blur' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'}`}
                     >
                         <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
                     </Button>
                 </div>
+
+                {step === 'loading_topic' && (
+                    <div
+                        aria-live="polite"
+                        className="flex min-h-[52vh] flex-col items-center justify-center px-4 text-center"
+                    >
+                        <div className="relative mb-5 flex size-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 ring-1 ring-blue-100">
+                            <RefreshCw
+                                aria-hidden="true"
+                                className="size-7 animate-spin motion-reduce:animate-none"
+                            />
+                        </div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-blue-600">
+                            Phỏng vấn vòng 2
+                        </p>
+                        <h2 className="mt-2 text-balance text-2xl font-black text-slate-900">
+                            Đang mở {selectedTopicObj?.name ?? TOPICS.find((topic) => topic.id === initialTopicId)?.name ?? 'bài học'}…
+                        </h2>
+                        <p className="mt-2 max-w-md text-sm text-slate-500">
+                            Hệ thống đang chuẩn bị nội dung phù hợp với ngành {selectedIndustry}.
+                        </p>
+                    </div>
+                )}
 
                 {step === 'industry' && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1280,6 +1513,38 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
                             <h2 className="text-2xl md:text-3xl font-bold text-slate-800">Chọn Chủ Đề Luyện Tập</h2>
                             <p className="text-slate-500">Ngành nghề đã chọn: <strong className="text-blue-600">{selectedIndustry}</strong></p>
                         </div>
+
+                        {/* Banner Thi thử Vòng 2 */}
+                        {initialMode !== 'practice' && (
+                            <div
+                                onClick={() => setStep('mock_intro')}
+                                className="group cursor-pointer rounded-3xl p-6 md:p-8 border-2 border-indigo-200 bg-gradient-to-r from-slate-900 via-indigo-950 to-indigo-900 text-white shadow-md hover:shadow-2xl hover:shadow-indigo-300/40 transition-all duration-300 transform hover:-translate-y-1.5 relative overflow-hidden flex flex-col md:flex-row items-center gap-6"
+                            >
+                                <div className="absolute right-0 bottom-0 opacity-10 transform translate-x-12 translate-y-12 pointer-events-none">
+                                    <Award className="w-80 h-80 text-white animate-[spin_60s_linear_infinite]" />
+                                </div>
+                                <div className="w-16 h-16 md:w-20 md:h-20 shrink-0 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400 group-hover:scale-105 transition-transform duration-300 shadow-lg">
+                                    <Award className="w-10 h-10 text-yellow-400" />
+                                </div>
+                                <div className="flex-1 space-y-2 text-center md:text-left relative z-10">
+                                    <div className="flex items-center justify-center md:justify-start gap-2 flex-wrap">
+                                        <h3 className="text-xl md:text-2xl font-black tracking-tight text-white">Thi Thử Phỏng Vấn Tổng Hợp (50 Điểm)</h3>
+                                        <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider bg-yellow-400 text-slate-950 rounded-full shadow-md animate-pulse">
+                                            Chuẩn kỳ thi thực tế ⚡
+                                        </span>
+                                    </div>
+                                    <p className="text-sm md:text-base text-slate-200 leading-relaxed font-medium">
+                                        Bao gồm đầy đủ 6 phần thi chính thức: Giao tiếp, Mệnh lệnh, Dụng cụ, Thao tác thực tế, NCS Năng lực nghề nghiệp, Biển báo & Hỏi sâu an toàn.
+                                    </p>
+                                </div>
+                                <div className="shrink-0 relative z-10">
+                                    <Button className="bg-yellow-400 hover:bg-yellow-500 text-slate-950 font-black px-6 py-4 rounded-xl shadow-lg transition-transform group-hover:scale-105">
+                                        Thi Ngay <ChevronRight className="w-5 h-5 ml-1" />
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                             {TOPICS.map((topic) => {
                                 const Icon = topic.icon
@@ -1325,6 +1590,15 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
                     </div>
                 )}
 
+                {step === 'self_introduction' && (
+                    <SelfIntroductionPractice
+                        onComplete={(practiceSeconds) => {
+                            saveSelfIntroductionCompletion()
+                            toast.success(`Đã ghi nhận một lượt giới thiệu bản thân ${practiceSeconds} giây`)
+                        }}
+                    />
+                )}
+
                 {step === 'command_dashboard' && (
                     <CommandProgressDashboard
                         questions={questions}
@@ -1339,57 +1613,98 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
                 )}
 
                 {step === 'select_mode' && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="text-center space-y-2 mb-8">
-                            <h2 className="text-2xl md:text-3xl font-bold text-slate-800">Chọn Chế Độ Luyện Tập</h2>
-                            <p className="text-slate-500">Chuyên đề: <strong className="text-blue-600">{selectedTopicObj?.name}</strong></p>
+                    <div className="animate-in space-y-3 pt-14 fade-in slide-in-from-bottom-4 duration-500 md:space-y-6 md:pt-0">
+                        <div className="mb-4 space-y-1 text-center md:mb-8 md:space-y-2">
+                            <h2 className="text-xl font-bold text-slate-800 md:text-3xl">Chọn chế độ</h2>
+                            <p className="text-sm text-slate-500">Chủ đề: <strong className="text-blue-600">{selectedTopicObj?.name}</strong></p>
+                            {selectedPracticeGroup && (
+                                <div className="mx-auto mt-2 flex w-fit max-w-full items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-left shadow-sm md:mt-3 md:px-4">
+                                    <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white text-base shadow-sm md:size-8 md:text-lg">
+                                        {selectedPracticeGroup.emoji}
+                                    </span>
+                                    <div className="min-w-0">
+                                        <span className="block text-[9px] font-black uppercase tracking-wider text-emerald-600 md:text-[10px]">Nhóm đã chọn</span>
+                                        <strong className="block truncate text-xs text-slate-800 md:text-sm">{selectedPracticeGroup.label}</strong>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+                        {selectedTopicObj?.id === 'command' && (
+                            <InterviewFreePreviewBanner kind="command" />
+                        )}
+                        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-5">
                             
                             <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={() => startFlashcardPractice(false)}>
-                                <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-slate-200/60 bg-white hover:border-blue-400 shadow-sm hover:shadow-xl">
-                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-blue-100 text-blue-600 transition-colors">
-                                        <Presentation className="w-6 h-6" />
+                                <div className="flex h-full items-center gap-3 rounded-2xl border-2 border-slate-200/60 bg-white p-3.5 shadow-sm transition-all duration-300 hover:border-blue-400 hover:shadow-xl md:block md:p-6">
+                                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600 transition-colors md:mb-4 md:size-12">
+                                        <Presentation className="size-5 md:size-6" />
                                     </div>
-                                    <h4 className="text-lg font-bold text-slate-900 mb-2">Flashcard Lật Thẻ</h4>
-                                    <p className="text-slate-500 text-sm leading-relaxed">Nghe âm thanh tiếng Hàn và lật thẻ thủ công để xem dịch nghĩa tiếng Việt.</p>
+                                    <div className="min-w-0"><h4 className="font-bold text-slate-900 md:mb-2 md:text-lg">Lật thẻ</h4>
+                                    <p className="truncate text-xs text-slate-500 md:whitespace-normal md:text-sm md:leading-relaxed">Nghe tiếng Hàn và xem nghĩa.</p></div>
                                 </div>
                             </div>
 
                             <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={() => handleStartListenMode('meaning_quiz')}>
-                                <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-slate-200/60 bg-white hover:border-pink-400 shadow-sm hover:shadow-xl">
-                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-pink-100 text-pink-600 transition-colors">
-                                        <CheckCircle className="w-6 h-6" />
+                                <div className="flex h-full items-center gap-3 rounded-2xl border-2 border-slate-200/60 bg-white p-3.5 shadow-sm transition-all duration-300 hover:border-pink-400 hover:shadow-xl md:block md:p-6">
+                                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-pink-100 text-pink-600 transition-colors md:mb-4 md:size-12">
+                                        <CheckCircle className="size-5 md:size-6" />
                                     </div>
-                                    <h4 className="text-lg font-bold text-slate-900 mb-2">Trắc Nghiệm Nghĩa</h4>
-                                    <p className="text-slate-500 text-sm leading-relaxed">Chọn đáp án Tiếng Việt đúng nhất sau khi nghe âm thanh.</p>
+                                    <div className="min-w-0"><h4 className="font-bold text-slate-900 md:mb-2 md:text-lg">Trắc nghiệm</h4>
+                                    <p className="truncate text-xs text-slate-500 md:whitespace-normal md:text-sm md:leading-relaxed">Nghe và chọn nghĩa đúng.</p></div>
                                 </div>
                             </div>
 
                             <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={handleStartSpeedQuiz}>
-                                <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-slate-200/60 bg-gradient-to-br from-slate-800 to-indigo-900 hover:border-indigo-400 shadow-sm hover:shadow-xl hover:shadow-indigo-200">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-yellow-400/20 text-yellow-400 transition-colors">
-                                            <Zap className="w-6 h-6" fill="currentColor" />
+                                <div className="flex h-full items-center gap-3 rounded-2xl border-2 border-slate-200/60 bg-gradient-to-br from-slate-800 to-indigo-900 p-3.5 shadow-sm transition-all duration-300 hover:border-indigo-400 hover:shadow-xl hover:shadow-indigo-200 md:block md:p-6">
+                                    <div className="flex shrink-0 items-center justify-between md:mb-4">
+                                        <div className="flex size-10 items-center justify-center rounded-xl bg-yellow-400/20 text-yellow-400 transition-colors md:size-12">
+                                            <Zap className="size-5 md:size-6" fill="currentColor" />
                                         </div>
-                                        <span className="bg-gradient-to-r from-orange-500 to-rose-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg uppercase tracking-wider animate-pulse">
+                                        <span className="absolute right-3 top-3 rounded-full bg-gradient-to-r from-orange-500 to-rose-500 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white shadow-lg md:static md:px-2.5 md:py-1 md:text-[10px]">
                                             Mới
                                         </span>
                                     </div>
-                                    <h4 className="text-lg font-bold text-white mb-2">Kiểm tra siêu tốc ⚡</h4>
-                                    <p className="text-slate-300 text-sm leading-relaxed">Nghe câu lệnh chọn nghĩa trong 8 giây, luyện phản xạ siêu tốc.</p>
+                                    <div className="min-w-0 pr-8 md:pr-0"><h4 className="font-bold text-white md:mb-2 md:text-lg">Siêu tốc</h4>
+                                    <p className="truncate text-xs text-slate-300 md:whitespace-normal md:text-sm md:leading-relaxed">Chọn nghĩa trong {selectedTopicObj?.id === 'tools' ? 10 : 8} giây.</p></div>
                                 </div>
                             </div>
 
-                            <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={() => setStep('podcast')}>
-                                <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-slate-200/60 bg-white hover:border-violet-400 shadow-sm hover:shadow-xl">
-                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-violet-100 text-violet-600 transition-colors">
-                                        <Headphones className="w-6 h-6" />
+                            <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={handleStartPodcast}>
+                                <div className="flex h-full items-center gap-3 rounded-2xl border-2 border-slate-200/60 bg-white p-3.5 shadow-sm transition-all duration-300 hover:border-violet-400 hover:shadow-xl md:block md:p-6">
+                                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600 transition-colors md:mb-4 md:size-12">
+                                        <Headphones className="size-5 md:size-6" />
                                     </div>
-                                    <h4 className="text-lg font-bold text-slate-900 mb-2">Nghe Thụ Động</h4>
-                                    <p className="text-slate-500 text-sm leading-relaxed">Phát âm thanh câu lệnh và dịch nghĩa tiếng Việt tự động liên tục để ghi nhớ.</p>
+                                    <div className="min-w-0"><h4 className="font-bold text-slate-900 md:mb-2 md:text-lg">Nghe thụ động</h4>
+                                    <p className="truncate text-xs text-slate-500 md:whitespace-normal md:text-sm md:leading-relaxed">Nghe liên tục để ghi nhớ.</p></div>
                                 </div>
                             </div>
+                            {selectedTopicObj?.id === 'tools' && (
+                                <>
+                                    <div className="group relative cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={handleStartToolDropGame}>
+                                        <div className="flex h-full items-center gap-3 rounded-2xl border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-3.5 shadow-sm transition hover:border-orange-400 hover:shadow-xl md:block md:p-6">
+                                            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-orange-500 text-white shadow-md shadow-orange-200 md:mb-4 md:size-12">
+                                                <MousePointer2 className="size-5 md:size-6" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2"><h4 className="font-bold text-slate-900 md:mb-2 md:text-lg">Kéo thả dụng cụ</h4><span className="rounded-full bg-orange-500 px-2 py-0.5 text-[9px] font-black uppercase text-white">Game</span></div>
+                                                <p className="truncate text-xs text-slate-500 md:whitespace-normal md:text-sm">Nghe yêu cầu, đưa đúng dụng cụ vào bàn.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="group relative cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={() => startPractice(selectedTopicObj, null, questions)}>
+                                        <div className="flex h-full items-center gap-3 rounded-2xl border-2 border-orange-300 bg-gradient-to-br from-slate-900 to-slate-800 p-3.5 shadow-lg transition hover:border-orange-400 hover:shadow-xl md:block md:p-6">
+                                            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-orange-500 text-white shadow-md md:mb-4 md:size-12">
+                                                <Wrench className="size-5 md:size-6" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2"><h4 className="font-bold text-white md:mb-2 md:text-lg">Thực hành 3 bước</h4><span className="rounded-full bg-emerald-500 px-2 py-0.5 text-[9px] font-black uppercase text-white">Nâng cao</span></div>
+                                                <p className="truncate text-xs text-slate-300 md:whitespace-normal md:text-sm">Chọn dụng cụ, vị trí và thao tác đúng.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                                     {((selectedTopicObj?.id === 'communication' && selectedCommunicationGroup === 'all') ||
                                       (selectedTopicObj?.id === 'situation' && selectedSituationGroup === 'all')) && (
                                         <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1 md:col-span-2" onClick={() => startPractice(selectedTopicObj, null, questions)}>
@@ -1470,6 +1785,90 @@ export function InterviewPracticeHub({ onBackToDashboard }: { onBackToDashboard?
                             </div>
                         )}
                     </div>
+                )}
+
+                {step === 'mock_intro' && (
+                    <div className="mx-auto w-full max-w-4xl space-y-3 px-0 pb-4 animate-in fade-in duration-300 sm:space-y-5 sm:px-3 md:space-y-6">
+                        <div className="mx-auto max-w-2xl space-y-1.5 text-center">
+                            <div className="relative flex items-center justify-center">
+                                <button aria-label="Quay lại" className="absolute left-0 flex size-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900" onClick={handleGoBack} type="button">
+                                    <ArrowLeft className="size-4.5" />
+                                </button>
+                                <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-2.5 py-1.5 text-[10px] font-black tracking-wide text-indigo-700 sm:px-3 sm:text-xs">
+                                    <Award className="size-3.5 text-amber-500 sm:size-4" /> THI THỬ VÒNG 2
+                                </div>
+                            </div>
+                            <h1 className="text-xl font-black tracking-tight text-slate-950 sm:text-3xl">
+                                THI THỬ PHỎNG VẤN VÒNG 2 <span className="whitespace-nowrap text-indigo-700">· 50 điểm</span>
+                            </h1>
+                            <p className="mx-auto max-w-xl text-xs leading-5 text-slate-600 sm:text-sm sm:leading-6">
+                                20 câu ngẫu nhiên · <strong className="whitespace-nowrap font-extrabold text-blue-700">{selectedIndustry}</strong>
+                            </p>
+                        </div>
+
+                        <Card className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-lg shadow-slate-200/60 sm:rounded-3xl sm:p-6">
+                            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500" />
+
+                            <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-100 pb-2 sm:mb-4 sm:gap-3 sm:pb-3">
+                                <h2 className="flex items-center gap-2 text-sm font-extrabold text-slate-900 sm:text-lg">
+                                    <span className="flex size-7 items-center justify-center rounded-lg bg-blue-50 text-blue-700 sm:size-8 sm:rounded-xl">
+                                        <FileText className="size-4" />
+                                    </span>
+                                    Cấu trúc điểm Vòng 2
+                                </h2>
+                                <span className="shrink-0 rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-black text-indigo-700 sm:px-3 sm:text-xs">
+                                    20 câu
+                                </span>
+                            </div>
+
+                            <div className="grid gap-1.5 sm:grid-cols-2 sm:gap-2">
+                                {MOCK_EXAM_SECTIONS.map((section) => (
+                                    <div
+                                        key={section.label}
+                                        className="flex min-h-10 items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/80 px-2.5 py-1.5 sm:min-h-14 sm:gap-3 sm:rounded-2xl sm:px-3 sm:py-2.5"
+                                    >
+                                        <div className="flex min-w-0 items-baseline gap-1.5 sm:block">
+                                            <p className="truncate text-xs font-bold leading-5 text-slate-700 sm:text-sm">{section.label}</p>
+                                            <p className="shrink-0 text-[9px] font-medium text-slate-500 sm:text-[11px]">{section.detail}</p>
+                                        </div>
+                                        <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-black text-slate-800 shadow-sm ring-1 ring-slate-200 sm:px-2.5 sm:py-1 sm:text-xs">
+                                            {section.points}đ
+                                        </span>
+                                    </div>
+                                ))}
+                                <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-2 text-white sm:col-span-2 sm:min-h-14 sm:rounded-2xl sm:px-4 sm:py-3">
+                                    <div>
+                                        <p className="text-sm font-black">Tổng điểm bài thi</p>
+                                        <p className="text-[11px] text-indigo-100">Đạt từ 30 điểm</p>
+                                    </div>
+                                    <span className="text-xl font-black">50đ</span>
+                                </div>
+                            </div>
+
+                            <div className="mt-4 hidden gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs leading-5 text-amber-900 sm:flex">
+                                <span aria-hidden="true" className="text-base">💡</span>
+                                <p>
+                                    Hãy cấp quyền micro để trả lời phần nói. Kết quả nhận diện được lưu riêng theo từng câu trước khi chuyển tiếp.
+                                </p>
+                            </div>
+
+                            <Button
+                                onClick={() => setStep('mock_exam')}
+                                size="lg"
+                                className="mt-3 h-11 w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-black text-white shadow-lg shadow-blue-200 transition-transform hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 sm:mx-auto sm:mt-4 sm:flex sm:h-12 sm:w-auto sm:min-w-72 sm:rounded-2xl"
+                            >
+                                Bắt đầu bài thi thử
+                                <ChevronRight className="ml-1 size-4" />
+                            </Button>
+                        </Card>
+                    </div>
+                )}
+
+                {step === 'mock_exam' && (
+                    <MockExamScreen
+                        industry={selectedIndustry}
+                        onBack={handleGoBack}
+                    />
                 )}
             </div>
         </div>

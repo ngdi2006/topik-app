@@ -1,16 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Play, ArrowLeft, Volume2, CheckCircle2, AlertTriangle, Sparkles, HelpCircle, RotateCcw, Eye } from 'lucide-react'
 import toolConfigMap from './tool_config_map.json'
 import { speakText, stopTTS } from '@/lib/tts'
-
-interface ToolDragPracticeScreenProps {
-    questions: any[]
-    onFinish: (answers?: any, newlyMasteredIds?: string[]) => void
-    onBack?: () => void
-}
+import { resolveToolQuestionConfig, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type VocabularyItem } from './toolQuestionAnalysis'
+import { WorkshopToolIcon } from './WorkshopToolIcon'
 
 const ZONE_LABELS: Record<string, string> = {
     'shelf_top_left': 'Kệ trên (Trái)',
@@ -22,23 +18,35 @@ const ZONE_LABELS: Record<string, string> = {
     'shelf_top_right': 'Kệ trên (Phải)',
     'shelf_bottom_right': 'Kệ dưới (Phải)'
 }
-
 const TOOL_NAMES: Record<string, { ko: string; vi: string }> = {
+    ...Object.fromEntries(TOOL_DEFINITIONS.map((item) => [item.id, { ko: item.ko, vi: item.label }])),
     'allen_wrench': { ko: '육각 렌치', vi: 'Cờ lê lục giác' },
+    'phillips_screwdriver': { ko: '십자드라이버', vi: 'Tua vít chữ thập' },
+    'flat_screwdriver': { ko: '일자드라이버', vi: 'Tua vít dẹt' },
     'screwdriver': { ko: '드라이버', vi: 'Tua vít' },
     'hammer': { ko: '망치 / 장도리', vi: 'Búa nhổ đinh' },
     'pliers': { ko: '펜치 / 니퍼 / 플라이어', vi: 'Kìm mỏ nhọn / Kìm bấm' },
     'wrench': { ko: '스패너 / 멍키 스패너', vi: 'Cờ lê / Mỏ lết' },
     'saw': { ko: '쇠톱', vi: 'Cưa tay' },
     'welder': { ko: '용접기', vi: 'Máy hàn' },
-    'ruler': { ko: '자 / 줄자', vi: 'Thước đo' }
+    'ruler': { ko: '자 / 줄자', vi: 'Thước đo' },
+    'bearing_puller': { ko: '풀러', vi: 'Cảo tháo / Cảo bạc đạn' },
+    'lathe_machine': { ko: '원목 깎는 기계 / 선반 기계', vi: 'Máy gọt gỗ / Máy tiện' },
+    'switch_tool': { ko: '스위치 / 레버', vi: 'Công tắc / Tay gạt công tắc' },
+    'generic_tool': { ko: '도구 / 손', vi: 'Công tắc / Tay thao tác' }
 }
 
 const TARGET_NAMES: Record<string, string> = {
+    ...Object.fromEntries(TARGET_DEFINITIONS.map((item) => [item.id, `${item.label} (Khu vực thi công)`])),
+    'phillips_screw': 'Ốc vít rãnh chữ thập (Khu vực thi công)',
+    'slotted_screw': 'Ốc vít rãnh dẹt (Khu vực thi công)',
     'hex_bolt': 'Bu lông (Khu vực thi công)',
     'electric_wire': 'Dây dẫn (Khu vực thi công)',
+    'coil_spring': 'Lò xo (Khu vực thi công)',
+    'bearing': 'Ổ bi / Bạc đạn (Khu vực thi công)',
     'gear': 'Bánh răng (Khu vực thi công)',
     'metal_pipe': 'Ống sắt (Khu vực thi công)',
+    'wood_workpiece': 'Phôi gỗ (Khu vực thi công)',
     'switch_power': 'Cầu dao / Công tắc (Bảng điều khiển)',
     'emergency_button': 'Nút khẩn cấp (Bảng điều khiển)',
     'signal_light': 'Đèn báo (Bảng điều khiển)',
@@ -47,14 +55,281 @@ const TARGET_NAMES: Record<string, string> = {
 }
 
 const ACTION_NAMES: Record<string, string> = {
+    ...Object.fromEntries(ACTION_DEFINITIONS.map((item) => [item.id, item.label])),
     'counter_clockwise': 'Tháo (Xoay ngược chiều kim đồng hồ)',
     'clockwise': 'Siết (Xoay cùng chiều kim đồng hồ)',
-    'cut': 'Cắt đứt',
+    'cut': 'Cắt / Gọt gỗ / Tiện',
     'strip': 'Tước vỏ cách điện',
     'turn_on': 'Bật / Gạt lên',
     'turn_off': 'Tắt / Gạt xuống',
-    'push': 'Đóng vào / Cất vào / Nhét vào',
+    'push': 'Đục lỗ / Khoan vào / Đóng vào / Cất vào',
     'pull': 'Nhổ ra / Lấy ra / Kéo ra / Kéo dài'
+}
+
+const SHELF_TARGETS = ['shelf_top_left', 'shelf_bottom_left', 'shelf_top_right', 'shelf_bottom_right']
+const BOX_TARGETS = ['toolbox_center', 'special_box']
+const WORKBENCH_TARGETS = ['paint_can', 'primer_can', 'varnish_can', 'wood_workpiece', 'phillips_screw', 'slotted_screw', 'hex_bolt', 'electric_wire', 'coil_spring', 'bearing', 'gear', 'metal_pipe', 'metal_workpiece', 'plastic_workpiece', 'workpiece', 'lever']
+const PANEL_TARGETS = ['switch_power', 'emergency_button', 'signal_light']
+const ALL_SYSTEM_TOOLS = ['paint_roller', 'paint_brush', 'spray_gun', 'scale', 'electronic_scale', 'pan_scale', 'industrial_scale', 'phillips_screwdriver', 'flat_screwdriver', 'allen_wrench', 'screwdriver', 'hammer', 'pliers', 'wrench', 'saw', 'welder', 'ruler', 'bearing_puller', 'lathe_machine', 'switch_tool', 'rust_preventive_oil']
+const TOOL_DISTRACTORS: Record<string, string[]> = {
+    phillips_screwdriver: ['flat_screwdriver', 'screwdriver', 'allen_wrench', 'wrench'],
+    flat_screwdriver: ['phillips_screwdriver', 'screwdriver', 'allen_wrench', 'wrench'],
+    allen_wrench: ['wrench', 'screwdriver', 'pliers', 'ruler'],
+    screwdriver: ['allen_wrench', 'wrench', 'pliers', 'hammer'],
+    hammer: ['screwdriver', 'pliers', 'wrench', 'saw'],
+    pliers: ['wrench', 'screwdriver', 'saw', 'ruler'],
+    wrench: ['allen_wrench', 'screwdriver', 'pliers', 'bearing_puller'],
+    bearing_puller: ['wrench', 'pliers', 'screwdriver', 'hammer'],
+    lathe_machine: ['saw', 'drill', 'hammer', 'wrench'],
+    switch_tool: ['screwdriver', 'pliers', 'wrench', 'hammer'],
+    rust_preventive_oil: ['ruler', 'pliers', 'wrench', 'screwdriver'],
+    paint_roller: ['paint_brush', 'spray_gun', 'ruler', 'pliers'],
+    paint_brush: ['paint_roller', 'spray_gun', 'ruler', 'pliers'],
+    spray_gun: ['paint_roller', 'paint_brush', 'ruler', 'pliers'],
+    scale: ['electronic_scale', 'pan_scale', 'industrial_scale', 'ruler'],
+    electronic_scale: ['pan_scale', 'industrial_scale', 'scale', 'ruler'],
+    pan_scale: ['electronic_scale', 'industrial_scale', 'scale', 'ruler'],
+    industrial_scale: ['electronic_scale', 'pan_scale', 'scale', 'ruler'],
+    saw: ['pliers', 'hammer', 'welder', 'ruler'],
+    welder: ['saw', 'pliers', 'wrench', 'ruler'],
+    ruler: ['screwdriver', 'wrench', 'pliers', 'allen_wrench']
+}
+const TARGET_SHORT_LABELS: Record<string, string> = {
+    ...Object.fromEntries(TARGET_DEFINITIONS.map((item) => [item.id, item.label])),
+    phillips_screw: 'Ốc vít chữ thập',
+    slotted_screw: 'Ốc vít dẹt',
+    hex_bolt: 'Bu lông',
+    electric_wire: 'Dây dẫn',
+    coil_spring: 'Lò xo',
+    bearing: 'Ổ bi / Bạc đạn',
+    gear: 'Bánh răng',
+    metal_pipe: 'Ống sắt',
+    switch_power: 'Cầu dao / Công tắc',
+    emergency_button: 'Nút khẩn cấp',
+    signal_light: 'Đèn báo',
+    wood_workpiece: 'Phôi gỗ',
+    metal_workpiece: 'Phôi kim loại',
+    plastic_workpiece: 'Phôi nhựa',
+    lever: 'Cần gạt',
+    workpiece: 'Phôi gia công'
+}
+const EXACT_TARGET_LABELS: Record<string, string> = {
+    ...TARGET_NAMES,
+    ...ZONE_LABELS,
+    toolbox_center: 'Hộp công cụ chung',
+    special_box: 'Hộp chuyên dụng'
+}
+
+type ToolPracticeConfig = {
+    schema_version?: number
+    tools_on_desk?: string[]
+    correct_tool?: string
+    target_object?: string
+    correct_action?: string | null
+    vietnamese_instruction?: string
+    requires_action?: boolean
+    vocabulary_analysis?: VocabularyItem[]
+}
+
+type ToolPracticeQuestion = {
+    id: string
+    question_text: string
+    vietnamese_meaning?: string
+    question_audio_url?: string
+    countdown_after_audio?: number | null
+    tool_config?: ToolPracticeConfig | null
+    target_zone_id?: string | null
+}
+
+interface ToolDragPracticeScreenProps {
+    questions: ToolPracticeQuestion[]
+    onFinish: (answers?: Record<string, string>, newlyMasteredIds?: string[]) => void
+    onBack?: () => void
+    mode?: 'practice' | 'exam'
+}
+
+function inferShelfTarget(text: string) {
+    const isLeft = /trái|left|왼쪽/.test(text)
+    const isRight = /phải|right|오른쪽/.test(text)
+    const isTop = /trên|top|위/.test(text)
+    const isBottom = /dưới|bottom|아래/.test(text)
+
+    if (isBottom && isLeft) return 'shelf_bottom_left'
+    if (isBottom && isRight) return 'shelf_bottom_right'
+    if (isTop && isLeft) return 'shelf_top_left'
+    if (isTop && isRight) return 'shelf_top_right'
+    if (isBottom) return 'shelf_bottom_left'
+    if (isTop) return 'shelf_top_left'
+    if (isLeft) return 'shelf_bottom_left'
+    if (isRight) return 'shelf_bottom_right'
+    return 'shelf_bottom_left'
+}
+
+function isStorageQuestionText(text: string): boolean {
+    const t = text.toLowerCase()
+    return /공구함|전용함|함에\s*넣|선반에\s*넣|선반에\s*놓|함에\s*보관|공구함에\s*보관|bỏ.*hộp|cất.*hộp|bỏ.*kệ|cất.*kệ|đặt.*kệ|cho.*vào.*hộp|cho.*vào.*kệ/i.test(t)
+}
+
+function inferTargetFromQuestionText(text: string): string {
+    const t = text.toLowerCase()
+
+    if (/바니시|마감재|véc-?ni|vecni|lớp hoàn thiện/i.test(t)) return 'varnish_can'
+    if (/젯소|초벌재|sơn lót/i.test(t)) return 'primer_can'
+    if (/페인트|hộp sơn|thùng sơn|sơn màu/i.test(t)) return 'paint_can'
+    if (/방청유|녹을?\s*방지|dầu\s*(?:dùng để\s*)?(?:chống|ngăn)\s*rỉ|dầu chống gỉ/i.test(t)) return 'metal_workpiece'
+    if (/드릴|드릴링머신|뚫는|구멍|khoan|đục lỗ|목재|원목|나무|phôi gỗ|tấm gỗ|gỗ/i.test(t)) return 'wood_workpiece'
+    if (/망치|장도리|못|đóng đinh|nhổ đinh/i.test(t)) return 'wood_workpiece'
+    if (/전선|철사|철선|선재|구리선|dây điện|dây kim loại|dây sắt|thép ly/i.test(t)) return 'electric_wire'
+    if (/십자\s*홈|rãnh chữ thập|rãnh thập|ốc vít chữ thập/i.test(t)) return 'phillips_screw'
+    if (/일자\s*홈|rãnh dẹt|rãnh thẳng|ốc vít dẹt/i.test(t)) return 'slotted_screw'
+    if (/볼트|너트|암나사|수나사|bu lông|đai ốc/i.test(t)) return 'hex_bolt'
+    if (/파이프|철관|가스관|수도관|ống sắt|đường ống|ống kim loại/i.test(t)) return 'metal_pipe'
+    if (/코일\s*스프링|스프링|lò xo/i.test(t)) return 'coil_spring'
+    if (/베어링|ổ bi|bạc đạn/i.test(t)) return 'bearing'
+    if (/기어|부품|bánh răng|linh kiện/i.test(t)) return 'gear'
+    if (/조작반|제어반|스위치|버튼|레버|신호등|cầu dao|công tắc|nút khẩn cấp|đèn báo/i.test(t)) return 'switch_power'
+    if (/금속|철판|phôi kim loại/i.test(t)) return 'metal_workpiece'
+    if (/플라스틱|phôi nhựa/i.test(t)) return 'plastic_workpiece'
+
+    if (isStorageQuestionText(t)) {
+        if (/선반|kệ/i.test(t)) return inferShelfTarget(t)
+        return /전용함|hộp chuyên dụng/i.test(t) ? 'special_box' : 'toolbox_center'
+    }
+
+    return 'hex_bolt'
+}
+
+function inferExactTarget(config: ToolPracticeConfig, question: ToolPracticeQuestion) {
+    const text = `${question?.question_text || ''} ${question?.vietnamese_meaning || ''} ${config.vietnamese_instruction || ''}`.toLowerCase()
+
+    if (!isStorageQuestionText(text)) {
+        const textTarget = inferTargetFromQuestionText(text)
+        if (textTarget) return textTarget
+    }
+
+    if (question?.target_zone_id && [...SHELF_TARGETS, ...BOX_TARGETS, 'machine_panel', 'work_area'].includes(question.target_zone_id)) {
+        if (question.target_zone_id === 'work_area') return config.target_object || 'hex_bolt'
+        if (question.target_zone_id === 'machine_panel') return config.target_object || 'switch_power'
+        return question.target_zone_id
+    }
+
+    if (config.target_object === 'shelf') return inferShelfTarget(text)
+    if (config.target_object === 'box') {
+        return /chuyên dụng|전용/.test(text) ? 'special_box' : 'toolbox_center'
+    }
+
+    return config.target_object || inferTargetFromQuestionText(text)
+}
+
+function inferToolFromText(question: ToolPracticeQuestion, targetObject: string) {
+    const text = `${question.question_text || ''} ${question.vietnamese_meaning || ''}`.toLowerCase()
+
+    if (/롤러|con lăn(?: sơn)?/i.test(text)) return 'paint_roller'
+    if (/붓|cọ(?: sơn)?|chổi sơn/i.test(text)) return 'paint_brush'
+    if (/스프레이\s*건|도장\s*건|분사기|súng phun sơn|máy phun sơn/i.test(text)) return 'spray_gun'
+    if (/전자\s*저울|cân điện tử/i.test(text)) return 'electronic_scale'
+    if (/접시\s*저울|cân đĩa/i.test(text)) return 'pan_scale'
+    if (/중량을?\s*측정.*기계|중량\s*측정기|máy cân trọng lượng/i.test(text)) return 'industrial_scale'
+    if (/무게를\s*재는\s*도구|저울|dụng cụ cân|cân trọng lượng/i.test(text)) return 'scale'
+    if (/방청유|녹을?\s*방지.*오일|녹\s*방지\s*오일|dầu\s*(?:dùng để\s*)?(?:chống|ngăn)\s*rỉ|dầu chống gỉ/i.test(text)) return 'rust_preventive_oil'
+    if (/스위치|버튼|레버|gạt công tắc|nút khẩn cấp|nút bấm|công tắc|cầu dao/i.test(text)) return 'switch_tool'
+    if (/줄자|자를|측정|thước|đo chiều dài|đo/.test(text)) return 'ruler'
+    if (/십자드라이버|tua vít chữ thập|tuốc nơ vít chữ thập/.test(text)) return 'phillips_screwdriver'
+    if (/일자드라이버|tua vít dẹt|tuốc nơ vít dẹt/.test(text)) return 'flat_screwdriver'
+    if (/육각|lục giác|allen/.test(text)) return 'allen_wrench'
+    if (/풀러|cảo|vam/.test(text)) return 'bearing_puller'
+    if (/망치|장도리|búa|đinh/.test(text)) return 'hammer'
+    if (/펜치|니퍼|플라이어|kìm|kềm/.test(text)) return 'pliers'
+    if (/스패너|렌치|멍키|몽키|cờ lê|mỏ lết|bu lông|đai ốc|너트|볼트/.test(text)) return 'wrench'
+    if (/드라이버|tua vít|tuốc nơ vít|나사/.test(text)) return 'screwdriver'
+    if (/톱|cưa/.test(text)) return 'saw'
+    if (/용접기|용접|máy hàn|que hàn|mối hàn|gá hàn|hàn kim loại/.test(text)) return 'welder'
+    if (/자|줄자|thước|đo|길이|두께|깊이/.test(text)) return 'ruler'
+
+    if (targetObject === 'phillips_screw') return 'phillips_screwdriver'
+    if (targetObject === 'slotted_screw') return 'flat_screwdriver'
+    if (targetObject === 'electric_wire') return 'pliers'
+    if (targetObject === 'metal_pipe') return 'saw'
+    if (targetObject === 'bearing') return 'bearing_puller'
+    if (targetObject === 'switch_power' || targetObject === 'emergency_button' || targetObject === 'signal_light') return 'switch_tool'
+    return null
+}
+
+function normalizeToolId(toolId: string | undefined): string {
+    if (!toolId) return 'screwdriver'
+    if (['socket_wrench', 'adjustable_wrench', 'torque_wrench', 'pipe_wrench'].includes(toolId)) return 'wrench'
+    if (['long_nose_pliers', 'nipper'].includes(toolId)) return 'pliers'
+    if (['torch'].includes(toolId)) return 'welder'
+    if (['level'].includes(toolId)) return 'ruler'
+    if (['cutting_machine', 'grinder'].includes(toolId)) return 'saw'
+    return toolId
+}
+
+function normalizeToolConfig(rawConfig: ToolPracticeConfig, question: ToolPracticeQuestion): ToolPracticeConfig {
+    const sourceConfig = resolveToolQuestionConfig(question.question_text || '', question.vietnamese_meaning || '', rawConfig)
+    const text = `${question?.question_text || ''} ${question?.vietnamese_meaning || ''} ${sourceConfig.vietnamese_instruction || ''}`.toLowerCase()
+
+    const target_object = inferExactTarget(sourceConfig, question)
+    const isStorageTarget = isStorageQuestionText(text)
+    const requires_action = !isStorageTarget
+
+    let correct_action = sourceConfig.correct_action
+    if (requires_action) {
+        if (/푸는|풀다|해체|tháo|vặn ra|nhổ|lấy|분리/i.test(text)) {
+            correct_action = target_object === 'switch_power' ? 'turn_off' : target_object === 'electric_wire' ? 'cut' : target_object === 'hex_bolt' ? 'counter_clockwise' : 'pull'
+        } else if (/조이|체결|siết|vặn vào/i.test(text)) {
+            correct_action = target_object === 'switch_power' ? 'turn_on' : target_object === 'electric_wire' ? 'cut' : target_object === 'hex_bolt' ? 'clockwise' : 'push'
+        } else if (/피복|탈피|tước|tuốt/i.test(text)) {
+            correct_action = 'strip'
+        } else if (/자르는|절단|끊는|cắt/i.test(text)) {
+            correct_action = 'cut'
+        } else if (/켜는|올리|bật|gạt lên/i.test(text)) {
+            correct_action = 'turn_on'
+        } else if (/끄는|내리|차단|tắt|gạt xuống/i.test(text)) {
+            correct_action = 'turn_off'
+        } else if (!correct_action) {
+            correct_action = target_object === 'electric_wire' ? 'cut' : target_object === 'hex_bolt' ? 'clockwise' : 'push'
+        }
+    } else {
+        correct_action = null
+    }
+
+    const inferredTool = inferToolFromText(question, target_object)
+    const rawCorrect = inferredTool || sourceConfig.correct_tool || 'screwdriver'
+    const correct_tool = normalizeToolId(rawCorrect)
+    const rawDeskTools = (sourceConfig.tools_on_desk || []).map(normalizeToolId)
+
+    return {
+        ...sourceConfig,
+        target_object,
+        correct_tool,
+        tools_on_desk: Array.from(new Set([correct_tool, ...rawDeskTools])),
+        correct_action,
+        requires_action
+    }
+}
+
+function hashSeed(value: string) {
+    let hash = 0
+    for (let i = 0; i < value.length; i += 1) {
+        hash = (hash * 31 + value.charCodeAt(i)) >>> 0
+    }
+    return hash || 1
+}
+
+function shuffleBySeed(items: string[], seedValue: string) {
+    let seed = hashSeed(seedValue)
+    const result = [...items]
+
+    for (let i = result.length - 1; i > 0; i -= 1) {
+        seed = (seed * 1664525 + 1013904223) >>> 0
+        const j = seed % (i + 1)
+        const temp = result[i]
+        result[i] = result[j]
+        result[j] = temp
+    }
+
+    return result
 }
 
 // Fallback config calculator with refined matching algorithms
@@ -64,13 +339,17 @@ function getFallbackToolConfig(ko: string, vi: string) {
     
     // 1. Tool Matching
     let correct_tool = 'screwdriver'
-    if (koText.includes('육각 렌치') || koText.includes('육각렌치')) {
+    if (koText.includes('스위치') || koText.includes('버튼') || koText.includes('레버') || viText.includes('công tắc') || viText.includes('cầu dao') || viText.includes('nút khẩn cấp') || viText.includes('nút bấm') || viText.includes('gạt công tắc')) {
+        correct_tool = 'switch_tool'
+    } else if (koText.includes('육각 렌치') || koText.includes('육각렌치')) {
         correct_tool = 'allen_wrench'
+    } else if (koText.includes('풀러') || viText.includes('cảo') || viText.includes('vam')) {
+        correct_tool = 'bearing_puller'
     } else if (koText.includes('망치') || koText.includes('장도리') || koText.includes('못을') || koText.includes('못이') || koText.includes('박는')) {
         correct_tool = 'hammer'
-    } else if (koText.includes('플라이어') || koText.includes('펜치') || koText.includes('니퍼') || koText.includes('롱노즈') || koText.includes('철사') || koText.includes('선재') || koText.includes('구리선') || koText.includes('철선') || koText.includes('전선') || koText.includes('부품') || koText.includes('레버') || koText.includes('스위치')) {
+    } else if (koText.includes('플라이어') || koText.includes('펜치') || koText.includes('니퍼') || koText.includes('롱노즈') || koText.includes('철사') || koText.includes('선재') || koText.includes('구리선') || koText.includes('철선') || koText.includes('전선')) {
         correct_tool = 'pliers'
-    } else if (koText.includes('스패너') || koText.includes('렌치') || koText.includes('몽키') || koText.includes('멍키') || koText.includes('토크') || koText.includes('볼트') || koText.includes('너트') || koText.includes('암나사') || koText.includes('수나사') || koText.includes('베어링') || koText.includes('기어') || koText.includes('코일')) {
+    } else if (koText.includes('스패너') || koText.includes('렌치') || koText.includes('몽키') || koText.includes('멍키') || koText.includes('토크') || koText.includes('볼트') || koText.includes('너트') || koText.includes('암나사') || koText.includes('수나사')) {
         correct_tool = 'wrench'
     } else if (koText.includes('드라이버') || koText.includes('나사못') || koText.includes('나사')) {
         correct_tool = 'screwdriver'
@@ -150,102 +429,362 @@ function getFallbackToolConfig(ko: string, vi: string) {
 
 // Visual tool SVGs
 function SmallToolIcon({ type, className = "w-10 h-10" }: { type: string; className?: string }) {
-    if (type === 'allen_wrench') {
+    return <WorkshopToolIcon type={normalizeToolId(type)} className={className} />
+}
+
+// Kept temporarily as a visual fallback while older question data is migrated.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function LegacySmallToolIcon({ type, className = "w-10 h-10" }: { type: string; className?: string }) {
+    const t = normalizeToolId(type)
+    if (t === 'allen_wrench') {
         return (
             <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M16 12h32v8H24v32h-8V12z" fill="#cbd5e1" stroke="#475569" strokeWidth="2.5" strokeLinejoin="round" />
-                <path d="M20 16h24v2H20v14" fill="#94a3b8" />
+                <path d="M16 10h34v8H24v34h-8V10z" fill="#d9e2ec" stroke="#64748b" strokeWidth="2.5" strokeLinejoin="round" />
+                <path d="M22 16h25M22 16v33" stroke="#f8fafc" strokeWidth="2" strokeLinecap="round" opacity=".55" />
+                <path d="M50 10v8M16 52h8" stroke="#334155" strokeWidth="2.5" strokeLinecap="round" />
             </svg>
         )
     }
-    if (type === 'screwdriver') {
+    if (t === 'phillips_screwdriver') {
         return (
             <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="29" y="8" width="6" height="28" fill="#94a3b8" rx="1" />
-                <path d="M26 8h12v2h-12z" fill="#cbd5e1" />
-                <rect x="20" y="36" width="24" height="22" rx="4" fill="#f59e0b" />
-                <rect x="25" y="36" width="3" height="22" fill="#1e293b" opacity="0.3" />
-                <rect x="36" y="36" width="3" height="22" fill="#1e293b" opacity="0.3" />
+                <path d="M32 7l6 8-4 4h-4l-4-4 6-8z" fill="#cbd5e1" stroke="#64748b" strokeWidth="2" />
+                <path d="M28 12h8M32 8v8" stroke="#334155" strokeWidth="2" strokeLinecap="round" />
+                <rect x="29" y="18" width="6" height="20" rx="2" fill="#94a3b8" />
+                <rect x="19" y="36" width="26" height="22" rx="8" fill="#f97316" stroke="#9a3412" strokeWidth="2" />
+                <path d="M25 40v14M32 39v17M39 40v14" stroke="#fed7aa" strokeWidth="2" strokeLinecap="round" opacity=".85" />
             </svg>
         )
     }
-    if (type === 'hammer') {
+    if (t === 'flat_screwdriver') {
         return (
             <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="29" y="24" width="6" height="34" rx="1" fill="#b45309" />
-                <path d="M16 14h28v8H16v-8z" fill="#475569" />
-                <rect x="12" y="12" width="4" height="12" rx="1" fill="#94a3b8" />
-                <path d="M44 14c3 1 6 5 8 9l-5-2-3-7z" fill="#475569" />
+                <path d="M27 8h10l-3 11h-4L27 8z" fill="#cbd5e1" stroke="#64748b" strokeWidth="2" />
+                <path d="M28 12h8" stroke="#334155" strokeWidth="2.5" strokeLinecap="round" />
+                <rect x="29" y="18" width="6" height="20" rx="2" fill="#94a3b8" />
+                <rect x="19" y="36" width="26" height="22" rx="8" fill="#0ea5e9" stroke="#075985" strokeWidth="2" />
+                <path d="M25 40v14M32 39v17M39 40v14" stroke="#bae6fd" strokeWidth="2" strokeLinecap="round" opacity=".85" />
             </svg>
         )
     }
-    if (type === 'pliers') {
+    if (t === 'hammer') {
         return (
             <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M28 22c-2-6-3-12-1-16l5 12h-4z" fill="#94a3b8" />
-                <path d="M36 22c2-6 3-12 1-16l-5 12h4z" fill="#94a3b8" />
-                <circle cx="32" cy="22" r="4" fill="#475569" />
-                <path d="M28 24c-2 6-8 22-8 32h6c2-8 4-18 4-22" fill="#ef4444" stroke="#991b1b" strokeWidth="2" />
-                <path d="M36 24c2 6 8 22 8 32h-6c-2-8-4-18-4-22" fill="#ef4444" stroke="#991b1b" strokeWidth="2" />
+                <rect x="30" y="23" width="7" height="35" rx="2" fill="#b45309" stroke="#78350f" strokeWidth="2" transform="rotate(-8 33.5 40.5)" />
+                <path d="M14 14h31c5 0 8 4 9 9l-9-3H14v-6z" fill="#64748b" stroke="#334155" strokeWidth="2.5" strokeLinejoin="round" />
+                <rect x="10" y="12" width="7" height="12" rx="2" fill="#cbd5e1" stroke="#64748b" strokeWidth="2" />
+                <path d="M22 17h18" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" opacity=".7" />
             </svg>
         )
     }
-    if (type === 'wrench') {
+    if (t === 'pliers') {
         return (
             <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="28" y="16" width="8" height="32" rx="2" fill="#cbd5e1" transform="rotate(-45 32 32)" />
-                <circle cx="20" cy="20" r="9" fill="#cbd5e1" />
-                <circle cx="20" cy="20" r="5" fill="#1e293b" />
-                <rect x="17" y="11" width="6" height="10" fill="#1e293b" transform="rotate(-45 20 20)" />
-                <circle cx="44" cy="44" r="9" fill="#cbd5e1" />
-                <circle cx="44" cy="44" r="5" fill="#1e293b" />
-                <rect x="41" y="35" width="6" height="10" fill="#1e293b" transform="rotate(-45 44 44)" />
+                <path d="M28 24c-8-6-9-14-5-19l9 16-4 3z" fill="#cbd5e1" stroke="#64748b" strokeWidth="2" />
+                <path d="M36 24c8-6 9-14 5-19l-9 16 4 3z" fill="#cbd5e1" stroke="#64748b" strokeWidth="2" />
+                <circle cx="32" cy="24" r="5" fill="#475569" stroke="#cbd5e1" strokeWidth="1.5" />
+                <path d="M29 28c-5 8-10 20-10 29h8c2-8 5-18 7-25" fill="#ef4444" stroke="#991b1b" strokeWidth="2" strokeLinejoin="round" />
+                <path d="M35 28c5 8 10 20 10 29h-8c-2-8-5-18-7-25" fill="#ef4444" stroke="#991b1b" strokeWidth="2" strokeLinejoin="round" />
+                <path d="M23 50h5M36 50h5" stroke="#fecaca" strokeWidth="2" strokeLinecap="round" />
             </svg>
         )
     }
-    if (type === 'saw') {
+    if (t === 'wrench') {
         return (
             <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M8 20v24h8v-6l-8-12v-6z" fill="#ef4444" />
-                <rect x="16" y="24" width="36" height="4" fill="#cbd5e1" />
-                <path d="M16 28l2-2 2 2 2-2 2 2 2-2 2 2 2-2 2 2 2-2 2 2" fill="none" stroke="#475569" strokeWidth="2.5" />
+                <path d="M45 7c-4 0-8 2-10 6l6 6-22 22-7-6c-4 3-6 7-5 12 1 5 5 9 10 10 5 1 10-1 12-5l-6-7 22-22 7 6c4-3 6-8 5-13-1-5-6-9-12-9z" fill="#cbd5e1" stroke="#475569" strokeWidth="2.5" strokeLinejoin="round" />
+                <path d="M24 43l20-20" stroke="#f8fafc" strokeWidth="2" strokeLinecap="round" opacity=".7" />
             </svg>
         )
     }
-    if (type === 'welder') {
+    if (t === 'saw') {
         return (
             <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="12" y="18" width="40" height="32" rx="4" fill="#0284c7" />
-                <circle cx="20" cy="26" r="2.5" fill="#22c55e" />
-                <rect x="36" y="24" width="10" height="20" fill="#0f172a" />
-                <path d="M22 18v-4h20v4" stroke="#cbd5e1" strokeWidth="2.5" />
+                <path d="M8 25c0-6 4-10 10-10h6v13h-8v11H8V25z" fill="#ef4444" stroke="#991b1b" strokeWidth="2" />
+                <path d="M22 20h34l-5 18H22V20z" fill="#dbeafe" stroke="#64748b" strokeWidth="2" strokeLinejoin="round" />
+                <path d="M25 38l3 5 3-5 3 5 3-5 3 5 3-5 3 5 3-5" stroke="#475569" strokeWidth="2" strokeLinejoin="round" />
+                <circle cx="17" cy="27" r="4" fill="#0f172a" opacity=".45" />
             </svg>
         )
     }
-    if (type === 'ruler') {
+    if (t === 'welder') {
         return (
             <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="8" y="24" width="48" height="16" rx="2" fill="#eab308" stroke="#ca8a04" strokeWidth="2" />
-                <line x1="16" y1="24" x2="16" y2="30" stroke="#1e293b" strokeWidth="2" />
-                <line x1="24" y1="24" x2="24" y2="30" stroke="#1e293b" strokeWidth="2" />
-                <line x1="32" y1="24" x2="32" y2="30" stroke="#1e293b" strokeWidth="2" />
-                <line x1="40" y1="24" x2="40" y2="30" stroke="#1e293b" strokeWidth="2" />
-                <line x1="48" y1="24" x2="48" y2="30" stroke="#1e293b" strokeWidth="2" />
+                <rect x="9" y="17" width="31" height="31" rx="5" fill="#0284c7" stroke="#075985" strokeWidth="2" />
+                <circle cx="17" cy="25" r="3" fill="#22c55e" />
+                <rect x="24" y="24" width="9" height="16" rx="1.5" fill="#0f172a" />
+                <path d="M18 17v-5h17v5M40 33c8 0 12 4 14 10" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" />
+                <path d="M52 42l4 6M50 47h8M54 40v10" stroke="#facc15" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+        )
+    }
+    if (t === 'ruler') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="7" y="23" width="50" height="18" rx="3" fill="#facc15" stroke="#a16207" strokeWidth="2" transform="rotate(-8 32 32)" />
+                <path d="M16 25l1 7M24 24l1 10M32 23l1 7M40 22l1 10M48 21l1 7" stroke="#1e293b" strokeWidth="2" strokeLinecap="round" />
+                <path d="M13 36l37-5" stroke="#fef3c7" strokeWidth="2" strokeLinecap="round" opacity=".75" />
+            </svg>
+        )
+    }
+    if (t === 'adjustable_wrench') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M42 8c-6 0-10 4-10 9v4l-18 24c-2 3-1 7 2 9s7 1 9-2l17-23h2c5 0 9-4 9-9 0-4-3-8-7-9l-4 4z" fill="#cbd5e1" stroke="#475569" strokeWidth="2.5" strokeLinejoin="round" />
+                <rect x="36" y="16" width="6" height="4" rx="1" fill="#f59e0b" />
+            </svg>
+        )
+    }
+    if (t === 'long_nose_pliers') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M30 22L27 6h4l2 16zM34 22L37 6h-4l-2 16z" fill="#cbd5e1" stroke="#475569" strokeWidth="1.5" />
+                <circle cx="32" cy="24" r="5" fill="#475569" stroke="#cbd5e1" strokeWidth="1.5" />
+                <path d="M29 28c-5 8-10 20-10 29h8c2-8 5-18 7-25" fill="#eab308" stroke="#a16207" strokeWidth="2" strokeLinejoin="round" />
+                <path d="M35 28c5 8 10 20 10 29h-8c-2-8-5-18-7-25" fill="#eab308" stroke="#a16207" strokeWidth="2" strokeLinejoin="round" />
+            </svg>
+        )
+    }
+    if (t === 'nipper') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M27 22l-6-12 8 8 3 4zM37 22l6-12-8 8-3 4z" fill="#cbd5e1" stroke="#475569" strokeWidth="1.5" />
+                <circle cx="32" cy="24" r="5" fill="#475569" stroke="#cbd5e1" strokeWidth="1.5" />
+                <path d="M29 28c-5 8-10 20-10 29h8c2-8 5-18 7-25" fill="#0ea5e9" stroke="#0369a1" strokeWidth="2" strokeLinejoin="round" />
+                <path d="M35 28c5 8 10 20 10 29h-8c-2-8-5-18-7-25" fill="#0ea5e9" stroke="#0369a1" strokeWidth="2" strokeLinejoin="round" />
+            </svg>
+        )
+    }
+    if (t === 'generic_tool' || t === 'hand') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M24 38v-18c0-3 4-3 4 0v10M28 20v-10c0-3 4-3 4 0v10M32 20v-8c0-3 4-3 4 0v8M36 24v-6c0-3 4-3 4 0v10" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="#ffedd5" />
+                <path d="M24 36c-3 0-8 3-8 8s8 12 14 14h10c6 0 10-6 10-12v-12" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="#ffedd5" />
+                <circle cx="42" cy="14" r="4" fill="#0284c7" stroke="#38bdf8" strokeWidth="1.5" />
+            </svg>
+        )
+    }
+    if (t === 'lathe_machine') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="8" y="24" width="48" height="16" rx="3" fill="#334155" stroke="#1e293b" strokeWidth="2.5" />
+                <rect x="12" y="16" width="10" height="24" rx="2" fill="#0284c7" stroke="#075985" strokeWidth="2" />
+                <rect x="22" y="28" width="20" height="8" rx="2" fill="#b45309" stroke="#78350f" strokeWidth="1.5" />
+                <path d="M42 26l8 6-8 6V26z" fill="#cbd5e1" stroke="#475569" strokeWidth="1.5" />
+            </svg>
+        )
+    }
+    if (t === 'drill') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="8" y="14" width="30" height="18" rx="4" fill="#0284c7" stroke="#075985" strokeWidth="2.5" />
+                <rect x="14" y="32" width="10" height="24" rx="2" fill="#1e293b" stroke="#0f172a" strokeWidth="2" />
+                <path d="M38 21h12l6 2-6 2H38v-4z" fill="#cbd5e1" stroke="#475569" strokeWidth="2" />
+                <path d="M56 23l6-1" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+        )
+    }
+    // Default fallback tool (Screwdriver)
+    return (
+        <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M31 7h2l4 8-4 4h-2l-4-4 4-8z" fill="#cbd5e1" stroke="#64748b" strokeWidth="2" />
+            <rect x="29" y="17" width="6" height="21" rx="2" fill="#94a3b8" />
+            <rect x="20" y="36" width="24" height="21" rx="7" fill="#f97316" stroke="#9a3412" strokeWidth="2" />
+            <path d="M25 39v15M32 38v18M39 39v15" stroke="#fed7aa" strokeWidth="2" strokeLinecap="round" opacity=".8" />
+        </svg>
+    )
+}
+
+function TargetObjectIcon({ type, className = "w-10 h-10", activeAction }: { type: string; className?: string; activeAction?: string | null }) {
+    if (['paint_can', 'primer_can', 'varnish_can'].includes(type)) {
+        const fill = type === 'paint_can' ? '#3b82f6' : type === 'primer_can' ? '#f8fafc' : '#d97706'
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15 19h34l-3 36H18l-3-36Z" fill={fill} stroke="#334155" strokeWidth="2.5" />
+                <ellipse cx="32" cy="19" rx="17" ry="6" fill="#e2e8f0" stroke="#475569" strokeWidth="2.5" />
+                <path d="M22 18c0-10 20-10 20 0" stroke="#64748b" strokeWidth="3" />
+                <rect x="22" y="31" width="20" height="12" rx="3" fill="white" opacity=".9" />
+                <path d="M27 37h10" stroke={fill === '#f8fafc' ? '#64748b' : fill} strokeWidth="3" strokeLinecap="round" />
+            </svg>
+        )
+    }
+    if (type === 'switch_power') {
+        const isOn = activeAction === 'turn_on'
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="19" y="8" width="26" height="48" rx="5" fill="#111827" stroke="#475569" strokeWidth="2.5" />
+                <rect x="25" y="15" width="14" height="34" rx="7" fill="#334155" />
+                <circle cx="32" cy={isOn ? 23 : 41} r="7" fill={isOn ? '#22c55e' : '#ef4444'} stroke="#0f172a" strokeWidth="2" />
+                <path d="M47 18h5M47 46h5" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+        )
+    }
+    if (type === 'emergency_button') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="18" width="44" height="34" rx="6" fill="#facc15" stroke="#a16207" strokeWidth="2.5" />
+                <ellipse cx="32" cy="28" rx="15" ry="10" fill="#ef4444" stroke="#991b1b" strokeWidth="2.5" />
+                <rect x="20" y="28" width="24" height="13" rx="4" fill="#b91c1c" />
+                <path d="M23 23c5-5 13-5 18 0" stroke="#fecaca" strokeWidth="2" strokeLinecap="round" opacity=".8" />
+            </svg>
+        )
+    }
+    if (type === 'signal_light') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="22" y="7" width="20" height="49" rx="5" fill="#111827" stroke="#475569" strokeWidth="2.5" />
+                <circle cx="32" cy="20" r="7" fill="#ef4444" stroke="#7f1d1d" strokeWidth="2" />
+                <circle cx="32" cy="33" r="7" fill="#facc15" stroke="#854d0e" strokeWidth="2" />
+                <circle cx="32" cy="46" r="7" fill="#22c55e" stroke="#14532d" strokeWidth="2" />
+                <path d="M25 12h14" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" opacity=".6" />
+            </svg>
+        )
+    }
+    if (type === 'phillips_screw' || type === 'slotted_screw') {
+        const isPhillips = type === 'phillips_screw'
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="32" cy="32" r="22" fill="#cbd5e1" stroke="#475569" strokeWidth="3" />
+                <circle cx="32" cy="32" r="15" fill="#94a3b8" stroke="#64748b" strokeWidth="2" />
+                {isPhillips ? (
+                    <>
+                        <rect x="18" y="28" width="28" height="8" rx="2" fill="#1e293b" />
+                        <rect x="28" y="18" width="8" height="28" rx="2" fill="#1e293b" />
+                    </>
+                ) : (
+                    <rect x="17" y="28" width="30" height="8" rx="2" fill="#1e293b" />
+                )}
+                <path d="M19 20c8-7 18-8 27-1" stroke="#f8fafc" strokeWidth="2" strokeLinecap="round" opacity=".45" />
+            </svg>
+        )
+    }
+    if (type === 'hex_bolt') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <polygon points="32,7 53,19 53,45 32,57 11,45 11,19" fill="#cbd5e1" stroke="#475569" strokeWidth="3" />
+                <circle cx="32" cy="32" r="11" fill="#94a3b8" stroke="#475569" strokeWidth="2.5" />
+                <circle cx="32" cy="32" r="5" fill="#0f172a" opacity=".45" />
+                <path d="M22 18l20 28M42 18L22 46" stroke="#f8fafc" strokeWidth="2" opacity=".35" />
+            </svg>
+        )
+    }
+    if (type === 'electric_wire') {
+        return (
+            <svg className={className} viewBox="0 0 80 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 28c14-16 24 16 38 0s22 0 30-10" stroke="#ef4444" strokeWidth="8" strokeLinecap="round" />
+                <path d="M6 28c14-16 24 16 38 0s22 0 30-10" stroke="#fecaca" strokeWidth="2" strokeLinecap="round" opacity=".75" />
+                <path d="M9 36h15M55 14h15" stroke="#f8fafc" strokeWidth="4" strokeLinecap="round" />
+                <path d="M16 36h8M55 14h8" stroke="#facc15" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+        )
+    }
+    if (type === 'gear') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M28 6h8l2 8 6 2 7-4 5 7-5 7 1 6 7 5-3 8-9 1-4 5 1 8h-9l-4-7h-6l-4 7h-9l1-8-4-5-9-1-3-8 7-5 1-6-5-7 5-7 7 4 6-2 2-8z" fill="#cbd5e1" stroke="#475569" strokeWidth="2.5" strokeLinejoin="round" />
+                <circle cx="32" cy="32" r="13" fill="#94a3b8" stroke="#475569" strokeWidth="2" />
+                <circle cx="32" cy="32" r="5" fill="#0f172a" opacity=".75" />
+            </svg>
+        )
+    }
+    if (type === 'coil_spring') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 12c12-4 24 0 24 6s-24 6-24 12 24 0 24 6-24 6-24 12 24 0 24 6" stroke="#38bdf8" strokeWidth="4.5" strokeLinecap="round" fill="none" />
+                <path d="M20 12c12-4 24 0 24 6s-24 6-24 12 24 0 24 6-24 6-24 12 24 0 24 6" stroke="#bae6fd" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity=".8" />
+            </svg>
+        )
+    }
+    if (type === 'bearing') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="32" cy="32" r="24" fill="#64748b" stroke="#334155" strokeWidth="3" />
+                <circle cx="32" cy="32" r="14" fill="#0f172a" stroke="#475569" strokeWidth="2.5" />
+                <circle cx="32" cy="15" r="3.5" fill="#e2e8f0" />
+                <circle cx="49" cy="32" r="3.5" fill="#e2e8f0" />
+                <circle cx="32" cy="49" r="3.5" fill="#e2e8f0" />
+                <circle cx="15" cy="32" r="3.5" fill="#e2e8f0" />
+                <circle cx="44" cy="20" r="3.5" fill="#e2e8f0" />
+                <circle cx="44" cy="44" r="3.5" fill="#e2e8f0" />
+                <circle cx="20" cy="44" r="3.5" fill="#e2e8f0" />
+                <circle cx="20" cy="20" r="3.5" fill="#e2e8f0" />
+            </svg>
+        )
+    }
+    if (type === 'metal_pipe') {
+        return (
+            <svg className={className} viewBox="0 0 80 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="8" y="19" width="64" height="16" rx="8" fill="#94a3b8" stroke="#475569" strokeWidth="2.5" />
+                <ellipse cx="14" cy="27" rx="7" ry="8" fill="#e2e8f0" stroke="#64748b" strokeWidth="2" />
+                <ellipse cx="14" cy="27" rx="3" ry="4" fill="#334155" />
+                <path d="M25 21h34M25 33h31" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" opacity=".65" />
+            </svg>
+        )
+    }
+    if (type === 'wood_workpiece') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="16" width="44" height="32" rx="4" fill="#b45309" stroke="#78350f" strokeWidth="2.5" />
+                <path d="M16 24h32M16 32h32M16 40h32" stroke="#d97706" strokeWidth="2" strokeLinecap="round" opacity=".6" />
+            </svg>
+        )
+    }
+    if (type === 'metal_workpiece') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="16" width="44" height="32" rx="4" fill="#64748b" stroke="#334155" strokeWidth="2.5" />
+                <path d="M14 20l36 24M14 44l36-24" stroke="#cbd5e1" strokeWidth="1.5" opacity=".4" />
+            </svg>
+        )
+    }
+    if (type === 'plastic_workpiece') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="16" width="44" height="32" rx="4" fill="#0d9488" stroke="#115e59" strokeWidth="2.5" />
+                <circle cx="32" cy="32" r="8" fill="#14b8a6" opacity=".5" />
+            </svg>
+        )
+    }
+    if (type === 'lever') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="26" y="40" width="12" height="16" rx="3" fill="#334155" stroke="#1e293b" strokeWidth="2" />
+                <path d="M32 40L24 16" stroke="#cbd5e1" strokeWidth="5" strokeLinecap="round" />
+                <circle cx="24" cy="16" r="8" fill="#ef4444" stroke="#991b1b" strokeWidth="2" />
+            </svg>
+        )
+    }
+    if (type === 'workpiece') {
+        return (
+            <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="12" y="18" width="40" height="28" rx="4" fill="#475569" stroke="#1e293b" strokeWidth="2.5" />
+                <path d="M20 26h24M20 34h24" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" opacity=".5" />
             </svg>
         )
     }
     return <HelpCircle className={className} />
 }
 
-export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDragPracticeScreenProps) {
+export function ToolDragPracticeScreen({
+    questions,
+    onFinish,
+    onBack,
+    mode = 'practice',
+}: ToolDragPracticeScreenProps) {
+    const isExamMode = mode === 'exam'
     const [currentIndex, setCurrentIndex] = useState(0)
     const currentQ = questions[currentIndex]
 
-    const config = currentQ
-        ? ((toolConfigMap as Record<string, any>)[currentQ.question_text] || 
-           currentQ.tool_config || 
-           getFallbackToolConfig(currentQ.question_text, currentQ.vietnamese_meaning))
-        : null
+    const config = useMemo(() => (
+        currentQ
+            ? normalizeToolConfig(
+                currentQ.tool_config ||
+                (toolConfigMap as Record<string, ToolPracticeConfig>)[currentQ.question_text] ||
+                getFallbackToolConfig(currentQ.question_text, currentQ.vietnamese_meaning || ''),
+                currentQ
+            )
+            : null
+    ), [currentQ])
 
     // Audio & Speed States
     const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -262,32 +801,36 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
     const [selectedTarget, setSelectedTarget] = useState<string | null>(null)
     const [selectedAction, setSelectedAction] = useState<string | null>(null)
 
-    // Dynamic randomized tools list on desk
-    const [currentToolsOnDesk, setCurrentToolsOnDesk] = useState<string[]>([])
+    const currentToolsOnDesk = useMemo(() => {
+        if (!config) return ['phillips_screwdriver', 'flat_screwdriver', 'wrench', 'pliers', 'hammer']
+
+        const correct = normalizeToolId(config.correct_tool || 'screwdriver')
+        const configuredTools = (config.tools_on_desk || []).map(normalizeToolId)
+        const baseTools = Array.from(new Set([correct, ...configuredTools])).slice(0, 5)
+        const distractorPool = [...(TOOL_DISTRACTORS[correct] || []), ...ALL_SYSTEM_TOOLS].map(normalizeToolId).filter((tool) => tool !== correct && !baseTools.includes(tool))
+        const shuffleSeed = `${currentQ.id}-${currentIndex}-${correct}`
+        const neededCount = Math.max(0, 5 - baseTools.length)
+        const selected = shuffleBySeed(distractorPool, shuffleSeed).slice(0, neededCount)
+
+        const finalTools = shuffleBySeed(Array.from(new Set([...baseTools, ...selected])), `${shuffleSeed}-desk`)
+
+        const fallbacks = ['phillips_screwdriver', 'flat_screwdriver', 'wrench', 'pliers', 'hammer']
+        for (const fb of fallbacks) {
+            if (finalTools.length >= 5) break
+            if (!finalTools.includes(fb)) finalTools.push(fb)
+        }
+
+        return finalTools.slice(0, 5)
+    }, [config, currentIndex, currentQ.id])
 
     // Feedback States
     const [isShake, setIsShake] = useState(false)
     const [feedbackState, setFeedbackState] = useState<'idle' | 'success' | 'fail'>('idle')
-    const [wrongStep, setWrongStep] = useState<number | null>(null)
     const [showCorrectAnswer, setShowCorrectAnswer] = useState(false)
+    const [isExamSubmitted, setIsExamSubmitted] = useState(false)
 
     const masteredIdsRef = useRef<Set<string>>(new Set())
     const failedIdsRef = useRef<Set<string>>(new Set())
-
-    // Dynamically randomize the 5 workbench tools per question index
-    useEffect(() => {
-        if (!config) return
-        
-        const ALL_SYSTEM_TOOLS = ['allen_wrench', 'screwdriver', 'hammer', 'pliers', 'wrench', 'saw', 'welder', 'ruler']
-        const correct = config.correct_tool || 'screwdriver'
-        
-        const remaining = ALL_SYSTEM_TOOLS.filter(t => t !== correct)
-        const shuffled = [...remaining].sort(() => Math.random() - 0.5)
-        const selected = shuffled.slice(0, 4)
-        
-        const finalDeskTools = [correct, ...selected].sort(() => Math.random() - 0.5)
-        setCurrentToolsOnDesk(finalDeskTools)
-    }, [currentIndex, currentQ])
 
     useEffect(() => {
         if (audioRef.current) {
@@ -295,51 +838,7 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
         }
     }, [speed])
 
-    useEffect(() => {
-        if (!currentQ) return
-
-        setAudioState('idle')
-        setTimeLeft(null)
-        setStep(1)
-        setHeldTool(null)
-        setSelectedTarget(null)
-        setSelectedAction(null)
-        setFeedbackState('idle')
-        setWrongStep(null)
-        setShowCorrectAnswer(false)
-        setIsShake(false)
-        
-        if (timerRef.current) clearInterval(timerRef.current)
-
-        if (currentQ.question_audio_url && audioRef.current) {
-            audioRef.current.src = currentQ.question_audio_url
-            audioRef.current.playbackRate = speed
-            audioRef.current.play().catch(err => {
-                if (err.name !== 'AbortError') {
-                    console.warn("Audio error:", err)
-                    setAudioState('error')
-                }
-            })
-        } else if (currentQ.question_text) {
-            speakText(
-                currentQ.question_text,
-                speed * 0.95,
-                () => setAudioState('playing'),
-                () => handleAudioEnded(),
-                () => handleAudioEnded()
-            )
-        } else {
-            handleAudioEnded()
-        }
-
-        return () => {
-            if (audioRef.current) audioRef.current.pause()
-            stopTTS()
-            if (timerRef.current) clearInterval(timerRef.current)
-        }
-    }, [currentIndex, currentQ])
-
-    const handleAudioEnded = () => {
+    const handleAudioEnded = useCallback(() => {
         setAudioState('ended')
         const countdownSeconds = currentQ.countdown_after_audio || 15
         setTimeLeft(countdownSeconds)
@@ -354,7 +853,44 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
                 return prev - 1
             })
         }, 1000)
-    }
+    }, [currentQ.countdown_after_audio])
+
+    useEffect(() => {
+        if (!currentQ) return
+        
+        if (timerRef.current) clearInterval(timerRef.current)
+
+        const audio = audioRef.current
+        let fallbackTimer: number | null = null
+        if (currentQ.question_audio_url && audio) {
+            audio.src = currentQ.question_audio_url
+            audio.playbackRate = speed
+            audio.play().catch(err => {
+                if (err.name !== 'AbortError') {
+                    console.warn("Audio error:", err)
+                    setAudioState('error')
+                    handleAudioEnded()
+                }
+            })
+        } else if (currentQ.question_text) {
+            speakText(
+                currentQ.question_text,
+                speed,
+                () => setAudioState('playing'),
+                () => handleAudioEnded(),
+                () => { setAudioState('error'); handleAudioEnded(); }
+            )
+        } else {
+            fallbackTimer = window.setTimeout(handleAudioEnded, 0)
+        }
+
+        return () => {
+            if (fallbackTimer) window.clearTimeout(fallbackTimer)
+            if (audio) audio.pause()
+            stopTTS()
+            if (timerRef.current) clearInterval(timerRef.current)
+        }
+    }, [currentIndex, currentQ, handleAudioEnded, speed])
 
     const replayAudio = () => {
         if (currentQ.question_audio_url && audioRef.current) {
@@ -363,55 +899,66 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
             audioRef.current.play().catch(err => {
                 if (err.name !== 'AbortError') {
                     console.warn("Audio replay error:", err)
+                    setAudioState('error')
+                    handleAudioEnded()
                 }
             })
         } else if (currentQ.question_text) {
             speakText(
                 currentQ.question_text,
-                speed * 0.95,
+                speed,
                 () => setAudioState('playing'),
                 () => setAudioState('ended'),
-                () => setAudioState('ended')
+                () => { setAudioState('error'); handleAudioEnded(); }
             )
         }
     }
 
     // Step 1: Select tool (allowing changing selection during Step 2 as well)
     const selectTool = (tool: string) => {
-        if (audioState !== 'ended' || timeLeft === 0 || feedbackState === 'success') return
+        if (timeLeft === 0 || feedbackState === 'success' || isExamSubmitted) return
         setHeldTool(tool)
         if (step === 1) {
             setStep(2)
         }
     }
 
-    // Step 2: Select target object
-    const selectTarget = (target: string) => {
-        if (step !== 2 || feedbackState === 'success') return
-        setSelectedTarget(target)
-        setStep(3)
-    }
+    const evaluateSelection = (target: string, action: string | null) => {
+        if (!config) return
 
-    // Step 3: Choose action and evaluate
-    const executeAction = (action: string) => {
-        if (step !== 3 || !config || feedbackState === 'success') return
-        setSelectedAction(action)
-        
-        const isToolCorrect = heldTool === config.correct_tool
-        const isTargetCorrect = selectedTarget === config.target_object
-        const isActionCorrect = action === config.correct_action
+        const isToolCorrect = heldTool === config.correct_tool ||
+            (config.correct_tool === 'switch_tool' && ['switch_tool', 'generic_tool', 'pliers', 'screwdriver', 'hand'].includes(heldTool || '')) ||
+            (config.correct_tool === 'generic_tool' && ['switch_tool', 'generic_tool', 'pliers', 'screwdriver', 'hand'].includes(heldTool || '')) ||
+            ((config.target_object === 'switch_power' || config.target_object === 'emergency_button') && ['switch_tool', 'generic_tool', 'pliers', 'screwdriver', 'hand'].includes(heldTool || ''))
+        const isTargetCorrect = target === config.target_object
+        const isActionCorrect = !config.requires_action || action === config.correct_action
+        const isCorrect = isToolCorrect && isTargetCorrect && isActionCorrect
 
-        if (isToolCorrect && isTargetCorrect && isActionCorrect) {
+        if (isExamMode) {
+            if (isCorrect) masteredIdsRef.current.add(currentQ.id)
+            else failedIdsRef.current.add(currentQ.id)
+            if (timerRef.current) clearInterval(timerRef.current)
+            setIsExamSubmitted(true)
+            onFinish({
+                selected_tool: TOOL_NAMES[heldTool || '']?.vi || heldTool || 'Chưa chọn',
+                selected_target: EXACT_TARGET_LABELS[target] || target || 'Chưa chọn',
+                selected_action: action ? ACTION_NAMES[action] || action : 'Không yêu cầu',
+                correct_tool: TOOL_NAMES[config.correct_tool || '']?.vi || config.correct_tool || 'Chưa cấu hình',
+                correct_target: EXACT_TARGET_LABELS[config.target_object || ''] || config.target_object || 'Chưa cấu hình',
+                correct_action: config.requires_action
+                    ? ACTION_NAMES[config.correct_action || ''] || config.correct_action || 'Chưa cấu hình'
+                    : 'Không yêu cầu',
+            }, isCorrect ? [currentQ.id] : [])
+            return
+        }
+
+        if (isCorrect) {
             setFeedbackState('success')
             if (!failedIdsRef.current.has(currentQ.id)) {
                 masteredIdsRef.current.add(currentQ.id)
             }
             if (timerRef.current) clearInterval(timerRef.current)
         } else {
-            if (!isToolCorrect) setWrongStep(1)
-            else if (!isTargetCorrect) setWrongStep(2)
-            else setWrongStep(3)
-            
             setFeedbackState('fail')
             failedIdsRef.current.add(currentQ.id)
             setIsShake(true)
@@ -419,17 +966,60 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
         }
     }
 
+    // Step 2: Select target object. Storage commands finish here; operation commands continue to Step 3.
+    const selectTarget = (target: string) => {
+        if (step !== 2 || feedbackState === 'success' || isExamSubmitted) return
+        setSelectedTarget(target)
+
+        if (config?.requires_action) {
+            setStep(3)
+            return
+        }
+
+        setSelectedAction(null)
+        evaluateSelection(target, null)
+    }
+
+    // Step 3: Choose action and evaluate
+    const executeAction = (action: string) => {
+        if (step !== 3 || !config || feedbackState === 'success' || !selectedTarget || isExamSubmitted) return
+        setSelectedAction(action)
+        evaluateSelection(selectedTarget, action)
+    }
+
     const resetSteps = () => {
+        if (audioRef.current) audioRef.current.pause()
+        stopTTS()
         setStep(1)
         setHeldTool(null)
         setSelectedTarget(null)
         setSelectedAction(null)
         setFeedbackState('idle')
-        setWrongStep(null)
         setShowCorrectAnswer(false)
+        setIsExamSubmitted(false)
+        setIsShake(false)
+
+        if (timerRef.current) clearInterval(timerRef.current)
+        const countdownSeconds = currentQ?.countdown_after_audio || 15
+        setTimeLeft(countdownSeconds)
+
+        timerRef.current = setInterval(() => {
+            setTimeLeft((prev) => {
+                if (prev === null || prev <= 1) {
+                    if (timerRef.current) clearInterval(timerRef.current)
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
     }
 
     const handleNext = () => {
+        resetSteps()
+        setAudioState('idle')
+        setTimeLeft(null)
+        setIsShake(false)
+
         if (currentIndex < questions.length - 1) {
             setCurrentIndex(prev => prev + 1)
         } else {
@@ -440,13 +1030,33 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
     if (!currentQ || !config) return null
 
     // Determine target classifications
-    const isWorkbenchActive = config.target_object === 'hex_bolt' || config.target_object === 'electric_wire' || config.target_object === 'gear' || config.target_object === 'metal_pipe'
-    const isPanelActive = config.target_object === 'switch_power' || config.target_object === 'emergency_button' || config.target_object === 'signal_light'
-    const isShelvesActive = config.target_object === 'shelf'
-    const isBoxesActive = config.target_object === 'box'
+    const correctToolId = config.correct_tool || 'screwdriver'
+    const targetObjectId = config.target_object || ''
+    const correctActionId = config.correct_action || ''
+
+    const ALL_PANEL_ITEMS = ['switch_power', 'emergency_button', 'signal_light']
+    const ALL_WORKBENCH_ITEMS = ['paint_can', 'primer_can', 'varnish_can', 'hex_bolt', 'phillips_screw', 'slotted_screw', 'electric_wire', 'gear', 'metal_pipe', 'wood_workpiece', 'metal_workpiece', 'lever', 'workpiece']
+
+    const visiblePanelTargets = ALL_PANEL_ITEMS.includes(targetObjectId)
+        ? [targetObjectId, ...ALL_PANEL_ITEMS.filter((t) => t !== targetObjectId)].slice(0, 3)
+        : ALL_PANEL_ITEMS.slice(0, 3)
+
+    const visibleWorkbenchTargets = ALL_WORKBENCH_ITEMS.includes(targetObjectId)
+        ? [targetObjectId, ...ALL_WORKBENCH_ITEMS.filter((t) => t !== targetObjectId)].slice(0, 4)
+        : ALL_WORKBENCH_ITEMS.slice(0, 4)
+
+    const actionChoiceIds = Array.from(new Set([
+        correctActionId,
+        ...(selectedTarget === 'hex_bolt' || selectedTarget === 'phillips_screw' || selectedTarget === 'slotted_screw' ? ['clockwise', 'counter_clockwise'] : []),
+        ...(selectedTarget === 'electric_wire' ? ['cut', 'strip', 'pull', 'bend'] : []),
+        ...(selectedTarget === 'switch_power' ? ['turn_on', 'turn_off'] : []),
+        ...(SHELF_TARGETS.includes(selectedTarget || '') || BOX_TARGETS.includes(selectedTarget || '') ? ['insert', 'pull'] : []),
+        'push',
+        'pull'
+    ])).filter(Boolean).slice(0, 4)
 
     return (
-        <div className="max-w-5xl mx-auto p-4 space-y-4 select-none touch-none bg-slate-950 rounded-3xl border border-slate-800 shadow-2xl relative overflow-hidden">
+        <div className={`${isExamMode ? 'max-w-none p-3 md:p-4' : 'max-w-5xl p-4'} mx-auto space-y-4 select-none touch-none bg-slate-950 rounded-3xl border border-slate-800 shadow-2xl relative overflow-hidden`}>
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.12),rgba(255,255,255,0))] pointer-events-none" />
 
             <audio ref={audioRef} onPlay={() => setAudioState('playing')} onEnded={handleAudioEnded} onError={() => setAudioState('error')} className="hidden" />
@@ -507,7 +1117,7 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
             <div className={`bg-slate-900/40 rounded-2xl border border-slate-900/80 p-4 relative overflow-hidden min-h-[580px] flex flex-col items-center justify-between transition-transform duration-100 ${isShake ? 'animate-shake' : ''}`}>
                 
                 <div className="w-full flex flex-col items-center gap-2 z-10 mb-2">
-                    {timeLeft !== null && timeLeft > 0 && feedbackState === 'idle' && (
+                    {timeLeft !== null && timeLeft > 0 && feedbackState === 'idle' && !isExamSubmitted && (
                         <div className="flex items-center gap-3 px-5 py-2 rounded-full bg-slate-900 border border-slate-850 shadow-lg animate-pulse">
                             <span className="text-xs font-semibold tracking-wider text-slate-400 uppercase">Khẩu lệnh kết thúc - Đang thao tác:</span>
                             <div className="font-mono text-xl font-black text-cyan-400 flex items-center">
@@ -524,9 +1134,9 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
 
                     {audioState === 'ended' && feedbackState === 'idle' && (
                         <div className="text-sm font-bold text-center mt-1">
-                            {step === 1 && <span className="text-amber-400">BƯỚC 1: Hãy bấm chọn 1 dụng cụ trên "BÀN LÀM VIỆC"</span>}
-                            {step === 2 && <span className="text-cyan-400">BƯỚC 2: Click vào vật thể tác động thích hợp ở trung tâm</span>}
-                            {step === 3 && <span className="text-purple-400 font-extrabold animate-pulse">BƯỚC 3: Chọn hướng thao tác / Hành động tương ứng</span>}
+                            {step === 1 && <span className="text-amber-400">BƯỚC 1: Hãy bấm chọn 1 dụng cụ trên &quot;BÀN LÀM VIỆC&quot;</span>}
+                            {step === 2 && <span className="text-cyan-400">BƯỚC 2: Click chọn vật thể hoặc vị trí thao tác thích hợp (Bàn làm việc, Bảng điều khiển, Kệ hoặc Hộp công cụ)</span>}
+                            {step === 3 && config.requires_action && <span className="text-purple-400 font-extrabold animate-pulse">BƯỚC 3: Chọn hướng thao tác / Hành động tương ứng</span>}
                         </div>
                     )}
                 </div>
@@ -535,34 +1145,32 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
                 <div className="relative w-full max-w-4xl h-[380px] bg-slate-950 rounded-3xl border-4 border-slate-900 mx-auto overflow-hidden shadow-2xl flex backdrop-blur-lg">
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(30,41,59,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(30,41,59,0.08)_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
 
-                    {/* Left Shelves Column (Fades out when inactive) */}
-                    <div className={`w-20 md:w-36 shrink-0 h-full flex flex-col border-r-4 border-slate-900 bg-slate-900/10 relative transition-all duration-300 ${
-                        !isShelvesActive ? 'opacity-20 pointer-events-none filter blur-[0.5px]' : ''
-                    }`}>
+                    {/* Left Shelves Column */}
+                    <div className="w-20 md:w-36 shrink-0 h-full flex flex-col border-r-4 border-slate-900 bg-slate-900/10 relative transition-all duration-300">
                         <div className="absolute inset-y-0 left-2 w-1 bg-slate-800/40" />
                         <div className="absolute inset-y-0 right-2 w-1 bg-slate-800/40" />
 
                         {/* Top Shelf Left */}
                         <button 
-                            disabled={step !== 2 || !isShelvesActive || feedbackState === 'success'}
-                            onClick={() => selectTarget('shelf')}
+                            disabled={step !== 2 || feedbackState === 'success'}
+                            onClick={() => selectTarget('shelf_top_left')}
                             className={`flex-1 border-b-4 border-slate-900 flex flex-col items-center justify-center p-2 relative transition-all duration-300 outline-none ${
-                                step === 2 && isShelvesActive ? 'hover:bg-cyan-500/10 active:bg-cyan-500/20' : ''
-                            } ${showCorrectAnswer && config.target_object === 'shelf' ? 'bg-emerald-500/25 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''}`}
+                                step === 2 ? 'hover:bg-cyan-500/20 hover:border-cyan-400 cursor-pointer active:bg-cyan-500/30' : ''
+                            } ${showCorrectAnswer && config.target_object === 'shelf_top_left' ? 'bg-emerald-500/25 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''}`}
                         >
-                            <span className="text-slate-400 font-bold text-center text-[9px] md:text-xs tracking-wider uppercase bg-slate-900/90 px-1.5 py-0.5 rounded border border-slate-850">Kệ trên (Trái)</span>
+                            <span className="text-slate-300 font-bold text-center text-[9px] md:text-xs tracking-wider uppercase bg-slate-900/90 px-1.5 py-0.5 rounded border border-slate-800">Kệ trên (Trái)</span>
                             <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-400 to-slate-500 shadow" />
                         </button>
 
                         {/* Bottom Shelf Left */}
                         <button 
-                            disabled={step !== 2 || !isShelvesActive || feedbackState === 'success'}
-                            onClick={() => selectTarget('shelf')}
+                            disabled={step !== 2 || feedbackState === 'success'}
+                            onClick={() => selectTarget('shelf_bottom_left')}
                             className={`flex-1 flex flex-col items-center justify-center p-2 relative transition-all duration-300 outline-none ${
-                                step === 2 && isShelvesActive ? 'hover:bg-cyan-500/10 active:bg-cyan-500/20' : ''
-                            } ${showCorrectAnswer && config.target_object === 'shelf' ? 'bg-emerald-500/25 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''}`}
+                                step === 2 ? 'hover:bg-cyan-500/20 hover:border-cyan-400 cursor-pointer active:bg-cyan-500/30' : ''
+                            } ${showCorrectAnswer && config.target_object === 'shelf_bottom_left' ? 'bg-emerald-500/25 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''}`}
                         >
-                            <span className="text-slate-400 font-bold text-center text-[9px] md:text-xs tracking-wider uppercase bg-slate-900/90 px-1.5 py-0.5 rounded border border-slate-850">Kệ dưới (Trái)</span>
+                            <span className="text-slate-300 font-bold text-center text-[9px] md:text-xs tracking-wider uppercase bg-slate-900/90 px-1.5 py-0.5 rounded border border-slate-800">Kệ dưới (Trái)</span>
                             <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-400 to-slate-500 shadow" />
                         </button>
                     </div>
@@ -571,231 +1179,108 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
                     <div className="flex-1 h-full flex flex-col p-4 gap-4 relative min-w-0">
                         
                         {/* Control Panel with 3 items */}
-                        <div className={`h-[115px] border-2 border-slate-850 bg-slate-900/20 rounded-2xl flex flex-col items-center justify-between p-2.5 relative transition-all duration-300 ${
-                            !isPanelActive ? 'opacity-20 pointer-events-none filter blur-[0.5px]' : ''
-                        } ${
-                            showCorrectAnswer && isPanelActive ? 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)] bg-emerald-950/10' : ''
+                        <div className={`h-[115px] border-2 border-slate-800 bg-slate-900/30 rounded-2xl flex flex-col items-center justify-between p-2.5 relative transition-all duration-300 ${
+                            showCorrectAnswer && visiblePanelTargets.includes(config.target_object || '') ? 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)] bg-emerald-950/10' : ''
                         }`}>
-                            <span className="text-slate-400 font-bold text-[9px] md:text-xs tracking-widest uppercase bg-slate-950/95 px-2 py-0.5 rounded border border-slate-850">Bảng điều khiển máy móc</span>
+                            <span className="text-slate-300 font-bold text-[9px] md:text-xs tracking-widest uppercase bg-slate-950/95 px-2 py-0.5 rounded border border-slate-800">Bảng điều khiển máy móc</span>
                             
-                            <div className="flex justify-around items-center w-full flex-1 mt-1">
-                                {/* Toggle switch target */}
-                                <button
-                                    disabled={step !== 2 || !isPanelActive || feedbackState === 'success'}
-                                    onClick={() => selectTarget('switch_power')}
-                                    className={`p-2 rounded-xl border-2 transition-all relative flex flex-col items-center justify-center bg-slate-950 outline-none ${
-                                        step === 2 && isPanelActive
-                                            ? 'border-cyan-500/40 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(6,182,212,0.2)] cursor-pointer animate-pulse' 
-                                            : 'border-slate-800'
-                                    } ${selectedTarget === 'switch_power' ? 'border-cyan-400 bg-cyan-950/20 shadow-[0_0_12px_rgba(6,182,212,0.3)]' : ''}`}
-                                >
-                                    <div className="w-5 h-7 bg-slate-800 rounded-md border border-slate-700 p-0.5 flex flex-col justify-between items-center relative">
-                                        <div className={`w-3.5 h-3.5 rounded bg-orange-500 shadow-inner transition-transform ${
-                                            selectedAction === 'turn_on' ? 'translate-y-0 bg-emerald-500' : 'translate-y-2 bg-rose-500'
-                                        }`} />
-                                    </div>
-                                    <span className="text-[7px] md:text-[9px] text-slate-400 font-extrabold uppercase mt-1">Cầu dao / Công tắc</span>
-                                </button>
-
-                                {/* Emergency Button target */}
-                                <button
-                                    disabled={step !== 2 || !isPanelActive || feedbackState === 'success'}
-                                    onClick={() => selectTarget('emergency_button')}
-                                    className={`p-2 rounded-xl border-2 transition-all relative flex flex-col items-center justify-center bg-slate-950 outline-none ${
-                                        step === 2 && isPanelActive
-                                            ? 'border-cyan-500/40 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(6,182,212,0.2)] cursor-pointer' 
-                                            : 'border-slate-800'
-                                    } ${selectedTarget === 'emergency_button' ? 'border-cyan-400 bg-cyan-950/20 shadow-[0_0_12px_rgba(6,182,212,0.3)]' : ''}`}
-                                >
-                                    <svg className="w-7 h-7" viewBox="0 0 64 64" fill="none">
-                                        <rect x="12" y="12" width="40" height="40" rx="6" fill="#facc15" stroke="#ca8a04" strokeWidth="2" />
-                                        <circle cx="32" cy="32" r="12" fill="#ef4444" stroke="#991b1b" strokeWidth="2" />
-                                    </svg>
-                                    <span className="text-[7px] md:text-[9px] text-slate-400 font-extrabold uppercase mt-1">Nút khẩn cấp</span>
-                                </button>
-
-                                {/* Signal Light target */}
-                                <button
-                                    disabled={step !== 2 || !isPanelActive || feedbackState === 'success'}
-                                    onClick={() => selectTarget('signal_light')}
-                                    className={`p-2 rounded-xl border-2 transition-all relative flex flex-col items-center justify-center bg-slate-950 outline-none ${
-                                        step === 2 && isPanelActive
-                                            ? 'border-cyan-500/40 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(6,182,212,0.2)] cursor-pointer' 
-                                            : 'border-slate-800'
-                                    } ${selectedTarget === 'signal_light' ? 'border-cyan-400 bg-cyan-950/20 shadow-[0_0_12px_rgba(6,182,212,0.3)]' : ''}`}
-                                >
-                                    <svg className="w-7 h-7" viewBox="0 0 64 64" fill="none">
-                                        <rect x="18" y="12" width="28" height="40" rx="4" fill="#1e293b" stroke="#334155" strokeWidth="2" />
-                                        <circle cx="32" cy="22" r="6" fill="#ef4444" />
-                                        <circle cx="32" cy="42" r="6" fill="#22c55e" />
-                                    </svg>
-                                    <span className="text-[7px] md:text-[9px] text-slate-400 font-extrabold uppercase mt-1">Đèn báo</span>
-                                </button>
+                            <div className="grid grid-cols-3 gap-3 items-center w-full flex-1 mt-1">
+                                {visiblePanelTargets.map((target) => (
+                                    <button
+                                        key={target}
+                                        disabled={step !== 2 || feedbackState === 'success'}
+                                        onClick={() => selectTarget(target)}
+                                        className={`h-[70px] p-2 rounded-xl border-2 transition-all relative flex flex-col items-center justify-center bg-slate-950 outline-none ${
+                                            step === 2
+                                                ? 'border-cyan-500/40 hover:border-cyan-400 hover:shadow-[0_0_12px_rgba(6,182,212,0.4)] hover:scale-[1.02] cursor-pointer'
+                                                : 'border-slate-800'
+                                        } ${
+                                            target === targetObjectId ? 'ring-1 ring-cyan-500/30' : ''
+                                        } ${selectedTarget === target ? 'border-cyan-400 bg-cyan-950/30 shadow-[0_0_12px_rgba(6,182,212,0.4)]' : ''}`}
+                                    >
+                                        <TargetObjectIcon type={target} activeAction={selectedAction} className="w-8 h-8" />
+                                        <span className="text-[7px] md:text-[9px] text-slate-300 font-extrabold uppercase mt-1 text-center leading-tight">{TARGET_SHORT_LABELS[target] || target}</span>
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
                         {/* Heavy Workbench with 4 items */}
-                        <div className={`flex-1 border-2 border-slate-850 bg-slate-900/10 rounded-2xl flex flex-col items-center justify-between p-3 relative transition-all duration-300 ${
-                            !isWorkbenchActive ? 'opacity-20 pointer-events-none filter blur-[0.5px]' : ''
-                        } ${
-                            showCorrectAnswer && isWorkbenchActive ? 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)] bg-emerald-950/10' : ''
+                        <div className={`flex-1 border-2 border-slate-800 bg-slate-900/20 rounded-2xl flex flex-col items-center justify-between p-3 relative transition-all duration-300 ${
+                            showCorrectAnswer && visibleWorkbenchTargets.includes(config.target_object || '') ? 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)] bg-emerald-950/10' : ''
                         }`}>
-                            <span className="text-slate-400 font-bold text-[9px] md:text-xs tracking-wider uppercase bg-slate-950/95 px-2 py-0.5 rounded border border-slate-850">Khu vực thi công / Bàn làm việc</span>
+                            <span className="text-slate-300 font-bold text-[9px] md:text-xs tracking-wider uppercase bg-slate-950/95 px-2 py-0.5 rounded border border-slate-800">Khu vực thi công / Bàn làm việc</span>
 
-                            <div className="flex justify-around items-center w-full flex-1 mt-1 gap-2">
-                                {/* Hex Bolt target */}
-                                <button
-                                    disabled={step !== 2 || !isWorkbenchActive || feedbackState === 'success'}
-                                    onClick={() => selectTarget('hex_bolt')}
-                                    className={`p-2 rounded-xl border-2 transition-all flex flex-col items-center justify-center bg-slate-950 outline-none ${
-                                        step === 2 && isWorkbenchActive
-                                            ? 'border-cyan-500/40 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(6,182,212,0.2)] cursor-pointer' 
-                                            : 'border-slate-800'
-                                    } ${selectedTarget === 'hex_bolt' ? 'border-cyan-400 bg-cyan-950/20 shadow-[0_0_12px_rgba(6,182,212,0.3)]' : ''}`}
-                                >
-                                    <svg className="w-8 h-8" viewBox="0 0 64 64" fill="none">
-                                        <polygon points="32,8 52,20 52,44 32,56 12,44 12,20" fill="#cbd5e1" stroke="#475569" strokeWidth="3" />
-                                        <circle cx="32" cy="32" r="10" fill="#94a3b8" stroke="#475569" strokeWidth="2" />
-                                    </svg>
-                                    <span className="text-[7px] md:text-[9px] text-slate-400 font-bold uppercase mt-1">Bu lông</span>
-                                </button>
-
-                                {/* Electric Wire target */}
-                                <button
-                                    disabled={step !== 2 || !isWorkbenchActive || feedbackState === 'success'}
-                                    onClick={() => selectTarget('electric_wire')}
-                                    className={`p-2 rounded-xl border-2 transition-all flex flex-col items-center justify-center bg-slate-950 outline-none ${
-                                        step === 2 && isWorkbenchActive
-                                            ? 'border-cyan-500/40 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(6,182,212,0.2)] cursor-pointer' 
-                                            : 'border-slate-800'
-                                    } ${selectedTarget === 'electric_wire' ? 'border-cyan-400 bg-cyan-950/20 shadow-[0_0_12px_rgba(6,182,212,0.3)]' : ''}`}
-                                >
-                                    <svg className="w-10 h-5" viewBox="0 0 80 40" fill="none">
-                                        <rect x="5" y="14" width="70" height="12" rx="6" fill="#ef4444" stroke="#991b1b" strokeWidth="2" />
-                                    </svg>
-                                    <span className="text-[7px] md:text-[9px] text-slate-400 font-bold uppercase mt-1">Dây dẫn</span>
-                                </button>
-
-                                {/* Gear target */}
-                                <button
-                                    disabled={step !== 2 || !isWorkbenchActive || feedbackState === 'success'}
-                                    onClick={() => selectTarget('gear')}
-                                    className={`p-2 rounded-xl border-2 transition-all flex flex-col items-center justify-center bg-slate-950 outline-none ${
-                                        step === 2 && isWorkbenchActive
-                                            ? 'border-cyan-500/40 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(6,182,212,0.2)] cursor-pointer' 
-                                            : 'border-slate-800'
-                                    } ${selectedTarget === 'gear' ? 'border-cyan-400 bg-cyan-950/20 shadow-[0_0_12px_rgba(6,182,212,0.3)]' : ''}`}
-                                >
-                                    <svg className="w-8 h-8" viewBox="0 0 64 64" fill="none">
-                                        <circle cx="32" cy="32" r="14" fill="#cbd5e1" stroke="#475569" strokeWidth="2" />
-                                        <circle cx="32" cy="32" r="6" fill="#1e293b" />
-                                    </svg>
-                                    <span className="text-[7px] md:text-[9px] text-slate-400 font-bold uppercase mt-1">Bánh răng</span>
-                                </button>
-
-                                {/* Metal Pipe target */}
-                                <button
-                                    disabled={step !== 2 || !isWorkbenchActive || feedbackState === 'success'}
-                                    onClick={() => selectTarget('metal_pipe')}
-                                    className={`p-2 rounded-xl border-2 transition-all flex flex-col items-center justify-center bg-slate-950 outline-none ${
-                                        step === 2 && isWorkbenchActive
-                                            ? 'border-cyan-500/40 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(6,182,212,0.2)] cursor-pointer' 
-                                            : 'border-slate-800'
-                                    } ${selectedTarget === 'metal_pipe' ? 'border-cyan-400 bg-cyan-950/20 shadow-[0_0_12px_rgba(6,182,212,0.3)]' : ''}`}
-                                >
-                                    <svg className="w-10 h-5" viewBox="0 0 80 40" fill="none">
-                                        <rect x="5" y="14" width="70" height="12" rx="2" fill="#94a3b8" stroke="#475569" strokeWidth="2" />
-                                    </svg>
-                                    <span className="text-[7px] md:text-[9px] text-slate-400 font-bold uppercase mt-1">Ống sắt</span>
-                                </button>
+                            <div className="grid grid-cols-4 gap-3 items-center w-full flex-1 mt-1">
+                                {visibleWorkbenchTargets.map((target) => (
+                                    <button
+                                        key={target}
+                                        disabled={step !== 2 || feedbackState === 'success'}
+                                        onClick={() => selectTarget(target)}
+                                        className={`min-h-[86px] p-2 rounded-xl border-2 transition-all flex flex-col items-center justify-center bg-slate-950 outline-none ${
+                                            step === 2
+                                                ? 'border-cyan-500/40 hover:border-cyan-400 hover:shadow-[0_0_12px_rgba(6,182,212,0.4)] hover:scale-[1.02] cursor-pointer'
+                                                : 'border-slate-800'
+                                        } ${
+                                            target === targetObjectId ? 'ring-1 ring-cyan-500/30' : ''
+                                        } ${selectedTarget === target ? 'border-cyan-400 bg-cyan-950/30 shadow-[0_0_12px_rgba(6,182,212,0.4)]' : ''}`}
+                                    >
+                                        <TargetObjectIcon type={target} className="w-10 h-10 md:w-12 md:h-12" />
+                                        <span className="text-[7px] md:text-[9px] text-slate-300 font-bold uppercase mt-1 text-center leading-tight">{TARGET_SHORT_LABELS[target] || target}</span>
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     </div>
 
-                    {/* Right Shelves Column (Fades out when inactive) */}
-                    <div className={`w-20 md:w-36 shrink-0 h-full flex flex-col border-l-4 border-slate-900 bg-slate-900/10 relative transition-all duration-300 ${
-                        !isShelvesActive ? 'opacity-20 pointer-events-none filter blur-[0.5px]' : ''
-                    }`}>
+                    {/* Right Shelves Column */}
+                    <div className="w-20 md:w-36 shrink-0 h-full flex flex-col border-l-4 border-slate-900 bg-slate-900/10 relative transition-all duration-300">
                         <div className="absolute inset-y-0 left-2 w-1 bg-slate-800/40" />
                         <div className="absolute inset-y-0 right-2 w-1 bg-slate-800/40" />
 
                         {/* Top Shelf Right */}
                         <button 
-                            disabled={step !== 2 || !isShelvesActive || feedbackState === 'success'}
-                            onClick={() => selectTarget('shelf')}
+                            disabled={step !== 2 || feedbackState === 'success'}
+                            onClick={() => selectTarget('shelf_top_right')}
                             className={`flex-1 border-b-4 border-slate-900 flex flex-col items-center justify-center p-2 relative transition-all duration-300 outline-none ${
-                                step === 2 && isShelvesActive ? 'hover:bg-cyan-500/10 active:bg-cyan-500/20' : ''
-                            } ${showCorrectAnswer && config.target_object === 'shelf' ? 'bg-emerald-500/25 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''}`}
+                                step === 2 ? 'hover:bg-cyan-500/20 hover:border-cyan-400 cursor-pointer active:bg-cyan-500/30' : ''
+                            } ${showCorrectAnswer && config.target_object === 'shelf_top_right' ? 'bg-emerald-500/25 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''}`}
                         >
-                            <span className="text-slate-400 font-bold text-center text-[9px] md:text-xs tracking-wider uppercase bg-slate-900/90 px-1.5 py-0.5 rounded border border-slate-850">Kệ trên (Phải)</span>
+                            <span className="text-slate-300 font-bold text-center text-[9px] md:text-xs tracking-wider uppercase bg-slate-900/90 px-1.5 py-0.5 rounded border border-slate-800">Kệ trên (Phải)</span>
                             <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-400 to-slate-500 shadow" />
                         </button>
 
                         {/* Bottom Shelf Right */}
                         <button 
-                            disabled={step !== 2 || !isShelvesActive || feedbackState === 'success'}
-                            onClick={() => selectTarget('shelf')}
+                            disabled={step !== 2 || feedbackState === 'success'}
+                            onClick={() => selectTarget('shelf_bottom_right')}
                             className={`flex-1 flex flex-col items-center justify-center p-2 relative transition-all duration-300 outline-none ${
-                                step === 2 && isShelvesActive ? 'hover:bg-cyan-500/10 active:bg-cyan-500/20' : ''
-                            } ${showCorrectAnswer && config.target_object === 'shelf' ? 'bg-emerald-500/25 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''}`}
+                                step === 2 ? 'hover:bg-cyan-500/20 hover:border-cyan-400 cursor-pointer active:bg-cyan-500/30' : ''
+                            } ${showCorrectAnswer && config.target_object === 'shelf_bottom_right' ? 'bg-emerald-500/25 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''}`}
                         >
-                            <span className="text-slate-400 font-bold text-center text-[9px] md:text-xs tracking-wider uppercase bg-slate-900/90 px-1.5 py-0.5 rounded border border-slate-850">Kệ dưới (Phải)</span>
+                            <span className="text-slate-300 font-bold text-center text-[9px] md:text-xs tracking-wider uppercase bg-slate-900/90 px-1.5 py-0.5 rounded border border-slate-800">Kệ dưới (Phải)</span>
                             <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-400 to-slate-500 shadow" />
                         </button>
                     </div>
 
                     {/* Step 3 action modal popup overlay */}
-                    {step === 3 && feedbackState === 'idle' && (
+                    {step === 3 && config.requires_action && feedbackState === 'idle' && (
                         <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl text-center space-y-4 animate-in zoom-in-95 duration-200">
                                 <div>
                                     <h5 className="text-slate-200 font-extrabold text-sm tracking-wider uppercase">Chọn hành động thao tác</h5>
                                 </div>
                                 <div className="flex flex-col gap-2">
-                                    {/* Action Choices - High-contrast white text */}
-                                    {selectedTarget === 'hex_bolt' && (
-                                        <>
-                                            <Button type="button" onClick={() => executeAction('counter_clockwise')} className="py-5 bg-slate-950 border border-slate-800 text-slate-100 hover:text-white hover:bg-slate-800 text-xs font-black tracking-wide">
-                                                🔄 Xoay ngược chiều kim đồng hồ (Tháo)
-                                            </Button>
-                                            <Button type="button" onClick={() => executeAction('clockwise')} className="py-5 bg-slate-950 border border-slate-800 text-slate-100 hover:text-white hover:bg-slate-800 text-xs font-black tracking-wide">
-                                                🔄 Xoay cùng chiều kim đồng hồ (Siết)
-                                            </Button>
-                                        </>
-                                    )}
-                                    {selectedTarget === 'electric_wire' && (
-                                        <>
-                                            <Button type="button" onClick={() => executeAction('cut')} className="py-5 bg-slate-950 border border-slate-800 text-slate-100 hover:text-white hover:bg-slate-800 text-xs font-black tracking-wide">
-                                                ✂️ Cắt đứt
-                                            </Button>
-                                            <Button type="button" onClick={() => executeAction('strip')} className="py-5 bg-slate-950 border border-slate-800 text-slate-100 hover:text-white hover:bg-slate-800 text-xs font-black tracking-wide">
-                                                ⚡ Tước vỏ cách điện
-                                            </Button>
-                                            <Button type="button" onClick={() => executeAction('pull')} className="py-5 bg-slate-950 border border-slate-800 text-slate-100 hover:text-white hover:bg-slate-800 text-xs font-black tracking-wide">
-                                                📤 Kéo dài / Kéo ra / Nhổ ra
-                                            </Button>
-                                        </>
-                                    )}
-                                    {selectedTarget === 'switch_power' && (
-                                        <>
-                                            <Button type="button" onClick={() => executeAction('turn_on')} className="py-5 bg-slate-950 border border-slate-800 text-slate-100 hover:text-white hover:bg-slate-800 text-xs font-black tracking-wide">
-                                                ⬆️ Bật / Gạt lên
-                                            </Button>
-                                            <Button type="button" onClick={() => executeAction('turn_off')} className="py-5 bg-slate-950 border border-slate-800 text-slate-100 hover:text-white hover:bg-slate-800 text-xs font-black tracking-wide">
-                                                ⬇️ Tắt / Gạt xuống
-                                            </Button>
-                                        </>
-                                    )}
-                                    {(selectedTarget === 'shelf' || selectedTarget === 'box' || selectedTarget === 'gear' || selectedTarget === 'metal_pipe') && (
-                                        <>
-                                            <Button type="button" onClick={() => executeAction('push')} className="py-5 bg-slate-950 border border-slate-800 text-slate-100 hover:text-white hover:bg-slate-800 text-xs font-black tracking-wide">
-                                                📥 Đóng vào / Cất vào
-                                            </Button>
-                                            <Button type="button" onClick={() => executeAction('pull')} className="py-5 bg-slate-950 border border-slate-800 text-slate-100 hover:text-white hover:bg-slate-800 text-xs font-black tracking-wide">
-                                                📤 Nhổ ra / Lấy ra / Kéo ra
-                                            </Button>
-                                        </>
-                                    )}
+                                    {actionChoiceIds.map((actionId) => (
+                                        <Button
+                                            key={actionId}
+                                            type="button"
+                                            onClick={() => executeAction(actionId)}
+                                            className="py-5 bg-slate-950 border border-slate-800 text-slate-100 hover:text-white hover:bg-slate-800 text-xs font-black tracking-wide"
+                                        >
+                                            {ACTION_NAMES[actionId] || actionId}
+                                        </Button>
+                                    ))}
                                 </div>
                                 <Button type="button" variant="ghost" size="sm" onClick={() => setStep(2)} className="text-xs text-slate-400 hover:text-slate-200">
                                     Hủy / Quay lại Bước 2
@@ -815,58 +1300,58 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
                     </div>
                 )}
 
-                {/* Boxes Row (Fades out when inactive) */}
-                <div className={`w-full max-w-4xl grid grid-cols-2 gap-4 mt-2 transition-all duration-300 ${
-                    !isBoxesActive ? 'opacity-20 pointer-events-none filter blur-[0.5px]' : ''
-                }`}>
+                {/* Boxes Row */}
+                <div className="w-full max-w-4xl grid grid-cols-2 gap-4 mt-2 transition-all duration-300">
                     <button 
-                        disabled={step !== 2 || !isBoxesActive || feedbackState === 'success'}
-                        onClick={() => selectTarget('box')}
-                        className={`py-3.5 rounded-2xl border-2 bg-slate-900/10 flex items-center justify-center outline-none transition-all ${
-                            step === 2 && isBoxesActive ? 'border-cyan-800/30 hover:border-cyan-400 hover:bg-cyan-500/5' : 'border-slate-850'
-                        } ${showCorrectAnswer && config.target_object === 'box' ? 'bg-emerald-500/25 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''}`}
+                        disabled={step !== 2 || feedbackState === 'success'}
+                        onClick={() => selectTarget('toolbox_center')}
+                        className={`py-3.5 rounded-2xl border-2 bg-slate-900/20 flex items-center justify-center outline-none transition-all ${
+                            step === 2 ? 'border-cyan-500/40 hover:border-cyan-400 hover:bg-cyan-500/10 cursor-pointer shadow-sm' : 'border-slate-800'
+                        } ${showCorrectAnswer && config.target_object === 'toolbox_center' ? 'bg-emerald-500/25 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''}`}
                     >
-                        <span className="text-[10px] md:text-xs text-slate-400 font-extrabold uppercase">Hộp công cụ chung</span>
+                        <span className="text-[10px] md:text-xs text-slate-300 font-extrabold uppercase">Hộp công cụ chung</span>
                     </button>
                     <button 
-                        disabled={step !== 2 || !isBoxesActive || feedbackState === 'success'}
-                        onClick={() => selectTarget('box')}
-                        className={`py-3.5 rounded-2xl border-2 bg-slate-900/10 flex items-center justify-center outline-none transition-all ${
-                            step === 2 && isBoxesActive ? 'border-cyan-800/30 hover:border-cyan-400 hover:bg-cyan-500/5' : 'border-slate-850'
-                        } ${showCorrectAnswer && config.target_object === 'box' ? 'bg-emerald-500/25 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''}`}
+                        disabled={step !== 2 || feedbackState === 'success'}
+                        onClick={() => selectTarget('special_box')}
+                        className={`py-3.5 rounded-2xl border-2 bg-slate-900/20 flex items-center justify-center outline-none transition-all ${
+                            step === 2 ? 'border-cyan-500/40 hover:border-cyan-400 hover:bg-cyan-500/10 cursor-pointer shadow-sm' : 'border-slate-800'
+                        } ${showCorrectAnswer && config.target_object === 'special_box' ? 'bg-emerald-500/25 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''}`}
                     >
-                        <span className="text-[10px] md:text-xs text-slate-400 font-extrabold uppercase">Hộp chuyên dụng</span>
+                        <span className="text-[10px] md:text-xs text-slate-300 font-extrabold uppercase">Hộp chuyên dụng</span>
                     </button>
                 </div>
 
                 {/* BÀN LÀM VIỆC Tool picker rack */}
-                <div className="w-full max-w-4xl bg-slate-900/90 border border-slate-850 p-4 rounded-2xl shadow-xl mt-4 relative">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-950 px-4 py-0.5 rounded-full border border-slate-850 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        Bàn làm việc
+                <div className="w-full max-w-4xl bg-slate-900/90 border border-slate-800 p-4 rounded-2xl shadow-xl mt-4 relative">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-950 px-4 py-0.5 rounded-full border border-slate-800 text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+                        Bàn làm việc (Chọn dụng cụ)
                     </div>
 
                     <div className="grid grid-cols-5 gap-3 mt-1.5">
                         {currentToolsOnDesk.map((toolId: string) => {
                             const isSelected = heldTool === toolId
                             const isCorrect = config.correct_tool === toolId
+                            const toolInfo = TOOL_NAMES[toolId] || { vi: toolId, ko: '' }
                             return (
                                 <button
                                     key={toolId}
-                                    disabled={audioState !== 'ended' || timeLeft === 0 || feedbackState === 'success'}
+                                    disabled={timeLeft === 0 || feedbackState === 'success'}
                                     onClick={() => selectTool(toolId)}
-                                    className={`p-5 bg-slate-950 rounded-xl border-2 flex flex-col items-center justify-center transition-all outline-none ${
-                                        audioState !== 'ended' ? 'opacity-30 grayscale filter cursor-not-allowed' : 'hover:border-slate-700'
-                                    } ${
+                                    className={`p-3 md:p-4 bg-slate-950 rounded-xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all outline-none cursor-pointer hover:border-orange-500/60 hover:bg-slate-900 ${
                                         isSelected 
-                                            ? 'border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.3)] bg-orange-950/10' 
-                                            : 'border-slate-850'
+                                            ? 'border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.35)] bg-orange-950/20 scale-[1.03]'
+                                            : 'border-slate-800'
                                     } ${
                                         showCorrectAnswer && isCorrect 
-                                            ? 'border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)] bg-emerald-950/10' 
+                                            ? 'border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.35)] bg-emerald-950/20'
                                             : ''
                                     }`}
                                 >
-                                    <SmallToolIcon type={toolId} className="w-12 h-12" />
+                                    <SmallToolIcon type={toolId} className="w-9 h-9 md:w-11 md:h-11" />
+                                    <span className="text-[9px] md:text-[11px] font-extrabold text-slate-200 text-center leading-tight">
+                                        {toolInfo.vi}
+                                    </span>
                                 </button>
                             )
                         })}
@@ -874,7 +1359,16 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
                 </div>
 
                 {/* Diagnostics and overlays */}
-                {feedbackState !== 'idle' && (
+                {isExamMode && isExamSubmitted && (
+                    <div className="mt-5 w-full max-w-4xl rounded-2xl border border-cyan-500/30 bg-cyan-950/40 p-4 text-center shadow-lg">
+                        <p className="font-bold text-cyan-300">Đã ghi nhận thao tác</p>
+                        <p className="mt-1 text-xs text-slate-400">
+                            Kết quả đúng hoặc sai và đáp án chuẩn sẽ được hiển thị sau khi nộp toàn bộ bài thi.
+                        </p>
+                    </div>
+                )}
+
+                {!isExamMode && feedbackState !== 'idle' && (
                     <div className="w-full max-w-4xl mt-5 z-20 animate-in fade-in slide-in-from-bottom-6 duration-500">
                         {feedbackState === 'success' ? (
                             <div className="bg-emerald-950/80 backdrop-blur-md border-2 border-emerald-500/30 rounded-2xl p-5 shadow-2xl relative overflow-hidden">
@@ -922,17 +1416,19 @@ export function ToolDragPracticeScreen({ questions, onFinish, onBack }: ToolDrag
                                             </div>
                                             <div className="flex items-center justify-between">
                                                 <span className="text-slate-400">Bước 3: Chọn hướng/hành động</span>
-                                                <span className={selectedAction === config.correct_action ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
-                                                    {selectedAction === config.correct_action ? "✓ Chính xác" : "✗ Sai"}
+                                                <span className={!config.requires_action || selectedAction === config.correct_action ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
+                                                    {!config.requires_action ? "Không cần" : selectedAction === config.correct_action ? "✓ Chính xác" : "✗ Sai"}
                                                 </span>
                                             </div>
 
                                             {showCorrectAnswer && (
                                                 <div className="mt-3 pt-3 border-t border-slate-800 text-xs space-y-1 animate-in fade-in duration-300 text-slate-200">
                                                     <div className="font-extrabold text-emerald-400 uppercase tracking-wider mb-1.5">Đáp án đúng của khẩu lệnh:</div>
-                                                    <div>Bước 1: Chọn <span className="text-emerald-400 font-bold">{TOOL_NAMES[config.correct_tool]?.vi}</span></div>
-                                                    <div>Bước 2: Click vào <span className="text-emerald-400 font-bold">{TARGET_NAMES[config.target_object] || config.target_object}</span></div>
-                                                    <div>Bước 3: Thực hiện <span className="text-emerald-400 font-bold">{ACTION_NAMES[config.correct_action] || config.correct_action}</span></div>
+                                                    <div>Bước 1: Chọn <span className="text-emerald-400 font-bold">{TOOL_NAMES[correctToolId]?.vi}</span></div>
+                                                    <div>Bước 2: Click vào <span className="text-emerald-400 font-bold">{EXACT_TARGET_LABELS[targetObjectId] || targetObjectId}</span></div>
+                                                    {config.requires_action && (
+                                                        <div>Bước 3: Thực hiện <span className="text-emerald-400 font-bold">{ACTION_NAMES[correctActionId] || correctActionId}</span></div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>

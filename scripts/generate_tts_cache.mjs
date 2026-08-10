@@ -11,7 +11,7 @@ dotenv.config({ path: '.env.local' })
 const execute = process.argv.includes('--execute')
 const setupOnly = process.argv.includes('--setup')
 const bucket = process.env.SUPABASE_TTS_BUCKET || 'tts-audio'
-const voiceId = process.env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFmaJgB'
+const voiceId = process.env.ELEVENLABS_VOICE_ID || 'PDoCXqBQFGsvfO0hNkEs'
 const modelId = process.env.ELEVENLABS_TTS_MODEL || 'eleven_multilingual_v2'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -54,16 +54,25 @@ async function loadAllRows(table, columns) {
     return rows
 }
 
-async function objectExists(objectPath) {
-    const folder = path.posix.dirname(objectPath)
-    const fileName = path.posix.basename(objectPath)
-    const { data, error } = await supabase.storage.from(bucket).list(folder, {
-        search: fileName,
-        limit: 1,
-    })
+async function loadExistingObjectPaths() {
+    const pageSize = 1000
+    const objectPaths = new Set()
 
-    if (error) throw error
-    return Boolean(data?.some((item) => item.name === fileName))
+    for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await supabase.storage.from(bucket).list(voiceId, {
+            limit: pageSize,
+            offset,
+            sortBy: { column: 'name', order: 'asc' },
+        })
+
+        if (error) throw error
+        for (const item of data || []) {
+            objectPaths.add(`${voiceId}/${item.name}`)
+        }
+        if (!data || data.length < pageSize) break
+    }
+
+    return objectPaths
 }
 
 async function readLegacyAudio(text) {
@@ -76,25 +85,44 @@ async function readLegacyAudio(text) {
 }
 
 async function generateAudio(text) {
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-        method: 'POST',
-        headers: {
-            'xi-api-key': elevenLabsKey,
-            'Content-Type': 'application/json',
-            accept: 'audio/mpeg',
-        },
-        body: JSON.stringify({
-            text,
-            model_id: modelId,
-            language_code: 'ko',
-            voice_settings: { stability: 0.5, similarity_boost: 0.75 },
-        }),
-    })
+    const maxAttempts = 3
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+            const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
+                method: 'POST',
+                headers: {
+                    'xi-api-key': elevenLabsKey,
+                    'Content-Type': 'application/json',
+                    accept: 'audio/mpeg',
+                },
+                body: JSON.stringify({
+                    text,
+                    model_id: modelId,
+                    voice_settings: {
+                        stability: 0.55,
+                        similarity_boost: 0.8,
+                        style: 0.15,
+                        use_speaker_boost: true,
+                    },
+                }),
+                signal: AbortSignal.timeout(45_000),
+            })
 
-    if (!response.ok) {
-        throw new Error(`ElevenLabs ${response.status}: ${await response.text()}`)
+            if (!response.ok) {
+                const message = `ElevenLabs ${response.status}: ${await response.text()}`
+                if (response.status < 500 && response.status !== 429) throw new Error(message)
+                if (attempt === maxAttempts) throw new Error(message)
+            } else {
+                return Buffer.from(await response.arrayBuffer())
+            }
+        } catch (error) {
+            if (error.message.includes('quota_exceeded') || attempt === maxAttempts) throw error
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, attempt * 1_500))
     }
-    return Buffer.from(await response.arrayBuffer())
+
+    throw new Error('ElevenLabs khong phan hoi sau 3 lan thu')
 }
 
 async function ensureBucket() {
@@ -145,6 +173,7 @@ if (!execute) {
 }
 
 await ensureBucket()
+const existingObjectPaths = await loadExistingObjectPaths()
 
 let reused = 0
 let uploadedLegacy = 0
@@ -161,7 +190,7 @@ for (const [index, text] of uniqueTexts.entries()) {
     const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucket}/${objectPath}`
 
     try {
-        if (await objectExists(objectPath)) {
+        if (existingObjectPaths.has(objectPath)) {
             reused += 1
             publicUrls.set(text, publicUrl)
         } else {

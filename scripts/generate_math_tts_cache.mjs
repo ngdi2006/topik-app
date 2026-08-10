@@ -14,7 +14,7 @@ const execute = process.argv.includes('--execute')
 const limitArg = process.argv.find((arg) => arg.startsWith('--limit='))
 const requestedLimit = limitArg ? Number(limitArg.split('=')[1]) : Number.POSITIVE_INFINITY
 const bucket = process.env.SUPABASE_TTS_BUCKET || 'tts-audio'
-const voiceId = process.env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFmaJgB'
+const voiceId = process.env.ELEVENLABS_VOICE_ID || 'PDoCXqBQFGsvfO0hNkEs'
 const modelId = process.env.ELEVENLABS_TTS_MODEL || 'eleven_multilingual_v2'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -74,7 +74,7 @@ async function objectExists(objectPath) {
 }
 
 async function generateAudio(text) {
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
         method: 'POST',
         headers: {
             'xi-api-key': elevenLabsKey,
@@ -84,7 +84,12 @@ async function generateAudio(text) {
         body: JSON.stringify({
             text: toMathPacedText(text),
             model_id: modelId,
-            voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+            voice_settings: {
+                stability: 0.55,
+                similarity_boost: 0.8,
+                style: 0.15,
+                use_speaker_boost: true,
+            },
         }),
     })
     if (!response.ok) {

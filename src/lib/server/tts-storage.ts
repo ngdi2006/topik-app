@@ -12,7 +12,7 @@ import { KOREAN_PRONUNCIATION_VERSION, toKoreanPronunciationText } from '@/lib/k
 
 export const TTS_BUCKET = process.env.SUPABASE_TTS_BUCKET || 'tts-audio'
 export const TTS_MODEL = process.env.ELEVENLABS_TTS_MODEL || 'eleven_multilingual_v2'
-export const DEFAULT_TTS_VOICE_ID = 'pNInz6obpgDQGcFmaJgB'
+export const DEFAULT_TTS_VOICE_ID = 'PDoCXqBQFGsvfO0hNkEs'
 
 type SpeechSource = 'supabase' | 'legacy-local-cache' | 'elevenlabs'
 export type TtsStorageProfile = 'default' | typeof MATH_TTS_PROFILE
@@ -107,7 +107,7 @@ async function generateWithElevenLabs(text: string, voiceId: string) {
         throw new Error('ELEVENLABS_API_KEY chưa được cấu hình')
     }
 
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
         method: 'POST',
         headers: {
             'xi-api-key': apiKey,
@@ -117,10 +117,11 @@ async function generateWithElevenLabs(text: string, voiceId: string) {
         body: JSON.stringify({
             text,
             model_id: TTS_MODEL,
-            language_code: 'ko',
             voice_settings: {
-                stability: 0.5,
-                similarity_boost: 0.75,
+                stability: 0.55,
+                similarity_boost: 0.8,
+                style: 0.15,
+                use_speaker_boost: true,
             },
         }),
     })

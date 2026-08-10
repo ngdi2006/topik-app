@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Captions, CheckCircle2, ChevronDown, Loader2, Mic, Pause, Play, RotateCcw, Save, Sparkles, Square, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
@@ -130,8 +130,11 @@ export function SelfIntroductionPractice({
     const [practiceSeconds, setPracticeSeconds] = useState(DEFAULT_PRACTICE_SECONDS)
     const [secondsLeft, setSecondsLeft] = useState(DEFAULT_PRACTICE_SECONDS)
     const [isTimerRunning, setIsTimerRunning] = useState(false)
+    const [isPracticePaused, setIsPracticePaused] = useState(false)
     const [hasCompleted, setHasCompleted] = useState(false)
     const [isKaraokeEnabled, setIsKaraokeEnabled] = useState(true)
+    const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null)
+    const [isRecordedAudioPlaying, setIsRecordedAudioPlaying] = useState(false)
     const [activeStep, setActiveStep] = useState<LearningStep>(1)
     const [showAllLessonLines, setShowAllLessonLines] = useState(false)
     const [audioPlayback, setAudioPlayback] = useState<{
@@ -139,11 +142,16 @@ export function SelfIntroductionPractice({
         status: 'idle' | 'loading' | 'playing'
     }>({ target: null, status: 'idle' })
     const completionRecordedRef = useRef(false)
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+    const recordingStreamRef = useRef<MediaStream | null>(null)
+    const recordingChunksRef = useRef<Blob[]>([])
+    const recordedAudioRef = useRef<HTMLAudioElement | null>(null)
     const {
         hasBrowserSupport,
         transcript,
         interimTranscript,
         startRecording,
+        resumeRecording,
         stopRecording,
         resetTranscript,
     } = useSpeechRecognition('ko-KR')
@@ -154,14 +162,72 @@ export function SelfIntroductionPractice({
     const canUseAudio = Boolean(savedAt && fullText && isWithinDraftLimits)
     const karaokeState = getKaraokeState(lines, secondsLeft, practiceSeconds)
 
+    const stopUserAudioRecording = useCallback(() => {
+        const recorder = mediaRecorderRef.current
+        if (recorder && recorder.state !== 'inactive') {
+            recorder.stop()
+            return
+        }
+        recordingStreamRef.current?.getTracks().forEach((track) => track.stop())
+        recordingStreamRef.current = null
+    }, [])
+
+    const startUserAudioRecording = useCallback(async () => {
+        if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') return
+
+        recordedAudioRef.current?.pause()
+        setIsRecordedAudioPlaying(false)
+        setRecordedAudioUrl((currentUrl) => {
+            if (currentUrl) URL.revokeObjectURL(currentUrl)
+            return null
+        })
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+            recordingStreamRef.current = stream
+            recordingChunksRef.current = []
+            const preferredMimeType = [
+                'audio/webm;codecs=opus',
+                'audio/webm',
+                'audio/mp4',
+            ].find((mimeType) => MediaRecorder.isTypeSupported(mimeType))
+            const recorder = preferredMimeType
+                ? new MediaRecorder(stream, { mimeType: preferredMimeType })
+                : new MediaRecorder(stream)
+
+            mediaRecorderRef.current = recorder
+            recorder.ondataavailable = (event) => {
+                if (event.data.size > 0) recordingChunksRef.current.push(event.data)
+            }
+            recorder.onstop = () => {
+                const chunks = recordingChunksRef.current
+                if (chunks.length > 0) {
+                    const audioBlob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
+                    setRecordedAudioUrl(URL.createObjectURL(audioBlob))
+                }
+                stream.getTracks().forEach((track) => track.stop())
+                recordingStreamRef.current = null
+                mediaRecorderRef.current = null
+                recordingChunksRef.current = []
+            }
+            recorder.start(250)
+        } catch (error) {
+            console.warn('Unable to record self-introduction audio', error)
+            recordingStreamRef.current?.getTracks().forEach((track) => track.stop())
+            recordingStreamRef.current = null
+        }
+    }, [])
+
     useEffect(() => {
         if (!isTimerRunning) return
         const timerId = window.setTimeout(() => {
             if (secondsLeft <= 1) {
                 setSecondsLeft(0)
                 setIsTimerRunning(false)
+                setIsPracticePaused(false)
                 setHasCompleted(true)
                 stopRecording()
+                stopUserAudioRecording()
                 if (!completionRecordedRef.current) {
                     completionRecordedRef.current = true
                     onComplete(practiceSeconds)
@@ -171,9 +237,20 @@ export function SelfIntroductionPractice({
             setSecondsLeft(secondsLeft - 1)
         }, 1000)
         return () => window.clearTimeout(timerId)
-    }, [isTimerRunning, onComplete, practiceSeconds, secondsLeft, stopRecording])
+    }, [isTimerRunning, onComplete, practiceSeconds, secondsLeft, stopRecording, stopUserAudioRecording])
 
     useEffect(() => () => stopTTS(), [])
+
+    useEffect(() => () => {
+        const recorder = mediaRecorderRef.current
+        if (recorder && recorder.state !== 'inactive') {
+            recorder.onstop = null
+            recorder.stop()
+        }
+        recordingStreamRef.current?.getTracks().forEach((track) => track.stop())
+        const audioUrl = recordedAudioRef.current?.src
+        if (audioUrl?.startsWith('blob:')) URL.revokeObjectURL(audioUrl)
+    }, [])
 
     useEffect(() => {
         const controller = new AbortController()
@@ -298,14 +375,35 @@ export function SelfIntroductionPractice({
         resetTranscript()
         setSecondsLeft(practiceSeconds)
         setHasCompleted(false)
+        setIsPracticePaused(false)
         completionRecordedRef.current = false
         setIsTimerRunning(true)
+        void startUserAudioRecording()
         if (hasBrowserSupport) startRecording()
+    }
+
+    const pauseTimedPractice = () => {
+        setIsTimerRunning(false)
+        setIsPracticePaused(true)
+        stopRecording()
+        const recorder = mediaRecorderRef.current
+        if (recorder?.state === 'recording') recorder.pause()
+    }
+
+    const resumeTimedPractice = () => {
+        if (!isPracticePaused || secondsLeft <= 0) return
+        setIsPracticePaused(false)
+        setIsTimerRunning(true)
+        const recorder = mediaRecorderRef.current
+        if (recorder?.state === 'paused') recorder.resume()
+        if (hasBrowserSupport) resumeRecording()
     }
 
     const stopTimedPractice = () => {
         setIsTimerRunning(false)
+        setIsPracticePaused(false)
         stopRecording()
+        stopUserAudioRecording()
     }
 
     const resetPractice = () => {
@@ -313,10 +411,27 @@ export function SelfIntroductionPractice({
         resetTranscript()
         setSecondsLeft(practiceSeconds)
         setHasCompleted(false)
+        setIsPracticePaused(false)
+    }
+
+    const toggleRecordedAudio = async () => {
+        const audio = recordedAudioRef.current
+        if (!audio) return
+        if (audio.paused) {
+            try {
+                await audio.play()
+                setIsRecordedAudioPlaying(true)
+            } catch {
+                setIsRecordedAudioPlaying(false)
+            }
+            return
+        }
+        audio.pause()
+        setIsRecordedAudioPlaying(false)
     }
 
     const selectPracticeSeconds = (seconds: number) => {
-        if (isTimerRunning) return
+        if (isTimerRunning || isPracticePaused) return
         setPracticeSeconds(seconds)
         setSecondsLeft(seconds)
         setHasCompleted(false)
@@ -326,7 +441,7 @@ export function SelfIntroductionPractice({
         if (step === activeStep) return
         stopTTS()
         setAudioPlayback({ target: null, status: 'idle' })
-        if (isTimerRunning) stopTimedPractice()
+        if (isTimerRunning || isPracticePaused) stopTimedPractice()
         setActiveStep(step)
     }
 
@@ -497,7 +612,7 @@ export function SelfIntroductionPractice({
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                             <div className="flex items-center gap-2"><h2 className="text-lg font-black text-slate-950">Bản luyện tập hiện tại</h2><span className="rounded-full bg-blue-50 px-2 py-1 text-[9px] font-black uppercase text-blue-700">Bài cá nhân</span></div>
-                            <p className="mt-1 text-xs text-slate-500 sm:text-sm">Nội dung đã soạn sẽ được dùng cho nghe, karaoke và luyện nói.</p>
+                            <p className="mt-1 text-xs text-slate-500 sm:text-sm">Nội dung đã soạn sẽ được dùng để nghe, chạy chữ tự động và luyện nói.</p>
                         </div>
                         <Button
                             aria-pressed={audioPlayback.target === 'all'}
@@ -565,10 +680,6 @@ export function SelfIntroductionPractice({
                         <h2 className="text-base font-black leading-6 text-slate-950 sm:text-lg">3. Luyện nói theo mục tiêu</h2>
                         <p className="mt-0.5 text-xs leading-5 text-slate-500 sm:mt-1 sm:text-sm">Bắt đầu dễ, sau đó giảm về 40 giây.</p>
                     </div>
-                    <div className={`flex size-14 shrink-0 flex-col items-center justify-center rounded-full border-[5px] sm:size-24 sm:border-8 ${secondsLeft <= 10 ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-blue-100 bg-blue-50 text-blue-700'}`}>
-                        <strong className="text-xl font-black tabular-nums sm:text-3xl">{secondsLeft}</strong>
-                        <span className="text-[7px] font-bold uppercase sm:text-[10px]">giây</span>
-                    </div>
                 </div>
 
                 <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-2.5 sm:mt-5 sm:rounded-2xl sm:p-4">
@@ -583,7 +694,7 @@ export function SelfIntroductionPractice({
                             <button
                                 aria-label={`${level.label}, ${level.seconds} giây`}
                                 className={`min-w-0 rounded-lg border px-1 py-1.5 text-center transition disabled:cursor-not-allowed disabled:opacity-50 sm:rounded-xl sm:px-3 sm:py-2.5 sm:text-left ${practiceSeconds === level.seconds ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300'}`}
-                                disabled={isTimerRunning}
+                                disabled={isTimerRunning || isPracticePaused}
                                 key={level.seconds}
                                 onClick={() => selectPracticeSeconds(level.seconds)}
                                 type="button"
@@ -601,12 +712,12 @@ export function SelfIntroductionPractice({
                             <Captions className="size-4 sm:size-5" />
                         </span>
                         <div className="min-w-0">
-                            <p className="text-xs font-black text-slate-900 sm:text-sm">Chữ chạy karaoke</p>
+                            <p className="text-xs font-black text-slate-900 sm:text-sm">Chạy chữ tự động</p>
                             <p className="truncate text-[10px] text-slate-500 sm:text-xs">Đọc theo câu tô sáng</p>
                         </div>
                     </div>
                     <button
-                        aria-label="Bật hoặc tắt chữ chạy karaoke"
+                        aria-label="Bật hoặc tắt chạy chữ tự động"
                         aria-checked={isKaraokeEnabled}
                         className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${isKaraokeEnabled ? 'bg-blue-600' : 'bg-slate-300'}`}
                         onClick={() => setIsKaraokeEnabled((enabled) => !enabled)}
@@ -619,10 +730,20 @@ export function SelfIntroductionPractice({
 
                 {isKaraokeEnabled ? (
                     <div aria-live="polite" className="relative mt-3 overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-violet-50 px-3 py-4 text-center sm:mt-4 sm:rounded-2xl sm:px-6 sm:py-5">
-                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">
-                            Câu {karaokeState.index + 1}/{lines.length} · Nhịp {practiceSeconds} giây
-                        </p>
-                        <div className="relative mt-2 h-[288px] overflow-hidden [--row-height:96px] sm:mt-3 sm:h-[324px] sm:[--row-height:108px]">
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-left text-[10px] font-black uppercase tracking-[0.14em] text-blue-600 sm:tracking-[0.18em]">
+                                Câu {karaokeState.index + 1}/{lines.length} · Nhịp {practiceSeconds} giây
+                            </p>
+                            <div className={`flex min-w-16 shrink-0 items-baseline justify-center gap-1 rounded-full border px-3 py-1.5 shadow-sm ${secondsLeft <= 10 ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-blue-200 bg-white/90 text-blue-700'}`}>
+                                <strong className="text-lg font-black tabular-nums sm:text-xl">{secondsLeft}</strong>
+                                <span className="text-[9px] font-black uppercase">giây</span>
+                            </div>
+                        </div>
+                        <div
+                            className="relative mt-2 h-[288px] select-none overflow-hidden [--row-height:96px] sm:mt-3 sm:h-[324px] sm:[--row-height:108px]"
+                            lang="ko"
+                            style={{ fontFamily: '"Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif' }}
+                        >
                             <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 z-10 h-12 bg-gradient-to-b from-blue-50 to-transparent" />
                             <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-12 bg-gradient-to-t from-violet-50 to-transparent" />
                             <div
@@ -637,14 +758,14 @@ export function SelfIntroductionPractice({
                                     let wordIndex = 0
                                     return (
                                         <p
-                                            className={`flex h-[var(--row-height)] items-center justify-center overflow-hidden px-1 leading-6 transition-all duration-500 sm:px-2 sm:leading-7 ${isActive ? 'scale-100 text-base font-black text-slate-400 opacity-100 sm:text-2xl' : lineIndex < karaokeState.index ? 'scale-95 text-xs font-semibold text-slate-400 opacity-35 sm:text-sm' : 'scale-95 text-xs font-semibold text-slate-500 opacity-55 sm:text-sm'}`}
+                                            className={`flex h-[var(--row-height)] items-center justify-center overflow-hidden px-2 leading-[1.65] tracking-[0.01em] transition-all duration-500 sm:px-4 ${isActive ? 'scale-100 text-xl font-bold text-slate-400 opacity-100 sm:text-[28px]' : lineIndex < karaokeState.index ? 'scale-95 text-sm font-medium text-slate-400 opacity-30 sm:text-base' : 'scale-95 text-sm font-medium text-slate-500 opacity-45 sm:text-base'}`}
                                             key={`${lineIndex}-${line}`}
                                         >
-                                            <span className={isActive ? 'block' : 'line-clamp-1'}>
+                                                <span className={isActive ? 'block break-keep [word-break:keep-all]' : 'line-clamp-1 break-keep [word-break:keep-all]'}>
                                                 {line.split(/(\s+)/).map((part, partIndex) => {
                                                     if (part.trim()) wordIndex += 1
                                                     return (
-                                                        <span className={isActive && part.trim() && wordIndex <= highlightedWords ? 'text-blue-700' : undefined} key={`${partIndex}-${part}`}>
+                                                        <span className={isActive && part.trim() && wordIndex <= highlightedWords ? 'text-blue-700 transition-colors duration-300' : 'transition-colors duration-300'} key={`${partIndex}-${part}`}>
                                                             {part}
                                                         </span>
                                                     )
@@ -659,13 +780,17 @@ export function SelfIntroductionPractice({
                 ) : null}
 
                 <div className="mt-3 grid grid-cols-[1fr_auto] gap-2 sm:mt-5 sm:flex sm:flex-wrap sm:gap-3">
-                    {!isTimerRunning ? (
+                    {!isTimerRunning && !isPracticePaused ? (
                         <Button className="min-h-11 rounded-xl bg-blue-600 px-3 text-xs font-bold hover:bg-blue-700 sm:min-h-12 sm:px-6 sm:text-sm" disabled={!canUseAudio} onClick={startTimedPractice}>
                             <Mic className="size-5" /> Bắt đầu · {practiceSeconds} giây
                         </Button>
-                    ) : (
-                        <Button className="min-h-11 rounded-xl px-3 text-xs font-bold sm:min-h-12 sm:px-6 sm:text-sm" onClick={stopTimedPractice} variant="destructive">
+                    ) : isTimerRunning ? (
+                        <Button className="min-h-11 rounded-xl px-3 text-xs font-bold sm:min-h-12 sm:px-6 sm:text-sm" onClick={pauseTimedPractice} variant="destructive">
                             <Pause className="size-5" /> Tạm dừng
+                        </Button>
+                    ) : (
+                        <Button className="min-h-11 rounded-xl bg-emerald-600 px-3 text-xs font-bold hover:bg-emerald-700 sm:min-h-12 sm:px-6 sm:text-sm" onClick={resumeTimedPractice}>
+                            <Play className="size-5" /> Tiếp tục · còn {secondsLeft} giây
                         </Button>
                     )}
                     <Button className="min-h-11 rounded-xl px-3 text-xs font-bold sm:min-h-12 sm:px-5 sm:text-sm" onClick={resetPractice} variant="outline">
@@ -681,6 +806,26 @@ export function SelfIntroductionPractice({
                     </p>
                     {!hasBrowserSupport ? <p className="mt-2 text-xs font-semibold text-amber-700">Trình duyệt không hỗ trợ nhận diện giọng nói. Bộ đếm và chữ chạy vẫn hoạt động bình thường.</p> : null}
                 </div>
+
+                {recordedAudioUrl && !isTimerRunning ? (
+                    <div className="mt-3 flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 sm:mt-4 sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:p-4">
+                        <div className="min-w-0">
+                            <p className="text-sm font-black text-slate-900">Bản ghi vừa hoàn thành</p>
+                            <p className="mt-0.5 text-xs text-slate-600">Nghe lại để kiểm tra phát âm và tốc độ nói.</p>
+                        </div>
+                        <Button className="min-h-10 shrink-0 rounded-xl px-4 text-xs font-bold sm:text-sm" onClick={toggleRecordedAudio} variant="outline">
+                            {isRecordedAudioPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
+                            {isRecordedAudioPlaying ? 'Tạm dừng' : 'Nghe lại bài vừa nói'}
+                        </Button>
+                        <audio
+                            className="hidden"
+                            onEnded={() => setIsRecordedAudioPlaying(false)}
+                            onPause={() => setIsRecordedAudioPlaying(false)}
+                            ref={recordedAudioRef}
+                            src={recordedAudioUrl}
+                        />
+                    </div>
+                ) : null}
 
                 {hasCompleted ? (
                     <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-800 sm:mt-4 sm:gap-3 sm:rounded-2xl sm:p-4">

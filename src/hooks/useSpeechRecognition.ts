@@ -146,6 +146,19 @@ export function useSpeechRecognition(lang: string = 'ko-KR') {
         }
     }, [])
 
+    const resumeRecording = useCallback(() => {
+        if (!recognitionRef.current || isRecordingRef.current) return
+        try {
+            isRecordingRef.current = true
+            setIsRecording(true)
+            recognitionRef.current.start()
+        } catch (e) {
+            console.warn("Could not resume speech recognition:", e)
+            isRecordingRef.current = false
+            setIsRecording(false)
+        }
+    }, [])
+
     const stopRecording = useCallback(() => {
         if (!recognitionRef.current) return
         isRecordingRef.current = false
@@ -165,6 +178,7 @@ export function useSpeechRecognition(lang: string = 'ko-KR') {
         transcript,
         interimTranscript,
         startRecording,
+        resumeRecording,
         stopRecording,
         resetTranscript: () => {
             setTranscript("")

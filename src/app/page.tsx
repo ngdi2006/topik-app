@@ -75,7 +75,16 @@ export default function Home() {
       <header className="sticky top-0 z-50 border-b border-white/70 bg-white/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:h-20 sm:px-8 lg:px-12">
           <Link className="flex items-center gap-2.5" href="/">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 text-base font-black text-white shadow-lg shadow-blue-500/20">K</span>
+            <span className="relative size-9 overflow-hidden rounded-xl bg-white shadow-md ring-1 ring-slate-200/80">
+              <Image
+                alt="Logo Korea Link"
+                className="absolute left-1/2 top-1/2 size-14 max-w-none -translate-x-1/2 -translate-y-1/2 object-contain"
+                height={56}
+                priority
+                src="/images/logo/logo.k.png"
+                width={56}
+              />
+            </span>
             <span className="text-lg font-black tracking-tight text-slate-900">Korea Link</span>
           </Link>
           <nav className="flex items-center gap-1.5 sm:gap-3" aria-label="Tài khoản">

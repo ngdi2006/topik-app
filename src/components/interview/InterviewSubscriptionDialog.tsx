@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Check, Loader2, QrCode, ShieldCheck, Sparkles } from "lucide-react"
+import { Check, Loader2, QrCode, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
@@ -74,13 +74,13 @@ export function InterviewSubscriptionDialog({ open, onOpenChange }: { open: bool
 
   return (
     <Dialog open={open} onOpenChange={(next) => { onOpenChange(next); if (!next) { setPayment(null); setPaymentCompleted(false) } }}>
-      <DialogContent className="max-h-[92dvh] gap-4 overflow-y-auto rounded-3xl p-4 sm:max-w-2xl sm:p-7">
-        <DialogHeader className="gap-1 text-left">
+      <DialogContent className="max-h-[92dvh] gap-4 overflow-y-auto rounded-3xl p-4 sm:max-w-4xl sm:p-7">
+        <DialogHeader className="items-center gap-1 text-center">
           <div className="mb-1 inline-flex w-fit items-center gap-1.5 rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-violet-700 ring-1 ring-violet-100">
             <Sparkles className="size-3" /> Lộ trình Phỏng vấn Vòng 2
           </div>
-          <DialogTitle className="text-xl font-black tracking-tight sm:text-2xl">Một gói mở toàn bộ Vòng 2</DialogTitle>
-          <DialogDescription className="max-w-xl text-sm leading-5"><strong className="text-slate-800">Chỉ thanh toán một lần</strong> để sử dụng tất cả nội dung trong thời hạn đã chọn.</DialogDescription>
+          <DialogTitle className="text-xl font-black tracking-tight sm:text-2xl">Mở khóa để chinh phục Vòng 2</DialogTitle>
+          <DialogDescription className="max-w-xl text-sm leading-5">Mở trọn nội dung trong thời hạn bạn chọn.</DialogDescription>
         </DialogHeader>
         {paymentCompleted ? (
           <div className="flex flex-col items-center gap-3 rounded-2xl bg-emerald-50 px-5 py-10 text-center ring-1 ring-emerald-100">
@@ -114,20 +114,20 @@ export function InterviewSubscriptionDialog({ open, onOpenChange }: { open: bool
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              {plans.map((plan, index) => {
-                const recommended = plan.duration_days === 30 || index === 1
+            <div className="grid gap-3 sm:grid-cols-3">
+              {plans.map((plan) => {
+                const recommended = plan.duration_days === 30
                 const pricePerDay = Math.round(plan.price_vnd / plan.duration_days)
                 return (
                   <article className={`relative overflow-hidden rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-lg sm:p-5 ${recommended ? 'border-violet-500 bg-gradient-to-br from-violet-50 to-blue-50 ring-2 ring-violet-100' : 'border-slate-200 bg-white'}`} key={plan.id}>
                     {recommended ? <span className="absolute right-3 top-3 rounded-full bg-violet-600 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-white">Khuyên dùng</span> : null}
                     <strong className="text-lg font-black text-slate-950">{plan.duration_days} ngày</strong>
-                    <p className="mt-1 pr-20 text-xs leading-5 text-slate-600">{recommended ? 'Đủ thời gian học và luyện lại.' : 'Phù hợp ôn cấp tốc.'}</p>
+                    <p className="mt-1 pr-16 text-xs leading-5 text-slate-600">{plan.duration_days === 1 ? 'Trải nghiệm trọn nội dung.' : recommended ? 'Luyện đều và cải thiện điểm yếu.' : 'Ôn tập tập trung trước kỳ thi.'}</p>
                     <div className="mt-3 flex items-end justify-between gap-3">
                       <p className="text-2xl font-black text-violet-700 sm:text-3xl">{plan.price_vnd.toLocaleString('vi-VN')}đ</p>
                       <span className="pb-1 text-[10px] font-semibold text-slate-500">≈ {pricePerDay.toLocaleString('vi-VN')}đ/ngày</span>
                     </div>
-                    {recommended ? <p className="mt-1 text-[10px] font-bold text-emerald-700">Tiết kiệm khoảng 48.000đ so với gói ngắn hạn</p> : null}
+                    {recommended ? <p className="mt-1 text-[10px] font-bold text-emerald-700">Lựa chọn tiết kiệm cho lộ trình dài hạn</p> : null}
                     <Button className={`mt-4 w-full rounded-xl font-extrabold ${recommended ? 'bg-violet-600 hover:bg-violet-700' : ''}`} disabled={Boolean(loadingPlan)} onClick={() => void createPayment(plan.id)} type="button" variant={recommended ? 'default' : 'outline'}>
                       {loadingPlan === plan.id ? <Loader2 className="size-4 animate-spin" /> : `Chọn gói ${plan.duration_days} ngày`}
                     </Button>
@@ -137,7 +137,6 @@ export function InterviewSubscriptionDialog({ open, onOpenChange }: { open: bool
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-slate-100 pt-3 text-[10px] font-semibold text-slate-500 sm:text-xs">
-              <span className="inline-flex items-center gap-1"><ShieldCheck className="size-3.5 text-emerald-600" /> Thanh toán an toàn qua SePay</span>
               <span className="inline-flex items-center gap-1"><Check className="size-3.5 text-emerald-600" /> Kích hoạt tự động · cộng dồn thời hạn</span>
             </div>
           </div>

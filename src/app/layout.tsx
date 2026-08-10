@@ -10,7 +10,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL("https://epstopik.korealink.edu.vn"),
   title: {
-    default: "Học tiếng Hàn EPS-TOPIK cùng Korea Link",
+    default: "HỌC TIẾNG HÀN EPS-TOPIK CÙNG KOREA LINK",
     template: "%s | Korea Link",
   },
   description:
@@ -29,24 +29,24 @@ export const metadata: Metadata = {
     locale: "vi_VN",
     url: "/",
     siteName: "Korea Link EPS-TOPIK",
-    title: "Học tiếng Hàn EPS-TOPIK cùng Korea Link",
+    title: "HỌC TIẾNG HÀN EPS-TOPIK CÙNG KOREA LINK",
     description:
       "Thi thử EPS-TOPIK và luyện Phỏng vấn Vòng 2 theo ngành nghề trên một lộ trình học tập toàn diện.",
     images: [
       {
-        url: "/opengraph-image",
-        width: 1200,
-        height: 630,
-        alt: "Học tiếng Hàn EPS-TOPIK và luyện Phỏng vấn Vòng 2 cùng Korea Link",
+        url: "/images/logo/LOGO-BK.png",
+        width: 1106,
+        height: 1106,
+        alt: "Logo Korea Link",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Học tiếng Hàn EPS-TOPIK cùng Korea Link",
+    title: "HỌC TIẾNG HÀN EPS-TOPIK CÙNG KOREA LINK",
     description:
       "Thi thử EPS-TOPIK và luyện Phỏng vấn Vòng 2 theo ngành nghề trên một lộ trình học tập toàn diện.",
-    images: ["/opengraph-image"],
+    images: ["/images/logo/LOGO-BK.png"],
   },
 };
 

@@ -595,7 +595,7 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="min-h-screen flex bg-[#f4f6f8]">
+        <div className="app-typography min-h-screen flex bg-[#f4f6f8]">
             {/* Sidebar (Desktop) */}
             <aside className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 overflow-hidden bg-[#2B64CE] text-white flex-col hidden md:flex h-screen sticky top-0 shrink-0 shadow-lg z-30`}>
                 <div className="h-[72px] flex items-center justify-center border-b border-white/10 shrink-0">

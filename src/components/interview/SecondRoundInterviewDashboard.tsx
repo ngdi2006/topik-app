@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import dynamic from "next/dynamic"
 import {
   AlertCircle,
   ArrowLeft,
@@ -22,7 +23,6 @@ import {
   Target,
   TrendingUp,
 } from "lucide-react"
-import { InterviewPracticeHub } from "@/components/interview/InterviewPracticeHub"
 import { InterviewSubscriptionDialog } from "@/components/interview/InterviewSubscriptionDialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -58,6 +58,18 @@ interface SecondRoundInterviewDashboardProps {
 }
 
 type LaunchMode = "practice" | "mock"
+
+const InterviewPracticeHub = dynamic(
+  () => import("@/components/interview/InterviewPracticeHub").then((module) => module.InterviewPracticeHub),
+  {
+    loading: () => (
+      <div className="flex min-h-72 items-center justify-center rounded-3xl border border-slate-200 bg-white">
+        <div className="size-8 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600 motion-reduce:animate-none" />
+        <span className="sr-only">Đang mở nội dung luyện tập…</span>
+      </div>
+    ),
+  },
+)
 
 const NAV_ITEMS = [
   { id: "overview", label: "Tổng quan", icon: LayoutDashboard },
@@ -219,10 +231,6 @@ export function SecondRoundInterviewDashboard({
   useEffect(() => {
     setIndustry(readPreferredIndustry())
     setIsHydrated(true)
-    void fetch('/api/interview/access', { cache: 'no-store' })
-      .then((response) => response.json())
-      .then((payload: InterviewAccessSnapshot) => setAccess(payload))
-      .catch(() => setAccess(null))
   }, [])
 
   useEffect(() => {
@@ -250,6 +258,7 @@ export function SecondRoundInterviewDashboard({
         success: boolean
         data?: InterviewQuestionSummary[]
         catalogTotals?: Partial<Record<TopicId, number>>
+        access?: InterviewAccessSnapshot
         error?: string
       }
 
@@ -259,6 +268,7 @@ export function SecondRoundInterviewDashboard({
 
       setQuestions(payload.data ?? [])
       setCatalogTotals(payload.catalogTotals ?? null)
+      setAccess(payload.access ?? null)
     } catch {
       setError("Không thể tải dữ liệu học tập. Vui lòng thử lại.")
     } finally {

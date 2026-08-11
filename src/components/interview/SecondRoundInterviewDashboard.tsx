@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import dynamic from "next/dynamic"
 import {
   AlertCircle,
   ArrowLeft,
@@ -22,7 +23,6 @@ import {
   Target,
   TrendingUp,
 } from "lucide-react"
-import { InterviewPracticeHub } from "@/components/interview/InterviewPracticeHub"
 import { InterviewSubscriptionDialog } from "@/components/interview/InterviewSubscriptionDialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -58,6 +58,18 @@ interface SecondRoundInterviewDashboardProps {
 }
 
 type LaunchMode = "practice" | "mock"
+
+const InterviewPracticeHub = dynamic(
+  () => import("@/components/interview/InterviewPracticeHub").then((module) => module.InterviewPracticeHub),
+  {
+    loading: () => (
+      <div className="flex min-h-72 items-center justify-center rounded-3xl border border-slate-200 bg-white">
+        <div className="size-8 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600 motion-reduce:animate-none" />
+        <span className="sr-only">Đang mở nội dung luyện tập…</span>
+      </div>
+    ),
+  },
+)
 
 const NAV_ITEMS = [
   { id: "overview", label: "Tổng quan", icon: LayoutDashboard },
@@ -219,10 +231,6 @@ export function SecondRoundInterviewDashboard({
   useEffect(() => {
     setIndustry(readPreferredIndustry())
     setIsHydrated(true)
-    void fetch('/api/interview/access', { cache: 'no-store' })
-      .then((response) => response.json())
-      .then((payload: InterviewAccessSnapshot) => setAccess(payload))
-      .catch(() => setAccess(null))
   }, [])
 
   useEffect(() => {
@@ -250,6 +258,7 @@ export function SecondRoundInterviewDashboard({
         success: boolean
         data?: InterviewQuestionSummary[]
         catalogTotals?: Partial<Record<TopicId, number>>
+        access?: InterviewAccessSnapshot
         error?: string
       }
 
@@ -259,6 +268,7 @@ export function SecondRoundInterviewDashboard({
 
       setQuestions(payload.data ?? [])
       setCatalogTotals(payload.catalogTotals ?? null)
+      setAccess(payload.access ?? null)
     } catch {
       setError("Không thể tải dữ liệu học tập. Vui lòng thử lại.")
     } finally {
@@ -575,7 +585,7 @@ export function SecondRoundInterviewDashboard({
                 className={`h-0.5 w-full bg-gradient-to-r sm:h-1 ${visual.accent}`}
               />
               <div aria-hidden="true" className={`absolute -right-12 -top-12 size-28 rounded-full bg-gradient-to-br opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-15 motion-reduce:transition-none ${visual.accent}`} />
-              <div className="relative p-4 sm:p-5">
+              <div className="relative p-3.5 sm:p-5">
                 <div className="flex items-start gap-3">
                   <div
                     className={`flex size-10 shrink-0 items-center justify-center rounded-xl ring-1 transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-110 motion-reduce:transform-none motion-reduce:transition-none sm:size-11 sm:rounded-2xl ${visual.icon}`}
@@ -619,56 +629,45 @@ export function SecondRoundInterviewDashboard({
                   </div>
                 </div>
 
-                <div className="mt-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100 sm:mt-4 sm:rounded-2xl">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">
-                      Tiến độ
+                <div className="mt-2.5 rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-100 sm:mt-4 sm:px-3.5 sm:py-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-9 shrink-0 text-center text-sm font-bold tabular-nums text-slate-800 sm:w-10 sm:text-base">
+                      {percent}%
                     </span>
-                    <strong className="text-xs tabular-nums text-slate-800 sm:text-sm">
-                      {item?.total
-                        ? `${item.mastered}/${item.total} câu`
-                        : topic.id === "vocabulary"
-                          ? "Ngân hàng từ vựng"
-                          : "Chưa có nội dung"}
-                    </strong>
-                  </div>
-                  <div
-                    aria-label={`Tiến độ ${percent}%`}
-                    className="h-2 overflow-hidden rounded-full bg-slate-200"
-                    role="progressbar"
-                    aria-valuemax={100}
-                    aria-valuemin={0}
-                    aria-valuenow={percent}
-                  >
-                    <div
-                      className={`h-full rounded-full transition-[width] duration-700 ease-out motion-reduce:transition-none ${visual.bar}`}
-                      style={{ width: `${percent}%` }}
-                    />
-                  </div>
-                  <div className="mt-2.5 grid grid-cols-2 divide-x divide-slate-200 text-[10px] sm:text-xs">
-                    <div className="pr-3">
-                      <span className="block text-slate-500">Độ chính xác</span>
-                      <strong className="mt-0.5 block text-xs tabular-nums text-slate-800 sm:text-sm">
-                        {item?.accuracy === null ||
-                        item?.accuracy === undefined
-                          ? "Chưa có"
-                          : `${item.accuracy}%`}
-                      </strong>
-                    </div>
-                    <div className="pl-3">
-                      <span className="block text-slate-500">Cần ôn lại</span>
-                      <strong
-                        className={`mt-0.5 block text-xs tabular-nums sm:text-sm ${
-                          item?.incorrect ? "text-amber-700" : "text-slate-800"
-                        }`}
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1.5 flex items-center justify-between gap-2 text-[10px] leading-none sm:text-xs">
+                        <span className="font-semibold text-slate-500">Tiến độ</span>
+                        <strong className="truncate tabular-nums text-slate-700">
+                          {item?.total
+                            ? `${item.mastered}/${item.total} câu`
+                            : topic.id === "vocabulary"
+                              ? "Ngân hàng từ vựng"
+                              : "Chưa có nội dung"}
+                        </strong>
+                      </div>
+                      <div
+                        aria-label={`Tiến độ ${percent}%`}
+                        className="h-1.5 overflow-hidden rounded-full bg-slate-200"
+                        role="progressbar"
+                        aria-valuemax={100}
+                        aria-valuemin={0}
+                        aria-valuenow={percent}
                       >
-                        {item?.incorrect ?? 0} câu
-                      </strong>
+                        <div
+                          className={`h-full rounded-full transition-[width] duration-700 ease-out motion-reduce:transition-none ${visual.bar}`}
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
                     </div>
+                  </div>
+                  <div className="mt-2 flex items-center gap-2.5 border-t border-slate-200/80 pt-2 text-[10px] text-slate-500 sm:text-xs">
+                    <span className="min-w-0">Chính xác <strong className="text-slate-800">{item?.accuracy === null || item?.accuracy === undefined ? "Chưa có" : `${item.accuracy}%`}</strong></span>
+                    <span aria-hidden="true" className="h-3 w-px bg-slate-200" />
+                    <span className="min-w-0">Ôn lại <strong className={item?.incorrect ? "text-amber-700" : "text-slate-800"}>{item?.incorrect ?? 0} câu</strong></span>
                   </div>
                 </div>
                 <Button
-                  className={`mt-3 min-h-10 w-full rounded-xl text-xs font-bold focus-visible:ring-2 focus-visible:ring-blue-600 sm:mt-4 sm:min-h-11 sm:text-sm ${
+                  className={`mt-2.5 min-h-9 w-full rounded-xl text-xs font-bold focus-visible:ring-2 focus-visible:ring-blue-600 sm:mt-3 sm:min-h-10 sm:text-sm ${
                     status === "needs-review"
                       ? "bg-blue-600 text-white hover:bg-blue-700"
                       : "border-slate-300 bg-white text-slate-800 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"

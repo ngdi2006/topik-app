@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Image from "next/image"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { useUserStore } from "@/store/userStore"
@@ -12,12 +13,28 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles, Mic, ArrowLeft, User, Trophy, ChevronDown, Award, LayoutDashboard, RotateCcw, BarChart3 } from "lucide-react"
-import { LessonList } from "@/components/lessons/LessonList"
-import { PracticeHub } from "@/components/practice/PracticeHub"
-import { PaymentModal } from "@/components/payment/PaymentModal"
-import { Leaderboard } from "@/components/leaderboard/Leaderboard"
-import { SecondRoundInterviewDashboard } from "@/components/interview/SecondRoundInterviewDashboard"
-import { VocabularyPracticeHub } from "@/components/interview/VocabularyPracticeHub"
+
+const LessonList = dynamic(() => import("@/components/lessons/LessonList").then((module) => module.LessonList))
+const PracticeHub = dynamic(() => import("@/components/practice/PracticeHub").then((module) => module.PracticeHub))
+const PaymentModal = dynamic(() => import("@/components/payment/PaymentModal").then((module) => module.PaymentModal))
+const Leaderboard = dynamic(() => import("@/components/leaderboard/Leaderboard").then((module) => module.Leaderboard))
+const SecondRoundInterviewDashboard = dynamic(
+    () => import("@/components/interview/SecondRoundInterviewDashboard").then((module) => module.SecondRoundInterviewDashboard),
+    { loading: () => <DashboardSectionLoader /> },
+)
+const VocabularyPracticeHub = dynamic(
+    () => import("@/components/interview/VocabularyPracticeHub").then((module) => module.VocabularyPracticeHub),
+    { loading: () => <DashboardSectionLoader /> },
+)
+
+function DashboardSectionLoader() {
+    return (
+        <div className="flex min-h-72 items-center justify-center rounded-3xl border border-slate-200 bg-white">
+            <div className="size-8 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600 motion-reduce:animate-none" />
+            <span className="sr-only">Đang mở nội dung…</span>
+        </div>
+    )
+}
 
 type ActiveMenu = 'bai-hoc' | 'luyen-tap' | 'thi-thu' | 'ai-chat' | 'kiem-tra' | 'phong-van' | 'tu-vung-vong-2' | 'bang-xep-hang'
 type InterviewMenuTab =
@@ -235,20 +252,21 @@ export default function DashboardPage() {
                 return
             }
 
-            const { data: profile } = await supabase
+            const profilePromise = supabase
                 .from('profiles')
                 .select('role')
                 .eq('id', user.id)
                 .single()
 
-            if (profile) setRole(profile.role)
-
             try {
-                const [examsRes, menuRes, statsRes] = await Promise.all([
+                const [{ data: profile }, examsRes, menuRes, statsRes] = await Promise.all([
+                    profilePromise,
                     fetch('/api/exams', { cache: 'no-store' }),
                     fetch('/api/learner/dashboard-menu', { cache: 'no-store' }),
                     fetch('/api/learner/dashboard-stats', { cache: 'no-store' }),
                 ])
+
+                if (profile) setRole(profile.role)
 
                 if (examsRes.ok) {
                     const latestExams = await examsRes.json()
@@ -577,7 +595,7 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="min-h-screen flex bg-[#f4f6f8]">
+        <div className="app-typography min-h-screen flex bg-[#f4f6f8]">
             {/* Sidebar (Desktop) */}
             <aside className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 overflow-hidden bg-[#2B64CE] text-white flex-col hidden md:flex h-screen sticky top-0 shrink-0 shadow-lg z-30`}>
                 <div className="h-[72px] flex items-center justify-center border-b border-white/10 shrink-0">
@@ -1141,7 +1159,6 @@ export default function DashboardPage() {
                         {/* PHỎNG VẤN VÒNG 2 */}
                         {activeMenu?.startsWith('phong-van') && activeMenuItem && (
                             <SecondRoundInterviewDashboard
-                                key={activeMenu}
                                 onBackToDashboard={() => setActiveMenu(null)} 
                                 onViewChange={(nextView) => {
                                     const menuByView = {

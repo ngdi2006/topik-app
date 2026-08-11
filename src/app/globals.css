@@ -160,3 +160,29 @@
     animation: flash 0.5s ease-in-out infinite;
   }
 }
+
+/* Typography used across the signed-in learning experience.
+   Keep the visual hierarchy while avoiding the overly heavy display weight. */
+.app-typography {
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  letter-spacing: -0.005em;
+  text-rendering: optimizeLegibility;
+}
+
+.app-typography .font-black {
+  font-weight: 750;
+}
+
+.app-typography .font-extrabold {
+  font-weight: 700;
+}
+
+.app-typography .font-bold {
+  font-weight: 650;
+}
+
+.app-typography h1,
+.app-typography h2,
+.app-typography h3 {
+  text-wrap: balance;
+}

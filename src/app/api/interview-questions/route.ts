@@ -25,10 +25,9 @@ export async function GET(request: Request) {
             }, { status: 403 })
         }
 
-        let query = supabase
-            .from('interview_questions')
-            .select('*')
-            .order('created_at', { ascending: false })
+        let query = includeSummary
+            ? supabase.from('interview_questions').select('id, category, industry').order('created_at', { ascending: false })
+            : supabase.from('interview_questions').select('*').order('created_at', { ascending: false })
 
         if (category) {
             const categories = category.split(',')
@@ -40,43 +39,35 @@ export async function GET(request: Request) {
             query = query.or(`industry.eq.${industry},industry.eq.COMMON,category.eq.Khẩu lệnh`)
         }
 
-        if (!access.hasFullAccess) {
+        if (!access.hasFullAccess && !includeSummary) {
             query = query.eq('category', 'Khẩu lệnh')
         }
 
-        const catalogTotalsPromise = includeSummary
-            ? Promise.all(
-                [
-                    ['command', 'Khẩu lệnh'],
-                    ['math', 'Toán học'],
-                    ['tools', 'Sử dụng công cụ'],
-                    ['communication', 'Giao tiếp'],
-                    ['situation', 'Xử lý tình huống'],
-                ].map(async ([topicId, topicCategory]) => {
-                    let countQuery = supabase
-                        .from('interview_questions')
-                        .select('id', { count: 'exact', head: true })
-                        .eq('category', topicCategory)
-
-                    if (topicCategory !== 'Khẩu lệnh' && industry) {
-                        countQuery = countQuery.or(`industry.eq.${industry},industry.eq.COMMON`)
-                    }
-
-                    const { count, error: countError } = await countQuery
-                    if (countError) throw countError
-                    return [topicId, count || 0] as const
-                }),
-            ).then((entries) => Object.fromEntries(entries))
-            : Promise.resolve(undefined)
-
-        const [{ data, error }, catalogTotals] = await Promise.all([query, catalogTotalsPromise])
+        const { data, error } = await query
 
         if (error) {
             throw error
         }
 
-        let result = data || []
-        if (!access.hasFullAccess) {
+        const allRows = data || []
+        const categoryTotals = includeSummary ? new Map<string, number>() : null
+        if (categoryTotals) {
+            for (const row of allRows) {
+                categoryTotals.set(row.category, (categoryTotals.get(row.category) || 0) + 1)
+            }
+        }
+        const catalogTotals = categoryTotals
+            ? {
+                command: categoryTotals.get('Khẩu lệnh') || 0,
+                math: categoryTotals.get('Toán học') || 0,
+                tools: categoryTotals.get('Sử dụng công cụ') || 0,
+                communication: categoryTotals.get('Giao tiếp') || 0,
+                situation: categoryTotals.get('Xử lý tình huống') || 0,
+            }
+            : undefined
+
+        let result = allRows
+        if (!access.hasFullAccess && !includeSummary) {
             const { data: configuredFree } = await supabase
                 .from('interview_free_content')
                 .select('content_id, display_order')

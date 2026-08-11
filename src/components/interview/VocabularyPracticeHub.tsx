@@ -781,12 +781,8 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
     }
 
     return (
-        <div className="relative overflow-hidden flex flex-col rounded-2xl bg-white shadow-sm border border-slate-100">
-            {/* Background blobs */}
-            <div className="absolute top-0 left-0 w-full h-80 bg-gradient-to-br from-indigo-50/60 via-purple-50/30 to-transparent -z-10" />
-            <div className="absolute -top-24 -right-24 w-72 h-72 bg-purple-400/10 rounded-full blur-3xl -z-10" />
-
-            <div className="relative z-10 mx-auto w-full flex-1 space-y-4 p-4 md:space-y-6 md:p-8">
+        <div className="relative flex w-full flex-col">
+            <div className="relative mx-auto w-full flex-1 space-y-4 md:space-y-6">
                 {/* Header */}
                 <div className="flex items-center gap-2.5 md:gap-3">
                     <Button variant="ghost" size="icon" onClick={handleGoBack}
@@ -1168,7 +1164,7 @@ import { Suspense } from 'react'
 export function VocabularyPracticeHub(props: VocabularyPracticeHubProps) {
     return (
         <Suspense fallback={
-            <div className="relative overflow-hidden flex flex-col rounded-2xl bg-white shadow-sm border border-slate-100 p-8 items-center justify-center min-h-[300px]">
+            <div className="flex min-h-[300px] items-center justify-center p-8">
                 <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
                 <p className="font-semibold text-indigo-700 text-sm">Đang tải...</p>
             </div>

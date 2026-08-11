@@ -15,6 +15,10 @@ interface PaymentPackage {
     price_vnd: number
 }
 
+interface InterviewPlanSummary {
+    price_vnd: number
+}
+
 interface PaymentModalProps {
     open: boolean
     onClose: () => void
@@ -31,6 +35,7 @@ interface BankInfo {
 
 export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     const [packages, setPackages] = useState<PaymentPackage[]>([])
+    const [interviewStartingPrice, setInterviewStartingPrice] = useState<number | null>(null)
     const [loading, setLoading] = useState(true)
     const [selectedPackage, setSelectedPackage] = useState<PaymentPackage | null>(null)
     const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
@@ -39,6 +44,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     const [processingPayment, setProcessingPayment] = useState(false)
     const [paymentComplete, setPaymentComplete] = useState(false)
     const [interviewDialogOpen, setInterviewDialogOpen] = useState(false)
+    const [epsPackagesOpen, setEpsPackagesOpen] = useState(false)
     const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
     const stopPolling = useCallback(() => {
@@ -94,10 +100,15 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     const fetchPackages = async () => {
         try {
             setLoading(true)
-            const res = await fetch('/api/payment/packages')
-            if (res.ok) {
-                const data = await res.json()
-                setPackages(data)
+            const [examResponse, interviewResponse] = await Promise.all([
+                fetch('/api/payment/packages'),
+                fetch('/api/interview/plans', { cache: 'no-store' }),
+            ])
+            if (examResponse.ok) setPackages(await examResponse.json())
+            if (interviewResponse.ok) {
+                const payload = await interviewResponse.json() as { plans?: InterviewPlanSummary[] }
+                const prices = (payload.plans || []).map((plan) => plan.price_vnd).filter((price) => price > 0)
+                setInterviewStartingPrice(prices.length ? Math.min(...prices) : null)
             }
         } catch (error) {
             console.error('Error fetching packages:', error)
@@ -158,6 +169,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         setBankInfo(null)
         setTransactionCode(null)
         setPaymentComplete(false)
+        setEpsPackagesOpen(false)
         onClose()
     }
 
@@ -309,9 +321,10 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                 ) : (
                     // Package Selection Screen
                     <div className="space-y-3 pt-1 sm:space-y-5">
-                        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-700 via-indigo-600 to-blue-600 p-4 text-white shadow-lg shadow-violet-200/70 sm:p-5">
+                        <div className="grid items-stretch gap-3 sm:grid-cols-2 sm:gap-4">
+                        <div className="relative flex min-h-[172px] flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-violet-700 via-indigo-600 to-blue-600 p-4 text-white shadow-lg shadow-violet-200/70 sm:p-5">
                             <div aria-hidden="true" className="absolute -right-8 -top-10 size-28 rounded-full border-[18px] border-white/10" />
-                            <div className="relative flex items-center gap-3">
+                            <div className="relative flex flex-1 items-center gap-3">
                                 <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
                                     <Mic2 className="size-5" />
                                 </span>
@@ -320,32 +333,56 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                                     <h3 className="mt-1 text-lg font-black sm:text-xl">Phỏng vấn Vòng 2</h3>
                                     <p className="text-xs text-blue-100 sm:text-sm">Chọn gói học 10 ngày hoặc 30 ngày.</p>
                                 </div>
+                                <div className="shrink-0 text-right">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-100">Từ</p>
+                                    <p className="text-lg font-black text-white sm:text-xl">
+                                        {interviewStartingPrice ? `${interviewStartingPrice / 1000}K` : '49K'}
+                                    </p>
+                                </div>
                             </div>
                             <Button
-                                className="relative mt-4 h-10 w-full rounded-xl bg-white font-extrabold text-indigo-700 shadow-sm hover:bg-blue-50 hover:text-indigo-800"
+                                className="relative mt-4 h-10 w-full shrink-0 rounded-xl bg-white font-extrabold text-indigo-700 shadow-sm hover:bg-blue-50 hover:text-indigo-800"
                                 onClick={() => {
                                     handleClose()
                                     setInterviewDialogOpen(true)
                                 }}
                                 type="button"
                             >
-                                Xem gói Phỏng vấn
+                                Mua gói
                                 <ChevronRight className="size-4" />
                             </Button>
                         </div>
 
-                        <div className="border-t border-slate-200 pt-3 sm:pt-4">
-                        <div className="flex items-center gap-2">
-                            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 ring-1 ring-slate-200">
-                                <TicketCheck className="size-4.5" />
-                            </span>
-                            <div>
-                                <h3 className="text-sm font-extrabold text-slate-800 sm:text-base">Lượt thi thử EPS-TOPIK</h3>
-                                <p className="text-xs text-muted-foreground">Luyện đề bổ sung theo nhu cầu.</p>
+                        <div>
+                            <div className="flex min-h-[172px] flex-col overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-4 shadow-sm transition hover:border-blue-300 hover:shadow-md sm:p-5">
+                                <div className="flex flex-1 items-center gap-3">
+                                    <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-200 ring-1 ring-blue-500/20">
+                                        <TicketCheck className="size-5" />
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                        <h3 className="text-base font-extrabold text-slate-900 sm:text-lg">Thi thử EPS-TOPIK</h3>
+                                        <p className="text-xs text-slate-500 sm:text-sm">Mua thêm lượt thi theo nhu cầu.</p>
+                                    </div>
+                                    <div className="shrink-0 text-right">
+                                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Từ</p>
+                                        <p className="text-lg font-black text-blue-600 sm:text-xl">
+                                            {packages.length ? `${Math.min(...packages.map((pkg) => pkg.price_vnd)) / 1000}K` : '99K'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <Button
+                                    type="button"
+                                    className="mt-4 h-10 w-full shrink-0 rounded-xl bg-blue-600 font-extrabold text-white shadow-sm hover:bg-blue-700"
+                                    onClick={() => setEpsPackagesOpen((value) => !value)}
+                                >
+                                    {epsPackagesOpen ? 'Thu gọn' : 'Mua gói'}
+                                    <ChevronRight className={`size-4 transition-transform ${epsPackagesOpen ? 'rotate-90' : ''}`} />
+                                </Button>
                             </div>
                         </div>
                         </div>
-                        <div className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-2.5 md:grid-cols-3 md:gap-4">
+                        {epsPackagesOpen && (
+                        <div className="mx-auto grid w-full max-w-4xl animate-in grid-cols-1 gap-2.5 fade-in slide-in-from-top-2 md:grid-cols-3 md:gap-4">
                             {packages.map((pkg) => {
                                 const isPopular = pkg.credits === 20
                                 const isBest = pkg.credits === 50
@@ -415,12 +452,13 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                                 )
                             })}
                         </div>
+                        )}
 
-                        <div className="flex items-center justify-center">
+                        {epsPackagesOpen && <div className="flex items-center justify-center">
                             <p className="text-center text-xs font-medium text-muted-foreground sm:text-sm">
                                 Mỗi tài khoản được tặng <span className="font-bold text-red-500">3 lượt miễn phí</span>.
                             </p>
-                        </div>
+                        </div>}
                     </div>
                 )}
             </DialogContent>

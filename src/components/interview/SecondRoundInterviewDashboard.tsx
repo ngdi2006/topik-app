@@ -400,7 +400,7 @@ export function SecondRoundInterviewDashboard({
 
   if (!industry || isChangingIndustry) {
     return (
-      <section className="relative mx-auto max-w-6xl overflow-hidden rounded-[28px] border border-slate-200/80 bg-white p-4 shadow-[0_24px_70px_rgba(15,23,42,0.08)] md:p-7 lg:p-9">
+      <section className="relative mx-auto max-w-6xl overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-3 shadow-[0_24px_70px_rgba(15,23,42,0.08)] sm:rounded-[28px] md:p-6 lg:p-7">
         <div
           aria-hidden="true"
           className="absolute -right-32 -top-40 size-96 rounded-full bg-blue-100/80 blur-3xl"
@@ -411,37 +411,37 @@ export function SecondRoundInterviewDashboard({
         />
 
         <div className="relative">
-          <div className="mb-7 flex items-center justify-between gap-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">
+          <div className="mb-3 flex items-center justify-between gap-2 sm:mb-5">
+            <div className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 sm:px-3 sm:py-1.5 sm:text-xs">
               <Sparkles aria-hidden="true" className="size-3.5" />
               Cá nhân hoá lộ trình
             </div>
             {isChangingIndustry ? (
               <Button
-                className="min-h-9 rounded-xl border-slate-200 bg-white px-3 text-xs font-bold shadow-sm hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-600"
+                className="min-h-8 rounded-xl border-slate-200 bg-white px-2.5 text-[11px] font-bold shadow-sm hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-600 sm:min-h-9 sm:px-3 sm:text-xs"
                 onClick={() => setIsChangingIndustry(false)}
                 variant="outline"
               >
                 <ArrowLeft aria-hidden="true" className="size-3.5" />
-                Giữ ngành hiện tại
+                <span className="sm:hidden">Giữ ngành</span>
+                <span className="hidden sm:inline">Giữ ngành hiện tại</span>
               </Button>
             ) : null}
           </div>
 
-          <div className="mx-auto mb-8 max-w-2xl text-center md:mb-10">
-            <Badge className="mb-3 border border-blue-100 bg-white text-blue-700 shadow-sm hover:bg-white">
+          <div className="mx-auto mb-4 max-w-2xl text-center sm:mb-6">
+            <Badge className="mb-1.5 border border-blue-100 bg-white px-2 py-0.5 text-[10px] text-blue-700 shadow-sm hover:bg-white sm:mb-2">
               Phỏng vấn vòng 2
             </Badge>
-            <h1 className="text-balance text-2xl font-black tracking-[-0.03em] text-slate-950 md:text-4xl">
-              Bạn đang chuẩn bị phỏng vấn ngành nào?
+            <h1 className="text-balance text-xl font-black tracking-[-0.03em] text-slate-950 sm:text-2xl md:text-3xl">
+              Chọn ngành phỏng vấn
             </h1>
-            <p className="mx-auto mt-3 max-w-xl text-pretty text-sm leading-6 text-slate-600 md:text-base">
-              Chọn ngành phù hợp để hệ thống ưu tiên đúng câu hỏi, kỹ năng và lộ
-              trình ôn tập cho bạn.
+            <p className="mx-auto mt-1.5 max-w-xl text-pretty text-xs leading-5 text-slate-600 sm:mt-2 sm:text-sm">
+              Chọn đúng ngành đã đăng ký để nhận lộ trình phù hợp.
             </p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3">
           {INDUSTRIES.map((item) => {
             const Icon = item.icon
             const visual = INDUSTRY_STYLE[item.id]
@@ -463,35 +463,36 @@ export function SecondRoundInterviewDashboard({
                   aria-hidden="true"
                   className={`absolute -right-12 -top-10 size-32 rounded-full opacity-30 blur-3xl ${visual.glow}`}
                 />
-                <div className="relative flex h-full flex-col p-5 md:p-6">
-                  <div className="flex items-start justify-between gap-3">
+                <div className="relative flex h-full flex-col p-3 sm:p-5">
+                  <div className="flex items-start justify-between gap-1.5 sm:gap-3">
                     <div
-                      className={`flex size-12 items-center justify-center rounded-2xl ring-1 ${visual.icon}`}
+                      className={`flex size-9 items-center justify-center rounded-xl ring-1 sm:size-11 sm:rounded-2xl ${visual.icon}`}
                     >
-                      <Icon aria-hidden="true" className="size-6" />
+                      <Icon aria-hidden="true" className="size-4.5 sm:size-5" />
                     </div>
                     {isCurrent ? (
-                      <Badge className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-50">
-                        <CheckCircle2 aria-hidden="true" className="size-3.5" />
-                        Đang sử dụng
+                      <Badge className="border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[9px] text-blue-700 hover:bg-blue-50 sm:px-2 sm:text-[10px]">
+                        <CheckCircle2 aria-hidden="true" className="size-3" />
+                        <span className="hidden sm:inline">Đang sử dụng</span>
+                        <span className="sm:hidden">Đã chọn</span>
                       </Badge>
                     ) : null}
                   </div>
 
-                  <h2 className="mt-5 text-lg font-black tracking-tight text-slate-950">
+                  <h2 className="mt-2.5 min-h-9 text-sm font-black leading-[1.15] tracking-tight text-slate-950 sm:mt-4 sm:min-h-0 sm:text-lg">
                     {item.id}
                   </h2>
-                  <p className="mt-2 min-h-10 text-sm leading-5 text-slate-600">
+                  <p className="mt-1 hidden min-h-10 text-sm leading-5 text-slate-600 sm:block">
                     {item.description}
                   </p>
 
-                  <div className="mt-5 flex items-center gap-2 border-t border-slate-100 pt-4 text-xs font-semibold text-slate-500">
+                  <div className="mt-4 hidden items-center gap-2 border-t border-slate-100 pt-3 text-xs font-semibold text-slate-500 sm:flex">
                     <BookOpen aria-hidden="true" className="size-4 text-blue-600" />
                     {TOPICS.length} chủ đề luyện tập
                   </div>
 
                   <Button
-                    className={`mt-4 min-h-11 w-full rounded-xl font-bold focus-visible:ring-2 focus-visible:ring-blue-600 ${
+                    className={`mt-auto min-h-9 w-full rounded-lg px-1 text-[11px] font-bold focus-visible:ring-2 focus-visible:ring-blue-600 sm:mt-4 sm:min-h-10 sm:rounded-xl sm:px-3 sm:text-sm ${
                       isCurrent
                         ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
                         : "bg-slate-950 text-white hover:bg-blue-700"
@@ -499,8 +500,9 @@ export function SecondRoundInterviewDashboard({
                     onClick={() => chooseIndustry(item.id)}
                     variant={isCurrent ? "outline" : "default"}
                   >
-                    {isCurrent ? "Tiếp tục ngành này" : "Chọn ngành này"}
-                    <ChevronRight aria-hidden="true" className="size-4" />
+                    <span className="hidden sm:inline">{isCurrent ? "Tiếp tục ngành này" : "Chọn ngành này"}</span>
+                    <span className="sm:hidden">{isCurrent ? "Tiếp tục" : "Chọn"}</span>
+                    <ChevronRight aria-hidden="true" className="size-3.5 sm:size-4" />
                   </Button>
                 </div>
               </Card>

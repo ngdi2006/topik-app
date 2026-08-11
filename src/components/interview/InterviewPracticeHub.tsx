@@ -756,7 +756,7 @@ export function InterviewPracticeHub({
 
     if (step === 'communication_topic') {
         return (
-            <div className="min-h-[70vh] bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-3.5 md:min-h-screen md:p-8">
+            <div className="w-full py-2">
                 {/* Header */}
                 <div className="mx-auto mb-4 max-w-4xl md:mb-8">
                     <div className="relative text-center">
@@ -813,7 +813,7 @@ export function InterviewPracticeHub({
 
     if (step === 'situation_topic') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-purple-50 p-4 md:p-8">
+            <div className="w-full py-2">
                 {/* Header */}
                 <div className="max-w-4xl mx-auto mb-8">
                     <button onClick={handleGoBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-semibold mb-6 transition-colors">
@@ -902,7 +902,7 @@ export function InterviewPracticeHub({
             })
 
         return (
-            <div className="min-h-[70vh] bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-3.5 md:min-h-screen md:p-8">
+            <div className="w-full py-2">
                 {/* Header */}
                 <div className="mx-auto mb-4 max-w-3xl md:mb-8">
                     <div className="relative text-center">
@@ -1096,7 +1096,7 @@ export function InterviewPracticeHub({
 
     if (step === 'tool_drop_game') {
         return (
-            <div className="min-h-screen rounded-2xl bg-slate-50 pt-3 md:pt-6">
+            <div className="w-full pt-2">
                 <ToolDropGame
                     questions={questions}
                     onBack={() => {
@@ -1111,7 +1111,7 @@ export function InterviewPracticeHub({
 
     if (step === 'practice') {
         return (
-            <div className="min-h-screen bg-slate-50 pt-6 rounded-2xl">
+            <div className="w-full pt-2">
                 {selectedTopicObj?.mode === 'tools' && selectedListenMode === 'ai_mock' ? (
                     <ToolDragPracticeScreen
                         questions={questions}
@@ -1434,13 +1434,8 @@ export function InterviewPracticeHub({
             : undefined
 
     return (
-        <div className="relative overflow-hidden flex flex-col rounded-2xl bg-white shadow-sm border border-slate-100">
-            {/* Background elements */}
-            <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-br from-blue-50/50 via-indigo-50/30 to-emerald-50/30 -z-10" />
-            <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-400/10 rounded-full blur-[100px] -z-10" />
-            <div className="absolute top-40 -left-32 w-80 h-80 bg-emerald-400/10 rounded-full blur-[100px] -z-10" />
-
-            <div className={`flex-1 w-full mx-auto p-4 md:p-8 relative z-10 ${step === 'self_introduction' ? 'space-y-0' : 'space-y-6 md:space-y-8'}`}>
+        <div className="relative flex w-full flex-col">
+            <div className={`relative w-full flex-1 ${step === 'self_introduction' ? 'space-y-0' : 'space-y-6 md:space-y-8'}`}>
                 <div className={step === 'mock_intro' || step === 'mock_exam' ? 'hidden' : step === 'self_introduction' ? 'absolute left-6 top-6 z-30 md:left-11 md:top-11' : step === 'select_mode' ? 'absolute left-4 top-4 z-30 md:static md:mb-2 md:flex md:items-center' : 'mb-2 flex items-center gap-3 md:gap-4'}>
                     <Button 
                         variant="ghost" 

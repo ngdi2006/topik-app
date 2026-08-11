@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Check, Loader2, QrCode, ShieldCheck, Sparkles } from "lucide-react"
+import { Check, Loader2, QrCode, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
@@ -74,13 +74,13 @@ export function InterviewSubscriptionDialog({ open, onOpenChange }: { open: bool
 
   return (
     <Dialog open={open} onOpenChange={(next) => { onOpenChange(next); if (!next) { setPayment(null); setPaymentCompleted(false) } }}>
-      <DialogContent className="max-h-[92dvh] gap-4 overflow-y-auto rounded-3xl p-4 sm:max-w-2xl sm:p-7">
-        <DialogHeader className="gap-1 text-left">
-          <div className="mb-1 inline-flex w-fit items-center gap-1.5 rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-violet-700 ring-1 ring-violet-100">
+      <DialogContent className="max-h-[96dvh] gap-2.5 overflow-y-auto rounded-[22px] p-3 sm:max-h-[92dvh] sm:max-w-4xl sm:gap-4 sm:rounded-3xl sm:p-7">
+        <DialogHeader className="items-center gap-0.5 px-5 text-center sm:gap-1 sm:px-0">
+          <div className="mb-0.5 inline-flex w-fit items-center gap-1.5 rounded-full bg-violet-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-violet-700 ring-1 ring-violet-100 sm:mb-1 sm:px-2.5 sm:py-1 sm:text-[10px]">
             <Sparkles className="size-3" /> Lộ trình Phỏng vấn Vòng 2
           </div>
-          <DialogTitle className="text-xl font-black tracking-tight sm:text-2xl">Một gói mở toàn bộ Vòng 2</DialogTitle>
-          <DialogDescription className="max-w-xl text-sm leading-5"><strong className="text-slate-800">Chỉ thanh toán một lần</strong> để sử dụng tất cả nội dung trong thời hạn đã chọn.</DialogDescription>
+          <DialogTitle className="text-lg font-extrabold tracking-tight sm:text-2xl sm:font-black">Chinh phục Vòng 2</DialogTitle>
+          <DialogDescription className="max-w-xl text-xs leading-4 sm:text-sm sm:leading-5">Chọn thời hạn phù hợp với kế hoạch luyện tập của bạn.</DialogDescription>
         </DialogHeader>
         {paymentCompleted ? (
           <div className="flex flex-col items-center gap-3 rounded-2xl bg-emerald-50 px-5 py-10 text-center ring-1 ring-emerald-100">
@@ -101,44 +101,32 @@ export function InterviewSubscriptionDialog({ open, onOpenChange }: { open: bool
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
-              <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-500">Nội dung được mở</p>
-              <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-3">
-                {['P2 Khẩu lệnh', 'P3 Từ vựng & biển báo', 'P4 Toán học', 'P5 Sử dụng công cụ', 'P6 Kỹ năng giao tiếp', 'P7 Xử lý tình huống', 'Thi thử Vòng 2', 'Tiến độ & ôn tập'].map((label) => (
-                  <div className="flex min-w-0 items-center gap-1.5 text-[11px] font-bold leading-4 text-slate-700" key={label}>
-                    <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-100"><Check className="size-2.5 text-emerald-700" /></span>
-                    <span>{label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              {plans.map((plan, index) => {
-                const recommended = plan.duration_days === 30 || index === 1
+          <div>
+            <div className="grid items-stretch gap-2 sm:grid-cols-3 sm:gap-3">
+              {plans.map((plan) => {
+                const recommended = plan.duration_days === 30
                 const pricePerDay = Math.round(plan.price_vnd / plan.duration_days)
+                const description = plan.duration_days === 1
+                  ? 'Ôn cấp tốc trước ngày phỏng vấn.'
+                  : plan.duration_days === 10
+                    ? 'Luyện trọng tâm trong thời gian ngắn.'
+                    : 'Luyện toàn diện và cải thiện điểm yếu.'
                 return (
-                  <article className={`relative overflow-hidden rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-lg sm:p-5 ${recommended ? 'border-violet-500 bg-gradient-to-br from-violet-50 to-blue-50 ring-2 ring-violet-100' : 'border-slate-200 bg-white'}`} key={plan.id}>
-                    {recommended ? <span className="absolute right-3 top-3 rounded-full bg-violet-600 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-white">Khuyên dùng</span> : null}
-                    <strong className="text-lg font-black text-slate-950">{plan.duration_days} ngày</strong>
-                    <p className="mt-1 pr-20 text-xs leading-5 text-slate-600">{recommended ? 'Đủ thời gian học và luyện lại.' : 'Phù hợp ôn cấp tốc.'}</p>
-                    <div className="mt-3 flex items-end justify-between gap-3">
-                      <p className="text-2xl font-black text-violet-700 sm:text-3xl">{plan.price_vnd.toLocaleString('vi-VN')}đ</p>
-                      <span className="pb-1 text-[10px] font-semibold text-slate-500">≈ {pricePerDay.toLocaleString('vi-VN')}đ/ngày</span>
+                  <article className={`relative flex flex-col overflow-hidden rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[230px] sm:p-5 ${recommended ? 'border-violet-500 bg-gradient-to-br from-violet-50 to-blue-50 ring-1 ring-violet-100 sm:ring-2' : 'border-slate-200 bg-white'}`} key={plan.id}>
+                    {recommended ? <span className="absolute right-2.5 top-2.5 rounded-full bg-violet-600 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-white sm:right-3 sm:top-3 sm:py-1 sm:text-[9px]">Khuyên dùng</span> : null}
+                    <strong className="text-base font-extrabold text-slate-950 sm:text-lg sm:font-black">{plan.duration_days} ngày</strong>
+                    <p className="mt-0.5 truncate pr-1 text-[11px] leading-4 text-slate-600 sm:mt-1 sm:min-h-10 sm:whitespace-normal sm:text-xs sm:leading-5">{description}</p>
+                    <div className="mt-2 flex items-end justify-between gap-2 sm:mt-3 sm:gap-3">
+                      <p className="text-[22px] font-extrabold leading-none text-violet-700 sm:text-3xl sm:font-black">{plan.price_vnd.toLocaleString('vi-VN')}đ</p>
+                      <span className="text-[9px] font-semibold text-slate-500 sm:pb-1 sm:text-[10px]">≈ {pricePerDay.toLocaleString('vi-VN')}đ/ngày</span>
                     </div>
-                    {recommended ? <p className="mt-1 text-[10px] font-bold text-emerald-700">Tiết kiệm khoảng 48.000đ so với gói ngắn hạn</p> : null}
-                    <Button className={`mt-4 w-full rounded-xl font-extrabold ${recommended ? 'bg-violet-600 hover:bg-violet-700' : ''}`} disabled={Boolean(loadingPlan)} onClick={() => void createPayment(plan.id)} type="button" variant={recommended ? 'default' : 'outline'}>
+                    {recommended ? <p className="mt-1 truncate text-[9px] font-bold text-emerald-700 sm:text-[10px]">Tiết kiệm khoảng 48.000đ so với gói ngắn hạn</p> : null}
+                    <Button className={`mt-2 h-9 w-full rounded-xl text-xs font-extrabold sm:mt-auto sm:h-10 sm:text-sm ${recommended ? 'bg-violet-600 hover:bg-violet-700' : ''}`} disabled={Boolean(loadingPlan)} onClick={() => void createPayment(plan.id)} type="button" variant={recommended ? 'default' : 'outline'}>
                       {loadingPlan === plan.id ? <Loader2 className="size-4 animate-spin" /> : `Chọn gói ${plan.duration_days} ngày`}
                     </Button>
                   </article>
                 )
               })}
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-slate-100 pt-3 text-[10px] font-semibold text-slate-500 sm:text-xs">
-              <span className="inline-flex items-center gap-1"><ShieldCheck className="size-3.5 text-emerald-600" /> Thanh toán an toàn qua SePay</span>
-              <span className="inline-flex items-center gap-1"><Check className="size-3.5 text-emerald-600" /> Kích hoạt tự động · cộng dồn thời hạn</span>
             </div>
           </div>
         )}

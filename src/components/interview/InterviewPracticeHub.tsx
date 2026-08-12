@@ -326,6 +326,7 @@ export function InterviewPracticeHub({
     const [selectedListenMode, setSelectedListenMode] = useState<'flashcard' | 'meaning_quiz' | 'word_sort' | 'ai_mock'>('flashcard')
     const [podcastQuestions, setPodcastQuestions] = useState<any[]>([])
     const [podcastRound, setPodcastRound] = useState(0)
+    const [podcastQuestionCount, setPodcastQuestionCount] = useState(20)
     const [initialAutoPlay, setInitialAutoPlay] = useState<boolean>(false)
     const [reviewQuestions, setReviewQuestions] = useState<any[]>([])
     
@@ -765,20 +766,31 @@ export function InterviewPracticeHub({
         setStep('tool_drop_game')
     }
 
-    const handleStartPodcast = () => {
+    const buildPodcastRound = (requestedCount: number) => {
         const pool = filterDuplicateTypes(allQuestions.length > 0 ? allQuestions : questions)
-        if (selectedTopicObj?.id !== 'tools') {
-            setPodcastQuestions(pool)
-            setStep('podcast')
+        if (pool.length === 0) {
+            toast.error('Chưa có nội dung để nghe')
             return
         }
 
         const previousIds = new Set(podcastQuestions.map((question) => question.id))
         const unseen = pool.filter((question) => !previousIds.has(question.id))
-        const source = unseen.length >= 20 ? unseen : pool
-        setPodcastQuestions(shuffleArray(source).slice(0, 20))
+        const count = Math.min(requestedCount, pool.length)
+        const source = unseen.length >= count ? unseen : pool
+        setPodcastQuestions(shuffleArray(source).slice(0, count))
         setPodcastRound((current) => current + 1)
         setStep('podcast')
+    }
+
+    const handleStartPodcast = () => {
+        const pool = filterDuplicateTypes(allQuestions.length > 0 ? allQuestions : questions)
+        if (pool.length === 0) {
+            toast.error('Chưa có nội dung để nghe')
+            return
+        }
+        const initialCount = Math.min(20, pool.length)
+        setPodcastQuestionCount(initialCount)
+        buildPodcastRound(initialCount)
     }
 
     const handleStartScenarioSimulation = () => {
@@ -1167,6 +1179,7 @@ export function InterviewPracticeHub({
     }
 
     if (step === 'podcast') {
+        const podcastPoolSize = filterDuplicateTypes(allQuestions.length > 0 ? allQuestions : questions).length
         const filteredPodcastQs = podcastQuestions.length > 0 ? podcastQuestions : filterDuplicateTypes(questions)
         return (
             <div className="min-h-[500px] bg-[#f8fafc] rounded-2xl overflow-hidden border border-slate-100 flex flex-col max-w-4xl mx-auto">
@@ -1203,7 +1216,13 @@ export function InterviewPracticeHub({
                         }))}
                         onBack={handleExitActivePractice}
                         hideHeader={true}
-                        onNextRound={selectedTopicObj?.id === 'tools' ? handleStartPodcast : undefined}
+                        onNextRound={() => buildPodcastRound(podcastQuestionCount)}
+                        totalAvailable={podcastPoolSize}
+                        selectedCount={podcastQuestionCount}
+                        onCountChange={(count) => {
+                            setPodcastQuestionCount(count)
+                            buildPodcastRound(count)
+                        }}
                     />
                 </div>
             </div>

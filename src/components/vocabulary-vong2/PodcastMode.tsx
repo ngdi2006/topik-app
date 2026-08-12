@@ -5,14 +5,34 @@ import { Card } from '@/components/ui/card'
 import { ArrowLeft, CheckCircle, Volume2, Pause, Play, Info, SkipBack, SkipForward, RotateCcw, Bookmark } from 'lucide-react'
 import { speakText, stopTTS } from '@/lib/tts'
 
-export default function PodcastMode({ vocabList, onBack, hideHeader = false, onNextRound }: { vocabList: any[], onBack: () => void, hideHeader?: boolean, onNextRound?: () => void }) {
+type PodcastModeProps = {
+    vocabList: any[]
+    onBack: () => void
+    hideHeader?: boolean
+    onNextRound?: () => void
+    totalAvailable?: number
+    selectedCount?: number
+    onCountChange?: (count: number) => void
+}
+
+export default function PodcastMode({
+    vocabList,
+    onBack,
+    hideHeader = false,
+    onNextRound,
+    totalAvailable,
+    selectedCount,
+    onCountChange,
+}: PodcastModeProps) {
     const [currentIndex, setCurrentIndex] = useState(0)
-    const [isPlaying, setIsPlaying] = useState(true)
+    const [isPlaying, setIsPlaying] = useState(false)
+    const [hasStarted, setHasStarted] = useState(false)
     const [showMeaning, setShowMeaning] = useState(false)
     const [isFinished, setIsFinished] = useState(false)
     const [speed, setSpeed] = useState(1.0)
     const [speechTrigger, setSpeechTrigger] = useState(0)
     const timerRef = useRef<NodeJS.Timeout | null>(null)
+    const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null)
 
     const currentVocab = vocabList[currentIndex] || {}
 
@@ -60,27 +80,58 @@ export default function PodcastMode({ vocabList, onBack, hideHeader = false, onN
         const currentVocab = vocabList[currentIndex]
         setShowMeaning(false)
 
+        let hasEnded = false
         const handleSpeechEnd = () => {
+            if (hasEnded) return
+            hasEnded = true
+            if (fallbackTimerRef.current) {
+                clearTimeout(fallbackTimerRef.current)
+                fallbackTimerRef.current = null
+            }
             // Wait 2 seconds, show meaning, then go to next
             timerRef.current = setTimeout(() => {
                 setShowMeaning(true)
                 timerRef.current = setTimeout(() => {
-                    setCurrentIndex(prev => prev + 1)
+                    setCurrentIndex(prev => {
+                        if (prev >= vocabList.length - 1) {
+                            setIsFinished(true)
+                            return prev
+                        }
+                        return prev + 1
+                    })
                 }, 2500) // Show meaning for 2.5 seconds before moving to next
             }, 2000)
         }
 
         speakText(currentVocab.word_kr, speed, undefined, handleSpeechEnd)
 
+        // Some mobile browsers miss the media `ended` event. This fallback
+        // keeps the session moving while still giving long sentences time.
+        const estimatedSpeechMs = Math.min(
+            14000,
+            Math.max(5500, (String(currentVocab.word_kr || '').length * 320) / speed + 3500),
+        )
+        fallbackTimerRef.current = setTimeout(() => {
+            stopTTS()
+            handleSpeechEnd()
+        }, estimatedSpeechMs)
+
         return () => {
             stopTTS()
             if (timerRef.current) {
                 clearTimeout(timerRef.current)
             }
+            if (fallbackTimerRef.current) {
+                clearTimeout(fallbackTimerRef.current)
+                fallbackTimerRef.current = null
+            }
         }
     }, [currentIndex, isPlaying, isFinished, vocabList, speed, speechTrigger])
 
-    const togglePlay = () => setIsPlaying(!isPlaying)
+    const togglePlay = () => {
+        if (!hasStarted) setHasStarted(true)
+        setIsPlaying((current) => !current)
+    }
 
     const handleNext = () => {
         if (currentIndex < vocabList.length - 1) {
@@ -136,7 +187,8 @@ export default function PodcastMode({ vocabList, onBack, hideHeader = false, onN
                                 }
                                 setCurrentIndex(0)
                                 setIsFinished(false)
-                                setIsPlaying(true)
+                                setIsPlaying(false)
+                                setHasStarted(false)
                                 setSpeed(1.0)
                                 setSpeechTrigger(prev => prev + 1)
                             }} 
@@ -161,6 +213,11 @@ export default function PodcastMode({ vocabList, onBack, hideHeader = false, onN
 
     if (vocabList.length === 0) return null
 
+    const availableCount = Math.max(totalAvailable ?? vocabList.length, 1)
+    const presetCounts = [20, 30, 50].filter((count) => count <= availableCount)
+    const countOptions = presetCounts.length > 0 ? presetCounts : [availableCount]
+    const showAllOption = availableCount > 20 && !countOptions.includes(availableCount)
+
     return (
         <div className="max-w-xl mx-auto p-4 md:p-6 space-y-4">
             {!hideHeader && (
@@ -180,6 +237,42 @@ export default function PodcastMode({ vocabList, onBack, hideHeader = false, onN
                 </div>
             )}
 
+            {onCountChange && selectedCount ? (
+                <div className="flex items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+                    <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-700">Số câu nghe</p>
+                        <p className="truncate text-[10px] text-slate-400">Có thể đổi bất cứ lúc nào</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1 rounded-xl bg-slate-100 p-1">
+                        {countOptions.map((count) => (
+                            <button
+                                key={count}
+                                type="button"
+                                onClick={() => count !== selectedCount && onCountChange(count)}
+                                className={`min-w-9 rounded-lg px-2 py-1.5 text-xs font-bold transition ${selectedCount === count
+                                    ? 'bg-violet-600 text-white shadow-sm'
+                                    : 'text-slate-600 hover:bg-white'}`}
+                                aria-pressed={selectedCount === count}
+                            >
+                                {count}
+                            </button>
+                        ))}
+                        {showAllOption ? (
+                            <button
+                                type="button"
+                                onClick={() => availableCount !== selectedCount && onCountChange(availableCount)}
+                                className={`rounded-lg px-2 py-1.5 text-xs font-bold transition ${selectedCount === availableCount
+                                    ? 'bg-violet-600 text-white shadow-sm'
+                                    : 'text-slate-600 hover:bg-white'}`}
+                                aria-pressed={selectedCount === availableCount}
+                            >
+                                Tất cả
+                            </button>
+                        ) : null}
+                    </div>
+                </div>
+            ) : null}
+
             {/* Progress indicator */}
             <div className="w-full space-y-1.5 px-1">
                 <div className="flex justify-between items-center text-[11px] font-semibold text-slate-400">
@@ -194,7 +287,7 @@ export default function PodcastMode({ vocabList, onBack, hideHeader = false, onN
                 </div>
             </div>
 
-            <Card className="p-8 md:p-10 rounded-3xl shadow-[0_10px_35px_rgb(0,0,0,0.03)] border border-slate-100 bg-white flex flex-col items-center w-full relative">
+            <Card className="min-h-[380px] p-8 md:min-h-[420px] md:p-10 rounded-3xl shadow-[0_10px_35px_rgb(0,0,0,0.03)] border border-slate-100 bg-white flex flex-col items-center justify-between w-full relative">
                 {/* Floating Bookmark button if no image frame */}
                 {!currentVocab.image_url && (
                     <button
@@ -223,15 +316,27 @@ export default function PodcastMode({ vocabList, onBack, hideHeader = false, onN
                     </div>
                 )}
 
-                <div className={`text-center space-y-4 w-full flex flex-col justify-center items-center ${
+                <div className={`text-center space-y-4 w-full flex flex-1 flex-col justify-center items-center ${
                     currentVocab.image_url ? 'min-h-[120px]' : 'min-h-[180px]'
                 }`}>
-                    <h2 className={`font-extrabold text-slate-800 tracking-wide select-all leading-relaxed text-center ${
-                        currentVocab.image_url ? 'text-lg md:text-xl' : 'text-xl sm:text-2xl md:text-3xl'
-                    }`}>
-                        {currentVocab.word_kr}
-                    </h2>
-                    {showMeaning ? (
+                    {hasStarted ? (
+                        <h2 className={`font-extrabold text-slate-800 tracking-wide select-all leading-relaxed text-center ${
+                            currentVocab.image_url ? 'text-lg md:text-xl' : 'text-xl sm:text-2xl md:text-3xl'
+                        }`}>
+                            {currentVocab.word_kr}
+                        </h2>
+                    ) : (
+                        <Button
+                            type="button"
+                            onClick={togglePlay}
+                            title="Bắt đầu nghe"
+                            aria-label="Bắt đầu nghe"
+                            className="size-14 rounded-full bg-emerald-600 p-0 text-white shadow-lg shadow-emerald-200 transition hover:scale-105 hover:bg-emerald-700 active:scale-95"
+                        >
+                            <Play className="size-5 translate-x-px fill-current" />
+                        </Button>
+                    )}
+                    {hasStarted && showMeaning ? (
                         <div className="animate-in fade-in zoom-in-95 duration-300 space-y-3.5 w-full flex flex-col items-center">
                             <h3 className={`font-bold text-emerald-600 tracking-wide text-center ${
                                 currentVocab.image_url ? 'text-sm md:text-base' : 'text-base md:text-xl'
@@ -269,7 +374,7 @@ export default function PodcastMode({ vocabList, onBack, hideHeader = false, onN
                                 );
                             })()}
                         </div>
-                    ) : (
+                    ) : hasStarted ? (
                         <div className="h-8 flex items-center justify-center gap-1.5">
                             <span className="w-1 h-3 bg-indigo-400/80 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                             <span className="w-1 h-5 bg-indigo-500/80 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -277,10 +382,11 @@ export default function PodcastMode({ vocabList, onBack, hideHeader = false, onN
                             <span className="w-1 h-5 bg-indigo-500/80 rounded-full animate-bounce" style={{ animationDelay: '450ms' }} />
                             <span className="w-1 h-3 bg-indigo-400/80 rounded-full animate-bounce" style={{ animationDelay: '600ms' }} />
                         </div>
-                    )}
+                    ) : null}
                 </div>
 
-                <div className="mt-5 pt-4 border-t border-slate-100/80 w-full flex flex-col items-center gap-3">
+                <div className={`w-full flex flex-col items-center gap-3 ${hasStarted ? 'mt-5 border-t border-slate-100/80 pt-4' : ''}`}>
+                    {hasStarted ? (
                     <div className="flex items-center justify-center gap-5 w-full">
                         {/* Speed Toggle */}
                         <Button 
@@ -308,7 +414,7 @@ export default function PodcastMode({ vocabList, onBack, hideHeader = false, onN
                         {/* Play/Pause Button */}
                         <Button 
                             size="lg" 
-                            title={isPlaying ? "Tạm dừng" : "Tiếp tục phát"}
+                            title={isPlaying ? "Tạm dừng" : hasStarted ? "Tiếp tục nghe" : "Bắt đầu nghe"}
                             className={`w-12 h-12 rounded-full shadow-md transition-all duration-300 p-0 flex items-center justify-center ${
                                 isPlaying 
                                     ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100' 
@@ -342,6 +448,7 @@ export default function PodcastMode({ vocabList, onBack, hideHeader = false, onN
                             <RotateCcw className="w-3.5 h-3.5" />
                         </Button>
                     </div>
+                    ) : null}
                 </div>
             </Card>
         </div>

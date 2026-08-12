@@ -42,7 +42,15 @@ function LoginForm() {
             return
         }
 
-        window.location.assign(nextPath)
+        try {
+            const response = await fetch(`/api/auth/destination?next=${encodeURIComponent(nextPath)}`, {
+                cache: 'no-store',
+            })
+            const result = response.ok ? await response.json() : null
+            window.location.assign(result?.destination || nextPath)
+        } catch {
+            window.location.assign(nextPath)
+        }
     }
 
     const handleGoogleLogin = async () => {

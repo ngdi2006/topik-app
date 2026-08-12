@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sanitizeNextPath } from '@/lib/auth-flow'
+import { getTrustedUserRole, isAdminRole } from '@/lib/admin-role'
 
 export async function GET(request: Request) {
     const { searchParams, origin } = new URL(request.url)
@@ -23,21 +24,26 @@ export async function GET(request: Request) {
 
     if (code) {
         const supabase = await createClient()
-        const { error } = await supabase.auth.exchangeCodeForSession(code)
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
         if (!error) {
+            const role = data.user ? await getTrustedUserRole(data.user) : null
+            const hasAdminAccess = isAdminRole(role)
+            let destination = next
+            if (next.startsWith('/admin') && !hasAdminAccess) destination = '/dashboard'
+            if (next === '/dashboard' && hasAdminAccess) destination = '/admin'
             const forwardedHost = request.headers.get('x-forwarded-host')
             const isLocalEnv = process.env.NODE_ENV === 'development'
             const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
 
             if (isLocalEnv) {
-                return NextResponse.redirect(`${origin}${next}`)
+                return NextResponse.redirect(`${origin}${destination}`)
             } else if (forwardedHost) {
-                return NextResponse.redirect(`https://${forwardedHost}${next}`)
+                return NextResponse.redirect(`https://${forwardedHost}${destination}`)
             } else if (siteUrl) {
-                return NextResponse.redirect(`${siteUrl}${next}`)
+                return NextResponse.redirect(`${siteUrl}${destination}`)
             } else {
-                return NextResponse.redirect(`${origin}${next}`)
+                return NextResponse.redirect(`${origin}${destination}`)
             }
         }
 

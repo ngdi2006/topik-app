@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Zap, CheckCircle, XCircle, Trophy, RotateCcw, ArrowLeft, Volume2, Timer } from 'lucide-react'
-import { speakText, stopTTS } from '@/lib/tts'
+import { speakText, speakTextWithBrowser, stopTTS } from '@/lib/tts'
 
 interface SpeedQuizQuestion {
     q: any
@@ -66,9 +66,13 @@ export function SpeedQuizScreen({ questions, maxQuestions = 10, timeLimitSeconds
     const [answered, setAnswered] = useState<string | null>(null)
     const [phase, setPhase] = useState<'playing' | 'result'>('playing')
     const [audioState, setAudioState] = useState<'loading' | 'playing' | 'done'>('loading')
+    const [audioStalled, setAudioStalled] = useState(false)
     const audioRef = useRef<HTMLAudioElement | null>(null)
     const timerRef = useRef<NodeJS.Timeout | null>(null)
     const advanceRef = useRef<NodeJS.Timeout | null>(null)
+    const audioWatchdogRef = useRef<NodeJS.Timeout | null>(null)
+    const audioFallbackRef = useRef<NodeJS.Timeout | null>(null)
+    const playbackTokenRef = useRef(0)
     const startTimeRef = useRef<number>(0)
 
     // Use refs so callbacks always have latest values (avoid stale closure)
@@ -77,6 +81,13 @@ export function SpeedQuizScreen({ questions, maxQuestions = 10, timeLimitSeconds
     const answeredRef = useRef<string | null>(null)
 
     const current = quizItems[idx] ?? null // guard against undefined
+
+    const clearAudioWatchdogs = useCallback(() => {
+        if (audioWatchdogRef.current) clearTimeout(audioWatchdogRef.current)
+        if (audioFallbackRef.current) clearTimeout(audioFallbackRef.current)
+        audioWatchdogRef.current = null
+        audioFallbackRef.current = null
+    }, [])
 
     const advanceQuestion = useCallback(() => {
         const nextIdx = idxRef.current + 1
@@ -141,26 +152,63 @@ export function SpeedQuizScreen({ questions, maxQuestions = 10, timeLimitSeconds
     }, [audioState, handleAnswer])
 
     // Play audio on each new question
-    const playTTS = useCallback(() => {
-        if (current?.q?.question_text) {
-            speakText(
-                current.q.question_text,
-                0.9,
-                () => setAudioState('playing'),
-                () => setAudioState('done'),
-                () => setAudioState('done')
-            )
-        } else {
+    const playTTS = useCallback((useBrowserFallback = false) => {
+        const text = current?.q?.question_text
+        const token = ++playbackTokenRef.current
+
+        clearAudioWatchdogs()
+        stopTTS()
+        setAudioStalled(false)
+        setAudioState('loading')
+
+        if (!text) {
+            setAudioState('done')
+            return
+        }
+
+        const isCurrentPlayback = () => playbackTokenRef.current === token
+        const maxPlaybackMs = Math.max(12000, Math.min(30000, text.length * 350 + 6000))
+        const markPlaying = () => {
+            if (!isCurrentPlayback()) return
+            if (audioWatchdogRef.current) clearTimeout(audioWatchdogRef.current)
+            audioWatchdogRef.current = null
+            setAudioState('playing')
+            // Guard against mobile WebViews occasionally omitting `ended`.
+            audioFallbackRef.current = setTimeout(markDone, maxPlaybackMs)
+        }
+        const markDone = () => {
+            if (!isCurrentPlayback()) return
+            clearAudioWatchdogs()
+            setAudioStalled(false)
             setAudioState('done')
         }
-    }, [current])
+        const playBrowserFallback = () => {
+            if (!isCurrentPlayback()) return
+            stopTTS()
+            setAudioStalled(true)
+            const started = speakTextWithBrowser(text, 0.9, markPlaying, markDone)
+            if (!started) markDone()
+        }
+
+        if (useBrowserFallback) {
+            playBrowserFallback()
+            return
+        }
+
+        speakText(text, 0.9, markPlaying, markDone, playBrowserFallback)
+        // Mobile browsers may leave Audio pending without `error` or `ended`.
+        audioWatchdogRef.current = setTimeout(playBrowserFallback, 6000)
+    }, [clearAudioWatchdogs, current])
 
     useEffect(() => {
         if (!current?.q) return
         answeredRef.current = null
         setAnswered(null)
         setTimeLeft(timeLimitMs)
+        setAudioStalled(false)
         setAudioState('loading')
+        clearAudioWatchdogs()
+        playbackTokenRef.current += 1
         if (timerRef.current) clearInterval(timerRef.current)
         if (advanceRef.current) clearTimeout(advanceRef.current)
 
@@ -171,15 +219,30 @@ export function SpeedQuizScreen({ questions, maxQuestions = 10, timeLimitSeconds
 
         stopTTS()
 
-        const forceElevenLabs = true;
-        const audioUrl = forceElevenLabs ? null : current.q.question_audio_url
+        const audioUrl = current.q.question_audio_url || current.q.audio_url || null
         if (audioUrl) {
+            const token = ++playbackTokenRef.current
             const audio = new Audio(audioUrl)
+            audio.preload = 'auto'
             audioRef.current = audio
-            audio.onended = () => setAudioState('done')
+            const isCurrentPlayback = () => playbackTokenRef.current === token
+            audio.onended = () => {
+                if (!isCurrentPlayback()) return
+                clearAudioWatchdogs()
+                setAudioStalled(false)
+                setAudioState('done')
+            }
             audio.onerror = () => playTTS()
             audio.play()
-                .then(() => setAudioState('playing'))
+                .then(() => {
+                    if (!isCurrentPlayback()) return
+                    setAudioState('playing')
+                    audioWatchdogRef.current = setTimeout(() => {
+                        if (!isCurrentPlayback() || audio.ended) return
+                        if (audio.currentTime <= 0.1) playTTS(true)
+                        else setAudioState('done')
+                    }, 12000)
+                })
                 .catch(() => playTTS())
         } else {
             playTTS()
@@ -190,6 +253,8 @@ export function SpeedQuizScreen({ questions, maxQuestions = 10, timeLimitSeconds
                 audioRef.current.pause()
                 audioRef.current.src = ''
             }
+            clearAudioWatchdogs()
+            playbackTokenRef.current += 1
             stopTTS()
         }
     }, [idx]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -199,13 +264,15 @@ export function SpeedQuizScreen({ questions, maxQuestions = 10, timeLimitSeconds
         return () => {
             if (timerRef.current) clearInterval(timerRef.current)
             if (advanceRef.current) clearTimeout(advanceRef.current)
+            clearAudioWatchdogs()
+            playbackTokenRef.current += 1
             if (audioRef.current) {
                 audioRef.current.pause()
                 audioRef.current.src = ''
             }
             stopTTS()
         }
-    }, [])
+    }, [clearAudioWatchdogs])
 
     // --- RESULT SCREEN ---
     if (phase === 'result') {
@@ -344,7 +411,20 @@ export function SpeedQuizScreen({ questions, maxQuestions = 10, timeLimitSeconds
                         </div>
                     </div>
                     {audioState !== 'done' && (
-                        <span className="text-white/50 text-xs animate-pulse">Đang phát âm thanh...</span>
+                        <div className="flex flex-col items-center gap-2">
+                            <span className="text-white/50 text-xs animate-pulse">
+                                {audioStalled ? 'Âm thanh tải chậm' : 'Đang phát âm thanh...'}
+                            </span>
+                            {audioStalled && (
+                                <button
+                                    type="button"
+                                    onClick={() => playTTS(true)}
+                                    className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20 active:scale-95"
+                                >
+                                    Phát lại
+                                </button>
+                            )}
+                        </div>
                     )}
                     {audioState === 'done' && answered === null && (
                         <span className="text-white/60 text-xs">Chọn nghĩa đúng!</span>

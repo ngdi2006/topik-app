@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { Eye, CheckCircle, XCircle, Volume2, ChevronRight, Repeat, Bookmark, Info } from 'lucide-react'
-import { speakText, stopTTS } from '@/lib/tts'
+import { speakText, speakTextWithBrowser, stopTTS } from '@/lib/tts'
 
 // --- Types ---
 export interface ListenModeProps {
@@ -173,12 +173,46 @@ export function FlashcardMode({ currentQ, onKnown, onNotKnown, questions }: List
     const [correctCount, setCorrectCount] = useState(0)
     const [wrongCount, setWrongCount] = useState(0)
     const audioRef = useRef<HTMLAudioElement | null>(null)
+    const nextAudioRef = useRef<HTMLAudioElement | null>(null)
     const [isBookmarked, setIsBookmarked] = useState(false)
 
     // Reset phase when question changes
     useEffect(() => {
         setPhase('front')
     }, [currentQ?.id])
+
+    useEffect(() => {
+        if (!currentQ || typeof window === 'undefined') return
+
+        const currentUrl = currentQ.question_audio_url
+        const currentIndex = questions?.findIndex((question) => question.id === currentQ.id) ?? -1
+        const nextUrl = currentIndex >= 0 ? questions?.[currentIndex + 1]?.question_audio_url : undefined
+
+        if (currentUrl && !currentUrl.includes('translate.google.com')) {
+            const audio = new Audio()
+            audio.preload = 'auto'
+            audio.src = currentUrl
+            audio.load()
+            audioRef.current = audio
+        } else {
+            audioRef.current = null
+        }
+
+        if (nextUrl && !nextUrl.includes('translate.google.com')) {
+            const nextAudio = new Audio()
+            nextAudio.preload = 'auto'
+            nextAudio.src = nextUrl
+            nextAudio.load()
+            nextAudioRef.current = nextAudio
+        } else {
+            nextAudioRef.current = null
+        }
+
+        return () => {
+            audioRef.current?.pause()
+            nextAudioRef.current?.pause()
+        }
+    }, [currentQ, questions])
 
     // Load bookmark status
     useEffect(() => {
@@ -216,23 +250,25 @@ export function FlashcardMode({ currentQ, onKnown, onNotKnown, questions }: List
 
     const playAudio = useCallback(() => {
         if (!currentQ) return
-        const forceElevenLabs = true;
-        if (currentQ.question_audio_url && !currentQ.question_audio_url.includes('translate.google.com') && !forceElevenLabs) {
-            if (audioRef.current) {
-                audioRef.current.pause()
-                audioRef.current.currentTime = 0
-            }
-            const audio = new Audio(currentQ.question_audio_url)
+        const storedAudioUrl = currentQ.question_audio_url
+        if (storedAudioUrl && !storedAudioUrl.includes('translate.google.com')) {
+            const audio = audioRef.current ?? new Audio(storedAudioUrl)
             audioRef.current = audio
-            audio.play().catch(e => console.warn(e))
+            audio.pause()
+            audio.currentTime = 0
+            audio.playbackRate = 1
+            void audio.play().catch((error) => {
+                console.warn('Stored interview audio could not be played:', error)
+                speakTextWithBrowser(currentQ.question_text, 1)
+            })
         } else if (currentQ.question_text) {
-            speakText(currentQ.question_text, 1.0)
+            speakTextWithBrowser(currentQ.question_text, 1)
         }
     }, [currentQ])
 
     const handleReveal = useCallback(() => {
         setPhase('reveal')
-        setTimeout(() => playAudio(), 200)
+        playAudio()
     }, [playAudio])
 
     const toggleFlip = () => {
@@ -290,17 +326,22 @@ export function FlashcardMode({ currentQ, onKnown, onNotKnown, questions }: List
             {/* Custom 3D Flip Styles */}
             <style>{`
                 .flip-perspective {
+                    -webkit-perspective: 1200px;
                     perspective: 1200px;
+                    perspective-origin: center;
                 }
                 .flip-card-inner {
                     display: grid;
                     grid-template-columns: 1fr;
                     grid-template-rows: 1fr;
                     width: 100%;
-                    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+                    transition: transform 320ms cubic-bezier(0.2, 0.7, 0.2, 1);
+                    -webkit-transform-style: preserve-3d;
                     transform-style: preserve-3d;
+                    will-change: transform;
                 }
                 .flip-card-inner.is-flipped {
+                    -webkit-transform: rotateY(180deg);
                     transform: rotateY(180deg);
                 }
                 .flip-card-face {
@@ -310,9 +351,25 @@ export function FlashcardMode({ currentQ, onKnown, onNotKnown, questions }: List
                     height: 100%;
                     backface-visibility: hidden;
                     -webkit-backface-visibility: hidden;
+                    -webkit-transform: translateZ(0);
+                    transform: translateZ(0);
+                    isolation: isolate;
+                    contain: paint;
+                }
+                .flip-card-face * {
+                    -webkit-backface-visibility: hidden;
+                    backface-visibility: hidden;
                 }
                 .flip-card-face-back {
-                    transform: rotateY(180deg);
+                    -webkit-transform: rotateY(180deg) translateZ(1px);
+                    transform: rotateY(180deg) translateZ(1px);
+                }
+                .flip-card-inner:not(.is-flipped) .flip-card-face-back,
+                .flip-card-inner.is-flipped .flip-card-face:not(.flip-card-face-back) {
+                    pointer-events: none;
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .flip-card-inner { transition-duration: 1ms; }
                 }
             `}</style>
 
@@ -466,7 +523,7 @@ export function MeaningQuizMode({ currentQ, onKnown, onNotKnown, timeLeft = 0, q
     const [score, setScore] = useState(0)
 
     const speak = (text: string) => {
-        const forceElevenLabs = true;
+        const forceElevenLabs = false;
         if (currentQ?.question_audio_url && !currentQ.question_audio_url.includes('translate.google.com') && !forceElevenLabs) {
             const a = new Audio(currentQ.question_audio_url)
             a.playbackRate = playbackRate

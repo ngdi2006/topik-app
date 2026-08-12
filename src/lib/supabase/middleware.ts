@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { sanitizeNextPath } from '@/lib/auth-flow'
+import { getTrustedUserRole, isAdminRole } from '@/lib/admin-role'
 
 export async function updateSession(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
@@ -79,27 +80,28 @@ export async function updateSession(request: NextRequest) {
         user &&
         (request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register'))
     ) {
+        const requestedPath = sanitizeNextPath(request.nextUrl.searchParams.get('next'))
+        const role = await getTrustedUserRole(user)
+        const hasAdminAccess = isAdminRole(role)
+        let destination = requestedPath
+        if (requestedPath.startsWith('/admin') && !hasAdminAccess) destination = '/dashboard'
+        if (requestedPath === '/dashboard' && hasAdminAccess) destination = '/admin'
         return NextResponse.redirect(
-            new URL(sanitizeNextPath(request.nextUrl.searchParams.get('next')), request.url)
+            new URL(destination, request.url)
         )
     }
 
     // Role-Based Access Control logic for /admin routes
     if (user && request.nextUrl.pathname.startsWith('/admin')) {
         try {
-            const profilePromise = supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', user.id)
-                .single()
+            const profilePromise = getTrustedUserRole(user)
             const timeoutPromise = new Promise<never>((_, reject) =>
                 setTimeout(() => reject(new Error('Profile query timeout')), 3000)
             )
 
-            const result = await Promise.race([profilePromise, timeoutPromise])
-            const profile = result?.data
+            const role = await Promise.race([profilePromise, timeoutPromise])
 
-            if (!profile || !['admin', 'teacher'].includes(profile.role)) {
+            if (!isAdminRole(role)) {
                 const url = request.nextUrl.clone()
                 url.pathname = '/dashboard'
                 return NextResponse.redirect(url)

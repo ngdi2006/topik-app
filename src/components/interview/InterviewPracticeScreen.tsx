@@ -239,7 +239,9 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
 
         const isGoogleTTS = currentQ.question_audio_url && currentQ.question_audio_url.includes('translate.google.com')
         const hasRealAudio = currentQ.question_audio_url && !isGoogleTTS
-        const forceElevenLabs = true;
+        // Prefer the generated MP3 stored with the question. Generating a fresh
+        // ElevenLabs stream here adds several seconds of latency on mobile.
+        const forceElevenLabs = false;
 
         if (hasRealAudio && audioRef.current && !forceElevenLabs) {
             audioRef.current.src = currentQ.question_audio_url
@@ -310,7 +312,7 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
     const replayAudio = () => {
         const isGoogleTTS = currentQ.question_audio_url && currentQ.question_audio_url.includes('translate.google.com')
         const hasRealAudio = currentQ.question_audio_url && !isGoogleTTS
-        const forceElevenLabs = true;
+        const forceElevenLabs = false;
 
         if (hasRealAudio && audioRef.current && !forceElevenLabs) {
             audioRef.current.currentTime = 0

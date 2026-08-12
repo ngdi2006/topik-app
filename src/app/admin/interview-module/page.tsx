@@ -25,6 +25,17 @@ type InterviewQuestionRow = {
     tool_image_url?: string | null
     target_zone_id?: string | null
     tool_config?: ToolQuestionConfig | null
+    safety_group?: string | null
+    safety_topic_number?: number | null
+    safety_topic_ko?: string | null
+    safety_topic_vi?: string | null
+}
+
+const SAFETY_GROUP_LABELS: Record<string, string> = {
+    before_work: 'Trước khi làm việc',
+    during_work: 'Trong khi làm việc',
+    after_work: 'Sau khi làm việc',
+    incident_response: 'Khi có sự cố',
 }
 
 type ApiResponse<T> = {
@@ -284,7 +295,7 @@ export default function InterviewModuleAdminPage() {
             [],
             ['2. CỘT "Phân loại" (Bắt buộc)'],
             ['Nhập 1 trong các mục sau:'],
-            ['Khẩu lệnh', 'Giao tiếp', 'Toán học', 'Sử dụng công cụ', 'Xử lý tình huống'],
+            ['Khẩu lệnh', 'Giao tiếp', 'Toán học', 'Sử dụng công cụ', 'Xử lý tình huống', 'An toàn lao động'],
             [],
             ['* LƯU Ý ĐỐI VỚI KHẨU LỆNH CHUNG:'],
             ['Để nhập khẩu lệnh dùng chung cho tất cả ngành, bạn vui lòng điền:'],
@@ -419,6 +430,7 @@ export default function InterviewModuleAdminPage() {
                                     <SelectItem value="Toán học">Toán học</SelectItem>
                                     <SelectItem value="Sử dụng công cụ">Sử dụng công cụ</SelectItem>
                                     <SelectItem value="Xử lý tình huống">Xử lý tình huống</SelectItem>
+                                    <SelectItem value="An toàn lao động">An toàn lao động</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -530,6 +542,19 @@ export default function InterviewModuleAdminPage() {
                                                         <div className="mt-1 text-orange-700 line-clamp-1">
                                                             {getToolAnalysisSummary(q)?.vocabulary.map((item: VocabularyItem) => `${item.term}: ${item.meaning}`).join(' · ')}
                                                         </div>
+                                                    </div>
+                                                )}
+                                                {q.category === 'An toàn lao động' && q.safety_group && (
+                                                    <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-950">
+                                                        <div className="font-semibold">
+                                                            {SAFETY_GROUP_LABELS[q.safety_group] || q.safety_group}
+                                                            {q.safety_topic_number ? ` · Chủ đề ${q.safety_topic_number}` : ''}
+                                                        </div>
+                                                        {(q.safety_topic_ko || q.safety_topic_vi) && (
+                                                            <div className="mt-1 text-amber-800">
+                                                                {[q.safety_topic_ko, q.safety_topic_vi].filter(Boolean).join(' · ')}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
                                             </td>

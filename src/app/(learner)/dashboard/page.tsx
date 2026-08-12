@@ -536,7 +536,7 @@ export default function DashboardPage() {
         const Icon = item.Icon
         const isInterview = item.key === 'phong-van'
         const shortDescription = isInterview
-            ? 'Luyện 7 phần phỏng vấn thực tế.'
+            ? 'Luyện 8 phần phỏng vấn thực tế.'
             : 'Luyện đề sát cấu trúc thi thật.'
 
         return (
@@ -554,7 +554,7 @@ export default function DashboardPage() {
                             <Sparkles aria-hidden="true" className="absolute -right-1.5 -top-1.5 size-3.5 animate-pulse text-amber-300 motion-reduce:animate-none" />
                         </div>
                         <Badge className="border border-white/20 bg-white/15 px-2 py-0.5 text-[10px] text-white hover:bg-white/15 sm:text-xs">
-                            {isInterview ? '7 phần' : 'Thi thật'}
+                            {isInterview ? '8 phần' : 'Thi thật'}
                         </Badge>
                     </div>
                     <CardTitle className="text-lg font-black tracking-tight text-white sm:text-2xl">{item.label}</CardTitle>

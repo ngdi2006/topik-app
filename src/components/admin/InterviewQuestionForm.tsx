@@ -58,7 +58,7 @@ interface InterviewQuestionFormProps {
     isEdit?: boolean
 }
 
-const CATEGORIES = ['Khẩu lệnh', 'Giao tiếp', 'Toán học', 'Sử dụng công cụ', 'Xử lý tình huống']
+const CATEGORIES = ['Khẩu lệnh', 'Giao tiếp', 'Toán học', 'Sử dụng công cụ', 'Xử lý tình huống', 'An toàn lao động']
 const INDUSTRIES = ['Sản xuất chế tạo', 'Ngư nghiệp', 'Nông nghiệp', 'Lâm nghiệp', 'Xây dựng', 'Dịch vụ']
 
 const ZONE_OPTIONS = [

@@ -177,7 +177,7 @@ const TOPICS = [
         mode: 'ai_mock',
         usesAI: true
     },
-    { 
+    {
         id: 'situation', 
         name: 'Xử lý tình huống', 
         description: 'Giải quyết các vấn đề, sự cố tại công xưởng, AI đánh giá cách xử lý chi tiết.',
@@ -190,6 +190,20 @@ const TOPICS = [
         apiCategory: 'Xử lý tình huống',
         mode: 'ai_mock',
         usesAI: true
+    },
+    {
+        id: 'safety',
+        name: 'An toàn lao động',
+        description: 'Học quy tắc an toàn theo từng giai đoạn làm việc.',
+        icon: ShieldAlert,
+        color: 'text-amber-700',
+        gradient: 'from-amber-50 to-orange-100/50',
+        hoverGradient: 'hover:from-amber-100 hover:to-orange-200/50',
+        borderColor: 'border-amber-100 hover:border-amber-300',
+        shadow: 'hover:shadow-amber-200/50',
+        apiCategory: 'An toàn lao động',
+        mode: 'ai_mock',
+        usesAI: true,
     },
 ]
 
@@ -207,10 +221,17 @@ function filterDuplicateTypes(array: any[]): any[] {
     const seen = new Set<string>()
     const result: any[] = []
     for (const q of array) {
-        const cleanMeaning = (q.vietnamese_meaning || '').trim().toLowerCase()
-        if (!cleanMeaning || !seen.has(cleanMeaning)) {
-            if (cleanMeaning) {
-                seen.add(cleanMeaning)
+        // P8 stores the canonical Vietnamese topic title on every question in that
+        // topic. De-duplicating by Vietnamese meaning therefore collapses several
+        // distinct Korean interview questions into one. Use Korean question text
+        // as the canonical identity for workplace-safety content.
+        const duplicateKey = q.category === 'An toàn lao động'
+            ? (q.question_text || '').trim().toLowerCase()
+            : (q.vietnamese_meaning || '').trim().toLowerCase()
+
+        if (!duplicateKey || !seen.has(duplicateKey)) {
+            if (duplicateKey) {
+                seen.add(duplicateKey)
             }
             result.push(q)
         }
@@ -241,6 +262,19 @@ const XU_LY_TINH_HUONG_GROUPS = [
     { id: 'etiquette', label: '9. Phép tắc & Đúng giờ', emoji: '⏰', desc: 'Phép tắc giữa mọi người, tuân thủ thời gian', color: 'from-fuchsia-500 to-purple-755', bg: 'from-fuchsia-50 to-purple-50', border: 'border-fuchsia-200 hover:border-fuchsia-400', keywords: ['예절', '정해진 시간', 'phép tắc', 'đúng giờ', 'tuân thủ'] },
     { id: 'all', label: 'Ôn tập tổng hợp & Thi thử với AI', emoji: '🎯', desc: 'Trộn tất cả các chủ đề', color: 'from-slate-500 to-slate-700', bg: 'from-slate-50 to-slate-100', border: 'border-slate-200 hover:border-slate-400', keywords: [] }
 ];
+
+const AN_TOAN_LAO_DONG_GROUPS = [
+    { id: 'before_work', label: '1. Trước khi làm việc', emoji: '🦺', desc: 'Bảo hộ, lối thoát, biển báo và kiểm tra thiết bị', color: 'from-blue-500 to-cyan-600' },
+    { id: 'during_work', label: '2. Trong khi làm việc', emoji: '🏗️', desc: 'Vận hành máy, công cụ, hóa chất và di chuyển an toàn', color: 'from-amber-500 to-orange-600' },
+    { id: 'after_work', label: '3. Sau khi làm việc', emoji: '🧹', desc: 'Thu dọn, vệ sinh, cất dụng cụ và ngắt nguồn', color: 'from-emerald-500 to-teal-600' },
+    { id: 'incident_response', label: '4. Khi có sự cố', emoji: '🚨', desc: 'Báo nguy, dừng việc, sơ tán và xử lý tình huống', color: 'from-rose-500 to-red-600' },
+    { id: 'all', label: 'Ôn tập tổng hợp & Thi thử với AI', emoji: '🎯', desc: 'Trộn câu hỏi của cả 4 giai đoạn', color: 'from-violet-600 to-indigo-700' },
+];
+
+function filterSafetyQuestions(questionsList: any[], groupId: string): any[] {
+    if (groupId === 'all') return questionsList
+    return questionsList.filter((question) => question.safety_group === groupId)
+}
 
 function filterQuestionsByGroup(questionsList: any[], groupId: string, groupsList: any[]): any[] {
     if (groupId === 'all') return questionsList;
@@ -276,7 +310,7 @@ export function InterviewPracticeHub({
 }) {
     const router = useRouter()
     const hasOpenedInitialTopic = useRef(false)
-    const [step, setStep] = useState<'industry' | 'topic' | 'loading_topic' | 'self_introduction' | 'select_mode' | 'communication_topic' | 'situation_topic' | 'podcast' | 'math_topic' | 'math_practice' | 'flashcard_options' | 'command_dashboard' | 'speed_quiz' | 'tool_drop_game' | 'scenario_simulation' | 'practice' | 'evaluating' | 'finished' | 'vocabulary_practice' | 'mock_intro' | 'mock_exam'>(
+    const [step, setStep] = useState<'industry' | 'topic' | 'loading_topic' | 'self_introduction' | 'select_mode' | 'communication_topic' | 'situation_topic' | 'safety_topic' | 'podcast' | 'math_topic' | 'math_practice' | 'flashcard_options' | 'command_dashboard' | 'speed_quiz' | 'tool_drop_game' | 'scenario_simulation' | 'practice' | 'evaluating' | 'finished' | 'vocabulary_practice' | 'mock_intro' | 'mock_exam'>(
         initialIndustry
             ? (initialMode === 'mock' ? 'mock_intro' : initialTopicId ? 'loading_topic' : 'topic')
             : 'industry'
@@ -285,6 +319,7 @@ export function InterviewPracticeHub({
     const [selectedMathTopic, setSelectedMathTopic] = useState<string>('all')
     const [selectedCommunicationGroup, setSelectedCommunicationGroup] = useState<string>('all')
     const [selectedSituationGroup, setSelectedSituationGroup] = useState<string>('all')
+    const [selectedSafetyGroup, setSelectedSafetyGroup] = useState<string>('all')
     const [mathMode, setMathMode] = useState<'listen_card' | 'number_quiz' | 'speak_answer'>('listen_card')
     const [selectedIndustry, setSelectedIndustry] = useState<string>(initialIndustry)
     const [selectedTopicObj, setSelectedTopicObj] = useState<any>(null)
@@ -329,7 +364,7 @@ export function InterviewPracticeHub({
 
         setSelectedTopicObj(topic)
 
-        if (topic.mode === 'listen_only' || topic.id === 'communication' || topic.id === 'situation' || topic.id === 'tools') {
+        if (topic.mode === 'listen_only' || topic.id === 'communication' || topic.id === 'situation' || topic.id === 'safety' || topic.id === 'tools') {
             // Load questions first, then show dashboard
             loadQuestionsForDashboard(topic)
             return
@@ -367,6 +402,9 @@ export function InterviewPracticeHub({
             } else if (topic.id === 'situation') {
                 setSelectedSituationGroup('all')
                 setStep('select_mode')
+            } else if (topic.id === 'safety') {
+                setSelectedSafetyGroup('all')
+                setStep('safety_topic')
             } else {
                 setStep('select_mode')
             }
@@ -400,7 +438,8 @@ export function InterviewPracticeHub({
 
             // Xác định chế độ ôn tổng hợp (all groups) để tăng số lượng câu hỏi
             const isAllGroups = (topic.id === 'communication' && selectedCommunicationGroup === 'all')
-                || (topic.id === 'situation' && selectedSituationGroup === 'all');
+                || (topic.id === 'situation' && selectedSituationGroup === 'all')
+                || (topic.id === 'safety' && selectedSafetyGroup === 'all');
             const isAiMockConversation = (topic.mode === 'ai_mock' && !listenMode);
 
             if (topic.id === 'situation' && listenMode) {
@@ -622,6 +661,7 @@ export function InterviewPracticeHub({
             || selectedTopicObj?.id === 'math'
             || selectedTopicObj?.id === 'communication'
             || selectedTopicObj?.id === 'situation'
+            || selectedTopicObj?.id === 'safety'
             || selectedTopicObj?.id === 'tools'
         ) {
             setStep('select_mode')
@@ -636,6 +676,10 @@ export function InterviewPracticeHub({
         if (initialTopicId && onBackToDashboard) {
             if (step === 'select_mode' && selectedTopicObj?.id === 'communication') {
                 setStep('communication_topic')
+                return
+            }
+            if (step === 'select_mode' && selectedTopicObj?.id === 'safety') {
+                setStep('safety_topic')
                 return
             }
             if (step === 'flashcard_options') {
@@ -671,12 +715,16 @@ export function InterviewPracticeHub({
                 setStep('communication_topic')
             } else if (selectedTopicObj?.id === 'situation') {
                 if (!returnToOuterDashboard()) setStep('topic')
+            } else if (selectedTopicObj?.id === 'safety') {
+                setStep('safety_topic')
             } else {
                 setStep('topic')
             }
         } else if (step === 'communication_topic') {
             setStep('topic')
         } else if (step === 'situation_topic') {
+            setStep('topic')
+        } else if (step === 'safety_topic') {
             setStep('topic')
         } else if (step === 'flashcard_options' || step === 'scenario_simulation' || step === 'tool_drop_game') {
             setStep('select_mode')
@@ -861,6 +909,73 @@ export function InterviewPracticeHub({
         );
     }
 
+    const handleContinueCurrentTopic = () => {
+        setEvaluationResults([])
+        setAnswers({})
+
+        if (selectedTopicObj?.id === 'safety') {
+            const source = allQuestions.length > 0 ? allQuestions : questions
+            setQuestions(filterSafetyQuestions(source, selectedSafetyGroup))
+            setStep('select_mode')
+            return
+        }
+
+        setStep('select_mode')
+    }
+
+    if (step === 'safety_topic') {
+        return (
+            <div className="w-full py-2">
+                <div className="mx-auto mb-5 max-w-4xl">
+                    <div className="relative text-center">
+                        <button
+                            aria-label="Quay lại"
+                            onClick={handleGoBack}
+                            className="absolute left-0 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:text-slate-900"
+                        >
+                            <ArrowLeft className="size-4.5" />
+                        </button>
+                        <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-extrabold text-amber-800">
+                            <ShieldAlert className="size-4" /> P8 · An toàn lao động
+                        </div>
+                        <h1 className="mt-2 text-xl font-extrabold text-slate-900 md:text-3xl">Chọn giai đoạn học</h1>
+                        <p className="mt-1 text-xs text-slate-500 md:text-sm">30 chủ đề theo đúng trình tự làm việc an toàn</p>
+                    </div>
+                </div>
+
+                <div className="mx-auto grid max-w-4xl grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-4">
+                    {AN_TOAN_LAO_DONG_GROUPS.map((group) => {
+                        const groupQuestions = filterSafetyQuestions(allQuestions, group.id)
+                        const isAll = group.id === 'all'
+                        return (
+                            <button
+                                key={group.id}
+                                onClick={() => {
+                                    setSelectedSafetyGroup(group.id)
+                                    setQuestions(groupQuestions)
+                                    setStep('select_mode')
+                                }}
+                                className={`group relative flex min-h-20 items-center gap-3 overflow-hidden rounded-2xl border p-3 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-md md:min-h-28 md:p-5 ${isAll ? 'border-violet-500 bg-gradient-to-r from-violet-600 to-indigo-700 text-white md:col-span-2' : 'border-slate-200 bg-white hover:border-amber-300'}`}
+                            >
+                                <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl text-xl ${isAll ? 'bg-white/15' : 'bg-amber-50'}`}>
+                                    {group.emoji}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className={`block text-sm font-extrabold md:text-base ${isAll ? 'text-white' : 'text-slate-900'}`}>{group.label}</span>
+                                    <span className={`mt-0.5 block line-clamp-1 text-[11px] md:line-clamp-2 md:text-xs ${isAll ? 'text-violet-100' : 'text-slate-500'}`}>{group.desc}</span>
+                                    <span className={`mt-1.5 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold ${isAll ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                                        {groupQuestions.length} câu hỏi
+                                    </span>
+                                </span>
+                                <ChevronRight className={`size-4 shrink-0 ${isAll ? 'text-white' : 'text-slate-400'}`} />
+                            </button>
+                        )
+                    })}
+                </div>
+            </div>
+        )
+    }
+
     if (step === 'math_topic') {
         const MATH_TOPICS = [
             { id: 'arithmetic', label: 'Phép tính cơ bản', emoji: '➕', desc: 'Cộng · Trừ · Nhân · Chia', color: 'from-rose-500 to-red-600', bg: 'from-rose-50 to-red-50', border: 'border-rose-200 hover:border-rose-400' },
@@ -1036,7 +1151,8 @@ export function InterviewPracticeHub({
     if (step === 'speed_quiz') {
         const filteredSpeedQs = filterDuplicateTypes(questions)
         const isAllGroups = (selectedTopicObj?.id === 'communication' && selectedCommunicationGroup === 'all')
-            || (selectedTopicObj?.id === 'situation' && selectedSituationGroup === 'all');
+            || (selectedTopicObj?.id === 'situation' && selectedSituationGroup === 'all')
+            || (selectedTopicObj?.id === 'safety' && selectedSafetyGroup === 'all');
         return (
             <SpeedQuizScreen
                 questions={filteredSpeedQs}
@@ -1284,11 +1400,7 @@ export function InterviewPracticeHub({
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8 pb-12">
-                            <Button size="lg" className="h-14 px-10 text-lg rounded-2xl shadow-xl shadow-blue-200 hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white" onClick={() => {
-                                setStep('topic')
-                                setEvaluationResults([])
-                                setAnswers({})
-                            }}>Luyện tiếp chủ đề này</Button>
+                            <Button size="lg" className="h-14 px-10 text-lg rounded-2xl shadow-xl shadow-blue-200 hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white" onClick={handleContinueCurrentTopic}>Luyện tiếp chủ đề này</Button>
                         </div>
                     </div>
                 </div>
@@ -1431,17 +1543,19 @@ export function InterviewPracticeHub({
         ? GIAO_TIEP_GROUPS.find(group => group.id === selectedCommunicationGroup)
         : selectedTopicObj?.id === 'situation'
             ? { id: 'all', label: 'Toàn bộ tình huống', emoji: '🤖' }
-            : undefined
+            : selectedTopicObj?.id === 'safety'
+                ? AN_TOAN_LAO_DONG_GROUPS.find(group => group.id === selectedSafetyGroup)
+                : undefined
 
     return (
         <div className="relative flex w-full flex-col">
             <div className={`relative w-full flex-1 ${step === 'self_introduction' ? 'space-y-0' : 'space-y-6 md:space-y-8'}`}>
-                <div className={step === 'mock_intro' || step === 'mock_exam' ? 'hidden' : step === 'self_introduction' ? 'absolute left-6 top-6 z-30 md:left-11 md:top-11' : step === 'select_mode' ? 'absolute left-4 top-4 z-30 md:static md:mb-2 md:flex md:items-center' : 'mb-2 flex items-center gap-3 md:gap-4'}>
+                <div className={step === 'mock_intro' || step === 'mock_exam' ? 'hidden' : step === 'self_introduction' ? 'absolute left-3 top-3 z-30 md:left-11 md:top-11' : step === 'select_mode' ? 'absolute left-4 top-4 z-30 md:static md:mb-2 md:flex md:items-center' : 'mb-2 flex items-center gap-3 md:gap-4'}>
                     <Button 
                         variant="ghost" 
                         size="icon" 
                         onClick={handleGoBack} 
-                        className={`rounded-full h-10 w-10 md:h-12 md:w-12 shrink-0 shadow-sm border ${step === 'self_introduction' ? 'border-white/25 bg-white/15 text-white hover:bg-white/25 hover:text-white backdrop-blur' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'}`}
+                        className={`shrink-0 rounded-full border shadow-sm ${step === 'self_introduction' ? 'h-8 w-8 border-white/25 bg-white/15 text-white backdrop-blur hover:bg-white/25 hover:text-white md:h-12 md:w-12' : 'h-10 w-10 border-slate-200 bg-white text-slate-600 hover:bg-slate-100 md:h-12 md:w-12'}`}
                     >
                         <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
                     </Button>
@@ -1701,7 +1815,8 @@ export function InterviewPracticeHub({
                                 </>
                             )}
                                     {((selectedTopicObj?.id === 'communication' && selectedCommunicationGroup === 'all') ||
-                                      (selectedTopicObj?.id === 'situation' && selectedSituationGroup === 'all')) && (
+                                      (selectedTopicObj?.id === 'situation' && selectedSituationGroup === 'all') ||
+                                      (selectedTopicObj?.id === 'safety' && selectedSafetyGroup === 'all')) && (
                                         <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1 md:col-span-2" onClick={() => startPractice(selectedTopicObj, null, questions)}>
                                             <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-emerald-300/60 bg-gradient-to-br from-emerald-800 to-indigo-900 hover:border-emerald-400 shadow-lg hover:shadow-xl hover:shadow-emerald-200 ring-2 ring-emerald-400/30">
                                                 <div className="flex items-start justify-between mb-4">

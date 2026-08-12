@@ -139,7 +139,7 @@ const TOPIC_STYLE: Record<
     accent: "from-rose-500 to-orange-500",
   },
   safety: {
-    icon: "bg-amber-50 text-amber-700 ring-amber-100",
+    icon: "bg-amber-50 text-amber-800 ring-amber-100",
     bar: "bg-amber-500",
     accent: "from-amber-500 to-orange-500",
   },

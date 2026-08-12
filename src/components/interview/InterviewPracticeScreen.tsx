@@ -339,13 +339,13 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
         }
     }
 
-    const handleKnown = () => {
+    const handleKnown = (answerSnapshot: Record<string, string> = answers) => {
         if (!failedIdsRef.current.has(currentQ.id)) {
             masteredIdsRef.current.add(currentQ.id)
         }
 
         if (queue.length <= 1) {
-            onFinish(answers, Array.from(masteredIdsRef.current))
+            onFinish(answerSnapshot, Array.from(masteredIdsRef.current))
         } else {
             setQueue(prev => prev.slice(1))
         }
@@ -370,7 +370,9 @@ export function InterviewPracticeScreen({ questions, mode, onFinish, onBack, ini
         const newAnswers = { ...answers, [currentQ.id]: transcript }
         setAnswers(newAnswers)
         
-        handleKnown()
+        // State updates are asynchronous. Pass the freshly-created snapshot so
+        // the final recorded answer is included in the AI evaluation batch.
+        handleKnown(newAnswers)
     }
 
     const handleNext = () => {

@@ -26,7 +26,7 @@ const INTERVIEW_FEATURES = [
 ]
 
 const LEARNING_BENEFITS = [
-  'Lộ trình 7 phần bám sát nội dung Vòng 2',
+  'Lộ trình 8 phần bám sát nội dung Vòng 2',
   'Nghe giọng Hàn, luyện phản xạ và thao tác',
   'Theo dõi tiến độ, câu cần ôn và điểm yếu',
   'Thi thử phỏng vấn tổng hợp theo ngành',
@@ -162,7 +162,7 @@ export default function Home() {
             </div>
             <div className="absolute -bottom-5 -left-3 hidden items-center gap-3 rounded-2xl border border-white/70 bg-white/90 p-3 shadow-xl backdrop-blur sm:flex">
               <span className="flex size-10 items-center justify-center rounded-xl bg-violet-100 text-violet-700"><AudioLines className="size-5" /></span>
-              <div><strong className="block text-xs">7 phần luyện tập</strong><span className="text-[10px] text-slate-500">Theo đúng ngành nghề</span></div>
+              <div><strong className="block text-xs">8 phần luyện tập</strong><span className="text-[10px] text-slate-500">Theo đúng ngành nghề</span></div>
             </div>
           </div>
         </section>
@@ -278,7 +278,7 @@ export default function Home() {
                 <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-600 sm:text-base">Một gói mở toàn bộ nội dung trong thời hạn bạn chọn.</p>
 
                 <div className="mx-auto mt-5 grid max-w-2xl grid-cols-1 gap-2 text-left sm:grid-cols-3">
-                  {['Mở đầy đủ P2–P7', 'Thi thử Phỏng vấn Vòng 2', 'Ôn tập đúng điểm yếu'].map((benefit) => (
+                  {['Mở đầy đủ P2–P8', 'Thi thử Phỏng vấn Vòng 2', 'Ôn tập đúng điểm yếu'].map((benefit) => (
                     <div className="flex items-center gap-2 rounded-xl bg-white/80 px-3 py-2.5 text-xs font-bold text-slate-700 ring-1 ring-slate-200/80" key={benefit}>
                       <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600"><Check className="size-3" /></span>
                       {benefit}

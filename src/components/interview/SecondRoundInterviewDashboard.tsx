@@ -145,6 +145,12 @@ const TOPIC_STYLE: Record<
   },
 }
 
+const DEFAULT_TOPIC_STYLE = {
+  icon: "bg-slate-50 text-slate-700 ring-slate-200",
+  bar: "bg-slate-500",
+  accent: "from-slate-500 to-slate-400",
+} as const
+
 const INDUSTRY_STYLE: Record<
   IndustryId,
   { icon: string; accent: string; glow: string }
@@ -570,7 +576,7 @@ export function SecondRoundInterviewDashboard({
               ? Math.round((item.mastered / item.total) * 100)
               : 0
           const status = item?.status ?? "not-started"
-          const visual = TOPIC_STYLE[topic.id]
+          const visual = TOPIC_STYLE[topic.id] ?? DEFAULT_TOPIC_STYLE
           const isLocked = Boolean(access && !canAccessInterviewTopic(access, topic.id))
           const freeLabel = topic.id === "introduction"
             ? "Miễn phí"

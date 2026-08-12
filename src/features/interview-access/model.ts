@@ -1,4 +1,4 @@
-export type InterviewTopicId = 'introduction' | 'command' | 'vocabulary' | 'math' | 'tools' | 'communication' | 'situation'
+export type InterviewTopicId = 'introduction' | 'command' | 'vocabulary' | 'math' | 'tools' | 'communication' | 'situation' | 'safety'
 
 export interface InterviewAccessSnapshot {
     authenticated: boolean
@@ -18,4 +18,3 @@ export function canAccessInterviewTopic(access: InterviewAccessSnapshot, topicId
     if (topicId === 'command' || topicId === 'vocabulary') return true
     return access.hasFullAccess
 }
-

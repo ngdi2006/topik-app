@@ -88,6 +88,28 @@ async function readLegacyLocalCache(text: string, voiceId: string) {
     }
 }
 
+export async function getCachedSpeechAudio(
+    text: string,
+    profile: TtsStorageProfile = 'default',
+): Promise<SpeechAudio | null> {
+    const normalizedText = text.trim()
+    if (!normalizedText) return null
+
+    const voiceId = getTtsVoiceId()
+    const storagePath = getTtsStoragePath(normalizedText, voiceId, profile)
+    const publicUrl = getPublicUrl(storagePath)
+    const storedAudio = await downloadFromSupabase(storagePath)
+    if (storedAudio) {
+        return { buffer: storedAudio, source: 'supabase', storagePath, publicUrl }
+    }
+
+    if (profile !== 'default') return null
+    const legacyAudio = await readLegacyLocalCache(normalizedText, voiceId)
+    if (!legacyAudio) return null
+    await uploadToSupabase(storagePath, legacyAudio)
+    return { buffer: legacyAudio, source: 'legacy-local-cache', storagePath, publicUrl }
+}
+
 async function uploadToSupabase(storagePath: string, buffer: Buffer) {
     const adminClient = createAdminClient()
     const { error } = await adminClient.storage.from(TTS_BUCKET).upload(storagePath, buffer, {

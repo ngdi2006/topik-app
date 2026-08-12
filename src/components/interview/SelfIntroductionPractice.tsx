@@ -1,10 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Captions, CheckCircle2, ChevronDown, Loader2, Mic, Pause, Play, RotateCcw, Save, Sparkles, Square, UserRound } from 'lucide-react'
+import { Captions, CheckCircle2, ChevronDown, Loader2, Mic, Pause, Play, RotateCcw, Save, Sparkles, Square, UserRound, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
-import { speakText, stopTTS } from '@/lib/tts'
+import { speakTextWithBrowser, stopTTS } from '@/lib/tts'
 import { readSelfIntroductionDraft, saveSelfIntroductionDraft } from '@/features/second-round-interview/storage'
 
 const DEFAULT_PRACTICE_SECONDS = 60
@@ -32,8 +32,17 @@ const SAMPLE_VIDEOS = [
 ] as const
 
 type ExperienceMode = 'experienced' | 'beginner'
-type AudioTarget = 'all' | `line-${number}`
+type AudioTarget = 'all' | 'preview' | `line-${number}`
 type LearningStep = 1 | 2 | 3
+type GeneratedAudioState = {
+    audioUrl: string | null
+    hasAudio: boolean
+    used: number
+    limit: number
+    remaining: number
+    status: 'idle' | 'loading' | 'generating'
+    message: string | null
+}
 
 const LEARNING_STEPS: ReadonlyArray<{ id: LearningStep; label: string; shortLabel: string }> = [
     { id: 1, label: 'Xem video mẫu', shortLabel: 'Xem mẫu' },
@@ -141,11 +150,21 @@ export function SelfIntroductionPractice({
         target: AudioTarget | null
         status: 'idle' | 'loading' | 'playing'
     }>({ target: null, status: 'idle' })
+    const [generatedAudio, setGeneratedAudio] = useState<GeneratedAudioState>({
+        audioUrl: null,
+        hasAudio: false,
+        used: 0,
+        limit: 1,
+        remaining: 1,
+        status: 'idle',
+        message: null,
+    })
     const completionRecordedRef = useRef(false)
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
     const recordingStreamRef = useRef<MediaStream | null>(null)
     const recordingChunksRef = useRef<Blob[]>([])
     const recordedAudioRef = useRef<HTMLAudioElement | null>(null)
+    const generatedAudioRef = useRef<HTMLAudioElement | null>(null)
     const {
         hasBrowserSupport,
         transcript,
@@ -239,7 +258,10 @@ export function SelfIntroductionPractice({
         return () => window.clearTimeout(timerId)
     }, [isTimerRunning, onComplete, practiceSeconds, secondsLeft, stopRecording, stopUserAudioRecording])
 
-    useEffect(() => () => stopTTS(), [])
+    useEffect(() => () => {
+        stopTTS()
+        generatedAudioRef.current?.pause()
+    }, [])
 
     useEffect(() => () => {
         const recorder = mediaRecorderRef.current
@@ -290,6 +312,7 @@ export function SelfIntroductionPractice({
                         saveSelfIntroductionDraft(cloudDraft)
                     }
                     setSaveState('saved')
+                    void loadGeneratedAudioStatus()
                 })
                 .catch((error: unknown) => {
                     if (error instanceof DOMException && error.name === 'AbortError') return
@@ -301,6 +324,18 @@ export function SelfIntroductionPractice({
             window.clearTimeout(timerId)
         }
     }, [])
+
+    const loadGeneratedAudioStatus = async () => {
+        setGeneratedAudio((current) => ({ ...current, status: 'loading', message: null }))
+        try {
+            const response = await fetch('/api/interview/self-introduction/audio')
+            if (!response.ok) throw new Error('Không tải được trạng thái giọng đọc')
+            const result = await response.json() as Omit<GeneratedAudioState, 'status' | 'message'>
+            setGeneratedAudio({ ...result, status: 'idle', message: null })
+        } catch {
+            setGeneratedAudio((current) => ({ ...current, status: 'idle', message: 'Chưa thể kiểm tra giọng đọc.' }))
+        }
+    }
 
     const updateProfile = (field: keyof Profile, value: string) => {
         const next = { ...profile, [field]: value }
@@ -339,6 +374,8 @@ export function SelfIntroductionPractice({
             const cloudSaved = saveSelfIntroductionDraft({ mode, profile, text })
             setSavedAt(result.updatedAt || cloudSaved.updatedAt)
             setSaveState('saved')
+            setGeneratedAudio((current) => ({ ...current, audioUrl: null, hasAudio: false, message: null }))
+            void loadGeneratedAudioStatus()
         } catch {
             setSaveState('local-only')
         }
@@ -351,6 +388,7 @@ export function SelfIntroductionPractice({
             return
         }
 
+        generatedAudioRef.current?.pause()
         stopTTS()
         setAudioPlayback({ target, status: 'loading' })
         const finishPlayback = () => {
@@ -358,15 +396,73 @@ export function SelfIntroductionPractice({
                 ? { target: null, status: 'idle' }
                 : current)
         }
-        speakText(
+        speakTextWithBrowser(
             text,
             rate,
             () => setAudioPlayback((current) => current.target === target
                 ? { target, status: 'playing' }
                 : current),
             finishPlayback,
-            finishPlayback,
         )
+    }
+
+    const toggleGeneratedAudio = async () => {
+        if (!generatedAudio.audioUrl) return
+        if (!generatedAudioRef.current || generatedAudioRef.current.src !== generatedAudio.audioUrl) {
+            generatedAudioRef.current?.pause()
+            const audio = new Audio(generatedAudio.audioUrl)
+            audio.playbackRate = 0.9
+            audio.onended = () => setAudioPlayback({ target: null, status: 'idle' })
+            audio.onerror = () => {
+                setAudioPlayback({ target: null, status: 'idle' })
+                setGeneratedAudio((current) => ({ ...current, message: 'Không thể phát file âm thanh.' }))
+            }
+            generatedAudioRef.current = audio
+        }
+        const audio = generatedAudioRef.current
+        if (!audio.paused) {
+            audio.pause()
+            setAudioPlayback({ target: null, status: 'idle' })
+            return
+        }
+        stopTTS()
+        setAudioPlayback({ target: 'all', status: 'loading' })
+        try {
+            await audio.play()
+            setAudioPlayback({ target: 'all', status: 'playing' })
+        } catch {
+            setAudioPlayback({ target: null, status: 'idle' })
+        }
+    }
+
+    const generateStandardAudio = async () => {
+        if (!canUseAudio || generatedAudio.status === 'generating') return
+        setGeneratedAudio((current) => ({ ...current, status: 'generating', message: null }))
+        try {
+            const response = await fetch('/api/interview/self-introduction/audio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: fullText }),
+            })
+            const result = await response.json() as Partial<GeneratedAudioState> & { error?: string }
+            if (!response.ok || !result.audioUrl) throw new Error(result.error || 'Không thể tạo giọng đọc')
+            setGeneratedAudio((current) => ({
+                ...current,
+                audioUrl: result.audioUrl || null,
+                hasAudio: true,
+                used: result.used ?? current.used,
+                limit: result.limit ?? current.limit,
+                remaining: result.remaining ?? current.remaining,
+                status: 'idle',
+                message: result.hasAudio ? null : 'Đã tạo giọng Hàn chuẩn và lưu để nghe lại.',
+            }))
+        } catch (error) {
+            setGeneratedAudio((current) => ({
+                ...current,
+                status: 'idle',
+                message: error instanceof Error ? error.message : 'Không thể tạo giọng đọc.',
+            }))
+        }
     }
 
     const startTimedPractice = () => {
@@ -446,13 +542,13 @@ export function SelfIntroductionPractice({
     }
 
     return (
-        <section className="mx-auto w-full max-w-6xl space-y-3 pb-6 sm:space-y-5 sm:pb-10">
-            <header className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-700 via-indigo-700 to-violet-700 p-5 text-white shadow-lg shadow-blue-900/15 sm:rounded-[28px] sm:p-6 md:p-8">
-                <div className="relative z-10 flex items-center justify-between gap-4">
-                    <div className="max-w-2xl pl-12 sm:pl-14 md:pl-16">
-                        <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-blue-100 sm:mb-2 sm:text-xs sm:tracking-[0.2em]">Mở đầu vòng 2</p>
-                        <h1 className="max-w-[240px] text-xl font-black leading-tight tracking-tight sm:max-w-none sm:text-2xl md:text-4xl">Giới thiệu bản thân</h1>
-                        <p className="mt-2 max-w-[250px] text-xs leading-5 text-blue-100 sm:mt-3 sm:max-w-2xl sm:text-sm md:text-base">Học mẫu, điều chỉnh nhịp và luyện nói theo khả năng.</p>
+        <section className="mx-auto w-full max-w-6xl space-y-2.5 pb-6 sm:space-y-5 sm:pb-10">
+            <header className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-700 via-indigo-700 to-violet-700 px-3.5 py-3.5 text-white shadow-lg shadow-blue-900/15 sm:rounded-[28px] sm:p-6 md:p-8">
+                <div className="relative z-10 flex items-center justify-between gap-3 sm:gap-4">
+                    <div className="min-w-0 max-w-2xl pl-10 sm:pl-14 md:pl-16">
+                        <p className="mb-0.5 text-[9px] font-extrabold uppercase tracking-[0.15em] text-blue-100 sm:mb-2 sm:text-xs sm:font-black sm:tracking-[0.2em]">Mở đầu Vòng 2</p>
+                        <h1 className="truncate text-lg font-extrabold leading-tight tracking-tight sm:max-w-none sm:text-2xl sm:font-black md:text-4xl">Giới thiệu bản thân</h1>
+                        <p className="mt-1 line-clamp-1 text-[11px] leading-4 text-blue-100 sm:mt-3 sm:max-w-2xl sm:text-sm sm:leading-5 md:text-base">Học mẫu, điều chỉnh nhịp và luyện nói theo khả năng.</p>
                     </div>
                     <div className="hidden size-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20 backdrop-blur sm:flex sm:size-20 sm:rounded-3xl">
                         <UserRound className="size-7 sm:size-10" />
@@ -460,7 +556,7 @@ export function SelfIntroductionPractice({
                 </div>
             </header>
 
-            <nav aria-label="Lộ trình học giới thiệu bản thân" className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:rounded-3xl sm:p-3">
+            <nav aria-label="Lộ trình học giới thiệu bản thân" className="rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm sm:rounded-3xl sm:p-3">
                 <ol className="grid grid-cols-3 gap-1 sm:gap-2">
                     {LEARNING_STEPS.map((step) => {
                         const isActive = activeStep === step.id
@@ -468,12 +564,12 @@ export function SelfIntroductionPractice({
                             <li key={step.id}>
                                 <button
                                     aria-current={isActive ? 'step' : undefined}
-                                    className={`flex min-h-14 w-full flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-center transition sm:min-h-16 sm:flex-row sm:justify-start sm:gap-2 sm:px-3 ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'text-slate-500 hover:bg-blue-50 hover:text-blue-700'}`}
+                                    className={`flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl px-1 py-1.5 text-center transition sm:min-h-16 sm:flex-row sm:justify-start sm:gap-2 sm:px-3 sm:py-2 ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'text-slate-500 hover:bg-blue-50 hover:text-blue-700'}`}
                                     onClick={() => selectLearningStep(step.id)}
                                     type="button"
                                 >
-                                    <span className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-black sm:size-7 sm:text-xs ${isActive ? 'bg-white text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{step.id}</span>
-                                    <span className="text-[10px] font-black leading-3 sm:text-xs md:text-sm">
+                                    <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-black sm:size-7 sm:text-xs ${isActive ? 'bg-white text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{step.id}</span>
+                                    <span className="text-[9px] font-extrabold leading-3 sm:text-xs sm:font-black md:text-sm">
                                         <span className="sm:hidden">{step.shortLabel}</span>
                                         <span className="hidden sm:inline">{step.label}</span>
                                     </span>
@@ -484,16 +580,18 @@ export function SelfIntroductionPractice({
                 </ol>
             </nav>
 
-            {activeStep === 1 ? <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[28px] sm:p-5 md:p-7">
-                <div className="mb-4 max-w-2xl text-left sm:mx-auto sm:mb-6 sm:text-center">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-600 sm:text-xs sm:tracking-[0.18em]">Bước 1 · Xem mẫu</p>
-                    <h2 className="mt-1.5 text-lg font-black text-slate-950 sm:mt-2 sm:text-xl md:text-2xl">Video mẫu</h2>
-                    <p className="mt-1.5 text-xs leading-5 text-slate-500 sm:mt-2 sm:text-sm sm:leading-6">Xem cách trình bày và phát âm.</p>
+            {activeStep === 1 ? <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-[28px] sm:p-5 md:p-7">
+                <div className="mb-2.5 flex max-w-2xl items-end justify-between gap-3 text-left sm:mx-auto sm:mb-6 sm:block sm:text-center">
+                    <div>
+                        <p className="text-[9px] font-extrabold uppercase tracking-[0.15em] text-blue-600 sm:text-xs sm:font-black sm:tracking-[0.18em]">Bước 1 · Xem mẫu</p>
+                        <h2 className="mt-0.5 text-base font-extrabold text-slate-950 sm:mt-2 sm:text-xl sm:font-black md:text-2xl">Video mẫu</h2>
+                    </div>
+                    <p className="pb-0.5 text-[10px] leading-4 text-slate-500 sm:mt-2 sm:pb-0 sm:text-sm sm:leading-6">Xem và phát âm.</p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
                     {SAMPLE_VIDEOS.map((video, index) => (
-                        <article className="mx-auto w-full max-w-[360px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm md:rounded-3xl" key={video.id}>
+                        <article className="mx-auto w-full max-w-[320px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm sm:max-w-[360px] md:rounded-3xl" key={video.id}>
                             <div className="relative aspect-[9/16] overflow-hidden bg-slate-950">
                                 <iframe
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -581,6 +679,8 @@ export function SelfIntroductionPractice({
                                 setDraftText(event.target.value)
                                 setSavedAt(null)
                                 setSaveState('idle')
+                                generatedAudioRef.current?.pause()
+                                setGeneratedAudio((current) => ({ ...current, audioUrl: null, hasAudio: false, message: null }))
                             }}
                             placeholder="Nhập bài giới thiệu bằng tiếng Hàn..."
                             spellCheck={false}
@@ -614,26 +714,63 @@ export function SelfIntroductionPractice({
                             <div className="flex items-center gap-2"><h2 className="text-lg font-black text-slate-950">Bản luyện tập hiện tại</h2><span className="rounded-full bg-blue-50 px-2 py-1 text-[9px] font-black uppercase text-blue-700">Bài cá nhân</span></div>
                             <p className="mt-1 text-xs text-slate-500 sm:text-sm">Nội dung đã soạn sẽ được dùng để nghe, chạy chữ tự động và luyện nói.</p>
                         </div>
-                        <Button
-                            aria-pressed={audioPlayback.target === 'all'}
-                            className={audioPlayback.target === 'all' ? 'rounded-xl border-blue-600 bg-blue-600 text-white hover:bg-blue-700 hover:text-white' : 'rounded-xl'}
-                            disabled={!canUseAudio}
-                            onClick={() => toggleAudio('all', fullText, 0.9)}
-                            variant="outline"
-                        >
-                            {audioPlayback.target === 'all' && audioPlayback.status === 'loading' ? (
-                                <Loader2 className="size-4 animate-spin" />
-                            ) : audioPlayback.target === 'all' ? (
-                                <Square className="size-3.5 fill-current" />
-                            ) : (
-                                <Play className="size-4" />
-                            )}
-                            {audioPlayback.target === 'all'
-                                ? audioPlayback.status === 'loading' ? 'Đang tải...' : 'Dừng nghe'
-                                : 'Nghe toàn bài'}
-                        </Button>
+                        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+                            <Button
+                                aria-pressed={audioPlayback.target === 'preview'}
+                                className={`flex-1 rounded-xl sm:flex-none ${audioPlayback.target === 'preview' ? 'border-blue-600 bg-blue-50 text-blue-700' : ''}`}
+                                disabled={!fullText || !isWithinDraftLimits || generatedAudio.status !== 'idle'}
+                                onClick={() => toggleAudio('preview', fullText, 1)}
+                                type="button"
+                                variant="outline"
+                            >
+                                {audioPlayback.target === 'preview' && audioPlayback.status === 'loading' ? (
+                                    <Loader2 className="size-4 animate-spin" />
+                                ) : audioPlayback.target === 'preview' ? (
+                                    <Square className="size-3.5 fill-current" />
+                                ) : (
+                                    <Play className="size-4" />
+                                )}
+                                {audioPlayback.target === 'preview'
+                                    ? audioPlayback.status === 'loading' ? 'Đang mở...' : 'Dừng nghe thử'
+                                    : 'Nghe thử'}
+                            </Button>
+                            <Button
+                                aria-pressed={audioPlayback.target === 'all'}
+                                className={`flex-1 rounded-xl sm:flex-none ${audioPlayback.target === 'all' ? 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700 hover:text-white' : ''}`}
+                                disabled={!canUseAudio || generatedAudio.status !== 'idle'}
+                                onClick={() => generatedAudio.hasAudio ? void toggleGeneratedAudio() : void generateStandardAudio()}
+                                type="button"
+                                variant={generatedAudio.hasAudio ? 'outline' : 'default'}
+                            >
+                                {generatedAudio.status === 'generating' || generatedAudio.status === 'loading' || (audioPlayback.target === 'all' && audioPlayback.status === 'loading') ? (
+                                    <Loader2 className="size-4 animate-spin" />
+                                ) : audioPlayback.target === 'all' ? (
+                                    <Square className="size-3.5 fill-current" />
+                                ) : generatedAudio.hasAudio ? (
+                                    <Play className="size-4" />
+                                ) : (
+                                    <Volume2 className="size-4" />
+                                )}
+                                {generatedAudio.status === 'generating'
+                                    ? 'Đang tạo...'
+                                    : generatedAudio.status === 'loading'
+                                        ? 'Đang kiểm tra...'
+                                        : audioPlayback.target === 'all'
+                                            ? audioPlayback.status === 'loading' ? 'Đang tải...' : 'Dừng nghe'
+                                            : generatedAudio.hasAudio ? 'Nghe bản của tôi' : 'Tạo giọng Hàn chuẩn'}
+                            </Button>
+                        </div>
                     </div>
-                    {!savedAt && fullText ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-700">Hãy lưu bài cá nhân trước khi nghe hoặc luyện nói để tránh tạo âm thanh cho nội dung chưa hoàn chỉnh.</p> : null}
+                    {!savedAt && fullText ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-700">Bạn có thể nghe thử ngay. Hãy lưu bài trước khi tạo giọng Hàn chuẩn hoặc luyện nói.</p> : null}
+                    {savedAt && fullText ? <div className="mt-3 flex flex-wrap items-start justify-between gap-x-3 gap-y-1 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2 text-[11px] font-semibold leading-4 text-slate-600">
+                        <span className="min-w-0 flex-1">
+                            {generatedAudio.hasAudio
+                                ? 'Bản giọng chuẩn đã được lưu · nghe lại không mất lượt.'
+                                : 'Nghe thử miễn phí để kiểm tra bài. Chỉ tạo giọng chuẩn khi nội dung đã hoàn chỉnh.'}
+                        </span>
+                        <span className="shrink-0 font-black text-blue-700">Còn {generatedAudio.remaining}/{generatedAudio.limit} lượt tạo hôm nay</span>
+                    </div> : null}
+                    {generatedAudio.message ? <p className={`mt-2 rounded-xl px-3 py-2 text-[11px] font-semibold ${generatedAudio.hasAudio ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{generatedAudio.message}</p> : null}
                     {!lines.length ? <div className="mt-4 rounded-2xl border border-dashed border-blue-200 bg-blue-50/60 p-6 text-center">
                         <Sparkles className="mx-auto size-7 text-blue-500" />
                         <p className="mt-2 text-sm font-black text-slate-800">Hãy viết bài giới thiệu của bạn</p>
@@ -645,7 +782,7 @@ export function SelfIntroductionPractice({
                                 aria-pressed={audioPlayback.target === `line-${index}`}
                                 className={`${!showAllLessonLines && index >= 4 ? 'hidden sm:flex' : 'flex'} group w-full items-start gap-2 rounded-xl border p-2.5 text-left transition sm:gap-3 sm:rounded-2xl sm:p-3 ${audioPlayback.target === `line-${index}` ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-100' : 'border-slate-100 bg-slate-50 hover:border-blue-200 hover:bg-blue-50'}`}
                                 key={`${index}-${line}`}
-                                disabled={!canUseAudio}
+                                disabled={!savedAt}
                                 onClick={() => toggleAudio(`line-${index}`, line, 1.0)}
                                 type="button"
                             >
@@ -654,7 +791,7 @@ export function SelfIntroductionPractice({
                                     <span className="block text-sm font-semibold leading-6 text-slate-800">{line}</span>
                                     {audioPlayback.target === `line-${index}` ? (
                                         <span className="mt-0.5 block text-[10px] font-black uppercase tracking-wider text-blue-600">
-                                            {audioPlayback.status === 'loading' ? 'Đang tải âm thanh' : 'Đang nghe · Bấm để dừng'}
+                                            {audioPlayback.status === 'loading' ? 'Đang mở nghe thử' : 'Nghe thử trên thiết bị · Bấm để dừng'}
                                         </span>
                                     ) : null}
                                 </span>

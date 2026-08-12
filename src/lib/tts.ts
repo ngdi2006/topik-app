@@ -26,6 +26,28 @@ export function stopTTS() {
     }
 }
 
+export function speakTextWithBrowser(
+    text: string,
+    rate: number = 1.0,
+    onStart?: () => void,
+    onEnd?: () => void,
+) {
+    stopTTS()
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+        onEnd?.()
+        return false
+    }
+
+    const utterance = new SpeechSynthesisUtterance(toKoreanPronunciationText(text))
+    utterance.lang = 'ko-KR'
+    utterance.rate = rate
+    utterance.onstart = () => onStart?.()
+    utterance.onend = () => onEnd?.()
+    utterance.onerror = () => onEnd?.()
+    window.speechSynthesis.speak(utterance)
+    return true
+}
+
 export function speakText(
     text: string, 
     rate: number = 1.0, 

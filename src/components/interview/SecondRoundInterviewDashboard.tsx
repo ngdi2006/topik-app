@@ -138,7 +138,18 @@ const TOPIC_STYLE: Record<
     bar: "bg-rose-600",
     accent: "from-rose-500 to-orange-500",
   },
+  safety: {
+    icon: "bg-amber-50 text-amber-700 ring-amber-100",
+    bar: "bg-amber-500",
+    accent: "from-amber-500 to-orange-500",
+  },
 }
+
+const DEFAULT_TOPIC_STYLE = {
+  icon: "bg-slate-50 text-slate-700 ring-slate-200",
+  bar: "bg-slate-500",
+  accent: "from-slate-500 to-slate-400",
+} as const
 
 const INDUSTRY_STYLE: Record<
   IndustryId,
@@ -565,7 +576,7 @@ export function SecondRoundInterviewDashboard({
               ? Math.round((item.mastered / item.total) * 100)
               : 0
           const status = item?.status ?? "not-started"
-          const visual = TOPIC_STYLE[topic.id]
+          const visual = TOPIC_STYLE[topic.id] ?? DEFAULT_TOPIC_STYLE
           const isLocked = Boolean(access && !canAccessInterviewTopic(access, topic.id))
           const freeLabel = topic.id === "introduction"
             ? "Miễn phí"

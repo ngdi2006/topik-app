@@ -3,6 +3,7 @@ import {
   Factory,
   Fish,
   Hammer,
+  HardHat,
   Headphones,
   House,
   MessageSquare,
@@ -29,6 +30,7 @@ export type TopicId =
   | "tools"
   | "communication"
   | "situation"
+  | "safety"
 
 export type LearningStatus =
   | "not-started"
@@ -158,6 +160,15 @@ export const TOPICS = [
     description: "Phản ứng an toàn trong các tình huống thực tế.",
     apiCategory: "Xử lý tình huống",
     icon: Hammer,
+    usesAI: true,
+  },
+  {
+    id: "safety",
+    code: "P8",
+    name: "An toàn lao động",
+    description: "Học quy tắc an toàn theo từng giai đoạn làm việc.",
+    apiCategory: "An toàn lao động",
+    icon: HardHat,
     usesAI: true,
   },
 ] as const satisfies ReadonlyArray<{

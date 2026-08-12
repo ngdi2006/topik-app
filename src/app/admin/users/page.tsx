@@ -1121,7 +1121,7 @@ export default function AdminUsersPage() {
                             <p className="text-xs text-slate-500">Có thể nhập số ngày bất kỳ. Thời hạn được cộng tiếp từ ngày hết hạn hiện tại.</p>
                         </div>
                         <div className="rounded-xl bg-emerald-50 px-3 py-2.5 text-xs font-semibold leading-5 text-emerald-800">
-                            Mỗi học viên được mở toàn bộ P2–P7, thi thử, củng cố và báo cáo.
+                            Mỗi học viên được mở toàn bộ P2–P8, thi thử, củng cố và báo cáo.
                         </div>
                     </div>
                     <DialogFooter>

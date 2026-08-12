@@ -138,6 +138,11 @@ const TOPIC_STYLE: Record<
     bar: "bg-rose-600",
     accent: "from-rose-500 to-orange-500",
   },
+  safety: {
+    icon: "bg-amber-50 text-amber-800 ring-amber-100",
+    bar: "bg-amber-500",
+    accent: "from-amber-500 to-orange-500",
+  },
 }
 
 const INDUSTRY_STYLE: Record<

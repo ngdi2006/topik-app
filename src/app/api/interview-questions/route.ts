@@ -63,6 +63,7 @@ export async function GET(request: Request) {
                 tools: categoryTotals.get('Sử dụng công cụ') || 0,
                 communication: categoryTotals.get('Giao tiếp') || 0,
                 situation: categoryTotals.get('Xử lý tình huống') || 0,
+                safety: categoryTotals.get('An toàn lao động') || 0,
             }
             : undefined
 

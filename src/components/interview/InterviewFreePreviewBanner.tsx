@@ -72,7 +72,7 @@ export function InterviewFreePreviewBanner({ kind, compact = false }: { kind: Pr
             {!compact && <p className="mt-1 text-xs leading-5 text-slate-600">{copy.detail}</p>}
             <div className="mt-1.5 flex items-start gap-1.5 text-xs font-semibold leading-5 text-violet-800">
               <Check className="mt-0.5 size-3.5 shrink-0" />
-              <span>Mua một gói để mở toàn bộ P2–P7, thi thử và ôn tập.</span>
+              <span>Mua một gói để mở toàn bộ P2–P8, thi thử và ôn tập.</span>
             </div>
           </div>
           <button

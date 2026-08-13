@@ -1,14 +1,19 @@
 import { KOREAN_PRONUNCIATION_VERSION, toKoreanPronunciationText } from '@/lib/korean-pronunciation'
 
 let activeAudio: HTMLAudioElement | null = null;
+let continuousAudio: HTMLAudioElement | null = null;
+let preloadAudio: HTMLAudioElement | null = null;
+let audioSession = 0;
 
 export type TtsProfile = 'default' | 'math-paced-v1'
 
 interface SpeakTextOptions {
     profile?: TtsProfile
+    continuousPlayback?: boolean
 }
 
 export function stopTTS() {
+    audioSession += 1;
     if (activeAudio) {
         try {
             activeAudio.pause();
@@ -70,46 +75,121 @@ export function speakText(
         params.set('profile', options.profile)
     }
     const audioUrl = `/api/speech/generate?${params.toString()}`;
-    const audio = new Audio(audioUrl);
+    const session = audioSession;
+    const audio = options?.continuousPlayback
+        ? (continuousAudio ??= new Audio())
+        : new Audio();
+    audio.onplaying = null;
+    audio.onended = null;
+    audio.onerror = null;
+    audio.preload = 'auto';
+    audio.setAttribute('playsinline', 'true');
+    audio.src = audioUrl;
     audio.playbackRate = rate;
     activeAudio = audio;
 
-    if (onStart) audio.onplay = () => onStart();
+    let settled = false;
+    let startupTimer: ReturnType<typeof setTimeout> | null = null;
+    const isCurrentSession = () => activeAudio === audio && audioSession === session;
+    const clearStartupTimer = () => {
+        if (startupTimer) {
+            clearTimeout(startupTimer);
+            startupTimer = null;
+        }
+    };
+    const finish = () => {
+        if (settled || !isCurrentSession()) return;
+        clearStartupTimer();
+        settled = true;
+        activeAudio = null;
+        onEnd?.();
+    };
+
+    const playBrowserFallback = (reason: unknown) => {
+        if (settled || !isCurrentSession()) return;
+        clearStartupTimer();
+        settled = true;
+        try {
+            audio.pause();
+        } catch {
+            // Ignore a pause error from a media element that never started.
+        }
+        activeAudio = null;
+        console.warn("ElevenLabs TTS failed, falling back to browser speechSynthesis:", reason);
+
+        if (!('speechSynthesis' in window)) {
+            onError?.(reason);
+            onEnd?.();
+            return;
+        }
+
+        try {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(spokenText);
+            utterance.lang = 'ko-KR';
+            utterance.rate = rate;
+            utterance.onstart = () => onStart?.();
+            utterance.onend = () => onEnd?.();
+            utterance.onerror = (event) => {
+                onError?.(event);
+                onEnd?.();
+            };
+            window.speechSynthesis.speak(utterance);
+        } catch (error) {
+            onError?.(error);
+            onEnd?.();
+        }
+    };
+
+    audio.onplaying = () => {
+        if (isCurrentSession()) {
+            clearStartupTimer();
+            onStart?.();
+        }
+    };
     
     audio.onended = () => {
-        if (activeAudio === audio) activeAudio = null;
-        if (onEnd) onEnd();
+        finish();
     };
 
     audio.onerror = (e) => {
-        console.warn("ElevenLabs TTS failed, falling back to browser speechSynthesis:", e);
-        if (activeAudio === audio) activeAudio = null;
-        
-        // Fallback to native browser speech synthesis
-        if ('speechSynthesis' in window) {
-            try {
-                window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(spokenText);
-                utterance.lang = 'ko-KR';
-                utterance.rate = rate;
-                if (onStart) utterance.onstart = () => onStart();
-                if (onEnd) utterance.onend = () => onEnd();
-                if (onError) utterance.onerror = () => onEnd ? onEnd() : null;
-                window.speechSynthesis.speak(utterance);
-            } catch (err) {
-                console.error("Browser speech synthesis failed:", err);
-                if (onEnd) onEnd();
-            }
-        } else {
-            if (onEnd) onEnd();
-        }
+        playBrowserFallback(e);
     };
+
+    // iOS Safari can leave play() pending indefinitely on a weak connection
+    // without firing `error`. Recover with the native Korean voice instead of
+    // leaving the passive-listening screen stuck on the current sentence.
+    startupTimer = setTimeout(() => {
+        playBrowserFallback(new Error('TTS audio startup timed out'));
+    }, 12000);
 
     audio.play().catch(err => {
         // AbortError is normal when audio is paused/stopped by standard React cleanups
         if (err.name !== 'AbortError') {
-            console.warn("ElevenLabs play blocked or failed, calling fallback:", err);
-            audio.onerror?.(err);
+            playBrowserFallback(err);
         }
     });
+}
+
+/**
+ * Warm the browser cache for the next sentence without starting playback.
+ * This is especially useful on iOS, where waiting for a new MP3 request at
+ * every boundary can otherwise leave an audible gap between sentences.
+ */
+export function preloadSpeechText(text: string, options?: SpeakTextOptions) {
+    if (typeof window === 'undefined' || !text.trim()) return;
+
+    const spokenText = options?.profile === 'math-paced-v1'
+        ? text
+        : toKoreanPronunciationText(text)
+    const params = new URLSearchParams({ text: spokenText })
+    params.set('pronunciation', KOREAN_PRONUNCIATION_VERSION)
+    if (options?.profile && options.profile !== 'default') {
+        params.set('profile', options.profile)
+    }
+
+    preloadAudio ??= new Audio()
+    preloadAudio.preload = 'auto'
+    preloadAudio.src = `/api/speech/generate?${params.toString()}`
+    preloadAudio.load()
 }

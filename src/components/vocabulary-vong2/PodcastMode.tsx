@@ -3,7 +3,7 @@ import { renderDescriptionKr, renderDescriptionVi, getKoreanDescription } from '
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ArrowLeft, CheckCircle, Volume2, Pause, Play, Info, SkipBack, SkipForward, RotateCcw, Bookmark } from 'lucide-react'
-import { speakText, stopTTS } from '@/lib/tts'
+import { preloadSpeechText, speakText, stopTTS } from '@/lib/tts'
 
 type PodcastModeProps = {
     vocabList: any[]
@@ -32,9 +32,12 @@ export default function PodcastMode({
     const [speed, setSpeed] = useState(1.0)
     const [speechTrigger, setSpeechTrigger] = useState(0)
     const timerRef = useRef<NodeJS.Timeout | null>(null)
-    const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null)
+    const playbackWatchdogRef = useRef<NodeJS.Timeout | null>(null)
 
     const currentVocab = vocabList[currentIndex] || {}
+    const currentWord = String(currentVocab.word_kr || '')
+    const nextWord = String(vocabList[currentIndex + 1]?.word_kr || '')
+    const totalCount = vocabList.length
 
     const [isBookmarked, setIsBookmarked] = useState(false)
 
@@ -70,63 +73,68 @@ export default function PodcastMode({
     }
 
     useEffect(() => {
-        if (!isPlaying || isFinished || vocabList.length === 0) return
+        if (!isPlaying || isFinished || totalCount === 0) return
 
-        if (currentIndex >= vocabList.length) {
+        if (currentIndex >= totalCount) {
             setIsFinished(true)
             return
         }
 
-        const currentVocab = vocabList[currentIndex]
         setShowMeaning(false)
 
         let hasEnded = false
         const handleSpeechEnd = () => {
             if (hasEnded) return
             hasEnded = true
-            if (fallbackTimerRef.current) {
-                clearTimeout(fallbackTimerRef.current)
-                fallbackTimerRef.current = null
+            if (playbackWatchdogRef.current) {
+                clearTimeout(playbackWatchdogRef.current)
+                playbackWatchdogRef.current = null
             }
-            // Wait 2 seconds, show meaning, then go to next
+            // Keep a short, predictable pause so passive listening remains
+            // continuous without cutting off the final Korean syllable.
             timerRef.current = setTimeout(() => {
                 setShowMeaning(true)
                 timerRef.current = setTimeout(() => {
                     setCurrentIndex(prev => {
-                        if (prev >= vocabList.length - 1) {
+                        if (prev >= totalCount - 1) {
                             setIsFinished(true)
                             return prev
                         }
                         return prev + 1
                     })
-                }, 2500) // Show meaning for 2.5 seconds before moving to next
-            }, 2000)
+                }, 850)
+            }, 350)
         }
 
-        speakText(currentVocab.word_kr, speed, undefined, handleSpeechEnd)
+        const handleSpeechStart = () => {
+            // A generous watchdog is only a recovery path for a genuinely
+            // stuck iOS media session. It no longer estimates and cuts audio.
+            if (playbackWatchdogRef.current) clearTimeout(playbackWatchdogRef.current)
+            playbackWatchdogRef.current = setTimeout(handleSpeechEnd, 45000)
+        }
 
-        // Some mobile browsers miss the media `ended` event. This fallback
-        // keeps the session moving while still giving long sentences time.
-        const estimatedSpeechMs = Math.min(
-            14000,
-            Math.max(5500, (String(currentVocab.word_kr || '').length * 320) / speed + 3500),
+        speakText(
+            currentWord,
+            speed,
+            handleSpeechStart,
+            handleSpeechEnd,
+            handleSpeechEnd,
+            { continuousPlayback: true },
         )
-        fallbackTimerRef.current = setTimeout(() => {
-            stopTTS()
-            handleSpeechEnd()
-        }, estimatedSpeechMs)
+
+        if (nextWord) preloadSpeechText(nextWord, { continuousPlayback: true })
 
         return () => {
             stopTTS()
             if (timerRef.current) {
                 clearTimeout(timerRef.current)
             }
-            if (fallbackTimerRef.current) {
-                clearTimeout(fallbackTimerRef.current)
-                fallbackTimerRef.current = null
+            if (playbackWatchdogRef.current) {
+                clearTimeout(playbackWatchdogRef.current)
+                playbackWatchdogRef.current = null
             }
         }
-    }, [currentIndex, isPlaying, isFinished, vocabList, speed, speechTrigger])
+    }, [currentIndex, currentVocab.id, currentWord, nextWord, totalCount, isPlaying, isFinished, speed, speechTrigger])
 
     const togglePlay = () => {
         if (!hasStarted) setHasStarted(true)

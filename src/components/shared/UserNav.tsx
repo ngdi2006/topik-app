@@ -23,7 +23,12 @@ type ProfileSummary = {
     avatar_url: string | null
 }
 
-export function UserNav() {
+type UserNavProps = {
+    variant?: "default" | "drawer"
+    onNavigate?: () => void
+}
+
+export function UserNav({ variant = "default", onNavigate }: UserNavProps = {}) {
     const { user, role, setUser } = useUserStore()
     const router = useRouter()
     const supabase = useMemo(() => createClient(), [])
@@ -32,7 +37,6 @@ export function UserNav() {
 
     useEffect(() => {
         if (!user?.id) {
-            setProfile(null)
             return
         }
 
@@ -85,6 +89,27 @@ export function UserNav() {
             <span aria-hidden="true" className="absolute bottom-0 right-0 size-2 rounded-full border-2 border-white bg-emerald-500" />
         </span>
     )
+
+    if (variant === "drawer") {
+        return (
+            <button
+                aria-label={`Mở thông tin tài khoản ${displayName}`}
+                className="group flex min-h-16 w-full items-center gap-3 rounded-2xl border border-white/15 bg-white/10 p-2.5 text-left text-white shadow-sm backdrop-blur-sm transition hover:border-white/30 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                onClick={() => {
+                    onNavigate?.()
+                    router.push("/settings")
+                }}
+                type="button"
+            >
+                {renderAvatar("size-11 text-sm ring-white/20")}
+                <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-bold">{displayName}</span>
+                    <span className="block truncate text-[11px] text-blue-100">{user?.email}</span>
+                </span>
+                <span aria-hidden="true" className="grid size-8 place-items-center rounded-full bg-white/10 text-lg transition-transform group-hover:translate-x-0.5">›</span>
+            </button>
+        )
+    }
 
     return (
         <div className="flex items-center">

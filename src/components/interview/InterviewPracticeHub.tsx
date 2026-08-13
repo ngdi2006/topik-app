@@ -221,13 +221,22 @@ function filterDuplicateTypes(array: any[]): any[] {
     const seen = new Set<string>()
     const result: any[] = []
     for (const q of array) {
-        // P8 stores the canonical Vietnamese topic title on every question in that
-        // topic. De-duplicating by Vietnamese meaning therefore collapses several
-        // distinct Korean interview questions into one. Use Korean question text
-        // as the canonical identity for workplace-safety content.
-        const duplicateKey = q.category === 'An toàn lao động'
-            ? (q.question_text || '').trim().toLowerCase()
-            : (q.vietnamese_meaning || '').trim().toLowerCase()
+        // Một câu luyện tập được nhận diện bằng nội dung tiếng Hàn. Nhiều câu
+        // tiếng Hàn khác nhau có thể cùng nghĩa tiếng Việt; dùng bản dịch làm
+        // khóa khiến các câu hợp lệ bị mất (ví dụ nhóm giao tiếp 80 còn 67 câu).
+        const koreanText = String(q.question_text || '')
+            .trim()
+            .replace(/\s+/g, ' ')
+            .toLocaleLowerCase('ko-KR')
+        const vietnameseText = String(q.vietnamese_meaning || '')
+            .trim()
+            .replace(/\s+/g, ' ')
+            .toLocaleLowerCase('vi-VN')
+        const duplicateKey = koreanText
+            ? `ko:${koreanText}`
+            : vietnameseText
+                ? `vi:${vietnameseText}`
+                : String(q.id || '')
 
         if (!duplicateKey || !seen.has(duplicateKey)) {
             if (duplicateKey) {
@@ -338,6 +347,23 @@ export function InterviewPracticeHub({
     const [evaluationResults, setEvaluationResults] = useState<any[]>([])
     const [sessionStats, setSessionStats] = useState({ mastered: 0, total: 0 })
     const [sessionMasteredIds, setSessionMasteredIds] = useState<string[]>([])
+
+    // Dùng một pool duy nhất cho nhóm đang chọn để số câu ở màn danh sách
+    // luôn khớp với lật thẻ, trắc nghiệm, siêu tốc và nghe thụ động.
+    const getSelectedGroupQuestions = () => {
+        const source = allQuestions.length > 0 ? allQuestions : questions
+        let selectedQuestions = source
+
+        if (selectedTopicObj?.id === 'communication') {
+            selectedQuestions = filterQuestionsByGroup(source, selectedCommunicationGroup, GIAO_TIEP_GROUPS)
+        } else if (selectedTopicObj?.id === 'situation') {
+            selectedQuestions = filterQuestionsByGroup(source, selectedSituationGroup, XU_LY_TINH_HUONG_GROUPS)
+        } else if (selectedTopicObj?.id === 'safety') {
+            selectedQuestions = filterSafetyQuestions(source, selectedSafetyGroup)
+        }
+
+        return filterDuplicateTypes(selectedQuestions)
+    }
 
     const handleSelectIndustry = (indId: string) => {
         setSelectedIndustry(indId)
@@ -525,12 +551,12 @@ export function InterviewPracticeHub({
             setStep('flashcard_options')
             return
         }
-        startPractice(selectedTopicObj, mode, questions)
+        startPractice(selectedTopicObj, mode, getSelectedGroupQuestions())
     }
 
     const startFlashcardPractice = (autoPlay: boolean) => {
         setInitialAutoPlay(autoPlay)
-        startPractice(selectedTopicObj, 'flashcard', questions)
+        startPractice(selectedTopicObj, 'flashcard', getSelectedGroupQuestions())
     }
 
     const handleFinishPractice = async (submittedAnswers?: Record<string, string>, newlyMasteredIds: string[] = []) => {
@@ -741,12 +767,15 @@ export function InterviewPracticeHub({
     }
 
     const handleStartSpeedQuiz = () => {
-        if (questions.length === 0) {
+        const selectedQuestions = getSelectedGroupQuestions()
+        if (selectedQuestions.length === 0) {
             toast.error('Chưa có câu hỏi')
             return
         }
         if (selectedTopicObj?.id === 'situation') {
-            setQuestions(shuffleArray(questions).slice(0, 10))
+            setQuestions(shuffleArray(selectedQuestions).slice(0, 10))
+        } else {
+            setQuestions(selectedQuestions)
         }
         setStep('speed_quiz')
     }
@@ -769,7 +798,7 @@ export function InterviewPracticeHub({
     }
 
     const buildPodcastRound = (requestedCount: number) => {
-        const pool = filterDuplicateTypes(allQuestions.length > 0 ? allQuestions : questions)
+        const pool = getSelectedGroupQuestions()
         if (pool.length === 0) {
             toast.error('Chưa có nội dung để nghe')
             return
@@ -794,7 +823,7 @@ export function InterviewPracticeHub({
     }, [onMobileBackChange])
 
     const handleStartPodcast = () => {
-        const pool = filterDuplicateTypes(allQuestions.length > 0 ? allQuestions : questions)
+        const pool = getSelectedGroupQuestions()
         if (pool.length === 0) {
             toast.error('Chưa có nội dung để nghe')
             return
@@ -847,7 +876,7 @@ export function InterviewPracticeHub({
                 <div className="mx-auto max-w-4xl">
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4">
                         {GIAO_TIEP_GROUPS.map(t => {
-                            const groupQs = filterQuestionsByGroup(allQuestions, t.id, GIAO_TIEP_GROUPS);
+                            const groupQs = filterDuplicateTypes(filterQuestionsByGroup(allQuestions, t.id, GIAO_TIEP_GROUPS));
                             return (
                                 <button
                                     key={t.id}
@@ -902,7 +931,7 @@ export function InterviewPracticeHub({
                 <div className="max-w-4xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {XU_LY_TINH_HUONG_GROUPS.map(t => {
-                            const groupQs = filterQuestionsByGroup(allQuestions, t.id, XU_LY_TINH_HUONG_GROUPS);
+                            const groupQs = filterDuplicateTypes(filterQuestionsByGroup(allQuestions, t.id, XU_LY_TINH_HUONG_GROUPS));
                             return (
                                 <button
                                     key={t.id}
@@ -1190,8 +1219,9 @@ export function InterviewPracticeHub({
     }
 
     if (step === 'podcast') {
-        const podcastPoolSize = filterDuplicateTypes(allQuestions.length > 0 ? allQuestions : questions).length
-        const filteredPodcastQs = podcastQuestions.length > 0 ? podcastQuestions : filterDuplicateTypes(questions)
+        const selectedGroupQuestions = getSelectedGroupQuestions()
+        const podcastPoolSize = selectedGroupQuestions.length
+        const filteredPodcastQs = podcastQuestions.length > 0 ? podcastQuestions : selectedGroupQuestions
         return (
             <div className="min-h-[500px] bg-[#f8fafc] rounded-2xl overflow-hidden border border-slate-100 flex flex-col max-w-4xl mx-auto">
                 <div className="bg-white px-4 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between">
@@ -1500,7 +1530,7 @@ export function InterviewPracticeHub({
                                     if (selectedTopicObj?.id === 'math') {
                                         loadQuestionsForDashboard(selectedTopicObj)
                                     } else {
-                                        startPractice(selectedTopicObj, selectedListenMode)
+                                        startPractice(selectedTopicObj, selectedListenMode, getSelectedGroupQuestions())
                                     }
                                 }}
                             >
@@ -1831,7 +1861,7 @@ export function InterviewPracticeHub({
                                         </div>
                                     </div>
 
-                                    <div className="group relative cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={() => startPractice(selectedTopicObj, null, questions)}>
+                                    <div className="group relative cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={() => startPractice(selectedTopicObj, null, getSelectedGroupQuestions())}>
                                         <div className="flex h-full items-center gap-3 rounded-2xl border-2 border-orange-300 bg-gradient-to-br from-slate-900 to-slate-800 p-3.5 shadow-lg transition hover:border-orange-400 hover:shadow-xl md:block md:p-6">
                                             <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-orange-500 text-white shadow-md md:mb-4 md:size-12">
                                                 <Wrench className="size-5 md:size-6" />
@@ -1847,7 +1877,7 @@ export function InterviewPracticeHub({
                                     {((selectedTopicObj?.id === 'communication' && selectedCommunicationGroup === 'all') ||
                                       (selectedTopicObj?.id === 'situation' && selectedSituationGroup === 'all') ||
                                       (selectedTopicObj?.id === 'safety' && selectedSafetyGroup === 'all')) && (
-                                        <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1 md:col-span-2" onClick={() => startPractice(selectedTopicObj, null, questions)}>
+                                        <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1 md:col-span-2" onClick={() => startPractice(selectedTopicObj, null, getSelectedGroupQuestions())}>
                                             <div className="h-full rounded-2xl p-6 transition-all duration-300 border-2 border-emerald-300/60 bg-gradient-to-br from-emerald-800 to-indigo-900 hover:border-emerald-400 shadow-lg hover:shadow-xl hover:shadow-emerald-200 ring-2 ring-emerald-400/30">
                                                 <div className="flex items-start justify-between mb-4">
                                                     <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-emerald-400/30 text-emerald-200 transition-colors ring-2 ring-emerald-300/50">

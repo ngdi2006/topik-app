@@ -586,25 +586,34 @@ export function SecondRoundInterviewDashboard({
 
           return (
             <Card
-              className="group relative h-full min-w-0 overflow-hidden border-slate-200/80 bg-white p-0 shadow-[0_6px_24px_rgba(15,23,42,0.05)] transition-[transform,box-shadow,border-color] hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_16px_36px_rgba(37,99,235,0.10)] motion-reduce:transform-none"
+              className="group relative h-full min-w-0 cursor-pointer overflow-hidden border-slate-200/80 bg-white p-0 shadow-[0_6px_24px_rgba(15,23,42,0.05)] transition-[transform,box-shadow,border-color] hover:-translate-y-1 hover:border-blue-300 hover:shadow-[0_16px_36px_rgba(37,99,235,0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 motion-reduce:transform-none"
               key={topic.id}
+              onClick={() => launchPractice(topic.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault()
+                  launchPractice(topic.id)
+                }
+              }}
+              role="button"
+              tabIndex={0}
             >
-              <div
-                aria-hidden="true"
-                className={`h-0.5 w-full bg-gradient-to-r sm:h-1 ${visual.accent}`}
-              />
-              <div aria-hidden="true" className={`absolute -right-12 -top-12 size-28 rounded-full bg-gradient-to-br opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-15 motion-reduce:transition-none ${visual.accent}`} />
-              <div className="relative flex h-full flex-col p-2.5 sm:p-5">
-                <div className="flex min-h-[86px] items-start gap-2 sm:min-h-0 sm:gap-3">
+              <div aria-hidden="true" className="h-1 w-full bg-blue-600 sm:h-1.5" />
+              <div aria-hidden="true" className="absolute -right-12 -top-12 size-28 rounded-full bg-blue-500 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-10 motion-reduce:transition-none" />
+              <span className="absolute left-1/2 top-1 z-10 -translate-x-1/2 rounded-b-md bg-blue-600 px-2 py-0.5 text-[10px] font-black leading-4 text-white shadow-sm sm:hidden" translate="no">
+                {topic.code}
+              </span>
+              <div className="relative flex h-full flex-col p-2 pt-3.5 sm:p-5">
+                <div className="flex min-h-[58px] items-start gap-1.5 sm:min-h-0 sm:gap-3">
                   <div
-                    className={`flex size-8 shrink-0 items-center justify-center rounded-lg ring-1 transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-110 motion-reduce:transform-none motion-reduce:transition-none sm:size-11 sm:rounded-2xl ${visual.icon}`}
+                    className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 ring-1 ring-blue-100 transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-110 motion-reduce:transform-none motion-reduce:transition-none sm:size-11 sm:rounded-2xl"
                   >
                     <Icon aria-hidden="true" className="size-4 sm:size-5" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-start justify-between gap-1.5 sm:gap-2">
                       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1 sm:gap-1.5">
-                        <span className="rounded-md bg-blue-50 px-1 py-0.5 text-[9px] font-black text-blue-700 ring-1 ring-blue-100 sm:px-1.5 sm:text-[10px]" translate="no">{topic.code}</span>
+                        <span className="hidden rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-black text-blue-700 ring-1 ring-blue-100 sm:inline-flex" translate="no">{topic.code}</span>
                         <h3 className="line-clamp-2 min-w-0 text-pretty break-words text-[12px] font-extrabold leading-4 text-slate-950 sm:text-base sm:leading-normal">
                           {topic.name}
                         </h3>
@@ -638,10 +647,10 @@ export function SecondRoundInterviewDashboard({
                   </div>
                 </div>
 
-                <div className="mb-2 mt-auto flex min-h-[60px] items-center justify-between gap-2 rounded-xl bg-slate-50 px-2 py-2 ring-1 ring-slate-100 sm:hidden">
+                <div className="mt-auto flex min-h-[48px] items-center justify-between gap-2 rounded-xl bg-slate-50 px-2 py-1.5 ring-1 ring-slate-100 sm:hidden">
                   <div
                     aria-label={`Tiến độ ${percent}%`}
-                    className="relative grid size-11 shrink-0 place-items-center rounded-full"
+                    className="relative grid size-10 shrink-0 place-items-center rounded-full"
                     role="progressbar"
                     aria-valuemax={100}
                     aria-valuemin={0}
@@ -710,7 +719,7 @@ export function SecondRoundInterviewDashboard({
                   </div>
                 </div>
                 <Button
-                  className={`mt-auto min-h-8 w-full rounded-lg px-2 text-[11px] font-bold focus-visible:ring-2 focus-visible:ring-blue-600 sm:mt-3 sm:min-h-10 sm:rounded-xl sm:text-sm ${
+                  className={`hidden mt-auto min-h-8 w-full rounded-lg px-2 text-[11px] font-bold focus-visible:ring-2 focus-visible:ring-blue-600 sm:mt-3 sm:min-h-10 sm:rounded-xl sm:text-sm ${
                     status === "needs-review"
                       ? "bg-blue-600 text-white hover:bg-blue-700"
                       : "border-slate-300 bg-white text-slate-800 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
@@ -729,6 +738,68 @@ export function SecondRoundInterviewDashboard({
     )
   }
 
+  const renderTopicTimeline = () => (
+    <div className="relative mx-auto max-w-5xl py-1 sm:py-3">
+      <div aria-hidden="true" className="absolute bottom-5 left-[27px] top-5 w-px bg-gradient-to-b from-blue-200 via-violet-300 to-amber-200 sm:left-1/2 sm:-translate-x-1/2" />
+      <ol className="relative space-y-3 sm:space-y-5">
+        {TOPICS.map((topic, index) => {
+          const item = progressByTopic.get(topic.id)
+          const Icon = topic.icon
+          const percent = item && item.total > 0 ? Math.round((item.mastered / item.total) * 100) : 0
+          const status = item?.status ?? "not-started"
+          const visual = TOPIC_STYLE[topic.id] ?? DEFAULT_TOPIC_STYLE
+          const isLocked = Boolean(access && !canAccessInterviewTopic(access, topic.id))
+          const isLeft = index % 2 === 0
+
+          return (
+            <li className="grid grid-cols-[56px_minmax(0,1fr)] items-center sm:grid-cols-[minmax(0,1fr)_76px_minmax(0,1fr)]" key={topic.id}>
+              <button
+                aria-label={`${topic.code}. ${topic.name}. Tiến độ ${percent}%`}
+                className={`group relative col-start-2 row-start-1 min-w-0 rounded-2xl border border-slate-200/90 bg-white p-2.5 text-left shadow-[0_8px_28px_rgba(15,23,42,0.06)] transition-[transform,box-shadow,border-color] hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-[0_14px_34px_rgba(37,99,235,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 motion-reduce:transform-none sm:p-3.5 ${isLeft ? "sm:col-start-1 sm:mr-1" : "sm:col-start-3 sm:ml-1"}`}
+                onClick={() => launchPractice(topic.id)}
+                type="button"
+              >
+                <span aria-hidden="true" className={`absolute top-1/2 hidden h-px w-5 -translate-y-1/2 bg-slate-300 sm:block ${isLeft ? "-right-5" : "-left-5"}`} />
+                <div className="flex items-center gap-2.5">
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <span className="rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-black text-blue-700 ring-1 ring-blue-100" translate="no">{topic.code}</span>
+                      <strong className="text-sm font-extrabold leading-5 text-slate-950 sm:text-base">{topic.name}</strong>
+                      {topic.usesAI ? (
+                        <span className="inline-flex items-center gap-0.5 rounded-full border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[9px] font-black text-violet-700"><Sparkles aria-hidden="true" className="size-3" /> AI</span>
+                      ) : null}
+                    </span>
+                    <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-semibold text-slate-500 sm:text-xs">
+                      <span>{item?.mastered ?? 0}/{item?.total ?? 0} câu đã thuộc</span>
+                      <span className={item?.incorrect ? "text-amber-700" : "text-slate-500"}>{item?.incorrect ?? 0} câu cần ôn</span>
+                      <span className={isLocked ? "text-amber-700" : status === "mastered" ? "text-emerald-700" : "text-slate-500"}>{isLocked ? "Cần mở khóa" : STATUS_LABEL[status]}</span>
+                    </span>
+                  </span>
+                  <span className={`grid size-10 shrink-0 place-items-center rounded-xl ring-1 transition-transform duration-300 group-hover:scale-105 ${visual.icon}`}>
+                    <Icon aria-hidden="true" className="size-[18px]" />
+                  </span>
+                  <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-slate-400 transition-transform group-hover:translate-x-0.5" />
+                </div>
+              </button>
+
+              <div
+                aria-label={`Tiến độ ${topic.name}: ${percent}%`}
+                aria-valuemax={100}
+                aria-valuemin={0}
+                aria-valuenow={percent}
+                className="relative col-start-1 row-start-1 grid size-14 place-items-center justify-self-start rounded-full bg-white shadow-[0_5px_18px_rgba(37,99,235,0.16)] sm:col-start-2 sm:size-16 sm:justify-self-center"
+                role="progressbar"
+                style={{ background: `conic-gradient(rgb(37 99 235) ${percent * 3.6}deg, rgb(226 232 240) 0deg)` }}
+              >
+                <span className="grid size-[46px] place-items-center rounded-full bg-white text-xs font-black tabular-nums text-blue-700 sm:size-14 sm:text-sm">{percent}%</span>
+              </div>
+            </li>
+          )
+        })}
+      </ol>
+    </div>
+  )
+
   return (
     <section className="mx-auto max-w-7xl pb-8 md:pb-12">
       <InterviewSubscriptionDialog open={showSubscription} onOpenChange={setShowSubscription} />
@@ -737,10 +808,10 @@ export function SecondRoundInterviewDashboard({
           aria-hidden="true"
           className="absolute -right-16 -top-20 hidden size-64 rounded-full bg-blue-100/70 blur-3xl md:block"
         />
-        <div className="relative flex flex-col justify-between gap-2 md:gap-4 lg:flex-row lg:items-center lg:gap-5">
-          <div className="min-w-0">
+        <div className="relative -ml-11 flex flex-col justify-between gap-2 md:ml-0 md:gap-4 lg:flex-row lg:items-center lg:gap-5">
+          <div className="min-w-0 md:text-left">
             <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
+              <div className="hidden min-w-0 flex-wrap items-center gap-2 text-xs font-semibold text-slate-500 md:flex">
                 {onBackToDashboard ? (
                   <button
                     className="rounded-md font-semibold hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
@@ -754,14 +825,14 @@ export function SecondRoundInterviewDashboard({
                 <span className="text-blue-700">Phỏng vấn vòng 2</span>
               </div>
               <Button
-                className="h-8 min-h-8 shrink-0 rounded-lg border-blue-200 bg-white px-2.5 text-xs font-bold text-blue-700 shadow-sm hover:border-blue-300 hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-blue-600 md:h-9 md:min-h-9 md:px-3"
+                className="absolute right-0 top-0 h-8 min-h-8 shrink-0 rounded-lg border-blue-200 bg-white px-2.5 text-xs font-bold text-blue-700 shadow-sm hover:border-blue-300 hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-blue-600 md:static md:h-9 md:min-h-9 md:px-3"
                 onClick={() => setIsChangingIndustry(true)}
                 variant="outline"
               >
                 Đổi ngành
               </Button>
             </div>
-            <div className="mt-2 flex items-center gap-2.5 md:mt-3 md:gap-3">
+            <div className="mt-1 flex items-center justify-center gap-2.5 pt-8 text-center md:mt-3 md:justify-start md:gap-3 md:pt-0 md:text-left">
               <div className="hidden size-11 shrink-0 items-center justify-center rounded-[14px] bg-blue-600 text-white shadow-md shadow-blue-200 sm:flex md:size-12 md:rounded-2xl">
                 <Target aria-hidden="true" className="size-5 md:size-6" />
               </div>
@@ -776,15 +847,15 @@ export function SecondRoundInterviewDashboard({
             </div>
           </div>
           {view === "overview" ? <div className="self-stretch lg:min-w-[430px]">
-            <div className="flex items-center gap-3 rounded-2xl bg-white/80 p-2 ring-1 ring-blue-100 md:hidden">
-              <div className="relative grid size-14 shrink-0 place-items-center" aria-label={`Tiến độ lộ trình ${isProgressUnavailable ? 0 : completion}%`}>
+            <div className="mx-auto flex w-[88%] max-w-[300px] items-center justify-center gap-2.5 rounded-2xl bg-white/80 px-3 py-2 ring-1 ring-blue-100 md:hidden">
+              <div className="relative grid size-12 shrink-0 place-items-center" aria-label={`Tiến độ lộ trình ${isProgressUnavailable ? 0 : completion}%`}>
                 <svg aria-hidden="true" className="absolute inset-0 size-full -rotate-90" viewBox="0 0 44 44">
                   <circle cx="22" cy="22" fill="none" r="18" stroke="#dbeafe" strokeWidth="4" />
                   <circle cx="22" cy="22" fill="none" r="18" stroke="#6366f1" strokeDasharray={`${Math.max(0, Math.min(100, isProgressUnavailable ? 0 : completion)) * 1.131} 113.1`} strokeLinecap="round" strokeWidth="4" />
                 </svg>
-                <strong className="text-sm font-black tabular-nums text-blue-700">{isProgressUnavailable ? "--" : `${completion}%`}</strong>
+                <strong className="text-xs font-black tabular-nums text-blue-700">{isProgressUnavailable ? "--" : `${completion}%`}</strong>
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 md:flex-1">
                 <span className="block text-[10px] font-black uppercase tracking-wide text-blue-600">Tiến độ lộ trình</span>
                 {access?.expiresAt ? (
                   <div className={`mt-1 flex items-center gap-1.5 text-xs font-bold ${!access.hasFullAccess ? 'text-red-700' : access.daysRemaining <= 7 ? 'text-amber-700' : 'text-emerald-700'}`}>
@@ -805,7 +876,7 @@ export function SecondRoundInterviewDashboard({
                   </span>
                   <span aria-hidden="true" className="absolute inset-1 animate-pulse rounded-full ring-2 ring-blue-200/60 motion-reduce:animate-none" />
                 </div>
-                <div className="min-w-0 flex-1">
+              <div className="min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <div><span className="block text-[10px] font-black uppercase tracking-wide text-blue-600">Tiến độ lộ trình</span><strong className="block text-xs text-slate-900 sm:text-sm">{isProgressUnavailable ? "Chưa tải dữ liệu" : `${totalMastered}/${totalQuestions} câu đã thuộc`}</strong></div>
                     <TrendingUp aria-hidden="true" className="size-4 shrink-0 text-blue-500" />
@@ -918,95 +989,88 @@ export function SecondRoundInterviewDashboard({
 
       {!isLoading && !error && view === "overview" ? (
         <div className="space-y-3 sm:space-y-5">
-          <Card className="group relative overflow-hidden border-0 bg-gradient-to-br from-blue-700 via-indigo-700 to-violet-700 p-4 text-white shadow-lg shadow-blue-200/60 sm:p-5">
-            <div aria-hidden="true" className="absolute -right-12 -top-16 size-40 rounded-full bg-white/10 blur-2xl transition-transform duration-700 group-hover:scale-125 motion-reduce:transform-none" />
-            <Sparkles aria-hidden="true" className="absolute right-5 top-5 size-10 rotate-12 animate-pulse text-white/15 motion-reduce:animate-none" />
-            <div className="relative grid items-center gap-4 sm:grid-cols-[1fr_auto]">
-              <div className="flex min-w-0 items-start gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/15 shadow-inner backdrop-blur-sm"><Sparkles aria-hidden="true" className="size-5 text-amber-300 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110 motion-reduce:transform-none" /></div>
-                <div className="min-w-0">
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-blue-100">
-                  Hành động tiếp theo
-                </div>
-                <h2 className="text-balance text-xl font-black sm:text-2xl">
-                  {nextTopic
-                    ? TOPICS.find((topic) => topic.id === nextTopic.topicId)?.name
-                    : "Bắt đầu lộ trình của bạn"}
-                </h2>
-                <p className="mt-1.5 max-w-2xl text-sm leading-5 text-blue-100">
-                  {nextTopic?.status === "needs-review"
-                    ? `Bạn có ${nextTopic.incorrect} câu cần ôn lại trong chủ đề này.`
-                    : nextTopic?.attempted
-                      ? `Bạn đã luyện ${nextTopic.attempted}/${nextTopic.total} câu. Hãy tiếp tục để hoàn thành chủ đề.`
-                      : "Học từng chủ đề theo thứ tự để xây dựng phản xạ phỏng vấn vững chắc."}
-                </p>
-                </div>
+          <Card className="relative overflow-hidden border-slate-200/80 bg-white p-3 shadow-[0_10px_32px_rgba(15,23,42,0.07)] sm:p-4">
+            <div aria-hidden="true" className="absolute -right-10 -top-14 size-36 rounded-full bg-blue-100/60 blur-3xl" />
+            <div className="relative mb-3 flex items-center justify-between gap-3 px-1">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">Lộ trình đề xuất</p>
+                <h2 className="mt-0.5 text-base font-extrabold text-slate-950 sm:text-lg">Việc nên làm tiếp theo</h2>
               </div>
-              <Button
-                className="min-h-11 w-full rounded-xl bg-white px-5 font-extrabold text-blue-800 hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-white sm:w-auto"
+              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-700 ring-1 ring-blue-100">Theo tiến độ của bạn</span>
+            </div>
+
+            <div className="relative space-y-2.5">
+              <div aria-hidden="true" className="absolute bottom-7 left-[22px] top-7 w-px bg-gradient-to-b from-blue-300 to-amber-300" />
+              <button
+                className="group relative grid w-full grid-cols-[46px_minmax(0,1fr)_auto] items-center gap-2.5 overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-700 to-violet-700 p-2.5 text-left text-white shadow-md shadow-blue-200/60 transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 motion-reduce:transform-none sm:p-3"
                 onClick={() => launchPractice(nextTopic?.topicId)}
+                type="button"
               >
-                {nextTopic?.attempted ? "Tiếp tục học" : "Bắt đầu học"}
-                <ChevronRight aria-hidden="true" className="size-5" />
-              </Button>
+                <span className="relative z-10 grid size-11 place-items-center rounded-full border border-white/25 bg-white/15 text-sm font-black shadow-inner backdrop-blur-sm">1</span>
+                <span className="min-w-0">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-blue-100">Ưu tiên học</span>
+                  <strong className="mt-0.5 block truncate text-base font-extrabold sm:text-lg">
+                    {nextTopic ? TOPICS.find((topic) => topic.id === nextTopic.topicId)?.name : "Bắt đầu lộ trình"}
+                  </strong>
+                  <span className="mt-0.5 line-clamp-1 block text-xs text-blue-100 sm:text-sm">
+                    {nextTopic?.status === "needs-review"
+                      ? `${nextTopic.incorrect} câu đang chờ bạn ôn lại`
+                      : nextTopic?.attempted
+                        ? `Đã luyện ${nextTopic.attempted}/${nextTopic.total} câu`
+                        : "Bắt đầu từ phần phù hợp nhất với bạn"}
+                  </span>
+                </span>
+                <span className="grid size-9 place-items-center rounded-full bg-white text-blue-700 shadow-sm transition-transform group-hover:translate-x-0.5">
+                  <ChevronRight aria-hidden="true" className="size-4" />
+                </span>
+              </button>
+
+              {weakTopic ? (
+                <button
+                  className="group relative grid w-full grid-cols-[46px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 via-orange-50 to-white p-2.5 text-left transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 motion-reduce:transform-none sm:p-3"
+                  onClick={() => {
+                    saveRecentLearningActivity({ industry, topicId: weakTopic.topicId })
+                    launchPractice(weakTopic.topicId)
+                  }}
+                  type="button"
+                >
+                  <span className="relative z-10 grid size-11 place-items-center rounded-full border-4 border-white bg-amber-100 text-sm font-black text-amber-700 shadow-sm">2</span>
+                  <span className="min-w-0">
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-amber-700">Cần củng cố</span>
+                    <strong className="mt-0.5 block truncate text-sm font-extrabold text-slate-950 sm:text-base">
+                      {TOPICS.find((topic) => topic.id === weakTopic.topicId)?.name}
+                    </strong>
+                    <span className="mt-0.5 block text-xs text-slate-600 sm:text-sm">Ôn lại {weakTopic.incorrect} câu chưa chính xác</span>
+                  </span>
+                  <span className="grid size-9 place-items-center rounded-full bg-white text-amber-700 shadow-sm ring-1 ring-amber-200 transition-transform group-hover:translate-x-0.5">
+                    <RotateCcw aria-hidden="true" className="size-4" />
+                  </span>
+                </button>
+              ) : (
+                <div className="relative grid grid-cols-[46px_minmax(0,1fr)] items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 p-2.5 sm:p-3">
+                  <span className="relative z-10 grid size-11 place-items-center rounded-full border-4 border-white bg-emerald-100 text-sm font-black text-emerald-700 shadow-sm">2</span>
+                  <span className="min-w-0"><strong className="block text-sm font-extrabold text-emerald-900">Chưa có điểm yếu</strong><span className="mt-0.5 block text-xs text-emerald-700">Tiếp tục duy trì nhịp học hiện tại.</span></span>
+                </div>
+              )}
             </div>
           </Card>
 
-          {weakTopic ? (
-            <Card className="group relative overflow-hidden border-amber-200 bg-gradient-to-br from-amber-50 via-orange-50 to-white p-4 shadow-md shadow-amber-100/70 sm:p-5">
-              <div aria-hidden="true" className="absolute -right-8 -top-10 size-28 rounded-full bg-amber-200/30 blur-2xl transition-transform duration-700 group-hover:scale-125 motion-reduce:transform-none" />
-              <div className="relative flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                <div className="flex min-w-0 items-start gap-3">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-white text-amber-600 shadow-sm ring-1 ring-amber-200"><RotateCcw aria-hidden="true" className="size-5 transition-transform duration-500 group-hover:-rotate-45 motion-reduce:transform-none" /></div>
-                  <div className="min-w-0">
-                  <p className="text-sm font-bold text-amber-800">
-                    Điểm cần cải thiện
-                  </p>
-                  <h2 className="mt-1 font-black text-slate-900">
-                    {TOPICS.find((topic) => topic.id === weakTopic.topicId)?.name}
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-700">
-                    Hãy luyện lại {weakTopic.incorrect} câu trước khi làm đề tiếp
-                    theo.
-                  </p>
-                  </div>
-                </div>
-                <Button
-                  className="min-h-11"
-                  onClick={() => {
-                    saveRecentLearningActivity({
-                      industry,
-                      topicId: weakTopic.topicId,
-                    })
-                    launchPractice(weakTopic.topicId)
-                  }}
-                >
-                  Củng cố điểm yếu
-                </Button>
-              </div>
-            </Card>
-          ) : (
-            <Card className="border-emerald-200 bg-emerald-50 p-4 sm:p-5">
-              <p className="font-bold text-emerald-900">
-                Bạn đang làm rất tốt
-              </p>
-              <p className="mt-1 text-sm text-emerald-800">
-                Chưa có câu nào cần ôn lại. Hãy tiếp tục chủ đề kế tiếp.
-              </p>
-            </Card>
-          )}
-
           <div>
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-lg font-black text-slate-950 sm:text-xl">
-                8 chủ đề Vòng 2
-              </h2>
+            <div className="mb-3 flex items-end justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black text-slate-950 sm:text-xl">
+                  Lộ trình 8 phần Vòng 2
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
+                  Học lần lượt từ P1 đến P8 hoặc chọn phần cần luyện.
+                </p>
+              </div>
               <Button onClick={() => selectView("practice")} variant="ghost">
                 Xem tất cả
                 <ChevronRight aria-hidden="true" className="size-4" />
               </Button>
             </div>
-            {renderTopicCards()}
+            {renderTopicTimeline()}
           </div>
         </div>
       ) : null}

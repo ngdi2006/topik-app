@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
@@ -745,11 +745,11 @@ export default function DashboardPage() {
                     aria-label="Menu điều hướng"
                     id="mobile-navigation"
                     inert={!isMobileMenuOpen}
-                    className={`fixed inset-y-0 left-0 z-[60] flex w-[min(84vw,320px)] flex-col overscroll-contain bg-[#2B64CE] text-white shadow-2xl transition-transform duration-300 ease-out md:hidden ${
+                    className={`fixed inset-y-0 left-0 z-[60] flex w-[min(88vw,340px)] flex-col overscroll-contain bg-gradient-to-b from-[#2865d5] via-[#225bc4] to-[#17469f] text-white shadow-[20px_0_60px_rgba(15,36,80,0.28)] transition-transform duration-300 ease-out md:hidden ${
                         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
                     }`}
                 >
-                    <div className="flex h-[72px] shrink-0 items-center justify-between border-b border-white/10 bg-white px-4">
+                    <div className="flex min-h-[76px] shrink-0 items-center justify-between border-b border-slate-100 bg-white px-4 py-3">
                         <button aria-label="Về dashboard tổng quan" className="relative h-9 w-32 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600" onClick={() => { setActiveMenu(null); setIsMobileMenuOpen(false) }} type="button">
                             <Image
                                 src="/logomobile.png"
@@ -770,42 +770,44 @@ export default function DashboardPage() {
                         </button>
                     </div>
 
-                    <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
+                    <nav className="relative flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
+                        <div aria-hidden="true" className="pointer-events-none absolute -right-16 top-10 size-44 rounded-full bg-cyan-300/10 blur-2xl" />
+                        <p className="relative px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-100/80">Học và luyện thi</p>
                         {enabledMenuItems
                             .filter(item => item.key !== 'bang-xep-hang')
                             .map((item) => renderMenuButton(item, () => setIsMobileMenuOpen(false)))}
 
-                        <div className="mt-auto pt-5">
+                        <div className="relative mt-auto pt-5">
                             {enabledMenuItems
                                 .filter(item => item.key === 'bang-xep-hang')
                                 .map((item) => renderMenuButton(item, () => setIsMobileMenuOpen(false)))}
                         </div>
                     </nav>
 
-                    <div className="shrink-0 space-y-2 border-t border-white/10 p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
-                        {isInterviewSection ? <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-xl bg-white/10 p-2">
-                            <div className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-white/10 px-2 text-sm font-bold text-white">
-                                <Coins aria-hidden="true" className="size-4" />
-                                <span>{userCredits} lượt</span>
+                    <div className="shrink-0 space-y-2.5 border-t border-white/10 bg-slate-950/10 p-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur-sm">
+                        <UserNav variant="drawer" onNavigate={() => setIsMobileMenuOpen(false)} />
+                        {isInterviewSection ? (
+                            <div className="grid grid-cols-2 items-center gap-2">
+                                <div className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/10 px-2 text-sm font-bold text-white">
+                                    <Coins aria-hidden="true" className="size-4" />
+                                    <span>{userCredits} lượt</span>
+                                </div>
+                                <button
+                                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-white px-2 text-sm font-bold text-blue-700 shadow-sm transition hover:bg-blue-50"
+                                    onClick={() => {
+                                        setIsMobileMenuOpen(false)
+                                        setPaymentModalOpen(true)
+                                    }}
+                                    type="button"
+                                >
+                                    <ShoppingCart aria-hidden="true" className="size-4" />
+                                    Mua thêm
+                                </button>
                             </div>
-                            <button
-                                className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-white px-2 text-sm font-bold text-blue-700"
-                                onClick={() => {
-                                    setIsMobileMenuOpen(false)
-                                    setPaymentModalOpen(true)
-                                }}
-                                type="button"
-                            >
-                                <ShoppingCart aria-hidden="true" className="size-4" />
-                                Mua thêm
-                            </button>
-                            <div className="rounded-full bg-white p-0.5">
-                                <UserNav />
-                            </div>
-                        </div> : null}
+                        ) : null}
                         <a
                             href="tel:0965577882"
-                            className="flex min-h-12 items-center justify-between rounded-xl border border-white/30 px-3 py-2.5 text-white/95 transition-colors hover:border-white hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                            className="flex min-h-11 items-center justify-between rounded-xl border border-white/20 bg-white/[0.06] px-3 py-2 text-white/95 transition-colors hover:border-white/50 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                         >
                             <span className="flex items-center gap-2 text-sm font-semibold">
                                 <Phone aria-hidden="true" className="size-4" />

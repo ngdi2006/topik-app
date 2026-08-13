@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Image from "next/image"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
@@ -203,6 +203,11 @@ export default function DashboardPage() {
     const [currentUserRank, setCurrentUserRank] = useState<CurrentUserRank | null>(null)
     const [isPhongVanMenuOpen, setIsPhongVanMenuOpen] = useState(false)
     const [isExamMenuOpen, setIsExamMenuOpen] = useState(false)
+    const [hasInterviewMobileBack, setHasInterviewMobileBack] = useState(false)
+
+    const handleInterviewMobileBackChange = useCallback((handler: (() => void) | null) => {
+        setHasInterviewMobileBack(Boolean(handler))
+    }, [])
 
     useEffect(() => {
         if (!isMobileMenuOpen) return
@@ -241,6 +246,22 @@ export default function DashboardPage() {
                 : activeMenu
         return enabledMenuItems.find((item) => item.key === lookupKey) || null
     }, [activeMenu, enabledMenuItems])
+
+    const isInterviewSection = Boolean(activeMenu?.startsWith('phong-van'))
+
+    useEffect(() => {
+        if (isInterviewSection) return
+        setHasInterviewMobileBack(false)
+    }, [isInterviewSection])
+
+    const hasDashboardActivity = Boolean(
+        dashboardStats && (
+            dashboardStats.examsTaken > 0 ||
+            dashboardStats.avgScore > 0 ||
+            dashboardStats.vocabLearned > 0 ||
+            dashboardStats.streak > 0
+        ),
+    )
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -628,7 +649,7 @@ export default function DashboardPage() {
             {/* Main Area */}
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Header */}
-                <header className="h-[72px] border-b bg-white px-4 md:px-6 flex items-center justify-between sticky top-0 z-40 shrink-0">
+                <header className={`${isInterviewSection ? 'hidden md:flex' : 'flex'} h-[72px] border-b bg-white px-4 md:px-6 items-center justify-between sticky top-0 z-40 shrink-0`}>
                     <div className="flex items-center gap-3">
                         {/* Mobile Hamburger */}
                         <button
@@ -690,6 +711,23 @@ export default function DashboardPage() {
                     </div>
                 </header>
 
+                {isInterviewSection && !hasInterviewMobileBack ? (
+                    <button
+                        aria-controls="mobile-navigation"
+                        aria-expanded={isMobileMenuOpen}
+                        aria-label="Mở menu"
+                        className="fixed left-3 top-3 z-40 grid size-10 place-items-center rounded-xl bg-white/95 text-slate-700 shadow-md ring-1 ring-slate-200 backdrop-blur md:hidden"
+                        onClick={() => setIsMobileMenuOpen(true)}
+                        type="button"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" className="size-6">
+                            <line x1="3" x2="15" y1="6" y2="6" />
+                            <line x1="3" x2="21" y1="12" y2="12" />
+                            <line x1="3" x2="15" y1="18" y2="18" />
+                        </svg>
+                    </button>
+                ) : null}
+
                 {/* Mobile off-canvas menu */}
                 <button
                     aria-label="Đóng menu"
@@ -744,7 +782,27 @@ export default function DashboardPage() {
                         </div>
                     </nav>
 
-                    <div className="shrink-0 border-t border-white/10 p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+                    <div className="shrink-0 space-y-2 border-t border-white/10 p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+                        {isInterviewSection ? <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-xl bg-white/10 p-2">
+                            <div className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-white/10 px-2 text-sm font-bold text-white">
+                                <Coins aria-hidden="true" className="size-4" />
+                                <span>{userCredits} lượt</span>
+                            </div>
+                            <button
+                                className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-white px-2 text-sm font-bold text-blue-700"
+                                onClick={() => {
+                                    setIsMobileMenuOpen(false)
+                                    setPaymentModalOpen(true)
+                                }}
+                                type="button"
+                            >
+                                <ShoppingCart aria-hidden="true" className="size-4" />
+                                Mua thêm
+                            </button>
+                            <div className="rounded-full bg-white p-0.5">
+                                <UserNav />
+                            </div>
+                        </div> : null}
                         <a
                             href="tel:0965577882"
                             className="flex min-h-12 items-center justify-between rounded-xl border border-white/30 px-3 py-2.5 text-white/95 transition-colors hover:border-white hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
@@ -759,13 +817,13 @@ export default function DashboardPage() {
                 </aside>
 
                 {/* Content */}
-                <main className="flex-1 p-4 md:p-6 overflow-y-auto bg-[#f4f6f8]">
-                    <div className="max-w-6xl mx-auto space-y-6">
+                <main className={`flex-1 overflow-y-auto bg-[#f4f6f8] md:p-6 ${isInterviewSection ? 'px-3 pb-4 pt-2' : 'p-4'}`}>
+                    <div className={`max-w-6xl mx-auto ${isInterviewSection ? 'space-y-3 md:space-y-6' : 'space-y-6'}`}>
 
                         {/* Default view - no menu selected */}
                         {!activeMenu && (
                             <div className="space-y-4 pb-8 sm:space-y-6">
-                                <section className="relative overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-br from-white via-blue-50/60 to-violet-50 px-5 py-5 shadow-sm sm:px-7 sm:py-7 lg:px-9">
+                                <section className="relative hidden overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-br from-white via-blue-50/60 to-violet-50 px-5 py-5 shadow-sm sm:block sm:px-7 sm:py-7 lg:px-9">
                                     <div aria-hidden="true" className="absolute -right-20 -top-28 size-72 rounded-full bg-gradient-to-br from-blue-200/70 to-violet-200/70 blur-2xl" />
                                     <div aria-hidden="true" className="absolute right-5 top-5 hidden size-14 items-center justify-center rounded-2xl border border-white/70 bg-white/50 text-blue-600 shadow-sm backdrop-blur-sm sm:flex">
                                         <Sparkles className="size-7 animate-pulse motion-reduce:animate-none" />
@@ -794,7 +852,8 @@ export default function DashboardPage() {
                                 <section aria-labelledby="learning-path-heading">
                                     <div className="mb-2 flex items-end justify-between gap-3 sm:mb-3">
                                         <div>
-                                            <h2 className="text-xl font-black text-slate-950 sm:text-2xl" id="learning-path-heading">Chọn lộ trình</h2>
+                                            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-600 sm:hidden">Học và luyện thi</span>
+                                            <h2 className="text-xl font-black tracking-tight text-slate-950 sm:text-2xl" id="learning-path-heading">Chọn lộ trình</h2>
                                         </div>
                                     </div>
                                     <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
@@ -802,24 +861,48 @@ export default function DashboardPage() {
                                     </div>
                                 </section>
 
-                                <section aria-labelledby="progress-heading" className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                                    <div className="mb-4 flex items-center gap-2">
-                                        <div className="flex size-9 items-center justify-center rounded-xl bg-blue-50 text-blue-700"><Target aria-hidden="true" className="size-5" /></div>
-                                        <div><h2 className="font-black text-slate-950" id="progress-heading">Tiến độ của bạn</h2><p className="text-xs text-slate-500">Tổng hợp hoạt động học gần đây</p></div>
+                                <section aria-labelledby="progress-heading" className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3.5 sm:px-5 sm:py-4">
+                                        <div className="flex min-w-0 items-center gap-2.5">
+                                            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700"><Target aria-hidden="true" className="size-5" /></div>
+                                            <div className="min-w-0"><h2 className="font-black text-slate-950" id="progress-heading">Tiến độ của bạn</h2><p className="truncate text-xs text-slate-500">Hoạt động học gần đây</p></div>
+                                        </div>
+                                        {hasDashboardActivity ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">Đang tiến bộ</span> : null}
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-3">
-                                        {[
-                                            ['Lượt thi', `${dashboardStats?.examsTaken || 0} đề`, FileText, 'bg-blue-50 text-blue-700'],
-                                            ['Điểm trung bình', `${dashboardStats?.avgScore || 0}/200`, Target, 'bg-emerald-50 text-emerald-700'],
-                                            ['Từ vựng đã thuộc', `${dashboardStats?.vocabLearned || 0} từ`, BookOpen, 'bg-violet-50 text-violet-700'],
-                                            ['Chuỗi ngày học', `${dashboardStats?.streak || 0} ngày`, Award, 'bg-orange-50 text-orange-700'],
-                                        ].map(([label, value, Icon, iconClass]) => (
-                                            <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-3 sm:p-4" key={String(label)}>
-                                                <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${String(iconClass)}`}><Icon aria-hidden="true" className="size-5" /></div>
-                                                <div className="min-w-0"><span className="block truncate text-[11px] font-bold uppercase tracking-wide text-slate-500">{String(label)}</span><strong className="block truncate text-lg font-black tabular-nums text-slate-950">{String(value)}</strong></div>
+
+                                    {hasDashboardActivity ? (
+                                        <div className="grid grid-cols-2 gap-px bg-slate-100 lg:grid-cols-4">
+                                            {[
+                                                ['Lượt thi', `${dashboardStats?.examsTaken || 0} đề`, FileText, 'bg-blue-50 text-blue-700'],
+                                                ['Điểm trung bình', `${dashboardStats?.avgScore || 0}/200`, Target, 'bg-emerald-50 text-emerald-700'],
+                                                ['Từ đã thuộc', `${dashboardStats?.vocabLearned || 0} từ`, BookOpen, 'bg-violet-50 text-violet-700'],
+                                                ['Chuỗi học', `${dashboardStats?.streak || 0} ngày`, Award, 'bg-orange-50 text-orange-700'],
+                                            ].map(([label, value, Icon, iconClass]) => (
+                                                <div className="flex min-w-0 items-center gap-2.5 bg-white p-3.5 sm:p-4" key={String(label)}>
+                                                    <div className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${String(iconClass)}`}><Icon aria-hidden="true" className="size-4.5" /></div>
+                                                    <div className="min-w-0"><span className="block truncate text-[10px] font-bold uppercase tracking-wide text-slate-500">{String(label)}</span><strong className="block truncate text-base font-black tabular-nums text-slate-950 sm:text-lg">{String(value)}</strong></div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="relative overflow-hidden px-4 py-5 sm:px-5 sm:py-6">
+                                            <div aria-hidden="true" className="absolute -right-10 -top-14 size-36 rounded-full bg-gradient-to-br from-blue-100 to-violet-100 blur-2xl" />
+                                            <div className="relative flex items-start gap-3">
+                                                <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-violet-600 text-white shadow-md shadow-blue-200">
+                                                    <Sparkles aria-hidden="true" className="size-5" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h3 className="font-bold text-slate-950">Bắt đầu hành trình của bạn</h3>
+                                                    <p className="mt-1 text-sm leading-5 text-slate-600">Chọn một lộ trình phía trên. Kết quả học và luyện thi sẽ tự động xuất hiện tại đây.</p>
+                                                    <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-semibold text-slate-600">
+                                                        <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700">Lưu tiến độ</span>
+                                                        <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">Theo dõi kết quả</span>
+                                                        <span className="rounded-full bg-orange-50 px-2.5 py-1 text-orange-700">Duy trì chuỗi học</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    )}
                                 </section>
                             </div>
                         )}
@@ -1159,6 +1242,7 @@ export default function DashboardPage() {
                         {/* PHỎNG VẤN VÒNG 2 */}
                         {activeMenu?.startsWith('phong-van') && activeMenuItem && (
                             <SecondRoundInterviewDashboard
+                                onMobileBackChange={handleInterviewMobileBackChange}
                                 onBackToDashboard={() => setActiveMenu(null)} 
                                 onViewChange={(nextView) => {
                                     const menuByView = {

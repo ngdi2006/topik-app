@@ -299,11 +299,13 @@ const VN_TO_EN_INDUSTRY: Record<string, string> = {
 
 export function InterviewPracticeHub({
     onBackToDashboard,
+    onMobileBackChange,
     initialMode = 'practice',
     initialIndustry = '',
     initialTopicId,
 }: {
     onBackToDashboard?: () => void
+    onMobileBackChange?: (handler: (() => void) | null) => void
     initialMode?: 'practice' | 'mock'
     initialIndustry?: string
     initialTopicId?: string
@@ -781,6 +783,15 @@ export function InterviewPracticeHub({
         setPodcastRound((current) => current + 1)
         setStep('podcast')
     }
+
+    const mobileBackHandlerRef = useRef(handleGoBack)
+    mobileBackHandlerRef.current = handleGoBack
+
+    useEffect(() => {
+        const handleMobileBack = () => mobileBackHandlerRef.current()
+        onMobileBackChange?.(handleMobileBack)
+        return () => onMobileBackChange?.(null)
+    }, [onMobileBackChange])
 
     const handleStartPodcast = () => {
         const pool = filterDuplicateTypes(allQuestions.length > 0 ? allQuestions : questions)

@@ -54,6 +54,7 @@ import { canAccessInterviewTopic, type InterviewAccessSnapshot } from "@/feature
 interface SecondRoundInterviewDashboardProps {
   initialView?: ModuleView
   onBackToDashboard?: () => void
+  onMobileBackChange?: (handler: (() => void) | null) => void
   onViewChange?: (view: ModuleView) => void
 }
 
@@ -223,6 +224,7 @@ function EmptyState({
 export function SecondRoundInterviewDashboard({
   initialView = "overview",
   onBackToDashboard,
+  onMobileBackChange,
   onViewChange,
 }: SecondRoundInterviewDashboardProps) {
   const [industry, setIndustry] = useState<IndustryId | null>(null)
@@ -247,6 +249,10 @@ export function SecondRoundInterviewDashboard({
   useEffect(() => {
     setView(initialView)
   }, [initialView])
+
+  useEffect(() => {
+    if (!launchMode) onMobileBackChange?.(null)
+  }, [launchMode, onMobileBackChange])
 
   const loadQuestions = useCallback(async (selectedIndustry: IndustryId) => {
     setIsLoading(true)
@@ -421,16 +427,7 @@ export function SecondRoundInterviewDashboard({
 
   if (!industry || isChangingIndustry) {
     return (
-      <section className="relative mx-auto max-w-6xl overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-3 shadow-[0_24px_70px_rgba(15,23,42,0.08)] sm:rounded-[28px] md:p-6 lg:p-7">
-        <div
-          aria-hidden="true"
-          className="absolute -right-32 -top-40 size-96 rounded-full bg-blue-100/80 blur-3xl"
-        />
-        <div
-          aria-hidden="true"
-          className="absolute -bottom-40 -left-36 size-80 rounded-full bg-indigo-100/50 blur-3xl"
-        />
-
+      <section className="relative mx-auto max-w-6xl bg-transparent px-3 py-2 shadow-none md:px-6 md:py-4 lg:px-7">
         <div className="relative">
           <div className="mb-3 flex items-center justify-between gap-2 sm:mb-5">
             <div className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 sm:px-3 sm:py-1.5 sm:text-xs">
@@ -541,6 +538,7 @@ export function SecondRoundInterviewDashboard({
         initialIndustry={industry}
         initialMode={launchMode}
         initialTopicId={launchTopicId ?? undefined}
+        onMobileBackChange={onMobileBackChange}
         onBackToDashboard={() => {
           setLaunchMode(null)
           setLaunchTopicId(null)
@@ -567,7 +565,7 @@ export function SecondRoundInterviewDashboard({
     }
 
     return (
-      <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-2">
         {visibleTopics.map((topic) => {
           const item = progressByTopic.get(topic.id)
           const Icon = topic.icon
@@ -588,7 +586,7 @@ export function SecondRoundInterviewDashboard({
 
           return (
             <Card
-              className="group relative min-w-0 overflow-hidden border-slate-200/80 bg-white p-0 shadow-[0_6px_24px_rgba(15,23,42,0.05)] transition-[transform,box-shadow,border-color] hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_16px_36px_rgba(37,99,235,0.10)] motion-reduce:transform-none"
+              className="group relative h-full min-w-0 overflow-hidden border-slate-200/80 bg-white p-0 shadow-[0_6px_24px_rgba(15,23,42,0.05)] transition-[transform,box-shadow,border-color] hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_16px_36px_rgba(37,99,235,0.10)] motion-reduce:transform-none"
               key={topic.id}
             >
               <div
@@ -596,34 +594,34 @@ export function SecondRoundInterviewDashboard({
                 className={`h-0.5 w-full bg-gradient-to-r sm:h-1 ${visual.accent}`}
               />
               <div aria-hidden="true" className={`absolute -right-12 -top-12 size-28 rounded-full bg-gradient-to-br opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-15 motion-reduce:transition-none ${visual.accent}`} />
-              <div className="relative p-3.5 sm:p-5">
-                <div className="flex items-start gap-3">
+              <div className="relative flex h-full flex-col p-2.5 sm:p-5">
+                <div className="flex min-h-[86px] items-start gap-2 sm:min-h-0 sm:gap-3">
                   <div
-                    className={`flex size-10 shrink-0 items-center justify-center rounded-xl ring-1 transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-110 motion-reduce:transform-none motion-reduce:transition-none sm:size-11 sm:rounded-2xl ${visual.icon}`}
+                    className={`flex size-8 shrink-0 items-center justify-center rounded-lg ring-1 transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-110 motion-reduce:transform-none motion-reduce:transition-none sm:size-11 sm:rounded-2xl ${visual.icon}`}
                   >
-                    <Icon aria-hidden="true" className="size-4.5 sm:size-5" />
+                    <Icon aria-hidden="true" className="size-4 sm:size-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                        <span className="rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-black text-blue-700 ring-1 ring-blue-100" translate="no">{topic.code}</span>
-                        <h3 className="text-pretty break-words text-sm font-extrabold text-slate-950 sm:text-base">
+                    <div className="flex flex-wrap items-start justify-between gap-1.5 sm:gap-2">
+                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1 sm:gap-1.5">
+                        <span className="rounded-md bg-blue-50 px-1 py-0.5 text-[9px] font-black text-blue-700 ring-1 ring-blue-100 sm:px-1.5 sm:text-[10px]" translate="no">{topic.code}</span>
+                        <h3 className="line-clamp-2 min-w-0 text-pretty break-words text-[12px] font-extrabold leading-4 text-slate-950 sm:text-base sm:leading-normal">
                           {topic.name}
                         </h3>
                         {topic.usesAI ? (
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-violet-700" title="Nội dung có sử dụng AI">
+                          <span className="inline-flex h-4 shrink-0 items-center justify-center gap-0.5 rounded-full border border-violet-200 bg-violet-50 px-1.5 text-[8px] font-extrabold uppercase tracking-wide text-violet-700 sm:h-auto sm:gap-1 sm:px-2 sm:py-0.5 sm:text-[10px] sm:font-black" title="Nội dung có sử dụng AI">
                             <Sparkles aria-hidden="true" className="size-3" />
-                            AI
+                            <span>AI</span>
                           </span>
                         ) : null}
                         {freeLabel ? (
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-700" title="Nội dung có thể học miễn phí">
+                          <span className="inline-flex h-4 shrink-0 items-center justify-center gap-0.5 rounded-full border border-emerald-200 bg-emerald-50 px-1.5 text-[8px] font-extrabold uppercase tracking-wide text-emerald-700 sm:h-auto sm:gap-1 sm:px-2 sm:py-0.5 sm:text-[9px] sm:font-black" title="Nội dung có thể học miễn phí">
                             <Gift aria-hidden="true" className="size-3" />
-                            {freeLabel}
+                            <span>{topic.id === "introduction" ? "Free" : topic.id === "command" ? "5 free" : "5+5 free"}</span>
                           </span>
                         ) : null}
                       </div>
-                      <Badge className={STATUS_STYLE[status]} variant="outline">
+                      <Badge className={`hidden sm:inline-flex ${STATUS_STYLE[status]}`} variant="outline">
                         {isLocked ? <LockKeyhole aria-hidden="true" className="size-3.5" /> : status === "mastered" ? (
                           <CheckCircle2 aria-hidden="true" className="size-3.5" />
                         ) : status === "needs-review" ? (
@@ -634,13 +632,47 @@ export function SecondRoundInterviewDashboard({
                         {isLocked ? 'Cần mở khóa' : STATUS_LABEL[status]}
                       </Badge>
                     </div>
-                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600 sm:text-sm">
+                    <p className="mt-1 hidden line-clamp-2 text-xs leading-5 text-slate-600 sm:block sm:text-sm">
                       {topic.description}
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-2.5 rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-100 sm:mt-4 sm:px-3.5 sm:py-3">
+                <div className="mb-2 mt-auto flex min-h-[60px] items-center justify-between gap-2 rounded-xl bg-slate-50 px-2 py-2 ring-1 ring-slate-100 sm:hidden">
+                  <div
+                    aria-label={`Tiến độ ${percent}%`}
+                    className="relative grid size-11 shrink-0 place-items-center rounded-full"
+                    role="progressbar"
+                    aria-valuemax={100}
+                    aria-valuemin={0}
+                    aria-valuenow={percent}
+                  >
+                    <svg aria-hidden="true" className="absolute inset-0 size-full -rotate-90" viewBox="0 0 44 44">
+                      <circle className="fill-none stroke-slate-200" cx="22" cy="22" r="18" strokeWidth="4" />
+                      <circle
+                        className="fill-none stroke-blue-600 transition-[stroke-dashoffset] duration-700 motion-reduce:transition-none"
+                        cx="22"
+                        cy="22"
+                        r="18"
+                        strokeDasharray={113.1}
+                        strokeDashoffset={113.1 * (1 - percent / 100)}
+                        strokeLinecap="round"
+                        strokeWidth="4"
+                      />
+                    </svg>
+                    <strong className="text-[11px] font-black tabular-nums text-slate-900">{percent}%</strong>
+                  </div>
+                  <div className="min-w-0 text-right">
+                    <strong className="block text-sm font-extrabold tabular-nums text-slate-950">
+                      {item?.total ?? 0} câu
+                    </strong>
+                    <span className="block truncate text-[10px] text-slate-500">
+                      {item?.mastered ?? 0} đã thuộc
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-4 hidden rounded-xl bg-slate-50 px-3.5 py-3 ring-1 ring-slate-100 sm:block">
                   <div className="flex items-center gap-2.5">
                     <span className="w-9 shrink-0 text-center text-sm font-bold tabular-nums text-slate-800 sm:w-10 sm:text-base">
                       {percent}%
@@ -678,7 +710,7 @@ export function SecondRoundInterviewDashboard({
                   </div>
                 </div>
                 <Button
-                  className={`mt-2.5 min-h-9 w-full rounded-xl text-xs font-bold focus-visible:ring-2 focus-visible:ring-blue-600 sm:mt-3 sm:min-h-10 sm:text-sm ${
+                  className={`mt-auto min-h-8 w-full rounded-lg px-2 text-[11px] font-bold focus-visible:ring-2 focus-visible:ring-blue-600 sm:mt-3 sm:min-h-10 sm:rounded-xl sm:text-sm ${
                     status === "needs-review"
                       ? "bg-blue-600 text-white hover:bg-blue-700"
                       : "border-slate-300 bg-white text-slate-800 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
@@ -700,12 +732,12 @@ export function SecondRoundInterviewDashboard({
   return (
     <section className="mx-auto max-w-7xl pb-8 md:pb-12">
       <InterviewSubscriptionDialog open={showSubscription} onOpenChange={setShowSubscription} />
-      <header className="relative mb-4 overflow-hidden rounded-[24px] border border-blue-100 bg-gradient-to-br from-white via-white to-blue-50 p-4 shadow-[0_12px_40px_rgba(30,64,175,0.08)] md:mb-5 md:rounded-[28px] md:p-6 lg:p-5">
+      <header className="relative mb-2 overflow-visible border-0 bg-transparent px-0 pb-1 pl-11 pt-1 shadow-none md:mb-5 md:overflow-hidden md:rounded-[28px] md:border md:border-blue-100 md:bg-gradient-to-br md:from-white md:via-white md:to-blue-50 md:p-6 md:shadow-[0_12px_40px_rgba(30,64,175,0.08)] lg:p-5">
         <div
           aria-hidden="true"
-          className="absolute -right-16 -top-20 size-64 rounded-full bg-blue-100/70 blur-3xl"
+          className="absolute -right-16 -top-20 hidden size-64 rounded-full bg-blue-100/70 blur-3xl md:block"
         />
-        <div className="relative flex flex-col justify-between gap-4 lg:flex-row lg:items-center lg:gap-5">
+        <div className="relative flex flex-col justify-between gap-2 md:gap-4 lg:flex-row lg:items-center lg:gap-5">
           <div className="min-w-0">
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
@@ -729,22 +761,43 @@ export function SecondRoundInterviewDashboard({
                 Đổi ngành
               </Button>
             </div>
-            <div className="mt-3 flex items-center gap-2.5 md:gap-3">
+            <div className="mt-2 flex items-center gap-2.5 md:mt-3 md:gap-3">
               <div className="hidden size-11 shrink-0 items-center justify-center rounded-[14px] bg-blue-600 text-white shadow-md shadow-blue-200 sm:flex md:size-12 md:rounded-2xl">
                 <Target aria-hidden="true" className="size-5 md:size-6" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-extrabold uppercase leading-none tracking-[0.14em] text-blue-600 md:text-xs md:tracking-[0.16em]">
+                <p className="text-[9px] font-extrabold uppercase leading-none tracking-[0.12em] text-blue-600 md:text-xs md:tracking-[0.16em]">
                   Lộ trình cá nhân hoá
                 </p>
-                <h1 className="mt-1.5 text-pretty font-[ui-rounded,'Arial_Rounded_MT_Bold',system-ui,sans-serif] text-[1.4rem] font-extrabold leading-[1.08] tracking-[-0.015em] text-slate-950 sm:text-[1.5rem] lg:text-[1.6rem]">
+                <h1 className="mt-1 text-pretty font-[ui-rounded,'Arial_Rounded_MT_Bold',system-ui,sans-serif] text-lg font-extrabold leading-tight tracking-[-0.015em] text-slate-950 sm:text-[1.5rem] lg:text-[1.6rem]">
                   {currentIndustry?.id}
                 </h1>
               </div>
             </div>
           </div>
           {view === "overview" ? <div className="self-stretch lg:min-w-[430px]">
-            <div className="min-w-0 rounded-2xl border border-blue-100 bg-white/95 p-3 shadow-md shadow-blue-100/50 lg:p-4">
+            <div className="flex items-center gap-3 rounded-2xl bg-white/80 p-2 ring-1 ring-blue-100 md:hidden">
+              <div className="relative grid size-14 shrink-0 place-items-center" aria-label={`Tiến độ lộ trình ${isProgressUnavailable ? 0 : completion}%`}>
+                <svg aria-hidden="true" className="absolute inset-0 size-full -rotate-90" viewBox="0 0 44 44">
+                  <circle cx="22" cy="22" fill="none" r="18" stroke="#dbeafe" strokeWidth="4" />
+                  <circle cx="22" cy="22" fill="none" r="18" stroke="#6366f1" strokeDasharray={`${Math.max(0, Math.min(100, isProgressUnavailable ? 0 : completion)) * 1.131} 113.1`} strokeLinecap="round" strokeWidth="4" />
+                </svg>
+                <strong className="text-sm font-black tabular-nums text-blue-700">{isProgressUnavailable ? "--" : `${completion}%`}</strong>
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="block text-[10px] font-black uppercase tracking-wide text-blue-600">Tiến độ lộ trình</span>
+                {access?.expiresAt ? (
+                  <div className={`mt-1 flex items-center gap-1.5 text-xs font-bold ${!access.hasFullAccess ? 'text-red-700' : access.daysRemaining <= 7 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                    <CalendarClock aria-hidden="true" className="size-3.5 shrink-0" />
+                    <span className="truncate">{!access.hasFullAccess ? 'Gói đã hết hạn' : `Gói Vòng 2 · còn ${access.daysRemaining} ngày`}</span>
+                  </div>
+                ) : <span className="mt-1 block text-xs text-slate-500">Bắt đầu học để ghi nhận tiến độ</span>}
+              </div>
+              {access?.expiresAt && (!access.hasFullAccess || access.daysRemaining <= 7) ? (
+                <button className="shrink-0 text-[11px] font-bold text-blue-700" onClick={() => setShowSubscription(true)} type="button">Gia hạn</button>
+              ) : null}
+            </div>
+            <div className="hidden min-w-0 rounded-2xl border border-blue-100 bg-white/95 p-3 shadow-md shadow-blue-100/50 md:block lg:p-4">
               <div className="flex items-center gap-3">
                 <div className="relative flex size-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-50 to-indigo-100 ring-1 ring-blue-100 sm:size-12">
                   <span className="text-sm font-black tabular-nums text-blue-700">
@@ -792,7 +845,7 @@ export function SecondRoundInterviewDashboard({
           </div> : null}
         </div>
         {access?.expiresAt ? (
-          <div className={`relative mt-4 flex flex-col gap-2 rounded-xl border px-3 py-2.5 text-xs sm:flex-row sm:items-center sm:justify-between ${!access.hasFullAccess ? 'border-red-200 bg-red-50 text-red-800' : access.daysRemaining <= 7 ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
+          <div className={`relative mt-4 hidden flex-col gap-2 rounded-xl border px-3 py-2.5 text-xs md:flex md:flex-row md:items-center md:justify-between ${!access.hasFullAccess ? 'border-red-200 bg-red-50 text-red-800' : access.daysRemaining <= 7 ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
             <div className="flex min-w-0 items-center gap-2">
               <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${!access.hasFullAccess ? 'bg-red-100' : access.daysRemaining <= 7 ? 'bg-amber-100' : 'bg-emerald-100'}`}>
                 <CalendarClock aria-hidden="true" className="size-4" />
@@ -946,7 +999,7 @@ export function SecondRoundInterviewDashboard({
           <div>
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-lg font-black text-slate-950 sm:text-xl">
-                Tiến độ chủ đề
+                8 chủ đề Vòng 2
               </h2>
               <Button onClick={() => selectView("practice")} variant="ghost">
                 Xem tất cả
@@ -959,30 +1012,7 @@ export function SecondRoundInterviewDashboard({
       ) : null}
 
       {!isLoading && !error && view === "practice" ? (
-        <div className="space-y-3 sm:space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-sm sm:p-4">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 ring-1 ring-blue-100 sm:size-10 sm:rounded-2xl">
-                <BookOpen aria-hidden="true" className="size-4.5 sm:size-5" />
-              </div>
-              <div className="min-w-0">
-                <h2 className="text-base font-black tracking-tight text-slate-950 sm:text-lg">
-                  Chọn chủ đề luyện tập
-                </h2>
-                <p className="mt-0.5 text-xs text-slate-600 sm:text-sm">
-                  Ưu tiên nội dung chưa thành thạo.
-                </p>
-              </div>
-            </div>
-            <div className="ml-auto flex shrink-0 gap-1.5 text-[10px] sm:text-xs">
-              <span className="rounded-full bg-blue-50 px-2.5 py-1 font-bold text-blue-700">
-                {TOPICS.length} chủ đề
-              </span>
-              <span className="rounded-full bg-amber-50 px-2.5 py-1 font-bold text-amber-700">
-                {reviewCount} câu cần ôn
-              </span>
-            </div>
-          </div>
+        <div>
           {renderTopicCards()}
         </div>
       ) : null}

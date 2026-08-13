@@ -33,6 +33,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
             return NextResponse.json({ error: error.message }, { status: 500 })
         }
 
+        const { error: metadataError } = await adminAuthClient.auth.admin.updateUserById(userId, {
+            app_metadata: { role }
+        })
+
+        if (metadataError) {
+            return NextResponse.json({ error: metadataError.message }, { status: 500 })
+        }
+
         return NextResponse.json({ success: true, newRole: role }, { status: 200 })
     } catch (e: any) {
         return NextResponse.json({ error: e.message || "Internal Server Error" }, { status: 500 })

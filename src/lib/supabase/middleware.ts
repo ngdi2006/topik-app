@@ -81,11 +81,10 @@ export async function updateSession(request: NextRequest) {
         (request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register'))
     ) {
         const requestedPath = sanitizeNextPath(request.nextUrl.searchParams.get('next'))
-        const role = await getTrustedUserRole(user)
+        const role = await getTrustedUserRole(user, supabase)
         const hasAdminAccess = isAdminRole(role)
         let destination = requestedPath
         if (requestedPath.startsWith('/admin') && !hasAdminAccess) destination = '/dashboard'
-        if (requestedPath === '/dashboard' && hasAdminAccess) destination = '/admin'
         return NextResponse.redirect(
             new URL(destination, request.url)
         )
@@ -94,7 +93,7 @@ export async function updateSession(request: NextRequest) {
     // Role-Based Access Control logic for /admin routes
     if (user && request.nextUrl.pathname.startsWith('/admin')) {
         try {
-            const profilePromise = getTrustedUserRole(user)
+            const profilePromise = getTrustedUserRole(user, supabase)
             const timeoutPromise = new Promise<never>((_, reject) =>
                 setTimeout(() => reject(new Error('Profile query timeout')), 3000)
             )

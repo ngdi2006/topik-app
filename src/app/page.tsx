@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { createClient } from '@/lib/supabase/server'
 
 const INTERVIEW_FEATURES = [
   { icon: Mic2, label: 'Giới thiệu bản thân' },
@@ -65,7 +66,19 @@ const EXPERIENCE_GALLERY = [
   },
 ]
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const accountDestination = '/dashboard'
+  const displayName = user
+    ? String(user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Tài khoản')
+    : null
+  const avatarUrl = user
+    ? [user.user_metadata?.avatar_url, user.user_metadata?.picture]
+        .find((value): value is string => typeof value === 'string' && value.trim().length > 0) ?? null
+    : null
+  const avatarInitial = displayName?.trim().charAt(0).toLocaleUpperCase('vi-VN') || 'U'
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#f6f8fc] text-slate-950 selection:bg-violet-200">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(#cbd5e1_0.7px,transparent_0.7px)] [background-size:18px_18px] opacity-35" />
@@ -88,12 +101,39 @@ export default function Home() {
             <span className="text-lg font-black tracking-tight text-slate-900">Korea Link</span>
           </Link>
           <nav className="flex items-center gap-1.5 sm:gap-3" aria-label="Tài khoản">
-            <Link href="/register">
-              <Button className="hidden rounded-xl px-4 font-bold text-slate-600 hover:bg-slate-100 sm:inline-flex" variant="ghost">Đăng ký miễn phí</Button>
-            </Link>
-            <Link href="/login">
-              <Button className="rounded-xl bg-blue-600 px-5 font-bold text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700">Đăng nhập</Button>
-            </Link>
+            {user ? (
+              <Link
+                aria-label={`Mở tài khoản ${displayName}`}
+                className="group relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-white bg-gradient-to-br from-blue-500 to-violet-600 text-sm font-black text-white shadow-md shadow-blue-500/20 ring-1 ring-blue-100 transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:size-11"
+                href={accountDestination}
+                title={`Vào hệ thống · ${displayName}`}
+              >
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    alt=""
+                    className="size-full object-cover transition duration-200 group-hover:scale-105"
+                    referrerPolicy="no-referrer"
+                    src={avatarUrl}
+                  />
+                ) : (
+                  <span aria-hidden="true">{avatarInitial}</span>
+                )}
+                <span
+                  aria-hidden="true"
+                  className="absolute bottom-0.5 right-0.5 size-2.5 rounded-full border-2 border-white bg-emerald-500"
+                />
+              </Link>
+            ) : (
+              <>
+                <Link href="/register">
+                  <Button className="hidden rounded-xl px-4 font-bold text-slate-600 hover:bg-slate-100 sm:inline-flex" variant="ghost">Đăng ký miễn phí</Button>
+                </Link>
+                <Link href="/login">
+                  <Button className="rounded-xl bg-blue-600 px-5 font-bold text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700">Đăng nhập</Button>
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -112,12 +152,12 @@ export default function Home() {
               Thi thử EPS‑TOPIK, luyện phản xạ và thực hành Vòng 2 theo đúng ngành của bạn.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
-              <Link href="/register">
+              <Link href={user ? accountDestination : '/register'}>
                 <Button className="h-13 w-full rounded-2xl bg-gradient-to-r from-blue-600 to-violet-600 px-7 text-base font-black text-white shadow-xl shadow-violet-500/25 hover:from-blue-700 hover:to-violet-700 sm:w-auto">
                   Luyện Vòng 2 ngay <ArrowRight className="size-5" />
                 </Button>
               </Link>
-              <Link href="/login">
+              <Link href={user ? accountDestination : '/login'}>
                 <Button className="h-13 w-full rounded-2xl border-slate-200 bg-white px-7 text-base font-bold text-slate-700 shadow-sm hover:bg-slate-50 sm:w-auto" variant="outline">
                   Thi thử EPS‑TOPIK
                 </Button>

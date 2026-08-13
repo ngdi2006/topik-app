@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Search, Plus, Coins, Trash2, History, Upload, Download, ShieldCheck, Loader2 } from "lucide-react"
+import { Search, Plus, Coins, Trash2, History, Upload, Download, ShieldCheck, Loader2, CalendarDays, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import * as XLSX from "xlsx"
 import { useUserStore } from "@/store/userStore"
@@ -57,6 +57,19 @@ type ExportUserRecord = {
 }
 
 type CreditAction = 'add' | 'deduct'
+type InterviewPackageFilter = 'all' | 'active' | 'expiring' | 'expired' | 'none'
+
+const EXPIRING_SOON_DAYS = 3
+const DAY_IN_MS = 24 * 60 * 60 * 1000
+
+const getInterviewPackageStatus = (user: UserProfile, now: number): Exclude<InterviewPackageFilter, 'all'> => {
+    if (!user.interviewAccess) return 'none'
+    if (!user.interviewAccess.active) return 'expired'
+
+    const expiresAt = Date.parse(user.interviewAccess.expiresAt)
+    if (Number.isNaN(expiresAt) || expiresAt <= now) return 'expired'
+    return expiresAt - now <= EXPIRING_SOON_DAYS * DAY_IN_MS ? 'expiring' : 'active'
+}
 
 const initialGrantForm = {
     action: 'add' as CreditAction,
@@ -124,6 +137,10 @@ export default function AdminUsersPage() {
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedGroupFilter, setSelectedGroupFilter] = useState('all')
     const [selectedRoleFilter, setSelectedRoleFilter] = useState('all')
+    const [selectedInterviewFilter, setSelectedInterviewFilter] = useState<InterviewPackageFilter>('all')
+    const [joinedFrom, setJoinedFrom] = useState('')
+    const [joinedTo, setJoinedTo] = useState('')
+    const [filterReferenceTime] = useState(() => Date.now())
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage, setItemsPerPage] = useState(20)
     const { role: currentUserRole } = useUserStore()
@@ -196,7 +213,7 @@ export default function AdminUsersPage() {
 
     useEffect(() => {
         setCurrentPage(1)
-    }, [searchTerm, selectedGroupFilter, selectedRoleFilter, itemsPerPage])
+    }, [searchTerm, selectedGroupFilter, selectedRoleFilter, selectedInterviewFilter, joinedFrom, joinedTo, itemsPerPage])
 
     const closeGrantDialog = () => {
         setIsGrantDialogOpen(false)
@@ -606,15 +623,46 @@ export default function AdminUsersPage() {
         }
     }
 
-    const filteredUsers = users.filter(user => {
-        const email = user.email || ''
-        const name = user.name || ''
-        const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              email.toLowerCase().includes(searchTerm.toLowerCase())
-        const matchesGroup = selectedGroupFilter === 'all' || user.groupName === selectedGroupFilter
-        const matchesRole = selectedRoleFilter === 'all' || user.role === selectedRoleFilter
-        return matchesSearch && matchesGroup && matchesRole
-    })
+    const filteredUsers = useMemo(() => {
+        const normalizedSearch = searchTerm.trim().toLowerCase()
+
+        return users.filter(user => {
+            const email = user.email || ''
+            const name = user.name || ''
+            const joinedDate = user.joinedAt?.slice(0, 10) || ''
+            const packageStatus = getInterviewPackageStatus(user, filterReferenceTime)
+            const matchesSearch = name.toLowerCase().includes(normalizedSearch) ||
+                                  email.toLowerCase().includes(normalizedSearch)
+            const matchesGroup = selectedGroupFilter === 'all' || user.groupName === selectedGroupFilter
+            const matchesRole = selectedRoleFilter === 'all' || user.role === selectedRoleFilter
+            const matchesInterview = selectedInterviewFilter === 'all' ||
+                (selectedInterviewFilter === 'active'
+                    ? packageStatus === 'active' || packageStatus === 'expiring'
+                    : packageStatus === selectedInterviewFilter)
+            const matchesJoinedFrom = !joinedFrom || joinedDate >= joinedFrom
+            const matchesJoinedTo = !joinedTo || joinedDate <= joinedTo
+
+            return matchesSearch && matchesGroup && matchesRole && matchesInterview && matchesJoinedFrom && matchesJoinedTo
+        })
+    }, [filterReferenceTime, joinedFrom, joinedTo, searchTerm, selectedGroupFilter, selectedInterviewFilter, selectedRoleFilter, users])
+
+    const filteredActivePackageCount = filteredUsers.reduce(
+        (count, user) => count + Number(user.interviewAccess?.active),
+        0,
+    )
+    const hasActiveFilters = Boolean(
+        searchTerm || selectedGroupFilter !== 'all' || selectedRoleFilter !== 'all' ||
+        selectedInterviewFilter !== 'all' || joinedFrom || joinedTo,
+    )
+
+    const resetFilters = () => {
+        setSearchTerm('')
+        setSelectedGroupFilter('all')
+        setSelectedRoleFilter('all')
+        setSelectedInterviewFilter('all')
+        setJoinedFrom('')
+        setJoinedTo('')
+    }
 
     const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
     const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
@@ -760,39 +808,106 @@ export default function AdminUsersPage() {
                 </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 bg-white p-3 rounded-lg border border-gray-200">
-                <div className="flex-1 flex items-center space-x-2 w-full">
-                    <Search className="w-5 h-5 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Tìm kiếm theo tên hoặc email..."
-                        className="flex-1 border-none focus:ring-0 outline-none text-sm"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+            <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+                    <div className="flex min-h-10 flex-1 items-center gap-2 rounded-lg border border-gray-200 px-3 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
+                        <Search className="size-4 shrink-0 text-gray-400" />
+                        <input
+                            type="search"
+                            placeholder="Tìm theo tên hoặc email..."
+                            aria-label="Tìm người dùng theo tên hoặc email"
+                            className="min-w-0 flex-1 border-none bg-transparent text-sm outline-none"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 xl:w-auto">
+                        <label className="sr-only" htmlFor="role-filter">Vai trò</label>
+                        <select
+                            id="role-filter"
+                            className="h-10 w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary focus:ring-primary xl:w-[150px]"
+                            value={selectedRoleFilter}
+                            onChange={(e) => setSelectedRoleFilter(e.target.value)}
+                        >
+                            <option value="all">Tất cả vai trò</option>
+                            <option value="learner">Học viên</option>
+                            {!isTeacher && <option value="supporter">Hỗ trợ viên</option>}
+                            {!isTeacher && <option value="teacher">Giáo viên</option>}
+                            {!isTeacher && <option value="admin">Quản trị viên</option>}
+                        </select>
+                        <label className="sr-only" htmlFor="group-filter">Nhóm hoặc lớp</label>
+                        <select
+                            id="group-filter"
+                            className="h-10 w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary focus:ring-primary xl:w-[180px]"
+                            value={selectedGroupFilter}
+                            onChange={(e) => setSelectedGroupFilter(e.target.value)}
+                        >
+                            <option value="all">Tất cả Nhóm/Lớp</option>
+                            {uniqueGroups.map((group) => (
+                                <option key={group} value={group}>{group}</option>
+                            ))}
+                        </select>
+                        <label className="sr-only" htmlFor="interview-package-filter">Gói Phỏng vấn Vòng 2</label>
+                        <select
+                            id="interview-package-filter"
+                            className="h-10 w-full rounded-lg border-violet-200 bg-violet-50 text-sm font-medium text-violet-800 shadow-sm focus:border-violet-400 focus:ring-violet-200 xl:w-[190px]"
+                            value={selectedInterviewFilter}
+                            onChange={(e) => setSelectedInterviewFilter(e.target.value as InterviewPackageFilter)}
+                        >
+                            <option value="all">Tất cả gói Vòng 2</option>
+                            <option value="active">Đang đăng ký</option>
+                            <option value="expiring">Sắp hết hạn (3 ngày)</option>
+                            <option value="expired">Đã hết hạn</option>
+                            <option value="none">Chưa kích hoạt</option>
+                        </select>
+                    </div>
                 </div>
-                <div className="w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-gray-200 pt-3 sm:pt-0 sm:pl-4 flex space-x-2">
-                    <select
-                        className="w-full sm:w-[150px] text-sm border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary"
-                        value={selectedRoleFilter}
-                        onChange={(e) => setSelectedRoleFilter(e.target.value)}
-                    >
-                        <option value="all">Tất cả vai trò</option>
-                        <option value="learner">Học viên</option>
-                        {!isTeacher && <option value="supporter">Hỗ trợ viên</option>}
-                        {!isTeacher && <option value="teacher">Giáo viên</option>}
-                        {!isTeacher && <option value="admin">Quản trị viên</option>}
-                    </select>
-                    <select
-                        className="w-full sm:w-[180px] text-sm border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary"
-                        value={selectedGroupFilter}
-                        onChange={(e) => setSelectedGroupFilter(e.target.value)}
-                    >
-                        <option value="all">Tất cả Nhóm/Lớp</option>
-                        {uniqueGroups.map((group, idx) => (
-                            <option key={idx} value={group}>{group}</option>
-                        ))}
-                    </select>
+
+                <div className="flex flex-col gap-3 border-t border-gray-100 pt-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                            <CalendarDays className="size-4 text-blue-600" /> Ngày tham gia
+                        </span>
+                        <label className="flex items-center gap-2 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-slate-500">
+                            Từ
+                            <input
+                                type="date"
+                                aria-label="Ngày tham gia từ"
+                                max={joinedTo || undefined}
+                                value={joinedFrom}
+                                onChange={(event) => setJoinedFrom(event.target.value)}
+                                className="border-0 bg-transparent p-0 text-sm font-medium text-slate-800 outline-none"
+                            />
+                        </label>
+                        <label className="flex items-center gap-2 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-slate-500">
+                            Đến
+                            <input
+                                type="date"
+                                aria-label="Ngày tham gia đến"
+                                min={joinedFrom || undefined}
+                                value={joinedTo}
+                                onChange={(event) => setJoinedTo(event.target.value)}
+                                className="border-0 bg-transparent p-0 text-sm font-medium text-slate-800 outline-none"
+                            />
+                        </label>
+                        {hasActiveFilters ? (
+                            <button
+                                type="button"
+                                onClick={resetFilters}
+                                className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                            >
+                                <RotateCcw className="size-3.5" /> Xóa lọc
+                            </button>
+                        ) : null}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="rounded-full bg-slate-100 px-3 py-1.5 font-medium text-slate-700">
+                            {filteredUsers.length} tài khoản phù hợp
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                            <ShieldCheck className="size-3.5" /> {filteredActivePackageCount} đang dùng gói
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -886,6 +1001,7 @@ export default function AdminUsersPage() {
                                                     <ShieldCheck className="size-3.5" /> Đang hoạt động
                                                 </span>
                                                 <p className="whitespace-nowrap text-[11px] text-slate-500">
+                                                    {user.interviewAccess.planName ? `${user.interviewAccess.planName} · ` : ''}
                                                     Đến {new Date(user.interviewAccess.expiresAt).toLocaleDateString('vi-VN')}
                                                 </p>
                                             </div>

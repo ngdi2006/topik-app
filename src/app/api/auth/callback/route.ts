@@ -27,11 +27,10 @@ export async function GET(request: Request) {
         const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
         if (!error) {
-            const role = data.user ? await getTrustedUserRole(data.user) : null
+            const role = data.user ? await getTrustedUserRole(data.user, supabase) : null
             const hasAdminAccess = isAdminRole(role)
             let destination = next
             if (next.startsWith('/admin') && !hasAdminAccess) destination = '/dashboard'
-            if (next === '/dashboard' && hasAdminAccess) destination = '/admin'
             const forwardedHost = request.headers.get('x-forwarded-host')
             const isLocalEnv = process.env.NODE_ENV === 'development'
             const siteUrl = process.env.NEXT_PUBLIC_SITE_URL

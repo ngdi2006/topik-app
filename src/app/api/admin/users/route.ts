@@ -169,6 +169,9 @@ export async function POST(request: Request) {
             email: email,
             password: password,
             email_confirm: true,
+            app_metadata: {
+                role: role || 'learner'
+            },
             user_metadata: {
                 full_name: name
             }

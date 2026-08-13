@@ -12,12 +12,11 @@ export async function GET(request: NextRequest) {
     }
 
     const requestedPath = sanitizeNextPath(request.nextUrl.searchParams.get('next'))
-    const role = await getTrustedUserRole(user)
+    const role = await getTrustedUserRole(user, supabase)
     const hasAdminAccess = isAdminRole(role)
 
     let destination = requestedPath
     if (requestedPath.startsWith('/admin') && !hasAdminAccess) destination = '/dashboard'
-    if (requestedPath === '/dashboard' && hasAdminAccess) destination = '/admin'
 
     return NextResponse.json({ destination, role })
 }

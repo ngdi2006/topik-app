@@ -1,9 +1,10 @@
 "use client"
 
 import { Suspense, useEffect, useMemo, useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { ArrowLeft, Eye, EyeOff, Loader2, LockKeyhole, Sparkles } from "lucide-react"
+import { ArrowLeft, Eye, EyeOff, Loader2, Sparkles } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { getVietnameseAuthError, sanitizeNextPath } from "@/lib/auth-flow"
 import { Button } from "@/components/ui/button"
@@ -89,8 +90,8 @@ function LoginForm() {
                     <Link aria-label="Về trang chủ" className="absolute left-4 top-4 rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600" href="/">
                         <ArrowLeft aria-hidden="true" className="size-5" />
                     </Link>
-                    <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200">
-                        <LockKeyhole aria-hidden="true" className="size-6" />
+                    <div className="relative mx-auto h-14 w-28 overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-slate-200">
+                        <Image alt="Korea Link" className="object-contain p-1" fill priority sizes="112px" src="/logomobile.png" />
                     </div>
                     <div>
                         <CardTitle className="text-2xl font-black tracking-tight">Chào mừng trở lại</CardTitle>

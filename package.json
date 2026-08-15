@@ -11,7 +11,8 @@
     "tts:setup": "node scripts/generate_tts_cache.mjs --setup",
     "tts:generate": "node scripts/generate_tts_cache.mjs",
     "tts:vocab-fixes": "node scripts/generate_vocabulary_pronunciation_fixes.mjs",
-    "tts:math": "node scripts/generate_math_tts_cache.mjs"
+    "tts:math": "node scripts/generate_math_tts_cache.mjs",
+    "tts:safety": "node scripts/generate_safety_tts_cache.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.43.0",

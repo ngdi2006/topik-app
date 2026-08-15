@@ -109,6 +109,13 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
 
     const currentQuestion = questions[currentIndex]
     const isToolQuestion = currentQuestion?.type === 'tool_practice'
+    const liveSpeechText = currentQuestion && recordingQuestionIdRef.current === currentQuestion.id
+        ? (transcript || interimTranscript).trim()
+        : ''
+    const currentSpeechText = currentQuestion
+        ? liveSpeechText || answers[currentQuestion.id]?.transcript || ''
+        : ''
+    const hasCurrentSpeechAnswer = Boolean(currentSpeechText.trim())
 
     // Fetch questions and generate mock exam
     useEffect(() => {
@@ -259,9 +266,9 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
                     })
                 })
 
-                // Section 5: Biển báo (2 questions, 3 pts each)
+                // Section 5: Biển báo (6 questions, 1 pt each)
                 const signVocab = rawVocab.filter((v: any) => v.type === 'SIGN')
-                const selectedSigns = shuffle(signVocab).slice(0, 2)
+                const selectedSigns = shuffle(signVocab).slice(0, 6)
                 selectedSigns.forEach((v: any, i: number) => {
                     const correctMeaning = v.word_kr
                     examList.push({
@@ -269,7 +276,7 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
                         type: 'speech',
                         section: '5',
                         sectionTitle: '픽토그램 biển báo (Hệ thống biển báo)',
-                        points: 3,
+                        points: 1,
                         question_text: '이 표지는 무슨 뜻입니까?',
                         vietnamese_meaning: 'Biển báo này có nghĩa là gì?',
                         image_url: v.image_url,
@@ -347,6 +354,14 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
 
     const startCurrentQuestionRecording = () => {
         if (!currentQuestion || currentQuestion.type !== 'speech') return
+        resetTranscript()
+        setAnswers(prev => ({
+            ...prev,
+            [currentQuestion.id]: {
+                ...prev[currentQuestion.id],
+                transcript: undefined,
+            },
+        }))
         recordingQuestionIdRef.current = currentQuestion.id
         startRecording()
     }
@@ -354,6 +369,11 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
     const stopCurrentQuestionRecording = () => {
         stopRecording()
         saveCurrentSpeechAnswer()
+    }
+
+    const toggleCurrentQuestionRecording = () => {
+        if (isRecording) stopCurrentQuestionRecording()
+        else startCurrentQuestionRecording()
     }
 
     // Auto play audio when question index changes
@@ -810,15 +830,16 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
                     {currentQuestion.type === 'speech' && (
                         <div className="space-y-3 pt-1 md:space-y-6 md:pt-2">
                             <div className="text-center">
-                                <p className="mb-1 text-xs font-bold text-slate-500 md:mb-2 md:text-sm">Giữ mic và trả lời bằng tiếng Hàn</p>
+                                <p className="mb-1 text-xs font-bold text-slate-500 md:mb-2 md:text-sm">
+                                    {hasCurrentSpeechAnswer && !isRecording ? 'Câu trả lời đã được ghi nhận' : 'Chạm mic để bắt đầu trả lời bằng tiếng Hàn'}
+                                </p>
                                 <div className="flex justify-center py-2 md:py-4">
                                     <button
-                                        onMouseDown={startCurrentQuestionRecording}
-                                        onMouseUp={stopCurrentQuestionRecording}
-                                        onMouseLeave={isRecording ? stopCurrentQuestionRecording : undefined}
-                                        onTouchStart={startCurrentQuestionRecording}
-                                        onTouchEnd={stopCurrentQuestionRecording}
-                                        className={`flex size-16 items-center justify-center rounded-full shadow-lg transition-transform md:size-20 ${
+                                        type="button"
+                                        onClick={toggleCurrentQuestionRecording}
+                                        aria-pressed={isRecording}
+                                        aria-label={isRecording ? 'Dừng ghi câu trả lời' : hasCurrentSpeechAnswer ? 'Ghi lại câu trả lời' : 'Bắt đầu ghi câu trả lời'}
+                                        className={`flex size-16 touch-manipulation items-center justify-center rounded-full shadow-lg transition-[background-color,transform,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-4 md:size-20 ${
                                             isRecording
                                                 ? 'bg-red-500 text-white animate-pulse scale-105 ring-4 ring-red-100'
                                                 : 'bg-indigo-600 hover:bg-indigo-700 text-white hover:scale-102 shadow-indigo-200'
@@ -830,19 +851,29 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
                                 <span className={`inline-block rounded-full px-3 py-1 text-[10px] font-black md:px-4 md:py-1.5 md:text-xs ${
                                     isRecording ? 'bg-red-50 text-red-600 border border-red-100 animate-pulse' : 'bg-slate-50 text-slate-500 border border-slate-200/60'
                                 }`}>
-                                    {isRecording ? '🔴 Đang thu âm' : '🎤 Giữ để nói'}
+                                    {isRecording ? 'Đang nghe · Chạm để dừng' : hasCurrentSpeechAnswer ? 'Đã ghi nhận' : 'Chạm để nói'}
                                 </span>
                             </div>
 
                             <div className="relative flex min-h-16 flex-col justify-center overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50 p-3 shadow-inner md:min-h-20 md:rounded-2xl md:p-5">
                                 <div className="absolute top-0 left-0 w-[3px] h-full bg-slate-300" />
-                                <span className="mb-1 block text-[9px] font-black uppercase tracking-wider text-slate-400 md:text-[10px] md:tracking-widest">Nội dung đã nhận diện</span>
-                                <p className="text-sm font-extrabold italic leading-relaxed text-slate-800 md:text-base">
-                                    {(
-                                        recordingQuestionIdRef.current === currentQuestion.id
-                                            ? transcript || interimTranscript
-                                            : ''
-                                    ) || answers[currentQuestion.id]?.transcript || 'Chưa có câu trả lời'}
+                                <div className="mb-1.5 flex min-w-0 items-center justify-between gap-2">
+                                    {hasCurrentSpeechAnswer && !isRecording ? (
+                                        <span className="flex min-w-0 items-center gap-1.5 text-[10px] font-black text-emerald-700 md:text-xs">
+                                            <CheckCircle aria-hidden="true" className="size-3.5 shrink-0" />
+                                            <span className="truncate">Đã lưu câu trả lời này</span>
+                                        </span>
+                                    ) : (
+                                        <span className="block text-[9px] font-black uppercase tracking-wider text-slate-400 md:text-[10px] md:tracking-widest">Nội dung đã nhận diện</span>
+                                    )}
+                                    {hasCurrentSpeechAnswer && !isRecording ? (
+                                        <Button type="button" variant="outline" onClick={startCurrentQuestionRecording} className="h-7 shrink-0 rounded-lg border-emerald-300 bg-white px-2 text-[10px] font-black text-emerald-800 hover:bg-emerald-100 md:h-8 md:px-2.5 md:text-[11px]">
+                                            <RefreshCw aria-hidden="true" className="size-3" /> Nói lại
+                                        </Button>
+                                    ) : null}
+                                </div>
+                                <p className="text-sm font-extrabold italic leading-relaxed text-slate-800 md:text-base" aria-live="polite">
+                                    {currentSpeechText || 'Chưa có câu trả lời'}
                                 </p>
                             </div>
                         </div>

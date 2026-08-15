@@ -1,12 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { ArrowLeft, CheckCircle2, GripVertical, PackageOpen, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { WorkshopAssetIcon } from '@/features/workshop/components'
 import { getWorkshopAsset, resolveWorkshopAssetId } from '@/features/workshop/assetRegistry'
 import { legacyToolConfigToWorkshopGame } from '@/features/workshop/legacyAdapter'
 import { resolveToolQuestionConfig, TOOL_DEFINITIONS } from './toolQuestionAnalysis'
+import { WorkshopToolIcon } from './WorkshopToolIcon'
 
 type ToolQuestion = {
     id: string
@@ -32,6 +32,15 @@ const TOOL_NAMES: Record<string, string> = {
 
 const DEFAULT_TOOLS = ['wrench', 'pliers', 'hammer', 'phillips_screwdriver', 'flat_screwdriver', 'hex_key', 'drill', 'tape_measure']
 
+function shuffleChoices<T>(items: T[]): T[] {
+    const shuffled = [...items]
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+        const randomIndex = Math.floor(Math.random() * (index + 1))
+        ;[shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]]
+    }
+    return shuffled
+}
+
 function parseConfig(value: unknown): Record<string, unknown> {
     if (value && typeof value === 'object') return value as Record<string, unknown>
     if (typeof value === 'string') {
@@ -42,6 +51,10 @@ function parseConfig(value: unknown): Record<string, unknown> {
 
 function labelFor(tool: string) {
     return getWorkshopAsset(tool)?.nameVi || TOOL_NAMES[tool] || tool.replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function iconIdFor(tool: string) {
+    return getWorkshopAsset(tool)?.fallbackIconId || tool
 }
 
 export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps) {
@@ -58,17 +71,26 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
             ...(gameConfig.distractorIds || []),
             ...(Array.isArray(config.tools_on_desk) ? config.tools_on_desk.map(String) : []),
         ].map(resolveWorkshopAssetId)
-        const choices = Array.from(new Set([correct, ...configured, ...DEFAULT_TOOLS]))
-            .filter(Boolean)
-            .slice(0, 5)
+        const distractors = Array.from(new Set([...configured, ...DEFAULT_TOOLS]))
+            .filter((tool) => Boolean(tool) && tool !== correct)
+            .slice(0, 4)
+        const choices = shuffleChoices([correct, ...distractors])
         return { question, correct, choices }
     }).filter((round) => round.correct && round.choices.length > 1).slice(0, 10), [questions])
 
     const [index, setIndex] = useState(0)
     const [selected, setSelected] = useState<string | null>(null)
+    const [isDraggingOver, setIsDraggingOver] = useState(false)
+    const [draggingTool, setDraggingTool] = useState<string | null>(null)
+    const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 })
     const [result, setResult] = useState<'correct' | 'wrong' | null>(null)
     const [answers, setAnswers] = useState<Record<string, string>>({})
     const [mastered, setMastered] = useState<string[]>([])
+    const dropZoneRef = useRef<HTMLElement>(null)
+    const dropBoundsRef = useRef<DOMRect | null>(null)
+    const activeDragRef = useRef<string | null>(null)
+    const dragStartRef = useRef({ x: 0, y: 0 })
+    const dragMovedRef = useRef(false)
     const round = rounds[index]
 
     if (!round) {
@@ -89,6 +111,49 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
         if (isCorrect) setMastered((current) => [...current, round.question.id])
     }
 
+    const isInsideDropZone = (x: number, y: number) => {
+        const bounds = dropBoundsRef.current
+        return Boolean(bounds && x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom)
+    }
+
+    const startPointerDrag = (event: ReactPointerEvent<HTMLButtonElement>, tool: string) => {
+        if (result) return
+        event.preventDefault()
+        event.currentTarget.setPointerCapture(event.pointerId)
+        activeDragRef.current = tool
+        dragStartRef.current = { x: event.clientX, y: event.clientY }
+        dragMovedRef.current = false
+        dropBoundsRef.current = dropZoneRef.current?.getBoundingClientRect() || null
+        setSelected(tool)
+        setDraggingTool(tool)
+        setDragPosition({ x: event.clientX, y: event.clientY })
+    }
+
+    const movePointerDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+        if (!activeDragRef.current) return
+        event.preventDefault()
+        const distance = Math.hypot(event.clientX - dragStartRef.current.x, event.clientY - dragStartRef.current.y)
+        if (distance > 5) dragMovedRef.current = true
+        setDragPosition({ x: event.clientX, y: event.clientY })
+        setIsDraggingOver(isInsideDropZone(event.clientX, event.clientY))
+    }
+
+    const finishPointerDrag = (event: ReactPointerEvent<HTMLButtonElement>, cancelled = false) => {
+        const tool = activeDragRef.current
+        if (!tool) return
+        event.preventDefault()
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId)
+        }
+        const droppedOnTable = !cancelled && dragMovedRef.current && isInsideDropZone(event.clientX, event.clientY)
+        activeDragRef.current = null
+        dropBoundsRef.current = null
+        dragMovedRef.current = false
+        setDraggingTool(null)
+        setIsDraggingOver(false)
+        if (droppedOnTable) submit(tool)
+    }
+
     const next = () => {
         if (index === rounds.length - 1) {
             onFinish(answers, mastered)
@@ -96,6 +161,8 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
         }
         setIndex((current) => current + 1)
         setSelected(null)
+        setIsDraggingOver(false)
+        setDraggingTool(null)
         setResult(null)
     }
 
@@ -118,14 +185,13 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
                 <section className="rounded-2xl bg-slate-900 p-4 text-white md:p-5">
                     <p className="text-[10px] font-black uppercase tracking-widest text-orange-300">Yêu cầu thao tác</p>
                     <p className="mt-2 text-base font-bold leading-relaxed md:text-lg">{round.question.question_text}</p>
-                    {round.question.vietnamese_meaning && <p className="mt-1 text-sm text-slate-300">{round.question.vietnamese_meaning}</p>}
                 </section>
 
                 <section
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={(event) => submit(event.dataTransfer.getData('text/tool'))}
+                    ref={dropZoneRef}
                     onClick={() => selected && !result && submit(selected)}
-                    className={`grid min-h-28 place-items-center rounded-2xl border-2 border-dashed p-4 text-center transition ${result === 'correct' ? 'border-emerald-400 bg-emerald-50' : result === 'wrong' ? 'border-rose-300 bg-rose-50' : 'border-orange-300 bg-orange-50/60'}`}
+                    aria-label={selected ? `Đưa ${labelFor(selected)} vào bàn làm việc` : 'Bàn làm việc, hãy thả dụng cụ vào đây'}
+                    className={`grid min-h-28 place-items-center rounded-2xl border-2 border-dashed p-4 text-center transition-[border-color,background-color,transform,box-shadow] ${result === 'correct' ? 'border-emerald-400 bg-emerald-50' : result === 'wrong' ? 'border-rose-300 bg-rose-50' : isDraggingOver ? 'scale-[1.01] border-orange-500 bg-orange-100 shadow-md motion-reduce:transform-none' : selected ? 'cursor-pointer border-orange-400 bg-orange-50' : 'border-orange-300 bg-orange-50/60'}`}
                 >
                     {result ? <div>
                         {result === 'correct' ? <CheckCircle2 className="mx-auto size-8 text-emerald-500" /> : <RotateCcw className="mx-auto size-8 text-rose-500" />}
@@ -133,26 +199,40 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
                     </div> : <div>
                         <PackageOpen className="mx-auto size-8 text-orange-500" />
                         <p className="mt-2 text-sm font-bold text-slate-800">Thả dụng cụ vào bàn làm việc</p>
-                        <p className="text-xs text-slate-500">Điện thoại: chạm vào dụng cụ để chọn</p>
+                        <p className="text-xs text-slate-500">Điện thoại: chọn dụng cụ, sau đó chạm vào bàn</p>
                     </div>}
                 </section>
 
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {round.choices.map((tool) => <button
                         key={tool}
-                        draggable={!result}
-                        onDragStart={(event) => event.dataTransfer.setData('text/tool', tool)}
-                        onClick={() => submit(tool)}
+                        type="button"
+                        onPointerDown={(event) => startPointerDrag(event, tool)}
+                        onPointerMove={movePointerDrag}
+                        onPointerUp={(event) => finishPointerDrag(event)}
+                        onPointerCancel={(event) => finishPointerDrag(event, true)}
+                        onClick={() => setSelected(tool)}
                         disabled={Boolean(result)}
-                        className={`flex min-h-20 items-center gap-2 rounded-2xl border-2 p-3 text-left transition hover:-translate-y-0.5 hover:border-orange-400 ${selected === tool ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white'} disabled:hover:translate-y-0`}
+                        aria-pressed={selected === tool}
+                        className={`flex min-h-20 touch-none select-none items-center gap-2 rounded-2xl border-2 p-3 text-left transition-[border-color,background-color,transform,box-shadow,opacity] hover:-translate-y-0.5 hover:border-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 motion-reduce:transform-none ${selected === tool ? 'border-orange-500 bg-orange-50 shadow-sm' : 'border-slate-200 bg-white'} ${draggingTool === tool ? 'opacity-40' : ''} disabled:hover:translate-y-0`}
                     >
-                        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600"><WorkshopAssetIcon assetId={tool} size={36} /></span>
+                        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600"><WorkshopToolIcon type={iconIdFor(tool)} className="size-9" /></span>
                         <span className="min-w-0 flex-1 text-xs font-bold text-slate-800 md:text-sm">{labelFor(tool)}</span>
                         <GripVertical className="size-4 shrink-0 text-slate-300" />
                     </button>)}
                 </div>
 
-                {result && <Button onClick={next} className="h-11 w-full rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 font-bold">
+                {draggingTool ? (
+                    <div
+                        aria-hidden="true"
+                        className="pointer-events-none fixed z-[100] grid size-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-2xl border-2 border-orange-400 bg-white shadow-2xl will-change-transform"
+                        style={{ left: dragPosition.x, top: dragPosition.y }}
+                    >
+                        <WorkshopToolIcon type={iconIdFor(draggingTool)} className="size-12" />
+                    </div>
+                ) : null}
+
+                {result && <Button onClick={next} className="h-11 w-full rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 font-bold" aria-live="polite">
                     {index === rounds.length - 1 ? 'Hoàn thành' : 'Câu tiếp theo'}
                 </Button>}
             </main>

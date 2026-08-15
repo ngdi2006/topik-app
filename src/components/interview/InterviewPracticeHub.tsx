@@ -15,10 +15,12 @@ import { MathPracticeScreen } from '@/components/interview/MathPracticeScreen'
 import { MockExamScreen } from '@/components/interview/MockExamScreen'
 import { SelfIntroductionPractice } from '@/components/interview/SelfIntroductionPractice'
 import { InterviewFreePreviewBanner } from '@/components/interview/InterviewFreePreviewBanner'
+import { CommandListMode } from '@/components/interview/CommandListMode'
+import { MicrophoneCheck } from '@/components/interview/MicrophoneCheck'
 import { saveSelfIntroductionCompletion } from '@/features/second-round-interview/storage'
 import PodcastMode from '@/components/vocabulary-vong2/PodcastMode'
 import { toast } from 'sonner'
-import { Headphones, Bot, ArrowLeft, Wrench, Mic, CheckCircle, Calculator, MessageSquare, Presentation, Factory, Fish, Trees, Tractor, Home, Coffee, Layers, RefreshCw, Play, MousePointer2, Zap, ShieldAlert, BookOpen, Award, ChevronRight, FileText, UserRound } from 'lucide-react'
+import { Headphones, Bot, ArrowLeft, Wrench, Mic, CheckCircle, Calculator, MessageSquare, Presentation, Factory, Fish, Trees, Tractor, Home, Coffee, Layers, RefreshCw, Play, MousePointer2, Zap, ShieldAlert, BookOpen, Award, ChevronRight, FileText, UserRound, ListChecks } from 'lucide-react'
 
 const INDUSTRIES = [
     { 
@@ -89,7 +91,7 @@ const MOCK_EXAM_SECTIONS = [
     { label: '2. Nhận diện dụng cụ', detail: '5 câu', points: 5 },
     { label: '3. Thực hành thao tác', detail: '5 câu · giả lập 3 bước', points: 15 },
     { label: '4. Năng lực nghề nghiệp', detail: '2 câu · toán & tình huống', points: 6 },
-    { label: '5. Hệ thống biển báo', detail: '2 câu', points: 6 },
+    { label: '5. Hệ thống biển báo', detail: '6 câu', points: 6 },
     { label: '6. An toàn chuyên sâu', detail: '2 câu', points: 10 },
 ] as const
 
@@ -321,7 +323,7 @@ export function InterviewPracticeHub({
 }) {
     const router = useRouter()
     const hasOpenedInitialTopic = useRef(false)
-    const [step, setStep] = useState<'industry' | 'topic' | 'loading_topic' | 'self_introduction' | 'select_mode' | 'communication_topic' | 'situation_topic' | 'safety_topic' | 'podcast' | 'math_topic' | 'math_practice' | 'flashcard_options' | 'command_dashboard' | 'speed_quiz' | 'tool_drop_game' | 'scenario_simulation' | 'practice' | 'evaluating' | 'finished' | 'vocabulary_practice' | 'mock_intro' | 'mock_exam'>(
+    const [step, setStep] = useState<'industry' | 'topic' | 'loading_topic' | 'self_introduction' | 'select_mode' | 'communication_topic' | 'situation_topic' | 'safety_topic' | 'podcast' | 'list_mode' | 'math_topic' | 'math_practice' | 'flashcard_options' | 'command_dashboard' | 'speed_quiz' | 'tool_drop_game' | 'scenario_simulation' | 'practice' | 'evaluating' | 'finished' | 'vocabulary_practice' | 'mock_intro' | 'mock_exam'>(
         initialIndustry
             ? (initialMode === 'mock' ? 'mock_intro' : initialTopicId ? 'loading_topic' : 'topic')
             : 'industry'
@@ -347,6 +349,9 @@ export function InterviewPracticeHub({
     const [evaluationResults, setEvaluationResults] = useState<any[]>([])
     const [sessionStats, setSessionStats] = useState({ mastered: 0, total: 0 })
     const [sessionMasteredIds, setSessionMasteredIds] = useState<string[]>([])
+    const [sessionQuestions, setSessionQuestions] = useState<any[]>([])
+    const [completedPracticeStep, setCompletedPracticeStep] = useState<'practice' | 'math_practice' | 'speed_quiz' | 'tool_drop_game'>('practice')
+    const [isMockMicReady, setIsMockMicReady] = useState(false)
 
     // Dùng một pool duy nhất cho nhóm đang chọn để số câu ở màn danh sách
     // luôn khớp với lật thẻ, trắc nghiệm, siêu tốc và nghe thụ động.
@@ -559,12 +564,18 @@ export function InterviewPracticeHub({
         startPractice(selectedTopicObj, 'flashcard', getSelectedGroupQuestions())
     }
 
-    const handleFinishPractice = async (submittedAnswers?: Record<string, string>, newlyMasteredIds: string[] = []) => {
+    const handleFinishPractice = async (
+        submittedAnswers?: Record<string, string>,
+        newlyMasteredIds: string[] = [],
+        practicedQuestions = questions,
+        practiceStep: 'practice' | 'math_practice' | 'speed_quiz' | 'tool_drop_game' = 'practice',
+        answerDetails: Record<string, { userAnswer?: string | null; correctAnswer?: string | null }> = {}
+    ) => {
         // Lưu thống kê vào localStorage (simple mastery list)
         if (selectedTopicObj) {
             const masteryData = JSON.parse(localStorage.getItem('interview_mastery_v1') || '{}')
             const prevMastered = new Set<string>(masteryData[selectedTopicObj.id] || [])
-            for (const q of questions) {
+            for (const q of practicedQuestions) {
                 if (newlyMasteredIds.includes(q.id)) {
                     prevMastered.add(q.id)
                 } else {
@@ -578,14 +589,31 @@ export function InterviewPracticeHub({
             const detailKey = `interview_mastery_detail_${selectedTopicObj.id}`
             const detailData: Record<string, any> = JSON.parse(localStorage.getItem(detailKey) || '{}')
             const now = Date.now()
-            for (const q of questions) {
+            for (const q of practicedQuestions) {
                 if (!detailData[q.id]) detailData[q.id] = { id: q.id, lastSeen: now, correctCount: 0, incorrectCount: 0 }
                 else detailData[q.id].lastSeen = now
-                if (newlyMasteredIds.includes(q.id)) {
+                const isCorrect = newlyMasteredIds.includes(q.id)
+                if (isCorrect) {
                     detailData[q.id].correctCount = (detailData[q.id].correctCount || 0) + 1
+                    detailData[q.id].consecutiveCorrect = (detailData[q.id].consecutiveCorrect || 0) + 1
+                    detailData[q.id].consecutiveIncorrect = 0
                 } else {
                     detailData[q.id].incorrectCount = (detailData[q.id].incorrectCount || 0) + 1
+                    detailData[q.id].consecutiveCorrect = 0
+                    detailData[q.id].consecutiveIncorrect = (detailData[q.id].consecutiveIncorrect || 0) + 1
                 }
+                detailData[q.id].lastResult = isCorrect ? 'correct' : 'incorrect'
+                detailData[q.id].lastMode = practiceStep
+                detailData[q.id].lastUserAnswer = answerDetails[q.id]?.userAnswer ?? submittedAnswers?.[q.id] ?? detailData[q.id].lastUserAnswer ?? null
+                detailData[q.id].correctAnswer = answerDetails[q.id]?.correctAnswer ?? (q.vietnamese_meaning
+                    || q.correct_answer
+                    || q.answer
+                    || q.suggested_answers?.find((answer: string) => !answer.startsWith('__topic__:'))
+                    || null)
+                detailData[q.id].nextReviewAt = isCorrect && detailData[q.id].consecutiveCorrect >= 2
+                    ? now + 24 * 60 * 60 * 1000
+                    : now
+                detailData[q.id].resolvedAt = isCorrect && detailData[q.id].consecutiveCorrect >= 2 ? now : null
             }
             localStorage.setItem(detailKey, JSON.stringify(detailData))
 
@@ -595,21 +623,23 @@ export function InterviewPracticeHub({
             const todayStr = new Date().toDateString()
             const yesterdayStr = new Date(Date.now() - 86400000).toDateString()
             if (streakData.lastDate === todayStr) {
-                streakData.todayCount = (streakData.todayCount || 0) + questions.length
+                streakData.todayCount = (streakData.todayCount || 0) + practicedQuestions.length
             } else if (streakData.lastDate === yesterdayStr) {
                 streakData.streak = (streakData.streak || 0) + 1
-                streakData.todayCount = questions.length
+                streakData.todayCount = practicedQuestions.length
                 streakData.lastDate = todayStr
             } else {
                 streakData.streak = 1
-                streakData.todayCount = questions.length
+                streakData.todayCount = practicedQuestions.length
                 streakData.lastDate = todayStr
             }
             localStorage.setItem('interview_streak_v1', JSON.stringify(streakData))
         }
 
-        setSessionStats({ mastered: newlyMasteredIds.length, total: questions.length })
+        setSessionStats({ mastered: newlyMasteredIds.length, total: practicedQuestions.length })
         setSessionMasteredIds(newlyMasteredIds)
+        setSessionQuestions(practicedQuestions)
+        setCompletedPracticeStep(practiceStep)
 
         if (selectedTopicObj?.mode !== 'ai_mock' || !submittedAnswers || Object.keys(submittedAnswers).length === 0) {
             setStep('finished')
@@ -670,15 +700,14 @@ export function InterviewPracticeHub({
         return true
     }
 
-    const handleReturnToTopicList = () => {
+    const handleReturnToModeSelection = () => {
         setSessionStats({ mastered: 0, total: 0 })
         setSessionMasteredIds([])
+        setSessionQuestions([])
         setEvaluationResults([])
         setAnswers({})
-
-        if (!returnToOuterDashboard()) {
-            setStep('topic')
-        }
+        if (allQuestions.length > 0) setQuestions(allQuestions)
+        setStep('select_mode')
     }
 
     const handleExitActivePractice = () => {
@@ -1030,11 +1059,11 @@ export function InterviewPracticeHub({
 
     if (step === 'math_topic') {
         const MATH_TOPICS = [
-            { id: 'arithmetic', label: 'Phép tính cơ bản', emoji: '➕', desc: 'Cộng · Trừ · Nhân · Chia', color: 'from-rose-500 to-red-600', bg: 'from-rose-50 to-red-50', border: 'border-rose-200 hover:border-rose-400' },
-            { id: 'length', label: 'Đơn vị Độ dài', emoji: '📏', desc: 'km ↔ m ↔ cm ↔ mm', color: 'from-blue-500 to-cyan-600', bg: 'from-blue-50 to-cyan-50', border: 'border-blue-200 hover:border-blue-400' },
-            { id: 'weight', label: 'Đơn vị Khối lượng', emoji: '⚖️', desc: 'tấn ↔ kg ↔ g', color: 'from-emerald-500 to-teal-600', bg: 'from-emerald-50 to-teal-50', border: 'border-emerald-200 hover:border-emerald-400' },
-            { id: 'time', label: 'Thời gian & Nhiệt độ', emoji: '🕐', desc: 'giờ · phút · độ C', color: 'from-violet-500 to-purple-600', bg: 'from-violet-50 to-purple-50', border: 'border-violet-200 hover:border-violet-400' },
-            { id: 'all', label: 'Ôn tập tổng hợp & Thi thử với AI', emoji: '🎯', desc: 'Trộn tất cả 4 chủ đề', color: 'from-slate-500 to-slate-700', bg: 'from-slate-50 to-slate-100', border: 'border-slate-200 hover:border-slate-400' },
+            { id: 'arithmetic', label: 'Phép tính cơ bản', emoji: '➕', desc: 'Cộng · Trừ · Nhân · Chia' },
+            { id: 'length', label: 'Đơn vị Độ dài', emoji: '📏', desc: 'km ↔ m ↔ cm ↔ mm' },
+            { id: 'weight', label: 'Đơn vị Khối lượng', emoji: '⚖️', desc: 'tấn ↔ kg ↔ g' },
+            { id: 'time', label: 'Thời gian & Nhiệt độ', emoji: '🕐', desc: 'giờ · phút · độ C' },
+            { id: 'all', label: 'Ôn tập tổng hợp & Thi thử với AI', emoji: '🎯', desc: 'Trộn tất cả 4 chủ đề' },
         ]
 
         const MATH_MODES = [
@@ -1043,21 +1072,18 @@ export function InterviewPracticeHub({
                 label: 'Nghe & Nhớ',
                 emoji: '🎧',
                 desc: 'Nghe câu hỏi · Tính nhẩm · Lật thẻ xem đáp án',
-                color: 'bg-rose-600 hover:bg-rose-700 shadow-rose-200',
             },
             {
                 id: 'number_quiz' as const,
                 label: 'Chọn số',
                 emoji: '🔢',
                 desc: 'Nghe và chọn 1 trong 4 đáp án',
-                color: 'bg-blue-600 hover:bg-blue-700 shadow-blue-200',
             },
             ...(selectedMathTopic === 'all' ? [{
                 id: 'speak_answer' as const,
                 label: 'Nói đáp án với AI',
                 emoji: 'AI',
                 desc: 'Tính nhẩm · Trả lời bằng tiếng Hàn',
-                color: 'bg-violet-600 hover:bg-violet-700 shadow-violet-200',
             }] : [])
         ]
 
@@ -1076,7 +1102,7 @@ export function InterviewPracticeHub({
                         <button aria-label="Quay lại" onClick={handleGoBack} className="absolute left-0 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:text-slate-800 md:static md:mb-6 md:h-auto md:w-auto md:translate-y-0 md:justify-start md:gap-2 md:border-0 md:bg-transparent md:shadow-none">
                             <ArrowLeft className="size-4.5 md:size-5" /><span className="hidden md:inline">Quay lại</span>
                         </button>
-                        <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-black text-indigo-700 md:gap-2 md:px-4 md:py-2 md:text-sm">
+                        <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1.5 text-xs font-black text-blue-700 md:gap-2 md:px-4 md:py-2 md:text-sm">
                             <Calculator className="size-3.5 md:size-4" /> Toán & Tính toán
                         </div>
                     </div>
@@ -1090,7 +1116,7 @@ export function InterviewPracticeHub({
                     {/* Topic selector */}
                     <div>
                         <h2 className="mb-2.5 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-700 md:mb-4 md:text-sm md:tracking-widest">
-                            <span className="flex size-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-black text-white md:size-6 md:text-xs">1</span>
+                            <span className="flex size-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black text-white md:size-6 md:text-xs">1</span>
                             Chọn chủ đề <span className="ml-auto rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold normal-case tracking-normal text-slate-500">{filteredQs.length} câu</span>
                         </h2>
                         <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-3">
@@ -1103,9 +1129,10 @@ export function InterviewPracticeHub({
                                             setMathMode('listen_card')
                                         }
                                     }}
-                                    className={`flex min-h-[72px] items-center gap-2.5 rounded-2xl border-2 bg-gradient-to-br p-3 text-left transition-all duration-200 hover:-translate-y-1 hover:shadow-lg md:block md:min-h-0 md:p-4 ${t.id === 'all' ? 'col-span-2 md:col-span-1' : ''} ${t.bg} ${t.border} ${selectedMathTopic === t.id ? 'ring-2 ring-indigo-500 ring-offset-1 shadow-md md:ring-offset-2 md:scale-[1.02]' : ''}`}
+                                    aria-pressed={selectedMathTopic === t.id}
+                                    className={`flex min-h-[72px] items-center gap-2.5 rounded-2xl border p-3 text-left shadow-sm transition-[border-color,background-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 motion-reduce:transform-none md:block md:min-h-0 md:p-4 ${t.id === 'all' ? 'col-span-2 md:col-span-1' : ''} ${selectedMathTopic === t.id ? 'border-blue-600 bg-blue-50 shadow-blue-100' : 'border-slate-200 bg-white'}`}
                                 >
-                                    <div className="shrink-0 text-xl md:mb-2 md:text-2xl">{t.emoji}</div>
+                                    <div className={`flex size-9 shrink-0 items-center justify-center rounded-xl text-lg md:mb-2 md:size-10 md:text-xl ${selectedMathTopic === t.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>{t.emoji}</div>
                                     <div className="min-w-0"><div className="text-xs font-black leading-snug text-slate-800 md:mb-0.5 md:text-sm">{t.label}</div>
                                     <div className="mt-0.5 truncate text-[10px] text-slate-500 md:text-xs">{t.desc}</div></div>
                                 </button>
@@ -1116,7 +1143,7 @@ export function InterviewPracticeHub({
                     {/* Mode selector */}
                     <div>
                         <h2 className="mb-2.5 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-700 md:mb-4 md:text-sm md:tracking-widest">
-                            <span className="flex size-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-black text-white md:size-6 md:text-xs">2</span>
+                            <span className="flex size-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black text-white md:size-6 md:text-xs">2</span>
                             Chọn chế độ học
                         </h2>
                         <div className="space-y-2.5 md:space-y-3">
@@ -1124,13 +1151,14 @@ export function InterviewPracticeHub({
                                 <button
                                     key={m.id}
                                     onClick={() => setMathMode(m.id)}
-                                    className={`w-full rounded-2xl border-2 p-3 text-left transition-all duration-200 hover:shadow-md md:p-4 ${mathMode === m.id ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-400 ring-offset-1' : 'border-slate-200 bg-white hover:border-indigo-300'}`}
+                                    aria-pressed={mathMode === m.id}
+                                    className={`w-full rounded-2xl border p-3 text-left shadow-sm transition-[border-color,background-color,box-shadow] duration-200 hover:border-blue-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 md:p-4 ${mathMode === m.id ? 'border-blue-600 bg-blue-50' : 'border-slate-200 bg-white'}`}
                                 >
                                     <div className="flex items-center gap-3 md:gap-4">
                                         {m.id === 'speak_answer' ? (
-                                            <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-500 shadow-lg shadow-purple-200">
-                                                <Bot className="h-7 w-7 text-white" strokeWidth={2.4} />
-                                                <span className="absolute -right-2 -top-2 rounded-full border-2 border-white bg-amber-400 px-1.5 py-0.5 text-[9px] font-black leading-none text-slate-900 shadow-sm">
+                                            <div className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${mathMode === m.id ? 'bg-blue-600' : 'bg-slate-100'}`}>
+                                                <Bot className={`h-7 w-7 ${mathMode === m.id ? 'text-white' : 'text-slate-500'}`} strokeWidth={2.4} />
+                                                <span className="absolute -right-2 -top-2 rounded-full border-2 border-white bg-blue-100 px-1.5 py-0.5 text-[9px] font-black leading-none text-blue-700 shadow-sm">
                                                     AI
                                                 </span>
                                             </div>
@@ -1141,7 +1169,7 @@ export function InterviewPracticeHub({
                                             <div className="flex min-w-0 flex-wrap items-center gap-1.5 md:gap-2">
                                                 <div className="min-w-0 text-sm font-black leading-tight text-slate-800 md:text-base">{m.label}</div>
                                                 {m.id === 'speak_answer' ? (
-                                                    <span className="shrink-0 rounded-full bg-gradient-to-r from-violet-100 to-fuchsia-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-violet-700 md:px-2 md:text-[10px]">
+                                                    <span className="shrink-0 rounded-full bg-blue-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-blue-700 md:px-2 md:text-[10px]">
                                                         AI
                                                     </span>
                                                 ) : null}
@@ -1149,7 +1177,7 @@ export function InterviewPracticeHub({
                                             <div className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-slate-500 md:text-sm">{m.desc}</div>
                                         </div>
                                         {mathMode === m.id && (
-                                            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-600">
+                                            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600">
                                                 <CheckCircle className="w-4 h-4 text-white" />
                                             </div>
                                         )}
@@ -1180,9 +1208,10 @@ export function InterviewPracticeHub({
                             setQuestions(finalQs)
                             setStep('math_practice')
                         }}
-                        className="h-12 w-full rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-base font-black text-white shadow-lg shadow-indigo-200 transition-all hover:-translate-y-1 hover:from-indigo-700 hover:to-purple-700 md:h-16 md:rounded-2xl md:text-lg md:shadow-xl"
+                        className="h-12 w-full rounded-xl bg-blue-600 text-base font-black text-white shadow-md shadow-blue-200 transition-[background-color,box-shadow,transform] hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 motion-reduce:transform-none md:h-16 md:rounded-2xl md:text-lg"
                     >
-                        🚀 Bắt đầu luyện tập
+                        <Play aria-hidden="true" className="mr-2 size-4 fill-current md:size-5" />
+                        Bắt đầu luyện tập
                     </Button>
                 </div>
             </div>
@@ -1194,7 +1223,7 @@ export function InterviewPracticeHub({
             <MathPracticeScreen
                 questions={questions}
                 mathMode={mathMode}
-                onFinish={(masteredIds) => handleFinishPractice(undefined, masteredIds)}
+                onFinish={(masteredIds) => handleFinishPractice(undefined, masteredIds, questions, 'math_practice')}
                 onBack={() => void loadQuestionsForDashboard(selectedTopicObj)}
             />
         )
@@ -1211,9 +1240,29 @@ export function InterviewPracticeHub({
                 maxQuestions={isAllGroups ? 20 : 10}
                 timeLimitSeconds={selectedTopicObj?.id === 'tools' ? 10 : 8}
                 onFinish={(results, masteredIds) => {
-                    handleFinishPractice(undefined, masteredIds)
+                    handleFinishPractice(
+                        undefined,
+                        masteredIds,
+                        results.map(result => result.q),
+                        'speed_quiz',
+                        Object.fromEntries(results.map(result => [result.q.id, {
+                            userAnswer: result.userAnswer,
+                            correctAnswer: result.correct,
+                        }]))
+                    )
                 }}
                 onBack={handleExitActivePractice}
+            />
+        )
+    }
+
+    if (step === 'list_mode') {
+        return (
+            <CommandListMode
+                questions={getSelectedGroupQuestions()}
+                topicId={selectedTopicObj?.id || 'command'}
+                topicName={selectedTopicObj?.name || 'Khẩu lệnh phản xạ'}
+                onBack={() => setStep('select_mode')}
             />
         )
     }
@@ -1279,7 +1328,7 @@ export function InterviewPracticeHub({
                         if (allQuestions.length > 0) setQuestions(allQuestions)
                         setStep('select_mode')
                     }}
-                    onFinish={handleFinishPractice}
+                    onFinish={(submittedAnswers, masteredIds) => handleFinishPractice(submittedAnswers, masteredIds, questions, 'tool_drop_game')}
                 />
             </div>
         )
@@ -1513,11 +1562,8 @@ export function InterviewPracticeHub({
                                 onClick={() => {
                                     setSessionStats({ mastered: 0, total: 0 })
                                     setSessionMasteredIds([])
-                                    if (selectedTopicObj?.id === 'math') {
-                                        setStep('math_practice')
-                                    } else {
-                                        setStep('practice')
-                                    }
+                                    setQuestions(sessionQuestions)
+                                    setStep(completedPracticeStep)
                                 }}
                             >
                                 <RefreshCw className="w-4 h-4 mr-2" /> Luyện tập lại
@@ -1527,8 +1573,13 @@ export function InterviewPracticeHub({
                                 onClick={() => {
                                     setSessionStats({ mastered: 0, total: 0 })
                                     setSessionMasteredIds([])
-                                    if (selectedTopicObj?.id === 'math') {
+                                    if (completedPracticeStep === 'math_practice') {
                                         loadQuestionsForDashboard(selectedTopicObj)
+                                    } else if (completedPracticeStep === 'speed_quiz') {
+                                        setQuestions(getSelectedGroupQuestions())
+                                        setStep('speed_quiz')
+                                    } else if (completedPracticeStep === 'tool_drop_game') {
+                                        handleStartToolDropGame()
                                     } else {
                                         startPractice(selectedTopicObj, selectedListenMode, getSelectedGroupQuestions())
                                     }
@@ -1536,8 +1587,8 @@ export function InterviewPracticeHub({
                             >
                                 Luyện tập câu mới <CheckCircle className="w-4 h-4 ml-2" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={handleReturnToTopicList} className="text-slate-500 hover:text-slate-700 text-xs">
-                                ← Trở về danh sách chủ đề
+                            <Button variant="ghost" size="sm" onClick={handleReturnToModeSelection} className="text-slate-500 hover:text-slate-700 text-xs">
+                                ← Trở lại chọn chế độ
                             </Button>
                         </div>
                     </Card>
@@ -1550,13 +1601,13 @@ export function InterviewPracticeHub({
                                 <p className="text-xs text-slate-500 mt-0.5">Xem lại các câu trả lời đúng và sai trong lượt học vừa qua</p>
                             </div>
                             <span className="text-xs font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-full">
-                                {questions.length} câu hỏi
+                                {sessionQuestions.length} câu hỏi
                             </span>
                         </div>
 
                         {/* List container */}
                         <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin">
-                            {questions.map((q, idx) => {
+                            {sessionQuestions.map((q, idx) => {
                                 const isCorrect = sessionMasteredIds.includes(q.id)
                                 const ans = q.suggested_answers?.find((s: string) => !s.startsWith('__topic__:')) || ''
                                 
@@ -1802,6 +1853,23 @@ export function InterviewPracticeHub({
                             <InterviewFreePreviewBanner kind="command" />
                         )}
                         <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-5">
+                            {selectedTopicObj?.id === 'command' && (
+                                <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1 md:col-span-2" onClick={() => setStep('list_mode')}>
+                                    <div className="flex h-full items-center gap-3 rounded-2xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-blue-50 p-3.5 shadow-sm transition-all duration-300 hover:border-emerald-400 hover:shadow-xl md:p-5">
+                                        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-200 md:size-12">
+                                            <ListChecks className="size-5 md:size-6" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="font-bold text-slate-900 md:text-lg">Học theo danh sách</h4>
+                                                <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white">5 câu/nhóm</span>
+                                            </div>
+                                            <p className="truncate text-xs text-slate-500 md:whitespace-normal md:text-sm">Xem Hàn–Việt, nghe từng câu và học lần lượt theo nhóm nhỏ.</p>
+                                        </div>
+                                        <ChevronRight className="size-5 shrink-0 text-emerald-600" />
+                                    </div>
+                                </div>
+                            )}
                             
                             <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1" onClick={() => startFlashcardPractice(false)}>
                                 <div className="flex h-full items-center gap-3 rounded-2xl border-2 border-slate-200/60 bg-white p-3.5 shadow-sm transition-all duration-300 hover:border-blue-400 hover:shadow-xl md:block md:p-6">
@@ -1972,12 +2040,12 @@ export function InterviewPracticeHub({
                                 THI THỬ PHỎNG VẤN VÒNG 2 <span className="whitespace-nowrap text-indigo-700">· 50 điểm</span>
                             </h1>
                             <p className="mx-auto max-w-xl text-xs leading-5 text-slate-600 sm:text-sm sm:leading-6">
-                                20 câu ngẫu nhiên · <strong className="whitespace-nowrap font-extrabold text-blue-700">{selectedIndustry}</strong>
+                                24 câu ngẫu nhiên · <strong className="whitespace-nowrap font-extrabold text-blue-700">{selectedIndustry}</strong>
                             </p>
                         </div>
 
-                        <Card className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-lg shadow-slate-200/60 sm:rounded-3xl sm:p-6">
-                            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500" />
+                        <Card className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-md shadow-slate-200/50 sm:rounded-3xl sm:p-6">
+                            <div className="absolute inset-x-0 top-0 h-1 bg-blue-600" />
 
                             <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-100 pb-2 sm:mb-4 sm:gap-3 sm:pb-3">
                                 <h2 className="flex items-center gap-2 text-sm font-extrabold text-slate-900 sm:text-lg">
@@ -1986,8 +2054,8 @@ export function InterviewPracticeHub({
                                     </span>
                                     Cấu trúc điểm Vòng 2
                                 </h2>
-                                <span className="shrink-0 rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-black text-indigo-700 sm:px-3 sm:text-xs">
-                                    20 câu
+                                <span className="shrink-0 rounded-full bg-blue-50 px-2 py-1 text-[10px] font-black tabular-nums text-blue-700 sm:px-3 sm:text-xs">
+                                    24 câu
                                 </span>
                             </div>
 
@@ -1995,7 +2063,7 @@ export function InterviewPracticeHub({
                                 {MOCK_EXAM_SECTIONS.map((section) => (
                                     <div
                                         key={section.label}
-                                        className="flex min-h-10 items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/80 px-2.5 py-1.5 sm:min-h-14 sm:gap-3 sm:rounded-2xl sm:px-3 sm:py-2.5"
+                                        className="flex min-h-10 items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 shadow-sm sm:min-h-14 sm:gap-3 sm:rounded-2xl sm:px-3 sm:py-2.5"
                                     >
                                         <div className="flex min-w-0 items-baseline gap-1.5 sm:block">
                                             <p className="truncate text-xs font-bold leading-5 text-slate-700 sm:text-sm">{section.label}</p>
@@ -2006,28 +2074,23 @@ export function InterviewPracticeHub({
                                         </span>
                                     </div>
                                 ))}
-                                <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-2 text-white sm:col-span-2 sm:min-h-14 sm:rounded-2xl sm:px-4 sm:py-3">
-                                    <div>
-                                        <p className="text-sm font-black">Tổng điểm bài thi</p>
-                                        <p className="text-[11px] text-indigo-100">Đạt từ 30 điểm</p>
-                                    </div>
+                                <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl bg-slate-900 px-3 py-2 text-white sm:col-span-2 sm:min-h-14 sm:rounded-2xl sm:px-4 sm:py-3">
+                                    <p className="text-sm font-black">Tổng điểm bài thi</p>
                                     <span className="text-xl font-black">50đ</span>
                                 </div>
                             </div>
 
-                            <div className="mt-4 hidden gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs leading-5 text-amber-900 sm:flex">
-                                <span aria-hidden="true" className="text-base">💡</span>
-                                <p>
-                                    Hãy cấp quyền micro để trả lời phần nói. Kết quả nhận diện được lưu riêng theo từng câu trước khi chuyển tiếp.
-                                </p>
+                            <div className="mt-4">
+                                <MicrophoneCheck onReadyChange={setIsMockMicReady} />
                             </div>
 
                             <Button
                                 onClick={() => setStep('mock_exam')}
+                                disabled={!isMockMicReady}
                                 size="lg"
-                                className="mt-3 h-11 w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-black text-white shadow-lg shadow-blue-200 transition-transform hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 sm:mx-auto sm:mt-4 sm:flex sm:h-12 sm:w-auto sm:min-w-72 sm:rounded-2xl"
+                                className="mt-3 h-11 w-full rounded-xl bg-blue-600 text-sm font-black text-white shadow-md shadow-blue-200 transition-[background-color,transform,box-shadow] hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 motion-reduce:transform-none sm:mx-auto sm:mt-4 sm:flex sm:h-12 sm:w-auto sm:min-w-72 sm:rounded-2xl"
                             >
-                                Bắt đầu bài thi thử
+                                {isMockMicReady ? 'Bắt đầu bài thi thử' : 'Kiểm tra micro để tiếp tục'}
                                 <ChevronRight className="ml-1 size-4" />
                             </Button>
                         </Card>

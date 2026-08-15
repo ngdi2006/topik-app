@@ -17,6 +17,22 @@ export interface QuestionPracticeDetail {
   lastSeen: number
   correctCount: number
   incorrectCount: number
+  lastResult?: "correct" | "incorrect"
+  consecutiveCorrect?: number
+  consecutiveIncorrect?: number
+  lastMode?: string
+  lastUserAnswer?: string | null
+  correctAnswer?: string | null
+  nextReviewAt?: number
+  resolvedAt?: number | null
+}
+
+export interface ReinforcementResult {
+  topicId: TopicId
+  questionId: string
+  isCorrect: boolean
+  userAnswer?: string | null
+  correctAnswer?: string | null
 }
 
 export interface RecentLearningActivity {
@@ -105,6 +121,57 @@ export function readTopicDetails(
   return safeParse<Record<string, QuestionPracticeDetail>>(
     localStorage.getItem(`interview_mastery_detail_${topicId}`),
     {},
+  )
+}
+
+export function needsReinforcement(detail: QuestionPracticeDetail): boolean {
+  if (detail.incorrectCount <= 0) return false
+  if (detail.lastResult) return detail.lastResult === "incorrect" || !detail.resolvedAt
+  return detail.incorrectCount > detail.correctCount
+}
+
+export function readReinforcementQuestionIds(topicId: TopicId): string[] {
+  return Object.values(readTopicDetails(topicId))
+    .filter(needsReinforcement)
+    .sort((a, b) => {
+      const aRepeated = a.consecutiveIncorrect ?? Math.max(0, a.incorrectCount - a.correctCount)
+      const bRepeated = b.consecutiveIncorrect ?? Math.max(0, b.incorrectCount - b.correctCount)
+      return bRepeated - aRepeated || b.lastSeen - a.lastSeen
+    })
+    .map((detail) => detail.id)
+}
+
+export function saveReinforcementResult(result: ReinforcementResult): void {
+  const details = readTopicDetails(result.topicId)
+  const previous = details[result.questionId] ?? {
+    id: result.questionId,
+    lastSeen: Date.now(),
+    correctCount: 0,
+    incorrectCount: 0,
+  }
+  const now = Date.now()
+  const consecutiveCorrect = result.isCorrect ? (previous.consecutiveCorrect ?? 0) + 1 : 0
+
+  details[result.questionId] = {
+    ...previous,
+    lastSeen: now,
+    correctCount: previous.correctCount + Number(result.isCorrect),
+    incorrectCount: previous.incorrectCount + Number(!result.isCorrect),
+    lastResult: result.isCorrect ? "correct" : "incorrect",
+    consecutiveCorrect,
+    consecutiveIncorrect: result.isCorrect ? 0 : (previous.consecutiveIncorrect ?? 0) + 1,
+    lastMode: "reinforcement",
+    lastUserAnswer: result.userAnswer ?? null,
+    correctAnswer: result.correctAnswer ?? null,
+    nextReviewAt: result.isCorrect && consecutiveCorrect >= 2
+      ? now + 24 * 60 * 60 * 1000
+      : now,
+    resolvedAt: result.isCorrect && consecutiveCorrect >= 2 ? now : null,
+  }
+
+  localStorage.setItem(
+    `interview_mastery_detail_${result.topicId}`,
+    JSON.stringify(details),
   )
 }
 

@@ -45,7 +45,9 @@ import {
   readExamHistory,
   readPreferredIndustry,
   readRecentLearningActivity,
+  readReinforcementQuestionIds,
   readTopicDetails,
+  needsReinforcement,
   savePreferredIndustry,
   saveRecentLearningActivity,
 } from "@/features/second-round-interview/storage"
@@ -67,6 +69,18 @@ const InterviewPracticeHub = dynamic(
       <div className="flex min-h-72 items-center justify-center rounded-3xl border border-slate-200 bg-white">
         <div className="size-8 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600 motion-reduce:animate-none" />
         <span className="sr-only">Đang mở nội dung luyện tập…</span>
+      </div>
+    ),
+  },
+)
+
+const ReinforcementSession = dynamic(
+  () => import("@/components/interview/ReinforcementSession").then((module) => module.ReinforcementSession),
+  {
+    loading: () => (
+      <div className="grid min-h-72 place-items-center">
+        <div className="size-8 animate-spin rounded-full border-4 border-amber-100 border-t-amber-600 motion-reduce:animate-none" />
+        <span className="sr-only">Đang mở phiên củng cố…</span>
       </div>
     ),
   },
@@ -237,6 +251,7 @@ export function SecondRoundInterviewDashboard({
   const [error, setError] = useState<string | null>(null)
   const [launchMode, setLaunchMode] = useState<LaunchMode | null>(null)
   const [launchTopicId, setLaunchTopicId] = useState<TopicId | null>(null)
+  const [reinforcementTopicId, setReinforcementTopicId] = useState<TopicId | null>(null)
   const [storageRevision, setStorageRevision] = useState(0)
   const [access, setAccess] = useState<InterviewAccessSnapshot | null>(null)
   const [showSubscription, setShowSubscription] = useState(false)
@@ -251,8 +266,12 @@ export function SecondRoundInterviewDashboard({
   }, [initialView])
 
   useEffect(() => {
-    if (!launchMode) onMobileBackChange?.(null)
-  }, [launchMode, onMobileBackChange])
+    if (reinforcementTopicId) {
+      onMobileBackChange?.(() => setReinforcementTopicId(null))
+    } else if (!launchMode) {
+      onMobileBackChange?.(null)
+    }
+  }, [launchMode, onMobileBackChange, reinforcementTopicId])
 
   const loadQuestions = useCallback(async (selectedIndustry: IndustryId) => {
     setIsLoading(true)
@@ -310,16 +329,18 @@ export function SecondRoundInterviewDashboard({
           )
         : []
       const details = readTopicDetails(topic.id)
+      const topicQuestionIds = new Set(topicQuestions.map((question) => question.id))
+      const relevantDetails = topic.id === "introduction"
+        ? Object.values(details)
+        : Object.values(details).filter((detail) => topicQuestionIds.has(detail.id))
       const masteredIds = new Set(masteredByTopic[topic.id] ?? [])
-      const attemptedIds = new Set(Object.keys(details))
-      const rawIncorrect = Object.values(details).filter(
-        (detail) => detail.incorrectCount > detail.correctCount,
-      ).length
-      const correctCount = Object.values(details).reduce(
+      const attemptedIds = new Set(relevantDetails.map((detail) => detail.id))
+      const rawIncorrect = relevantDetails.filter(needsReinforcement).length
+      const correctCount = relevantDetails.reduce(
         (total, detail) => total + (detail.correctCount || 0),
         0,
       )
-      const incorrectCount = Object.values(details).reduce(
+      const incorrectCount = relevantDetails.reduce(
         (total, detail) => total + (detail.incorrectCount || 0),
         0,
       )
@@ -382,6 +403,34 @@ export function SecondRoundInterviewDashboard({
   const weakTopic = progress
     .filter((item) => item.incorrect > 0)
     .sort((a, b) => b.incorrect - a.incorrect)[0]
+  const reinforcementTopics = useMemo(() => {
+    if (!isHydrated) return []
+    void storageRevision
+    const now = Date.now()
+    const recentThreshold = now - 7 * 24 * 60 * 60 * 1000
+
+    return TOPICS.flatMap((topic) => {
+      if (!topic.apiCategory) return []
+      const availableIds = new Set(
+        questions
+          .filter((question) => topicIdForCategory(question.category) === topic.id)
+          .map((question) => question.id),
+      )
+      const details = Object.values(readTopicDetails(topic.id))
+        .filter((detail) => availableIds.has(detail.id) && needsReinforcement(detail))
+      if (details.length === 0) return []
+      return [{
+        topic,
+        count: details.length,
+        repeated: details.filter((detail) => (detail.consecutiveIncorrect ?? Math.max(0, detail.incorrectCount - detail.correctCount)) >= 2).length,
+        recent: details.filter((detail) => detail.lastSeen >= recentThreshold).length,
+        due: details.filter((detail) => !detail.nextReviewAt || detail.nextReviewAt <= now).length,
+      }]
+    }).sort((a, b) => b.repeated - a.repeated || b.recent - a.recent || b.count - a.count)
+  }, [isHydrated, questions, storageRevision])
+  const repeatedReviewCount = reinforcementTopics.reduce((total, item) => total + item.repeated, 0)
+  const recentReviewCount = reinforcementTopics.reduce((total, item) => total + item.recent, 0)
+  const dueReviewCount = reinforcementTopics.reduce((total, item) => total + item.due, 0)
   const currentIndustry = INDUSTRIES.find((item) => item.id === industry)
   const isExamLocked = access?.hasFullAccess !== true
 
@@ -419,6 +468,14 @@ export function SecondRoundInterviewDashboard({
     }
     setLaunchTopicId(null)
     setLaunchMode("mock")
+  }
+
+  const launchReinforcement = (topicId: TopicId) => {
+    if (access && !canAccessInterviewTopic(access, topicId)) {
+      setShowSubscription(true)
+      return
+    }
+    setReinforcementTopicId(topicId)
   }
 
   if (!isHydrated) {
@@ -530,6 +587,27 @@ export function SecondRoundInterviewDashboard({
         </div>
       </section>
     )
+  }
+
+  if (reinforcementTopicId && industry) {
+    const topic = TOPICS.find((item) => item.id === reinforcementTopicId)
+    const questionIds = readReinforcementQuestionIds(reinforcementTopicId)
+    if (topic?.apiCategory) {
+      return (
+        <ReinforcementSession
+          topicId={topic.id}
+          topicName={topic.name}
+          apiCategory={topic.apiCategory}
+          industry={industry}
+          questionIds={questionIds}
+          onBack={() => setReinforcementTopicId(null)}
+          onComplete={() => {
+            setReinforcementTopicId(null)
+            setStorageRevision((revision) => revision + 1)
+          }}
+        />
+      )
+    }
   }
 
   if (launchMode) {
@@ -824,15 +902,17 @@ export function SecondRoundInterviewDashboard({
                 {onBackToDashboard ? <span aria-hidden="true">/</span> : null}
                 <span className="text-blue-700">Phỏng vấn vòng 2</span>
               </div>
-              <Button
-                className="absolute right-0 top-0 h-8 min-h-8 shrink-0 rounded-lg border-blue-200 bg-white px-2.5 text-xs font-bold text-blue-700 shadow-sm hover:border-blue-300 hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-blue-600 md:static md:h-9 md:min-h-9 md:px-3"
-                onClick={() => setIsChangingIndustry(true)}
-                variant="outline"
-              >
-                Đổi ngành
-              </Button>
+              {view === "overview" ? (
+                <Button
+                  className="absolute right-0 top-0 h-8 min-h-8 shrink-0 rounded-lg border-blue-200 bg-white px-2.5 text-xs font-bold text-blue-700 shadow-sm hover:border-blue-300 hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-blue-600 md:static md:h-9 md:min-h-9 md:px-3"
+                  onClick={() => setIsChangingIndustry(true)}
+                  variant="outline"
+                >
+                  Đổi ngành
+                </Button>
+              ) : null}
             </div>
-            <div className="mt-1 flex items-center justify-center gap-2.5 pt-8 text-center md:mt-3 md:justify-start md:gap-3 md:pt-0 md:text-left">
+            <div className="mt-0 flex items-center justify-center gap-2.5 pt-0 text-center md:mt-3 md:justify-start md:gap-3 md:text-left">
               <div className="hidden size-11 shrink-0 items-center justify-center rounded-[14px] bg-blue-600 text-white shadow-md shadow-blue-200 sm:flex md:size-12 md:rounded-2xl">
                 <Target aria-hidden="true" className="size-5 md:size-6" />
               </div>
@@ -1083,61 +1163,124 @@ export function SecondRoundInterviewDashboard({
 
       {!isLoading && !error && view === "review" ? (
         <div className="space-y-3 sm:space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3.5 shadow-sm sm:p-4">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-amber-700 shadow-sm ring-1 ring-amber-200 sm:size-10 sm:rounded-2xl">
-                <RotateCcw aria-hidden="true" className="size-4.5 sm:size-5" />
+          {reinforcementTopics.length > 0 ? (
+            <>
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1.65fr)_minmax(250px,.35fr)] lg:gap-4">
+              <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_10px_32px_rgba(15,23,42,0.06)] sm:p-5">
+                <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-indigo-500 to-amber-400" />
+                <div aria-hidden="true" className="absolute -right-16 -top-20 size-48 rounded-full bg-blue-100/70 blur-3xl" />
+                <div className="relative flex items-start gap-3">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700 ring-1 ring-blue-100 sm:size-11">
+                    <Target aria-hidden="true" className="size-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-700">Hàng đợi cá nhân hóa</p>
+                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-black text-amber-800 ring-1 ring-amber-200">{reviewCount} câu cần xử lý</span>
+                    </div>
+                    <h2 className="mt-1.5 text-balance text-lg font-black leading-tight text-slate-950 sm:text-2xl">Khắc phục từng điểm yếu, không học lại từ đầu</h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Phiên ngắn 5 câu theo lộ trình: nghe lại → hiểu lỗi → ghi nhớ → kiểm tra xác nhận.</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => launchReinforcement(reinforcementTopics[0].topic.id)}
+                  className="relative mt-4 min-h-11 w-full bg-blue-600 font-black text-white shadow-md shadow-blue-200 hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-blue-600 sm:w-auto sm:px-6"
+                >
+                  Bắt đầu củng cố 5 câu ưu tiên <ChevronRight aria-hidden="true" className="ml-1 size-4" />
+                </Button>
+              </section>
+
+              <section className="grid grid-cols-3 gap-2 lg:grid-cols-1 lg:gap-2.5" aria-label="Tổng quan hàng đợi củng cố">
+                {([
+                  ["Sai gần đây", recentReviewCount, History, "text-blue-700 bg-blue-50"],
+                  ["Sai lặp lại", repeatedReviewCount, AlertCircle, "text-rose-700 bg-rose-50"],
+                  ["Đến hạn", dueReviewCount, CalendarClock, "text-amber-700 bg-amber-50"],
+                ] as const).map(([label, value, Icon, style]) => (
+                  <div key={String(label)} className="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm sm:p-3.5 lg:flex-row lg:items-center lg:gap-3">
+                    <span className={`grid size-7 shrink-0 place-items-center rounded-lg ${String(style)}`}><Icon aria-hidden="true" className="size-3.5" /></span>
+                    <span className="min-w-0"><strong className="mt-2 block text-lg font-black tabular-nums text-slate-950 sm:text-2xl lg:mt-0 lg:text-xl">{String(value)}</strong>
+                    <span className="block truncate text-[10px] font-semibold text-slate-600 sm:text-xs">{String(label)}</span></span>
+                  </div>
+                ))}
+              </section>
               </div>
-              <div className="min-w-0">
-                <h2 className="text-base font-black tracking-tight text-slate-950 sm:text-lg">
-                  Củng cố điểm yếu
-                </h2>
-                <p className="mt-0.5 text-xs text-slate-700 sm:text-sm">
-                  Ôn lại các câu trả lời chưa chính xác.
-                </p>
-              </div>
-            </div>
-            <span className="ml-auto rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-amber-700 shadow-sm ring-1 ring-amber-200 sm:text-xs">{reviewCount} câu cần ôn</span>
-          </div>
-          {renderTopicCards(true)}
+
+              <section aria-labelledby="reinforcement-topics-title">
+                <div className="mb-2.5 flex items-end justify-between gap-3">
+                  <div>
+                    <h2 id="reinforcement-topics-title" className="text-base font-black text-slate-950 sm:text-lg">Kiến thức cần củng cố</h2>
+                    <p className="text-xs text-slate-600">Sắp xếp theo lỗi lặp lại và lỗi gần nhất.</p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[10px] font-black tabular-nums text-slate-700 shadow-sm ring-1 ring-slate-200 sm:text-xs">{reinforcementTopics.length} chủ đề</span>
+                </div>
+                <div className="divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  {reinforcementTopics.map(({ topic, count, repeated, recent, due }) => {
+                    const Icon = topic.icon
+                    return (
+                      <button
+                        key={topic.id}
+                        type="button"
+                        onClick={() => launchReinforcement(topic.id)}
+                        className="group flex min-h-[76px] w-full items-center gap-3 p-3.5 text-left transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600 sm:p-4"
+                      >
+                        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-700 ring-1 ring-blue-100 shadow-sm sm:size-11"><Icon aria-hidden="true" className="size-5" /></span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <strong className="text-sm font-extrabold text-slate-950 sm:text-base">{topic.name}</strong>
+                            {repeated > 0 ? <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[9px] font-black text-rose-700 ring-1 ring-rose-100">{repeated >= 3 ? 'Ưu tiên cao' : 'Cần chú ý'} · {repeated} lỗi lặp</span> : null}
+                          </span>
+                          <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-semibold text-slate-600 sm:text-xs">
+                            <span>{count} câu cần xử lý</span><span>{recent} sai gần đây</span><span>{due} đến hạn</span>
+                          </span>
+                        </span>
+                        <span className="hidden shrink-0 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 transition-colors group-hover:border-blue-300 group-hover:bg-blue-600 group-hover:text-white sm:inline-flex">Củng cố 5 câu <ChevronRight aria-hidden="true" className="ml-1 size-3.5" /></span>
+                        <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-slate-400 sm:hidden" />
+                      </button>
+                    )
+                  })}
+                </div>
+              </section>
+            </>
+          ) : (
+            <EmptyState
+              description="Khi bạn trả lời sai, hệ thống sẽ đưa đúng câu đó vào lộ trình nghe lại và kiểm tra riêng."
+              title="Chưa có điểm yếu cần củng cố"
+            />
+          )}
         </div>
       ) : null}
 
       {!isLoading && !error && view === "exam" ? (
         <div className="space-y-4 sm:space-y-5">
-          <Card className="group relative overflow-hidden border-0 bg-gradient-to-br from-blue-700 via-indigo-700 to-violet-700 p-0 text-white shadow-xl shadow-blue-900/15">
-            <div aria-hidden="true" className="absolute -right-20 -top-24 size-64 rounded-full bg-white/10 blur-2xl transition-transform duration-700 group-hover:scale-125 motion-reduce:transform-none" />
-            <div aria-hidden="true" className="absolute -bottom-20 left-1/3 size-48 rounded-full bg-fuchsia-400/20 blur-3xl" />
-            <Award aria-hidden="true" className="absolute -right-4 top-14 size-32 rotate-12 text-white/[0.07] transition-transform duration-500 group-hover:-rotate-3 group-hover:scale-110 motion-reduce:transform-none" />
-            <Sparkles aria-hidden="true" className="absolute right-5 top-5 size-5 animate-pulse text-amber-300 motion-reduce:animate-none" />
+          <Card className="group relative overflow-hidden border border-blue-200 bg-white p-0 shadow-lg shadow-blue-900/10">
+            <div aria-hidden="true" className="absolute inset-y-0 left-0 w-1.5 bg-blue-600" />
             <div className="relative grid gap-4 p-4 sm:p-6 md:grid-cols-[1fr_auto] md:items-center md:p-7">
               <div>
-                <Badge className="border border-white/20 bg-white/15 text-white hover:bg-white/15">
-                  {isExamLocked ? <LockKeyhole aria-hidden="true" className="size-3.5 text-amber-300" /> : <Award aria-hidden="true" className="size-3.5 text-amber-300" />}
+                <Badge className="border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-50">
+                  {isExamLocked ? <LockKeyhole aria-hidden="true" className="size-3.5" /> : <Award aria-hidden="true" className="size-3.5" />}
                   {isExamLocked ? 'Thuộc gói Phỏng vấn Vòng 2' : 'Bài thi chính thức'}
                 </Badge>
                 <h3 className="mt-3 tracking-tight">
-                  <span className="block text-sm font-bold text-blue-100 sm:text-base">Thi thử</span>
-                  <span className="mt-0.5 block text-2xl font-black leading-tight text-white drop-shadow-sm sm:text-3xl">PHỎNG VẤN VÒNG 2</span>
+                  <span className="block text-sm font-bold text-blue-600 sm:text-base">Thi thử</span>
+                  <span className="mt-0.5 block whitespace-nowrap text-[22px] font-black leading-tight tracking-tight text-slate-950 sm:text-3xl">PHỎNG VẤN VÒNG 2</span>
                 </h3>
-                <p className="mt-1.5 max-w-2xl text-xs leading-5 text-blue-100 sm:text-base sm:leading-6">
-                  20 câu theo ngành {currentIndustry?.id ?? "đã chọn"}, bao quát các kỹ năng Vòng 2.
+                <p className="mt-1.5 whitespace-nowrap text-xs leading-5 text-slate-600 sm:text-base sm:leading-6">
+                  24 câu mô phỏng bài thi thực tế.
                 </p>
-                <div className="mt-4 grid max-w-xl grid-cols-3 gap-2 sm:gap-3">
+                <div className="mt-4 grid max-w-sm grid-cols-2 gap-2 sm:gap-3">
                   {[
-                    ["20", "Câu hỏi"],
+                    ["24", "Câu hỏi"],
                     ["50", "Điểm tối đa"],
-                    ["30", "Điểm đạt"],
                   ].map(([value, label]) => (
-                    <div className="rounded-xl border border-white/15 bg-white/10 px-1.5 py-2 text-center backdrop-blur-sm sm:rounded-2xl sm:px-4 sm:py-3" key={label}>
-                      <strong className="block text-lg font-black tabular-nums sm:text-2xl">{value}</strong>
-                      <span className="mt-0.5 block truncate text-[9px] font-semibold text-blue-100 sm:text-xs">{label}</span>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-1.5 py-2 text-center sm:rounded-2xl sm:px-4 sm:py-3" key={label}>
+                      <strong className="block text-lg font-black tabular-nums text-slate-950 sm:text-2xl">{value}</strong>
+                      <span className="mt-0.5 block truncate text-[9px] font-semibold text-slate-500 sm:text-xs">{label}</span>
                     </div>
                   ))}
                 </div>
               </div>
               <Button
-                className="min-h-11 w-full rounded-xl bg-white px-6 font-black text-blue-700 shadow-lg transition-transform hover:scale-[1.02] hover:bg-blue-50 motion-reduce:transform-none md:w-auto"
+                className="min-h-11 w-full rounded-xl bg-blue-600 px-6 font-black text-white shadow-md shadow-blue-200 transition-[background-color,transform,box-shadow] hover:scale-[1.02] hover:bg-blue-700 hover:shadow-lg motion-reduce:transform-none md:w-auto"
                 onClick={launchMockExam}
               >
                 {isExamLocked ? 'Mở khóa để thi' : 'Bắt đầu thi ngay'}
@@ -1146,29 +1289,40 @@ export function SecondRoundInterviewDashboard({
             </div>
           </Card>
 
-          <div>
-            <h3 className="mb-3 text-sm font-extrabold uppercase tracking-wide text-slate-500">Chế độ khác</h3>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {[
-                { title: "Kiểm tra nhanh", description: "Ôn nhanh 5–10 câu từ ngân hàng hiện tại.", action: "Chưa có dữ liệu" },
-                { title: "Thi theo chủ đề", description: "Đánh giá riêng kỹ năng bạn muốn cải thiện.", action: "Chưa có cấu hình đề" },
-              ].map((option) => (
-                <Card className="flex items-center gap-4 border-slate-200 p-4 shadow-sm sm:p-5" key={option.title}>
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
-                    <ClipboardCheck aria-hidden="true" className="size-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="font-black text-slate-900">{option.title}</h4>
-                      <Badge className="text-[10px]" variant="secondary">Sắp có</Badge>
-                    </div>
-                    <p className="mt-1 text-xs leading-5 text-slate-500 sm:text-sm">{option.description}</p>
-                  </div>
-                  <span className="sr-only">{option.action}</span>
-                </Card>
-              ))}
+          <section aria-labelledby="exam-experiences-title">
+            <div className="mb-3">
+              <h3 id="exam-experiences-title" className="text-sm font-extrabold uppercase tracking-wide text-slate-500">Trải nghiệm thi thử</h3>
+              <p className="mt-0.5 text-xs text-slate-500">Luyện đúng mục tiêu trước và sau mỗi lượt thi.</p>
             </div>
-          </div>
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
+              {[
+                { title: "Kiểm tra nhanh", description: "10 câu để khởi động.", badge: "Sắp có", icon: Clock3, disabled: true },
+                { title: "Thi theo kỹ năng", description: "Chọn riêng 1 phần thi.", badge: "Sắp có", icon: Target, disabled: true },
+                { title: "Thi lại câu sai", description: "Làm lại lỗi của lần trước.", badge: reviewCount > 0 ? `${reviewCount} câu` : "Chưa có lỗi", icon: RotateCcw, disabled: reviewCount === 0, onClick: () => selectView("review") },
+                { title: "Lịch sử thi", description: "Xem điểm và tiến bộ.", badge: examHistory.length > 0 ? `${examHistory.length} lượt` : "Chưa có lượt", icon: History, disabled: examHistory.length === 0, onClick: () => selectView("report") },
+              ].map((option) => {
+                const Icon = option.icon
+                return (
+                  <button
+                    className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:border-slate-200 disabled:hover:shadow-sm motion-reduce:transform-none sm:p-4"
+                    disabled={option.disabled}
+                    key={option.title}
+                    onClick={option.onClick}
+                    type="button"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 ring-1 ring-blue-100">
+                        <Icon aria-hidden="true" className="size-4.5" />
+                      </span>
+                      <Badge className="max-w-[88px] truncate text-[9px]" variant="secondary">{option.badge}</Badge>
+                    </div>
+                    <h4 className="mt-3 text-sm font-black leading-tight text-slate-900">{option.title}</h4>
+                    <p className="mt-1 text-[11px] leading-4 text-slate-500 sm:text-xs">{option.description}</p>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
         </div>
       ) : null}
 

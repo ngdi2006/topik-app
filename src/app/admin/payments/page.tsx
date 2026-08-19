@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { CheckCircle, XCircle, Clock, Loader2, User, Package, DollarSign } from 'lucide-react'
+import { AlertTriangle, CheckCircle, XCircle, Clock, Loader2, User, Package, DollarSign } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Transaction {
@@ -22,6 +22,17 @@ interface Transaction {
     created_at: string
     verified_at?: string
     notes?: string
+    product_type?: string | null
+    duration_days_snapshot?: number | null
+    activation_status?: string | null
+    webhook_issue?: {
+        id: string
+        amount_in: number
+        status: string
+        message: string | null
+        reference_number: string | null
+        created_at: string
+    } | null
     profiles: {
         id: string
         full_name: string
@@ -43,6 +54,7 @@ export default function AdminPaymentsPage() {
     const [actionType, setActionType] = useState<'approve' | 'reject'>('approve')
     const [notes, setNotes] = useState('')
     const [processing, setProcessing] = useState(false)
+    const paidButNotActivatedCount = transactions.filter((transaction) => transaction.webhook_issue).length
 
     useEffect(() => {
         fetchTransactions(activeTab)
@@ -87,7 +99,8 @@ export default function AdminPaymentsPage() {
                 setActionDialogOpen(false)
                 setSelectedTransaction(null)
                 setNotes('')
-                fetchTransactions(activeTab)
+                await fetchTransactions(activeTab)
+                window.dispatchEvent(new Event('admin-payment-attention-changed'))
             } else {
                 toast.error(data.error || 'Có lỗi xảy ra')
             }
@@ -132,8 +145,22 @@ export default function AdminPaymentsPage() {
         <div className="space-y-6">
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Quản lý thanh toán</h1>
-                <p className="text-muted-foreground">Duyệt và quản lý các giao dịch mua lượt làm bài</p>
+                <p className="text-muted-foreground">Đối soát giao dịch, xác định tài khoản và kích hoạt quyền đã mua.</p>
             </div>
+
+            {activeTab === 'pending' && paidButNotActivatedCount > 0 ? (
+                <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950" role="status">
+                    <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" aria-hidden="true" />
+                    <div>
+                        <p className="font-semibold">
+                            {paidButNotActivatedCount} giao dịch đã nhận tiền nhưng chưa kích hoạt
+                        </p>
+                        <p className="mt-0.5 text-sm text-amber-800">
+                            Kiểm tra tài khoản và thông tin webhook bên dưới, sau đó chọn “Kích hoạt”.
+                        </p>
+                    </div>
+                </div>
+            ) : null}
 
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'pending' | 'completed' | 'failed')}>
                 <TabsList>
@@ -165,13 +192,19 @@ export default function AdminPaymentsPage() {
                     ) : (
                         <div className="grid gap-4">
                             {transactions.map((tx) => (
-                                <Card key={tx.id}>
+                                <Card key={tx.id} className={tx.webhook_issue ? 'border-amber-300 bg-amber-50/30' : undefined}>
                                     <CardHeader>
-                                        <div className="flex items-start justify-between">
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                             <div className="space-y-1">
-                                                <CardTitle className="text-lg flex items-center gap-2">
+                                                <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
                                                     Mã GD: {tx.transaction_code}
                                                     {getStatusBadge(tx.payment_status)}
+                                                    {tx.webhook_issue ? (
+                                                        <Badge className="gap-1 border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-100">
+                                                            <AlertTriangle className="size-3" aria-hidden="true" />
+                                                            Đã nhận tiền · Chưa kích hoạt
+                                                        </Badge>
+                                                    ) : null}
                                                 </CardTitle>
                                                 <CardDescription>
                                                     {formatDate(tx.created_at)}
@@ -186,7 +219,7 @@ export default function AdminPaymentsPage() {
                                                         onClick={() => openActionDialog(tx, 'approve')}
                                                     >
                                                         <CheckCircle className="w-4 h-4" />
-                                                        Duyệt
+                                                        {tx.webhook_issue ? 'Kích hoạt' : 'Duyệt'}
                                                     </Button>
                                                     <Button
                                                         size="sm"
@@ -213,8 +246,16 @@ export default function AdminPaymentsPage() {
                                             <div className="flex items-start gap-3">
                                                 <Package className="w-5 h-5 text-muted-foreground mt-0.5" />
                                                 <div>
-                                                    <p className="text-sm font-medium">{tx.payment_packages?.package_name || 'Gói đã xóa'}</p>
-                                                    <p className="text-xs text-muted-foreground">{tx.credits_purchased} lượt</p>
+                                                    <p className="text-sm font-medium">
+                                                        {tx.product_type === 'interview_subscription'
+                                                            ? 'Gói Phỏng vấn Vòng 2'
+                                                            : tx.payment_packages?.package_name || 'Gói đã xóa'}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {tx.product_type === 'interview_subscription'
+                                                            ? `${tx.duration_days_snapshot || 0} ngày sử dụng`
+                                                            : `${tx.credits_purchased} lượt`}
+                                                    </p>
                                                 </div>
                                             </div>
                                             <div className="flex items-start gap-3">
@@ -225,6 +266,21 @@ export default function AdminPaymentsPage() {
                                                 </div>
                                             </div>
                                         </div>
+                                        {tx.webhook_issue ? (
+                                            <div className="mt-4 rounded-lg border border-amber-200 bg-white p-3 text-sm">
+                                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                                    <p className="font-semibold text-amber-900">Đối soát webhook</p>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        Nhận tiền {formatDate(tx.webhook_issue.created_at)}
+                                                    </span>
+                                                </div>
+                                                <dl className="mt-2 grid gap-1 text-xs sm:grid-cols-2">
+                                                    <div><dt className="inline text-muted-foreground">Số tiền nhận: </dt><dd className="inline font-semibold">{formatPrice(tx.webhook_issue.amount_in)}</dd></div>
+                                                    <div><dt className="inline text-muted-foreground">Mã tham chiếu: </dt><dd className="inline font-medium">{tx.webhook_issue.reference_number || '-'}</dd></div>
+                                                    <div className="sm:col-span-2"><dt className="inline text-muted-foreground">Nguyên nhân: </dt><dd className="inline font-medium text-amber-800">{tx.webhook_issue.message || tx.webhook_issue.status}</dd></div>
+                                                </dl>
+                                            </div>
+                                        ) : null}
                                         {tx.notes && (
                                             <div className="mt-4 p-3 bg-muted rounded-md">
                                                 <p className="text-sm text-muted-foreground">
@@ -253,7 +309,11 @@ export default function AdminPaymentsPage() {
                                     <br />
                                     Người dùng: <strong>{selectedTransaction.profiles.full_name}</strong>
                                     <br />
-                                    Số lượt: <strong>{selectedTransaction.credits_purchased} lượt</strong>
+                                    Quyền nhận: <strong>
+                                        {selectedTransaction.product_type === 'interview_subscription'
+                                            ? `${selectedTransaction.duration_days_snapshot || 0} ngày Phỏng vấn Vòng 2`
+                                            : `${selectedTransaction.credits_purchased} lượt`}
+                                    </strong>
                                     <br />
                                     Số tiền: <strong>{formatPrice(selectedTransaction.amount_vnd)}</strong>
                                 </>
@@ -292,7 +352,9 @@ export default function AdminPaymentsPage() {
                                 </>
                             ) : (
                                 <>
-                                    {actionType === 'approve' ? 'Xác nhận duyệt' : 'Xác nhận từ chối'}
+                                    {actionType === 'approve'
+                                        ? selectedTransaction?.webhook_issue ? 'Xác nhận kích hoạt' : 'Xác nhận duyệt'
+                                        : 'Xác nhận từ chối'}
                                 </>
                             )}
                         </Button>

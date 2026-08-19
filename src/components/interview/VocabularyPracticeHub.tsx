@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, BookOpen, Layers, Type, Mic, Briefcase, AlertCircle, Volume2, LayoutGrid, Info, ChevronRight, CheckCircle, Eye, EyeOff, Bookmark, Trash2, Calculator } from 'lucide-react'
+import { ArrowLeft, BookOpen, Layers, Type, Mic, Briefcase, AlertCircle, Volume2, LayoutGrid, Info, ChevronRight, CheckCircle, Eye, EyeOff, Bookmark, Trash2, Calculator, Search } from 'lucide-react'
 import FlashcardMode, { getKoreanDescription } from '@/components/vocabulary-vong2/FlashcardMode'
 import QuizMode from '@/components/vocabulary-vong2/QuizMode'
 import SpellingMode from '@/components/vocabulary-vong2/SpellingMode'
@@ -76,7 +76,6 @@ const LEARN_MODES = [
         iconBg: 'bg-amber-100 text-amber-600',
         border: 'hover:border-amber-300',
         tip: 'Ôn tổng quan trước khi quiz',
-        signOnly: true,
         badge: '📚 Tổng quan',
         colorTheme: 'amber'
     },
@@ -216,6 +215,15 @@ interface VocabularyPracticeHubProps {
     presetIndustry?: string
 }
 
+type GalleryVocabularyItem = {
+    id: string | number
+    word_kr?: string
+    word_vi?: string
+    image_url?: string
+    audio_url?: string
+    description_vi?: string
+}
+
 // Gallery mode: read-only browsing of all signs with description
 const SIGN_CATEGORIES = [
     { id: 'ALL', name: 'Tất cả' },
@@ -261,11 +269,12 @@ function getSignCategory(imageUrl?: string): string {
     return 'ALL';
 }
 
-function SignGallery({ vocabList, onBack }: { vocabList: any[], onBack: () => void }) {
-    const [selected, setSelected] = useState<any | null>(null)
+function SignGallery({ vocabList, onBack, isSign }: { vocabList: GalleryVocabularyItem[], onBack: () => void, isSign: boolean }) {
+    const [selected, setSelected] = useState<GalleryVocabularyItem | null>(null)
     const [showKr, setShowKr] = useState(true)
     const [showVi, setShowVi] = useState(true)
     const [activeCategory, setActiveCategory] = useState('ALL')
+    const [query, setQuery] = useState('')
 
     const playAudio = (url?: string, wordKr?: string) => {
         if (wordKr) {
@@ -275,9 +284,13 @@ function SignGallery({ vocabList, onBack }: { vocabList: any[], onBack: () => vo
         }
     }
 
-    const filteredList = activeCategory === 'ALL'
+    const categoryList = !isSign || activeCategory === 'ALL'
         ? vocabList
         : vocabList.filter(item => getSignCategory(item.image_url) === activeCategory)
+    const normalizedQuery = query.trim().toLocaleLowerCase()
+    const filteredList = normalizedQuery
+        ? categoryList.filter(item => `${item.word_kr || ''} ${item.word_vi || ''}`.toLocaleLowerCase().includes(normalizedQuery))
+        : categoryList
 
     return (
         <div className="mx-auto max-w-4xl space-y-3 p-3 md:space-y-5 md:p-6">
@@ -292,7 +305,7 @@ function SignGallery({ vocabList, onBack }: { vocabList: any[], onBack: () => vo
                         <ArrowLeft className="w-4 h-4" />
                     </Button>
                     <div className="min-w-0">
-                        <h2 className="truncate text-base font-extrabold leading-tight tracking-tight text-slate-800 md:text-lg">Biển báo</h2>
+                        <h2 className="truncate text-base font-extrabold leading-tight tracking-tight text-slate-800 md:text-lg">{isSign ? 'Toàn bộ biển báo' : 'Toàn bộ từ vựng'}</h2>
                         <p className="mt-0.5 truncate text-[11px] leading-snug text-slate-500 md:text-xs">{filteredList.length} mục · Chạm để xem</p>
                     </div>
                 </div>
@@ -324,10 +337,24 @@ function SignGallery({ vocabList, onBack }: { vocabList: any[], onBack: () => vo
                 </div>
             </div>
 
-            <InterviewFreePreviewBanner kind="sign" compact />
+            <InterviewFreePreviewBanner kind={isSign ? 'sign' : 'vocabulary'} compact />
+
+            <label className="relative block">
+                <span className="sr-only">Tìm kiếm từ vựng</span>
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                <input
+                    type="search"
+                    name="vocabulary-search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder={isSign ? 'Tìm biển báo theo tiếng Hàn hoặc tiếng Việt…' : 'Tìm từ theo tiếng Hàn hoặc tiếng Việt…'}
+                    autoComplete="off"
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                />
+            </label>
 
             {/* Category selection - Hidden Scrollbar */}
-            <div 
+            {isSign ? <div
                 className="scrollbar-none -mx-3 flex items-center gap-1.5 overflow-x-auto px-3 md:mx-0 md:gap-2 md:px-0"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
@@ -362,7 +389,7 @@ function SignGallery({ vocabList, onBack }: { vocabList: any[], onBack: () => vo
                         </button>
                     );
                 })}
-            </div>
+            </div> : null}
             {selected && (
                 <div 
                     className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in cursor-pointer"
@@ -421,12 +448,12 @@ function SignGallery({ vocabList, onBack }: { vocabList: any[], onBack: () => vo
                                         <Info className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
                                         <div className="space-y-2 flex-1 min-w-0">
                                             <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">
-                                                Ý nghĩa biển báo / 표지판 설명
+                                                {isSign ? 'Ý nghĩa biển báo / 표지판 설명' : 'Ghi chú từ vựng'}
                                             </p>
                                             <div className="space-y-1.5">
                                                 {showKr && (
                                                     <p className="text-sm md:text-base font-semibold text-slate-800 border-b border-amber-100 pb-1.5 leading-relaxed">
-                                                        {getKoreanDescription(selected.description_vi, selected.word_kr)}
+                                                        {getKoreanDescription(selected.description_vi, selected.word_kr || '')}
                                                     </p>
                                                 )}
                                                 {showVi && (
@@ -438,7 +465,7 @@ function SignGallery({ vocabList, onBack }: { vocabList: any[], onBack: () => vo
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="text-sm text-slate-400 italic">Chưa có giải thích cho biển báo này.</p>
+                                    <p className="text-sm text-slate-400 italic">{isSign ? 'Chưa có giải thích cho biển báo này.' : 'Từ vựng này chưa có ghi chú bổ sung.'}</p>
                                 )}
                             </div>
                         </div>
@@ -464,7 +491,7 @@ function SignGallery({ vocabList, onBack }: { vocabList: any[], onBack: () => vo
                         <button
                             key={item.id}
                             onClick={() => setSelected(isActive ? null : item)}
-                            className={`group relative flex w-full flex-col items-center gap-2 rounded-2xl border-2 p-2.5 text-center transition-all duration-200 sm:gap-3 sm:p-4 md:p-5 ${
+                            className={`group relative flex w-full flex-col items-center gap-2 rounded-2xl border-2 p-2.5 text-center transition-[transform,background-color,border-color,box-shadow] duration-200 [content-visibility:auto] [contain-intrinsic-size:180px] sm:gap-3 sm:p-4 md:p-5 ${
                                 isActive
                                     ? 'border-amber-400 bg-amber-50/70 shadow-lg scale-[1.02]'
                                     : 'border-slate-100 bg-white hover:border-amber-200 hover:bg-amber-50/30 hover:shadow-md'
@@ -474,7 +501,7 @@ function SignGallery({ vocabList, onBack }: { vocabList: any[], onBack: () => vo
                                 <img src={item.image_url} alt="" className="size-16 rounded-xl border bg-white object-contain p-1 shadow-sm sm:size-18 md:size-20" />
                             ) : (
                                 <div className="flex size-16 items-center justify-center rounded-xl bg-amber-100 sm:size-18 md:size-20">
-                                    <AlertCircle className="w-8 h-8 text-amber-400" />
+                                    {isSign ? <AlertCircle className="h-8 w-8 text-amber-400" /> : <BookOpen className="h-8 w-8 text-indigo-400" />}
                                 </div>
                             )}
                             
@@ -507,8 +534,16 @@ function SignGallery({ vocabList, onBack }: { vocabList: any[], onBack: () => vo
                 })}
             </div>
 
+            {filteredList.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-10 text-center">
+                    <Search className="mx-auto mb-2 size-6 text-slate-300" aria-hidden="true" />
+                    <p className="text-sm font-semibold text-slate-600">Không tìm thấy nội dung phù hợp</p>
+                    <p className="mt-1 text-xs text-slate-400">Thử nhập từ khóa tiếng Hàn hoặc tiếng Việt khác.</p>
+                </div>
+            ) : null}
+
             <div className="hidden items-center justify-center gap-4 pt-2 text-center text-xs text-slate-400 sm:flex">
-                <span>🟡 Chấm vàng = Có giải thích ý nghĩa</span>
+                <span>🟡 Chấm vàng = Có {isSign ? 'giải thích ý nghĩa' : 'ghi chú bổ sung'}</span>
                 <span>•</span>
                 <span>Tắt bớt chữ để tự kiểm tra ghi nhớ của bản thân</span>
             </div>
@@ -709,7 +744,11 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
         }
 
         return (
-            <div className="min-h-[500px] bg-[#f8fafc] rounded-2xl overflow-hidden border border-slate-100 flex flex-col">
+            <div className={`flex min-h-[500px] flex-col ${
+                selectedMode === 'gallery'
+                    ? 'bg-transparent'
+                    : 'overflow-hidden rounded-2xl border border-slate-100 bg-[#f8fafc]'
+            }`}>
                 {selectedMode !== 'gallery' && (
                     <div className="flex items-center justify-between border-b border-slate-100 bg-white px-3 py-2.5 sm:px-4 sm:pb-3 sm:pt-4">
                         <div className="flex items-center gap-2.5">
@@ -774,7 +813,7 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
                     {selectedMode === 'quiz' && <QuizMode key={`quiz-${practiceCategory}`} vocabList={practiceList} onBack={handlePracticeBack} hideHeader={true} />}
                     {selectedMode === 'spelling' && <SpellingMode key={`spelling-${practiceCategory}`} vocabList={practiceList} onBack={handlePracticeBack} hideHeader={true} />}
                     {selectedMode === 'podcast' && <PodcastMode key={`podcast-${practiceCategory}`} vocabList={practiceList} onBack={handlePracticeBack} hideHeader={true} />}
-                    {selectedMode === 'gallery' && <SignGallery vocabList={vocabList} onBack={handlePracticeBack} />}
+                    {selectedMode === 'gallery' && <SignGallery vocabList={vocabList} onBack={handlePracticeBack} isSign={selectedTopic === 'SIGN'} />}
                 </div>
             </div>
         )
@@ -944,18 +983,23 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
                         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3.5">
                             {LEARN_MODES
                                 .filter(m => {
-                                    if (m.signOnly && selectedTopic !== 'SIGN') return false
+                                    if (m.id === 'gallery' && selectedTopic === 'SAVED') return false
                                     if (m.hideForSign && (selectedTopic === 'SIGN' || selectedTopic === 'SAVED')) return false
                                     return true
                                 })
                                 .map(mode => {
                                     const Icon = mode.icon
                                     const theme = THEME_STYLES[mode.colorTheme] || THEME_STYLES.purple
+                                    const isVocabularyGallery = mode.id === 'gallery' && selectedTopic !== 'SIGN'
+                                    const modeLabel = isVocabularyGallery ? 'Xem toàn bộ từ vựng' : mode.label
+                                    const modeSublabel = isVocabularyGallery ? 'Quan sát toàn bộ từ Hàn–Việt, hình ảnh và phát âm' : mode.sublabel
+                                    const modeTip = isVocabularyGallery ? 'Xem tổng quan trước khi bắt đầu luyện tập' : mode.tip
                                     return (
-                                        <div
+                                        <button
                                             key={mode.id}
+                                            type="button"
                                             onClick={() => handleStart(mode.id)}
-                                            className={`group relative flex cursor-pointer items-center gap-3 overflow-hidden rounded-2xl border-2 border-slate-100 bg-white p-3.5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-100/70 active:scale-98 sm:items-start sm:gap-4 sm:p-5 ${theme.hoverBg} ${theme.borderColor}`}
+                                            className={`group relative flex w-full cursor-pointer items-center gap-3 overflow-hidden rounded-2xl border-2 border-slate-100 bg-white p-3.5 text-left transition-[transform,box-shadow,background-color,border-color] duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-100/70 active:scale-98 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 sm:items-start sm:gap-4 sm:p-5 ${isVocabularyGallery ? 'sm:col-span-2' : ''} ${theme.hoverBg} ${theme.borderColor}`}
                                         >
                                             {/* Left Icon Container with ring & zoom effects */}
                                             <div className={`flex size-10 flex-shrink-0 items-center justify-center rounded-xl shadow-sm sm:size-12 ${theme.iconContainer}`}>
@@ -966,17 +1010,17 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-center justify-between gap-2">
                                                     <h4 className="truncate text-[15px] font-black text-slate-800 transition-colors group-hover:text-slate-900 md:text-base">
-                                                        {mode.label}
+                                                        {modeLabel}
                                                     </h4>
                                                     <span className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide transition-all duration-300 group-hover:scale-105 sm:inline-flex ${theme.badgeBg} ${theme.badgeText}`}>
                                                         {mode.badge}
                                                     </span>
                                                 </div>
                                                 <p className="mt-0.5 truncate text-xs font-medium text-slate-500 md:text-sm">
-                                                    {mode.sublabel}
+                                                    {modeSublabel}
                                                 </p>
                                                 <p className="hidden items-center gap-1.5 pt-0.5 text-[11px] font-medium italic text-slate-400 transition-colors group-hover:text-slate-500 sm:flex">
-                                                    <span>💡</span> {mode.tip}
+                                                    <span>💡</span> {modeTip}
                                                 </p>
                                             </div>
 
@@ -984,7 +1028,7 @@ function VocabularyPracticeHubContent({ onBackToDashboard, presetIndustry }: Voc
                                             <div className="self-center flex-shrink-0 opacity-60 transition-all duration-300 group-hover:opacity-100 sm:translate-x-2 sm:opacity-0 sm:group-hover:translate-x-0">
                                                 <ChevronRight className={`size-4.5 sm:size-5 ${theme.chevronColor}`} />
                                             </div>
-                                        </div>
+                                        </button>
                                     )
                                 })}
                         </div>

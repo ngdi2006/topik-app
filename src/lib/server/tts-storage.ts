@@ -129,31 +129,40 @@ async function generateWithElevenLabs(text: string, voiceId: string) {
         throw new Error('ELEVENLABS_API_KEY chưa được cấu hình')
     }
 
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
-        method: 'POST',
-        headers: {
-            'xi-api-key': apiKey,
-            'Content-Type': 'application/json',
-            accept: 'audio/mpeg',
+    const requestBody = JSON.stringify({
+        text,
+        model_id: TTS_MODEL,
+        voice_settings: {
+            stability: 0.55,
+            similarity_boost: 0.8,
+            style: 0.15,
+            use_speaker_boost: true,
         },
-        body: JSON.stringify({
-            text,
-            model_id: TTS_MODEL,
-            voice_settings: {
-                stability: 0.55,
-                similarity_boost: 0.8,
-                style: 0.15,
-                use_speaker_boost: true,
-            },
-        }),
     })
 
-    if (!response.ok) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
+            method: 'POST',
+            headers: {
+                'xi-api-key': apiKey,
+                'Content-Type': 'application/json',
+                accept: 'audio/mpeg',
+            },
+            body: requestBody,
+        })
+
+        if (response.ok) return Buffer.from(await response.arrayBuffer())
+
         const details = await response.text()
-        throw new Error(`ElevenLabs trả về ${response.status}: ${details}`)
+        const canRetry = response.status === 429 || response.status >= 500
+        if (!canRetry || attempt === 1) {
+            throw new Error(`ElevenLabs trả về ${response.status}: ${details}`)
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 750))
     }
 
-    return Buffer.from(await response.arrayBuffer())
+    throw new Error('ElevenLabs không phản hồi sau khi thử lại')
 }
 
 async function resolveSpeechAudio(

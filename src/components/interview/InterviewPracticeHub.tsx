@@ -1666,7 +1666,7 @@ export function InterviewPracticeHub({
                         variant="ghost" 
                         size="icon" 
                         onClick={handleGoBack} 
-                        className={`shrink-0 rounded-full border shadow-sm ${step === 'self_introduction' ? 'h-8 w-8 border-white/25 bg-white/15 text-white backdrop-blur hover:bg-white/25 hover:text-white md:h-12 md:w-12' : 'h-10 w-10 border-slate-200 bg-white text-slate-600 hover:bg-slate-100 md:h-12 md:w-12'}`}
+                        className={`shrink-0 rounded-full border shadow-sm ${step === 'self_introduction' ? 'h-8 w-8 border-white/25 bg-blue-700/80 text-white hover:bg-blue-700 hover:text-white md:h-12 md:w-12 md:bg-white/15 md:backdrop-blur' : 'h-10 w-10 border-slate-200 bg-white text-slate-600 hover:bg-slate-100 md:h-12 md:w-12'}`}
                     >
                         <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
                     </Button>

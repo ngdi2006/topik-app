@@ -542,7 +542,7 @@ export function SelfIntroductionPractice({
     }
 
     return (
-        <section className="mx-auto w-full max-w-6xl space-y-2.5 pb-6 sm:space-y-5 sm:pb-10">
+        <section className="isolate mx-auto w-full max-w-6xl space-y-2.5 overflow-x-clip bg-white pb-6 sm:space-y-5 sm:bg-transparent sm:pb-10">
             <header className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-700 via-indigo-700 to-violet-700 px-3.5 py-3.5 text-white shadow-lg shadow-blue-900/15 sm:rounded-[28px] sm:p-6 md:p-8">
                 <div className="relative z-10 flex items-center justify-between gap-3 sm:gap-4">
                     <div className="min-w-0 max-w-2xl pl-10 sm:pl-14 md:pl-16">

@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { Shield, Users, FileText, Settings, LayoutDashboard, BookOpen, Menu, X, GraduationCap, Target, CreditCard, Package, BrainCircuit, ReceiptText, KeyRound } from "lucide-react"
 import dynamic from "next/dynamic"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useUserStore } from "@/store/userStore"
 
 const AdminUserNav = dynamic(() => import("@/components/admin/AdminUserNav").then(mod => mod.AdminUserNav), { ssr: false })
@@ -14,9 +14,49 @@ export default function AdminLayout({
     children: React.ReactNode
 }) {
     const [sidebarOpen, setSidebarOpen] = useState(false)
+    const [paymentAttentionCount, setPaymentAttentionCount] = useState(0)
+    const lastAttentionCheckRef = useRef(0)
     const { role } = useUserStore()
 
     const isTeacher = role === 'teacher'
+
+    useEffect(() => {
+        if (isTeacher) return
+
+        let active = true
+        const loadAttentionCount = async (force = false) => {
+            const now = Date.now()
+            if (!force && now - lastAttentionCheckRef.current < 5_000) return
+            lastAttentionCheckRef.current = now
+
+            try {
+                const response = await fetch('/api/admin/payments?summary=attention', { cache: 'no-store' })
+                if (!response.ok) return
+                const data = await response.json()
+                if (active) setPaymentAttentionCount(Number(data.attention_count) || 0)
+            } catch {
+                // Keep navigation usable when the notification request fails.
+            }
+        }
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') loadAttentionCount()
+        }
+        const handleWindowFocus = () => loadAttentionCount()
+        const handlePaymentChange = () => loadAttentionCount(true)
+
+        loadAttentionCount(true)
+        document.addEventListener('visibilitychange', handleVisibilityChange)
+        window.addEventListener('focus', handleWindowFocus)
+        window.addEventListener('admin-payment-attention-changed', handlePaymentChange)
+
+        return () => {
+            active = false
+            document.removeEventListener('visibilitychange', handleVisibilityChange)
+            window.removeEventListener('focus', handleWindowFocus)
+            window.removeEventListener('admin-payment-attention-changed', handlePaymentChange)
+        }
+    }, [isTeacher])
 
     return (
         <div className="flex min-h-screen bg-gray-50/50">
@@ -148,7 +188,16 @@ export default function AdminLayout({
                                 onClick={() => setSidebarOpen(false)}
                             >
                                 <CreditCard className="w-5 h-5 mr-3" />
-                                Thanh Toán
+                                <span className="flex-1">Thanh Toán</span>
+                                {paymentAttentionCount > 0 ? (
+                                    <span
+                                        className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white"
+                                        aria-label={`${paymentAttentionCount} giao dịch đã thanh toán nhưng chưa kích hoạt`}
+                                        title={`${paymentAttentionCount} giao dịch cần kích hoạt`}
+                                    >
+                                        {paymentAttentionCount > 99 ? '99+' : paymentAttentionCount}
+                                    </span>
+                                ) : null}
                             </Link>
                             <Link
                                 href="/admin/interview-access"

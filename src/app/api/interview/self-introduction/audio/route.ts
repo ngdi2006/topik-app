@@ -7,6 +7,8 @@ import {
     getOrCreateSpeechAudio,
 } from '@/lib/server/tts-storage'
 
+export const maxDuration = 60
+
 const FREE_DAILY_LIMIT = 1
 const MEMBER_DAILY_LIMIT = 3
 const MAX_INTRODUCTION_CHARACTERS = 500
@@ -180,6 +182,8 @@ export async function POST(request: Request) {
             await rollbackMetadataReservation(user.id)
         }
         console.error('[Self introduction TTS]', error)
-        return NextResponse.json({ error: 'Không thể tạo giọng đọc lúc này. Lượt của bạn chưa bị trừ.' }, { status: 503 })
+        return NextResponse.json({
+            error: 'Dịch vụ tạo giọng đang bận. Hệ thống đã hoàn lại lượt, vui lòng thử lại sau.',
+        }, { status: 503 })
     }
 }

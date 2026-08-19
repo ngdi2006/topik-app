@@ -7,6 +7,7 @@ import toolConfigMap from './tool_config_map.json'
 import { speakText, stopTTS } from '@/lib/tts'
 import { resolveToolQuestionConfig, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type VocabularyItem } from './toolQuestionAnalysis'
 import { WorkshopToolIcon } from './WorkshopToolIcon'
+import { FULL_TOOL_IDS, FULL_TOOL_NAMES, InterviewToolTableGame } from './InterviewToolTableGame'
 
 const ZONE_LABELS: Record<string, string> = {
     'shelf_top_left': 'Kệ trên (Trái)',
@@ -20,12 +21,22 @@ const ZONE_LABELS: Record<string, string> = {
 }
 const TOOL_NAMES: Record<string, { ko: string; vi: string }> = {
     ...Object.fromEntries(TOOL_DEFINITIONS.map((item) => [item.id, { ko: item.ko, vi: item.label }])),
-    'allen_wrench': { ko: '육각 렌치', vi: 'Cờ lê lục giác' },
+    ...FULL_TOOL_NAMES,
+    'allen_wrench': { ko: '육각 렌치', vi: 'Khóa lục giác' },
+    'socket_wrench': { ko: '소켓 렌치', vi: 'Cờ lê đầu khẩu' },
+    'socket': { ko: '소켓', vi: 'Đầu khẩu' },
+    'adjustable_wrench': { ko: '멍키 스패너', vi: 'Mỏ lết' },
+    'torque_wrench': { ko: '토크 렌치', vi: 'Cờ lê lực' },
+    'pipe_wrench': { ko: '파이프 렌치', vi: 'Mỏ lết răng' },
     'phillips_screwdriver': { ko: '십자드라이버', vi: 'Tua vít chữ thập' },
     'flat_screwdriver': { ko: '일자드라이버', vi: 'Tua vít dẹt' },
     'screwdriver': { ko: '드라이버', vi: 'Tua vít' },
     'hammer': { ko: '망치 / 장도리', vi: 'Búa nhổ đinh' },
     'pliers': { ko: '펜치 / 니퍼 / 플라이어', vi: 'Kìm mỏ nhọn / Kìm bấm' },
+    'long_nose_pliers': { ko: '롱노즈 플라이어', vi: 'Kìm mũi dài' },
+    'pincers': { ko: '펜치', vi: 'Kìm bấm' },
+    'nipper': { ko: '니퍼', vi: 'Kìm cắt' },
+    'bolt_cutter': { ko: '절단기', vi: 'Kìm cộng lực' },
     'wrench': { ko: '스패너 / 멍키 스패너', vi: 'Cờ lê / Mỏ lết' },
     'saw': { ko: '쇠톱', vi: 'Cưa tay' },
     'welder': { ko: '용접기', vi: 'Máy hàn' },
@@ -56,29 +67,47 @@ const TARGET_NAMES: Record<string, string> = {
 
 const ACTION_NAMES: Record<string, string> = {
     ...Object.fromEntries(ACTION_DEFINITIONS.map((item) => [item.id, item.label])),
-    'counter_clockwise': 'Tháo (Xoay ngược chiều kim đồng hồ)',
-    'clockwise': 'Siết (Xoay cùng chiều kim đồng hồ)',
-    'cut': 'Cắt / Gọt gỗ / Tiện',
+    'counter_clockwise': 'Tháo',
+    'clockwise': 'Siết',
+    'cut': 'Cắt',
     'strip': 'Tước vỏ cách điện',
-    'turn_on': 'Bật / Gạt lên',
-    'turn_off': 'Tắt / Gạt xuống',
-    'push': 'Đục lỗ / Khoan vào / Đóng vào / Cất vào',
-    'pull': 'Nhổ ra / Lấy ra / Kéo ra / Kéo dài'
+    'turn_on': 'Bật',
+    'turn_off': 'Tắt',
+    'push': 'Đẩy',
+    'pull': 'Kéo ra'
+}
+
+const ACTION_HINTS: Record<string, string> = {
+    counter_clockwise: 'Xoay ngược chiều kim đồng hồ',
+    clockwise: 'Xoay cùng chiều kim đồng hồ',
+    turn_on: 'Gạt lên hoặc mở nguồn',
+    turn_off: 'Gạt xuống hoặc ngắt nguồn',
+}
+
+function getActionDisplay(actionId: string) {
+    const rawLabel = ACTION_NAMES[actionId] || actionId
+    return {
+        label: rawLabel.split(/\s*\/\s*/)[0].trim(),
+        hint: ACTION_HINTS[actionId],
+    }
 }
 
 const SHELF_TARGETS = ['shelf_top_left', 'shelf_bottom_left', 'shelf_top_right', 'shelf_bottom_right']
 const BOX_TARGETS = ['toolbox_center', 'special_box']
-const WORKBENCH_TARGETS = ['paint_can', 'primer_can', 'varnish_can', 'wood_workpiece', 'phillips_screw', 'slotted_screw', 'hex_bolt', 'electric_wire', 'coil_spring', 'bearing', 'gear', 'metal_pipe', 'metal_workpiece', 'plastic_workpiece', 'workpiece', 'lever']
-const PANEL_TARGETS = ['switch_power', 'emergency_button', 'signal_light']
-const ALL_SYSTEM_TOOLS = ['paint_roller', 'paint_brush', 'spray_gun', 'scale', 'electronic_scale', 'pan_scale', 'industrial_scale', 'phillips_screwdriver', 'flat_screwdriver', 'allen_wrench', 'screwdriver', 'hammer', 'pliers', 'wrench', 'saw', 'welder', 'ruler', 'bearing_puller', 'lathe_machine', 'switch_tool', 'rust_preventive_oil']
+const ALL_SYSTEM_TOOLS = [...FULL_TOOL_IDS]
+const TARGET_DISTRACTOR_POOL = ['hex_bolt', 'phillips_screw', 'slotted_screw', 'electric_wire', 'metal_pipe', 'bearing', 'gear', 'coil_spring', 'wood_workpiece', 'metal_workpiece', 'switch_power', 'lever', 'paint_can', 'workpiece']
 const TOOL_DISTRACTORS: Record<string, string[]> = {
     phillips_screwdriver: ['flat_screwdriver', 'screwdriver', 'allen_wrench', 'wrench'],
     flat_screwdriver: ['phillips_screwdriver', 'screwdriver', 'allen_wrench', 'wrench'],
-    allen_wrench: ['wrench', 'screwdriver', 'pliers', 'ruler'],
+    allen_wrench: ['socket_wrench', 'torque_wrench', 'wrench', 'adjustable_wrench'],
     screwdriver: ['allen_wrench', 'wrench', 'pliers', 'hammer'],
     hammer: ['screwdriver', 'pliers', 'wrench', 'saw'],
     pliers: ['wrench', 'screwdriver', 'saw', 'ruler'],
-    wrench: ['allen_wrench', 'screwdriver', 'pliers', 'bearing_puller'],
+    wrench: ['adjustable_wrench', 'socket_wrench', 'torque_wrench', 'pipe_wrench'],
+    socket_wrench: ['socket', 'wrench', 'torque_wrench', 'adjustable_wrench'],
+    adjustable_wrench: ['wrench', 'pipe_wrench', 'socket_wrench', 'torque_wrench'],
+    torque_wrench: ['socket_wrench', 'wrench', 'allen_wrench', 'adjustable_wrench'],
+    pipe_wrench: ['adjustable_wrench', 'wrench', 'socket_wrench', 'pliers'],
     bearing_puller: ['wrench', 'pliers', 'screwdriver', 'hammer'],
     lathe_machine: ['saw', 'drill', 'hammer', 'wrench'],
     switch_tool: ['screwdriver', 'pliers', 'wrench', 'hammer'],
@@ -125,10 +154,12 @@ type ToolPracticeConfig = {
     tools_on_desk?: string[]
     correct_tool?: string
     target_object?: string
+    requires_target?: boolean
     correct_action?: string | null
     vietnamese_instruction?: string
     requires_action?: boolean
     vocabulary_analysis?: VocabularyItem[]
+    required_tools?: string[]
 }
 
 type ToolPracticeQuestion = {
@@ -257,11 +288,8 @@ function inferToolFromText(question: ToolPracticeQuestion, targetObject: string)
 
 function normalizeToolId(toolId: string | undefined): string {
     if (!toolId) return 'screwdriver'
-    if (['socket_wrench', 'adjustable_wrench', 'torque_wrench', 'pipe_wrench'].includes(toolId)) return 'wrench'
-    if (['long_nose_pliers', 'nipper'].includes(toolId)) return 'pliers'
-    if (['torch'].includes(toolId)) return 'welder'
-    if (['level'].includes(toolId)) return 'ruler'
-    if (['cutting_machine', 'grinder'].includes(toolId)) return 'saw'
+    if (toolId === 'level') return 'spirit_level'
+    if (toolId === 'cutting_machine') return 'electric_cutter'
     return toolId
 }
 
@@ -791,13 +819,10 @@ export function ToolDragPracticeScreen({
     const [audioState, setAudioState] = useState<'idle' | 'playing' | 'ended' | 'error'>('idle')
     const [speed, setSpeed] = useState<number>(1.0)
 
-    // Timer States
-    const [timeLeft, setTimeLeft] = useState<number | null>(null)
-    const timerRef = useRef<NodeJS.Timeout | null>(null)
-
     // Game 3-Step Selection States
     const [step, setStep] = useState<1 | 2 | 3>(1)
     const [heldTool, setHeldTool] = useState<string | null>(null)
+    const [placedTools, setPlacedTools] = useState<string[]>([])
     const [selectedTarget, setSelectedTarget] = useState<string | null>(null)
     const [selectedAction, setSelectedAction] = useState<string | null>(null)
 
@@ -805,23 +830,37 @@ export function ToolDragPracticeScreen({
         if (!config) return ['phillips_screwdriver', 'flat_screwdriver', 'wrench', 'pliers', 'hammer']
 
         const correct = normalizeToolId(config.correct_tool || 'screwdriver')
+        const requiredTools = (config.required_tools || []).map(normalizeToolId)
         const configuredTools = (config.tools_on_desk || []).map(normalizeToolId)
-        const baseTools = Array.from(new Set([correct, ...configuredTools])).slice(0, 5)
-        const distractorPool = [...(TOOL_DISTRACTORS[correct] || []), ...ALL_SYSTEM_TOOLS].map(normalizeToolId).filter((tool) => tool !== correct && !baseTools.includes(tool))
+        const deskToolCount = ALL_SYSTEM_TOOLS.length
+        const baseTools = Array.from(new Set([correct, ...requiredTools, ...configuredTools])).slice(0, deskToolCount)
+        const distractorPool = [
+            ...(TOOL_DISTRACTORS[correct] || []).map(normalizeToolId),
+            ...ALL_SYSTEM_TOOLS,
+        ].filter((tool) => tool !== correct && !baseTools.includes(tool))
         const shuffleSeed = `${currentQ.id}-${currentIndex}-${correct}`
-        const neededCount = Math.max(0, 5 - baseTools.length)
+        const neededCount = Math.max(0, deskToolCount - baseTools.length)
         const selected = shuffleBySeed(distractorPool, shuffleSeed).slice(0, neededCount)
 
-        const finalTools = shuffleBySeed(Array.from(new Set([...baseTools, ...selected])), `${shuffleSeed}-desk`)
+        const finalTools = Array.from(new Set([...baseTools, ...selected]))
 
-        const fallbacks = ['phillips_screwdriver', 'flat_screwdriver', 'wrench', 'pliers', 'hammer']
+        const fallbacks = ALL_SYSTEM_TOOLS
         for (const fb of fallbacks) {
-            if (finalTools.length >= 5) break
+            if (finalTools.length >= deskToolCount) break
             if (!finalTools.includes(fb)) finalTools.push(fb)
         }
 
-        return finalTools.slice(0, 5)
+        return finalTools.slice(0, deskToolCount)
     }, [config, currentIndex, currentQ.id])
+
+    const currentTargetsOnDesk = useMemo(() => {
+        const correctTarget = config?.target_object || 'workpiece'
+        const distractors = shuffleBySeed(
+            TARGET_DISTRACTOR_POOL.filter((target) => target !== correctTarget),
+            `${currentQ.id}-${currentIndex}-${correctTarget}-targets`,
+        ).slice(0, 4)
+        return [correctTarget, ...distractors]
+    }, [config?.target_object, currentIndex, currentQ.id])
 
     // Feedback States
     const [isShake, setIsShake] = useState(false)
@@ -840,26 +879,11 @@ export function ToolDragPracticeScreen({
 
     const handleAudioEnded = useCallback(() => {
         setAudioState('ended')
-        const countdownSeconds = currentQ.countdown_after_audio || 15
-        setTimeLeft(countdownSeconds)
-
-        if (timerRef.current) clearInterval(timerRef.current)
-        timerRef.current = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev === null || prev <= 1) {
-                    if (timerRef.current) clearInterval(timerRef.current)
-                    return 0
-                }
-                return prev - 1
-            })
-        }, 1000)
-    }, [currentQ.countdown_after_audio])
+    }, [])
 
     useEffect(() => {
         if (!currentQ) return
         
-        if (timerRef.current) clearInterval(timerRef.current)
-
         const audio = audioRef.current
         let fallbackTimer: number | null = null
         if (currentQ.question_audio_url && audio) {
@@ -888,7 +912,6 @@ export function ToolDragPracticeScreen({
             if (fallbackTimer) window.clearTimeout(fallbackTimer)
             if (audio) audio.pause()
             stopTTS()
-            if (timerRef.current) clearInterval(timerRef.current)
         }
     }, [currentIndex, currentQ, handleAudioEnded, speed])
 
@@ -916,37 +939,43 @@ export function ToolDragPracticeScreen({
 
     // Step 1: Select tool (allowing changing selection during Step 2 as well)
     const selectTool = (tool: string) => {
-        if (timeLeft === 0 || feedbackState === 'success' || isExamSubmitted) return
+        if (feedbackState === 'success' || isExamSubmitted) return
         setHeldTool(tool)
         if (step === 1) {
-            setStep(2)
+            setStep(config?.requires_target === false ? 3 : 2)
         }
     }
 
-    const evaluateSelection = (target: string, action: string | null) => {
+    const evaluateSelection = (target: string | null, action: string | null, toolOverride?: string) => {
         if (!config) return
 
-        const isToolCorrect = heldTool === config.correct_tool ||
-            (config.correct_tool === 'switch_tool' && ['switch_tool', 'generic_tool', 'pliers', 'screwdriver', 'hand'].includes(heldTool || '')) ||
-            (config.correct_tool === 'generic_tool' && ['switch_tool', 'generic_tool', 'pliers', 'screwdriver', 'hand'].includes(heldTool || '')) ||
-            ((config.target_object === 'switch_power' || config.target_object === 'emergency_button') && ['switch_tool', 'generic_tool', 'pliers', 'screwdriver', 'hand'].includes(heldTool || ''))
-        const isTargetCorrect = target === config.target_object
+        const chosenTool = toolOverride || heldTool
+        const normalizedRequiredTools = (config.required_tools || []).map(normalizeToolId).filter(Boolean)
+        const selectedToolSet = new Set([...placedTools, chosenTool].filter(Boolean))
+        const hasAllRequiredTools = normalizedRequiredTools.length > 0
+            ? normalizedRequiredTools.every((tool) => selectedToolSet.has(tool))
+            : null
+        const isSingleToolCorrect = chosenTool === config.correct_tool ||
+            (config.correct_tool === 'switch_tool' && ['switch_tool', 'generic_tool', 'pliers', 'screwdriver', 'hand'].includes(chosenTool || '')) ||
+            (config.correct_tool === 'generic_tool' && ['switch_tool', 'generic_tool', 'pliers', 'screwdriver', 'hand'].includes(chosenTool || '')) ||
+            ((config.target_object === 'switch_power' || config.target_object === 'emergency_button') && ['switch_tool', 'generic_tool', 'pliers', 'screwdriver', 'hand'].includes(chosenTool || ''))
+        const isToolCorrect = hasAllRequiredTools ?? isSingleToolCorrect
+        const isTargetCorrect = config.requires_target === false || target === config.target_object
         const isActionCorrect = !config.requires_action || action === config.correct_action
         const isCorrect = isToolCorrect && isTargetCorrect && isActionCorrect
 
         if (isExamMode) {
             if (isCorrect) masteredIdsRef.current.add(currentQ.id)
             else failedIdsRef.current.add(currentQ.id)
-            if (timerRef.current) clearInterval(timerRef.current)
             setIsExamSubmitted(true)
             onFinish({
-                selected_tool: TOOL_NAMES[heldTool || '']?.vi || heldTool || 'Chưa chọn',
-                selected_target: EXACT_TARGET_LABELS[target] || target || 'Chưa chọn',
-                selected_action: action ? ACTION_NAMES[action] || action : 'Không yêu cầu',
+                selected_tool: TOOL_NAMES[chosenTool || '']?.vi || chosenTool || 'Chưa chọn',
+                selected_target: config.requires_target === false ? 'Không yêu cầu' : EXACT_TARGET_LABELS[target || ''] || target || 'Chưa chọn',
+                selected_action: action ? getActionDisplay(action).label : 'Không yêu cầu',
                 correct_tool: TOOL_NAMES[config.correct_tool || '']?.vi || config.correct_tool || 'Chưa cấu hình',
-                correct_target: EXACT_TARGET_LABELS[config.target_object || ''] || config.target_object || 'Chưa cấu hình',
+                correct_target: config.requires_target === false ? 'Không yêu cầu' : EXACT_TARGET_LABELS[config.target_object || ''] || config.target_object || 'Chưa cấu hình',
                 correct_action: config.requires_action
-                    ? ACTION_NAMES[config.correct_action || ''] || config.correct_action || 'Chưa cấu hình'
+                    ? getActionDisplay(config.correct_action || '').label || 'Chưa cấu hình'
                     : 'Không yêu cầu',
             }, isCorrect ? [currentQ.id] : [])
             return
@@ -957,13 +986,64 @@ export function ToolDragPracticeScreen({
             if (!failedIdsRef.current.has(currentQ.id)) {
                 masteredIdsRef.current.add(currentQ.id)
             }
-            if (timerRef.current) clearInterval(timerRef.current)
         } else {
             setFeedbackState('fail')
             failedIdsRef.current.add(currentQ.id)
             setIsShake(true)
             setTimeout(() => setIsShake(false), 500)
         }
+    }
+
+    const placeToolInOperationZone = (tool: string) => {
+        if (!config || feedbackState !== 'idle' || isExamSubmitted) return
+        setHeldTool(tool)
+        const nextPlacedTools = Array.from(new Set([...placedTools, tool]))
+        setPlacedTools(nextPlacedTools)
+
+        // Step 1 only verifies that the learner has placed enough objects.
+        // Correctness is evaluated after completing the target/action flow.
+        const requiredToolCount = Math.max(1, config.required_tools?.filter(Boolean).length || 1)
+        const hasSelectedEnoughTools = nextPlacedTools.length >= requiredToolCount
+
+        if (!hasSelectedEnoughTools) {
+            setStep(1)
+            return
+        }
+        if (config.requires_target === false) {
+            if (config.requires_action) {
+                setStep(3)
+                return
+            }
+            evaluateSelection(null, null, tool)
+            return
+        }
+        setStep(2)
+    }
+
+    const removeToolFromOperationZone = (tool: string) => {
+        if (feedbackState !== 'idle' || isExamSubmitted) return
+        const nextPlacedTools = placedTools.filter((item) => item !== tool)
+        setPlacedTools(nextPlacedTools)
+        if (heldTool === tool) setHeldTool(null)
+        setSelectedTarget(null)
+        setStep(1)
+    }
+
+    const placeTargetInOperationZone = (target: string) => {
+        if (!config || step !== 2 || feedbackState !== 'idle' || isExamSubmitted) return
+        setSelectedTarget(target)
+        if (config.requires_action) {
+            setStep(3)
+            return
+        }
+        evaluateSelection(target, null)
+    }
+
+    const removeTargetFromOperationZone = () => {
+        if (feedbackState !== 'idle' || isExamSubmitted) return
+        setSelectedTarget(null)
+        setSelectedAction(null)
+        setStep(2)
     }
 
     // Step 2: Select target object. Storage commands finish here; operation commands continue to Step 3.
@@ -982,7 +1062,7 @@ export function ToolDragPracticeScreen({
 
     // Step 3: Choose action and evaluate
     const executeAction = (action: string) => {
-        if (step !== 3 || !config || feedbackState === 'success' || !selectedTarget || isExamSubmitted) return
+        if (step !== 3 || !config || feedbackState === 'success' || (config.requires_target !== false && !selectedTarget) || isExamSubmitted) return
         setSelectedAction(action)
         evaluateSelection(selectedTarget, action)
     }
@@ -992,6 +1072,7 @@ export function ToolDragPracticeScreen({
         stopTTS()
         setStep(1)
         setHeldTool(null)
+        setPlacedTools([])
         setSelectedTarget(null)
         setSelectedAction(null)
         setFeedbackState('idle')
@@ -999,25 +1080,11 @@ export function ToolDragPracticeScreen({
         setIsExamSubmitted(false)
         setIsShake(false)
 
-        if (timerRef.current) clearInterval(timerRef.current)
-        const countdownSeconds = currentQ?.countdown_after_audio || 15
-        setTimeLeft(countdownSeconds)
-
-        timerRef.current = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev === null || prev <= 1) {
-                    if (timerRef.current) clearInterval(timerRef.current)
-                    return 0
-                }
-                return prev - 1
-            })
-        }, 1000)
     }
 
     const handleNext = () => {
         resetSteps()
         setAudioState('idle')
-        setTimeLeft(null)
         setIsShake(false)
 
         if (currentIndex < questions.length - 1) {
@@ -1056,38 +1123,37 @@ export function ToolDragPracticeScreen({
     ])).filter(Boolean).slice(0, 4)
 
     return (
-        <div className={`${isExamMode ? 'max-w-none p-3 md:p-4' : 'max-w-5xl p-4'} mx-auto space-y-4 select-none touch-none bg-slate-950 rounded-3xl border border-slate-800 shadow-2xl relative overflow-hidden`}>
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.12),rgba(255,255,255,0))] pointer-events-none" />
+        <div className={`${isExamMode ? 'max-w-none' : 'max-w-5xl'} relative mx-auto select-none overflow-x-hidden bg-white`}>
 
             <audio ref={audioRef} onPlay={() => setAudioState('playing')} onEnded={handleAudioEnded} onError={() => setAudioState('error')} className="hidden" />
 
             {/* Header Controls Dashboard */}
-            <div className="flex flex-col md:flex-row justify-between items-center bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-800/80 shadow-md gap-4 z-10 relative">
-                <div className="flex items-center gap-3">
+            <div className="relative z-40 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur-md sm:px-4">
+                <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:flex-1">
                     {onBack && (
-                        <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0 border border-slate-800 hover:bg-slate-800 text-slate-300">
+                        <Button variant="ghost" size="icon" onClick={onBack} aria-label="Quay lại" className="shrink-0 rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-900">
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
                     )}
                     <div className="flex items-center gap-2">
-                        <span className="px-3.5 py-1.5 bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-500/30 text-orange-400 rounded-full text-xs font-bold uppercase tracking-wider whitespace-nowrap shadow-sm shadow-orange-500/10">
+                        <span className="whitespace-nowrap border-l-2 border-orange-500 px-2 py-1 text-[11px] font-extrabold uppercase tracking-wider text-orange-700">
                             Thực hành Vòng 2
                         </span>
-                        <div className="h-4 w-px bg-slate-800 hidden sm:block" />
-                        <span className="text-slate-400 text-xs font-medium hidden sm:inline">Mô phỏng sử dụng công cụ</span>
+                        <div className="hidden h-4 w-px bg-slate-200 sm:block" />
+                        <span className="hidden text-xs font-medium text-slate-500 sm:inline">Mô phỏng sử dụng công cụ</span>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-                    <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-850">
+                <div className="order-3 flex shrink-0 items-center gap-2 sm:order-none">
+                    <div className="flex rounded-lg bg-slate-100 p-0.5">
                         {([0.8, 1.0, 1.2] as const).map(rate => (
                             <button
                                 key={rate}
                                 onClick={() => setSpeed(rate)}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                                className={`rounded-md px-2.5 py-1 text-xs font-bold transition-[background-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${
                                     speed === rate 
-                                        ? 'bg-orange-500 text-slate-950 shadow-md' 
-                                        : 'text-slate-400 hover:text-slate-200'
+                                        ? 'bg-orange-500 text-white shadow-sm'
+                                        : 'text-slate-500 hover:bg-white hover:text-slate-900'
                                 }`}
                             >
                                 {rate === 1.0 ? 'Chuẩn' : `${rate}x`}
@@ -1095,18 +1161,18 @@ export function ToolDragPracticeScreen({
                         ))}
                     </div>
 
-                    <Button variant="outline" size="sm" onClick={replayAudio} className="border-slate-800 bg-slate-950 text-slate-200 hover:bg-slate-800 text-xs font-semibold px-3 py-1">
+                    <Button variant="ghost" size="sm" onClick={replayAudio} className="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
                         <Play className="w-3.5 h-3.5 mr-1 text-orange-500 fill-orange-500" /> Nghe lại
                     </Button>
                 </div>
 
-                <div className="flex items-center gap-3 w-full md:w-52 shrink-0">
-                    <div className="text-xs font-mono font-bold text-slate-400 whitespace-nowrap">
+                <div className="order-3 flex min-w-24 flex-1 items-center gap-2 sm:order-none sm:max-w-48">
+                    <div className="whitespace-nowrap font-mono text-xs font-bold tabular-nums text-slate-500">
                         {currentIndex + 1} / {questions.length}
                     </div>
-                    <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden shadow-inner border border-slate-800">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
                         <div 
-                            className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full transition-all duration-500 ease-out" 
+                            className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-[width] duration-500 ease-out motion-reduce:transition-none"
                             style={{ width: `${Math.max(5, ((currentIndex + 1) / questions.length) * 100)}%` }}
                         />
                     </div>
@@ -1114,35 +1180,77 @@ export function ToolDragPracticeScreen({
             </div>
 
             {/* Workbench Simulator */}
-            <div className={`bg-slate-900/40 rounded-2xl border border-slate-900/80 p-4 relative overflow-hidden min-h-[580px] flex flex-col items-center justify-between transition-transform duration-100 ${isShake ? 'animate-shake' : ''}`}>
+            <div className={`relative flex flex-col items-center gap-1.5 overflow-visible bg-white pb-1 ${isShake ? 'animate-shake' : ''}`}>
                 
-                <div className="w-full flex flex-col items-center gap-2 z-10 mb-2">
-                    {timeLeft !== null && timeLeft > 0 && feedbackState === 'idle' && !isExamSubmitted && (
-                        <div className="flex items-center gap-3 px-5 py-2 rounded-full bg-slate-900 border border-slate-850 shadow-lg animate-pulse">
-                            <span className="text-xs font-semibold tracking-wider text-slate-400 uppercase">Khẩu lệnh kết thúc - Đang thao tác:</span>
-                            <div className="font-mono text-xl font-black text-cyan-400 flex items-center">
-                                {timeLeft}<span className="text-xs ml-0.5 text-cyan-600">s</span>
-                            </div>
-                        </div>
-                    )}
+                <div className="z-10 flex w-full flex-col items-center gap-1.5 px-3 py-2">
                     {audioState === 'playing' && (
-                        <div className="flex items-center gap-2 text-cyan-400 bg-cyan-950/20 px-4 py-2 rounded-full border border-cyan-800/30 text-sm animate-pulse">
-                            <Volume2 className="w-4 h-4 text-cyan-400" />
+                        <div className="flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-700">
+                            <Volume2 className="h-4 w-4 text-blue-600" />
                             <span>Hãy nghe kỹ khẩu lệnh của giám khảo trước khi chọn dụng cụ!</span>
                         </div>
                     )}
 
                     {audioState === 'ended' && feedbackState === 'idle' && (
-                        <div className="text-sm font-bold text-center mt-1">
-                            {step === 1 && <span className="text-amber-400">BƯỚC 1: Hãy bấm chọn 1 dụng cụ trên &quot;BÀN LÀM VIỆC&quot;</span>}
-                            {step === 2 && <span className="text-cyan-400">BƯỚC 2: Click chọn vật thể hoặc vị trí thao tác thích hợp (Bàn làm việc, Bảng điều khiển, Kệ hoặc Hộp công cụ)</span>}
-                            {step === 3 && config.requires_action && <span className="text-purple-400 font-extrabold animate-pulse">BƯỚC 3: Chọn hướng thao tác / Hành động tương ứng</span>}
+                        <div className="mt-1 px-2 text-center text-sm font-bold text-pretty">
+                            {step === 1 && <span className="text-blue-700">BƯỚC 1: Chọn và đặt đủ dụng cụ cần dùng lên bàn</span>}
+                            {step === 2 && <span className="text-amber-700">BƯỚC 2: Chọn chi tiết hoặc vật thể cần thao tác</span>}
+                            {step === 3 && config.requires_action && <span className="font-extrabold text-violet-700">BƯỚC {config.requires_target === false ? '2' : '3'}: Thực hiện thao tác với dụng cụ{config.requires_target === false ? '' : ' và chi tiết đã chọn'}</span>}
                         </div>
                     )}
                 </div>
 
+                <div className="z-10 w-full max-w-[1120px]">
+                    <InterviewToolTableGame
+                        key={currentQ.id}
+                        tools={currentToolsOnDesk}
+                        placedTools={placedTools}
+                        targets={currentTargetsOnDesk}
+                        placedTarget={selectedTarget}
+                        toolNames={TOOL_NAMES}
+                        targetNames={EXACT_TARGET_LABELS}
+                        stage={step}
+                        requiresTarget={config.requires_target !== false}
+                        disabled={step === 3 || feedbackState !== 'idle' || isExamSubmitted}
+                        renderFallback={(tool, className) => <SmallToolIcon type={tool} className={className} />}
+                        renderTarget={(target, className) => <TargetObjectIcon type={target} className={className} />}
+                        onPlace={placeToolInOperationZone}
+                        onRemove={removeToolFromOperationZone}
+                        onPlaceTarget={placeTargetInOperationZone}
+                        onRemoveTarget={removeTargetFromOperationZone}
+                    />
+                </div>
+
+                {step === 3 && config.requires_action && feedbackState === 'idle' && (
+                    <div className="z-20 mt-2 w-[calc(100%-1.5rem)] max-w-[820px] rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-lg sm:w-full" aria-live="polite">
+                        <div className="mb-3 text-center">
+                            <h5 className="text-sm font-extrabold uppercase tracking-wider text-slate-900">Thực hiện thao tác</h5>
+                            <p className="mt-1 text-xs text-slate-600">Dụng cụ đã ở đúng vùng. Chọn hành động theo yêu cầu của giám khảo.</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            {actionChoiceIds.map((actionId) => (
+                                <Button
+                                    key={actionId}
+                                    type="button"
+                                    onClick={() => executeAction(actionId)}
+                                    className="flex min-h-14 flex-col whitespace-normal break-words border border-blue-200 bg-white px-3 py-2 text-center text-xs font-bold leading-snug text-slate-800 shadow-sm hover:border-blue-500 hover:bg-blue-100 focus-visible:ring-2 focus-visible:ring-blue-500"
+                                >
+                                    <span>{getActionDisplay(actionId).label}</span>
+                                    {getActionDisplay(actionId).hint ? <span className="mt-0.5 text-[10px] font-medium text-slate-500">{getActionDisplay(actionId).hint}</span> : null}
+                                </Button>
+                            ))}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => placedTools[placedTools.length - 1] && removeToolFromOperationZone(placedTools[placedTools.length - 1])}
+                            className="mx-auto mt-3 block rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-blue-100 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                        >
+                            Đổi dụng cụ
+                        </button>
+                    </div>
+                )}
+
                 {/* Main simulation grid */}
-                <div className="relative w-full max-w-4xl h-[380px] bg-slate-950 rounded-3xl border-4 border-slate-900 mx-auto overflow-hidden shadow-2xl flex backdrop-blur-lg">
+                <div className="hidden relative w-full max-w-4xl h-[380px] bg-slate-950 rounded-3xl border-4 border-slate-900 mx-auto overflow-hidden shadow-2xl backdrop-blur-lg">
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(30,41,59,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(30,41,59,0.08)_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
 
                     {/* Left Shelves Column */}
@@ -1278,7 +1386,7 @@ export function ToolDragPracticeScreen({
                                             onClick={() => executeAction(actionId)}
                                             className="py-5 bg-slate-950 border border-slate-800 text-slate-100 hover:text-white hover:bg-slate-800 text-xs font-black tracking-wide"
                                         >
-                                            {ACTION_NAMES[actionId] || actionId}
+                                            {getActionDisplay(actionId).label}
                                         </Button>
                                     ))}
                                 </div>
@@ -1292,7 +1400,7 @@ export function ToolDragPracticeScreen({
 
                 {/* Handheld Selected Tool Indicator */}
                 {heldTool && feedbackState === 'idle' && (
-                    <div className="absolute top-20 right-6 flex items-center gap-2.5 bg-cyan-950/80 border border-cyan-800/40 px-3.5 py-2 rounded-xl shadow-lg animate-in slide-in-from-right duration-300">
+                    <div className="hidden absolute top-20 right-6 items-center gap-2.5 bg-cyan-950/80 border border-cyan-800/40 px-3.5 py-2 rounded-xl shadow-lg animate-in slide-in-from-right duration-300">
                         <span className="text-[10px] font-bold text-cyan-400 tracking-wider uppercase">Đang cầm:</span>
                         <div className="p-1.5 bg-slate-950 rounded-lg border border-cyan-800/30">
                             <SmallToolIcon type={heldTool} className="w-7 h-7" />
@@ -1301,7 +1409,7 @@ export function ToolDragPracticeScreen({
                 )}
 
                 {/* Boxes Row */}
-                <div className="w-full max-w-4xl grid grid-cols-2 gap-4 mt-2 transition-all duration-300">
+                <div className="hidden w-full max-w-4xl grid-cols-2 gap-4 mt-2 transition-all duration-300">
                     <button 
                         disabled={step !== 2 || feedbackState === 'success'}
                         onClick={() => selectTarget('toolbox_center')}
@@ -1323,7 +1431,7 @@ export function ToolDragPracticeScreen({
                 </div>
 
                 {/* BÀN LÀM VIỆC Tool picker rack */}
-                <div className="w-full max-w-4xl bg-slate-900/90 border border-slate-800 p-4 rounded-2xl shadow-xl mt-4 relative">
+                <div className="hidden w-full max-w-4xl bg-slate-900/90 border border-slate-800 p-4 rounded-2xl shadow-xl mt-4 relative">
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-950 px-4 py-0.5 rounded-full border border-slate-800 text-[10px] font-bold text-slate-300 uppercase tracking-widest">
                         Bàn làm việc (Chọn dụng cụ)
                     </div>
@@ -1336,7 +1444,7 @@ export function ToolDragPracticeScreen({
                             return (
                                 <button
                                     key={toolId}
-                                    disabled={timeLeft === 0 || feedbackState === 'success'}
+                                    disabled={feedbackState === 'success'}
                                     onClick={() => selectTool(toolId)}
                                     className={`p-3 md:p-4 bg-slate-950 rounded-xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all outline-none cursor-pointer hover:border-orange-500/60 hover:bg-slate-900 ${
                                         isSelected 
@@ -1408,14 +1516,17 @@ export function ToolDragPracticeScreen({
                                                     {heldTool === config.correct_tool ? "✓ Chính xác" : "✗ Sai"}
                                                 </span>
                                             </div>
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-slate-400">Bước 2: Click vật thể tác động</span>
+                                            {config.requires_target !== false ? <div className="flex items-center justify-between">
+                                                <span className="text-slate-400">Bước 2: Chọn vật thể tác động</span>
                                                 <span className={selectedTarget === config.target_object ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
                                                     {selectedTarget === config.target_object ? "✓ Chính xác" : "✗ Sai"}
                                                 </span>
-                                            </div>
+                                            </div> : <div className="flex items-center justify-between">
+                                                <span className="text-slate-400">Vật thể</span>
+                                                <span className="font-bold text-slate-300">Không nêu trong câu</span>
+                                            </div>}
                                             <div className="flex items-center justify-between">
-                                                <span className="text-slate-400">Bước 3: Chọn hướng/hành động</span>
+                                                <span className="text-slate-400">Bước {config.requires_target === false ? '2' : '3'}: Chọn thao tác</span>
                                                 <span className={!config.requires_action || selectedAction === config.correct_action ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
                                                     {!config.requires_action ? "Không cần" : selectedAction === config.correct_action ? "✓ Chính xác" : "✗ Sai"}
                                                 </span>
@@ -1425,9 +1536,9 @@ export function ToolDragPracticeScreen({
                                                 <div className="mt-3 pt-3 border-t border-slate-800 text-xs space-y-1 animate-in fade-in duration-300 text-slate-200">
                                                     <div className="font-extrabold text-emerald-400 uppercase tracking-wider mb-1.5">Đáp án đúng của khẩu lệnh:</div>
                                                     <div>Bước 1: Chọn <span className="text-emerald-400 font-bold">{TOOL_NAMES[correctToolId]?.vi}</span></div>
-                                                    <div>Bước 2: Click vào <span className="text-emerald-400 font-bold">{EXACT_TARGET_LABELS[targetObjectId] || targetObjectId}</span></div>
+                                                    {config.requires_target !== false ? <div>Bước 2: Chọn <span className="text-emerald-400 font-bold">{EXACT_TARGET_LABELS[targetObjectId] || targetObjectId}</span></div> : null}
                                                     {config.requires_action && (
-                                                        <div>Bước 3: Thực hiện <span className="text-emerald-400 font-bold">{ACTION_NAMES[correctActionId] || correctActionId}</span></div>
+                                                        <div>Bước 3: Thực hiện <span className="text-emerald-400 font-bold">{getActionDisplay(correctActionId).label}</span></div>
                                                     )}
                                                 </div>
                                             )}

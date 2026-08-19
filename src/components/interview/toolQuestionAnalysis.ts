@@ -15,6 +15,7 @@ export type ToolQuestionConfig = {
     tools_on_desk: string[]
     correct_tool: string
     target_object: string
+    requires_target?: boolean
     correct_action: string | null
     requires_action: boolean
     vocabulary_analysis: VocabularyItem[]
@@ -39,20 +40,45 @@ type Definition = {
 export const TOOL_DEFINITIONS: Definition[] = [
     { id: 'phillips_screwdriver', label: 'Tua vít chữ thập', ko: '십자드라이버', patterns: [/십자\s*드라이버/, /tua vít chữ thập/i] },
     { id: 'flat_screwdriver', label: 'Tua vít dẹt', ko: '일자드라이버', patterns: [/일자\s*드라이버/, /tua vít dẹt|tua vít rãnh thẳng/i] },
-    { id: 'screwdriver', label: 'Tua vít', ko: '드라이버', patterns: [/드라이버/, /나사를 조이는 도구/, /tua vít|vặn ốc vít/i] },
+    { id: 'screwdriver', label: 'Tua vít', ko: '드라이버', patterns: [/드라이버/, /(?:^|\s)나사를\s*조이는\s*도구/, /tua vít|vặn ốc vít/i] },
     { id: 'allen_wrench', label: 'Cờ lê lục giác', ko: '육각 렌치', patterns: [/육각\s*렌치|육각/, /lục giác|allen/i] },
     { id: 'socket_wrench', label: 'Cờ lê khẩu', ko: '소켓 렌치', patterns: [/소켓\s*렌치|소켓을 끼워/, /cờ lê ổ cắm|đầu khẩu/i] },
     { id: 'adjustable_wrench', label: 'Mỏ lết', ko: '멍키 스패너', patterns: [/멍키\s*스패너|크기를 조절해/, /mỏ lết|điều chỉnh kích cỡ/i] },
-    { id: 'wrench', label: 'Cờ lê', ko: '스패너 / 렌치', patterns: [/스패너|렌치|너트를 조이는 도구|볼트를 조이는 도구|너트를 푸는 도구|볼트를 푸는 도구/, /cờ lê|bu lông|đai ốc/i] },
+    { id: 'wrench', label: 'Cờ lê', ko: '스패너 / 렌치', patterns: [/스패너|렌치|(?:너트|볼트|암나사|수나사)(?:를|을)\s*(?:조이|체결|푸는)\s*도구/, /cờ lê|bu lông|đai ốc|ren ngoài|ren trong/i] },
     { id: 'long_nose_pliers', label: 'Kìm mũi dài', ko: '롱노즈 플라이어', patterns: [/롱노즈\s*플라이어/, /kìm mũi dài/i] },
-    { id: 'nipper', label: 'Kìm cắt', ko: '니퍼', patterns: [/니퍼|절단하는 도구/, /kìm cắt/i] },
-    { id: 'pliers', label: 'Kìm', ko: '펜치 / 플라이어', patterns: [/펜치|플라이어|끼우는 도구|당기는 도구|구부리는 도구|펴는 도구|끊는 도구|자르는 도구/, /kìm|công cụ cắt dây|công cụ bẻ cong/i] },
+    { id: 'electric_cutter', label: 'Máy cắt điện', ko: '전기 절단기', patterns: [/파이프를\s*(?:자르는|절단하는)\s*도구/, /(?:máy|công cụ).*cắt ống|cắt ống/i] },
+    { id: 'bolt_cutter', label: 'Kìm cộng lực', ko: '절단기', patterns: [/(?:철근을\s*절단하는\s*도구|절단기를\s*이용하여\s*철근)/, /kìm cộng lực|cắt thép cây/i] },
+    { id: 'nipper', label: 'Kìm cắt', ko: '니퍼', patterns: [/니퍼/, /kìm cắt/i] },
+    { id: 'pliers', label: 'Kìm', ko: '펜치 / 플라이어', patterns: [/펜치|플라이어|끼우는 도구|당기는 도구|구부리는 도구|펴는 도구|끊는 도구|전선을\s*자르는\s*도구/, /kìm|công cụ cắt dây|công cụ bẻ cong/i] },
     { id: 'hammer', label: 'Búa', ko: '망치 / 장도리', patterns: [/망치|장도리|못을 박|못을 빼|못을 뽑/, /búa|đóng đinh|nhổ đinh/i] },
     { id: 'saw', label: 'Cưa tay', ko: '쇠톱 / 톱', patterns: [/쇠톱|톱날|날물|톱을/, /cưa|lưỡi cưa/i] },
     { id: 'welder', label: 'Máy hàn', ko: '용접기', patterns: [/용접기|용접하는 기계|CO2용접기|용접/, /máy hàn|que hàn|mối hàn|gá hàn|hàn kim loại|hàn nối/i] },
     { id: 'torch', label: 'Đèn hàn', ko: '토치', patterns: [/토치/, /đèn hàn/i] },
     { id: 'paint_roller', label: 'Con lăn sơn', ko: '롤러', patterns: [/롤러/, /con lăn(?: sơn)?/i] },
     { id: 'paint_brush', label: 'Cọ sơn', ko: '붓', patterns: [/붓/, /cọ(?: sơn)?|chổi sơn/i] },
+    { id: 'clamp', label: 'Kẹp', ko: '클램프', patterns: [/클램프|(?:원목|목재)(?:을|를)\s*고정하는\s*도구/, /(?:cái\s+)?kẹp(?:\s+chữ\s+c)?/i] },
+    { id: 'sprayer', label: 'Bình xịt', ko: '분무기', patterns: [/분무기/, /bình\s*(?:phun|xịt)/i] },
+    { id: 'sandpaper', label: 'Giấy nhám', ko: '사포', patterns: [/사포/, /giấy\s*nhám/i] },
+    { id: 'putty_knife', label: 'Bay bả matit', ko: '퍼티헤라', patterns: [/퍼티헤라/, /bay\s*bả\s*(?:matit)?/i] },
+    { id: 'hand_file', label: 'Giũa', ko: '줄', patterns: [/줄을\s*이용|금속을\s*깎는\s*도구/, /(?:cái\s+)?giũa/i] },
+    { id: 'metal_chisel', label: 'Đục kim loại', ko: '정', patterns: [/정을\s*이용|돌을\s*쪼는\s*도구/, /đục\s*(?:kim loại|đá)/i] },
+    { id: 'marking_needle', label: 'Mũi vạch dấu', ko: '금 긋기 바늘', patterns: [/금\s*긋기\s*바늘/, /mũi\s*vạch\s*dấu/i] },
+    { id: 'vise', label: 'Ê-tô', ko: '바이스', patterns: [/바이스|물체를\s*고정하는\s*도구/, /ê-?tô/i] },
+    { id: 'tin_snips', label: 'Kéo cắt tôn', ko: '판금 가위', patterns: [/판금\s*가위|얇은\s*금속\s*판재를\s*자르는\s*도구/, /kéo\s*cắt\s*tôn|cắt tấm kim loại mỏng/i] },
+    { id: 'hand_plane', label: 'Bào tay', ko: '대패', patterns: [/대패|(?:목재|원목)\s*표면을\s*(?:평탄|다듬)는\s*도구/, /bào\s*(?:tay|gỗ)?/i] },
+    { id: 'wood_chisel', label: 'Đục gỗ', ko: '끌', patterns: [/끌을\s*이용|(?:목재|원목|금속|돌)(?:을|를)\s*(?:파내는|깎는)\s*도구/, /đục\s*gỗ/i] },
+    { id: 'heat_gun', label: 'Máy thổi nhiệt', ko: '열풍기', patterns: [/열풍기/, /máy\s*thổi\s*nhiệt/i] },
+    { id: 'ladder', label: 'Thang', ko: '사다리', patterns: [/사다리|높은\s*곳에\s*물건을\s*꺼내는\s*도구/, /(?:cái\s+)?thang/i] },
+    { id: 'work_light', label: 'Đèn làm việc', ko: '작업등', patterns: [/작업등/, /đèn\s*làm\s*việc/i] },
+    { id: 'forklift', label: 'Xe nâng', ko: '지게차', patterns: [/지게차|짐을\s*나르는\s*차/, /xe\s*nâng/i] },
+    { id: 'platform_cart', label: 'Xe đẩy hàng', ko: '대차', patterns: [/대차/, /xe\s*đẩy\s*hàng/i] },
+    { id: 'hand_cart', label: 'Xe đẩy tay', ko: '핸드카', patterns: [/핸드카/, /xe\s*đẩy\s*tay/i] },
+    { id: 'pallet_truck', label: 'Xe nâng tay', ko: '핸드파레트트럭', patterns: [/핸드파레트트럭/, /xe\s*nâng\s*tay/i] },
+    { id: 'strapping_machine', label: 'Máy đóng đai PP', ko: '밴딩기', patterns: [/밴딩기/, /máy\s*đóng\s*đai|máy\s*đóng\s*gói/i] },
+    { id: 'reamer', label: 'Mũi doa', ko: '리머', patterns: [/리머/, /mũi\s*doa/i] },
+    { id: 'mixer', label: 'Máy trộn', ko: '혼합기', patterns: [/혼합기|원재료와\s*첨가제를\s*혼합하는\s*기계/, /máy\s*trộn/i] },
+    { id: 'leakage_breaker', label: 'Cầu dao chống rò điện', ko: '누전차단기', patterns: [/누전차단기|전기를\s*차단하는\s*장치/, /cầu\s*dao\s*chống\s*rò/i] },
+    { id: 'air_compressor', label: 'Máy nén khí', ko: '에어콤프레샤', patterns: [/에어콤프레샤|공기를\s*압축하는\s*장비/, /máy\s*nén\s*khí/i] },
     { id: 'spray_gun', label: 'Súng phun sơn', ko: '스프레이 건 / 도장 건', patterns: [/스프레이\s*건|도장\s*건|분사기/, /súng phun sơn|máy phun sơn/i] },
     { id: 'electronic_scale', label: 'Cân điện tử', ko: '전자 저울', patterns: [/전자\s*저울/, /cân điện tử/i] },
     { id: 'pan_scale', label: 'Cân đĩa', ko: '접시 저울', patterns: [/접시\s*저울/, /cân đĩa/i] },
@@ -66,18 +92,42 @@ export const TOOL_DEFINITIONS: Definition[] = [
     { id: 'drill', label: 'Máy khoan', ko: '드릴 / 드릴링머신', patterns: [/드릴링머신|전기\s*드릴|구멍을 뚫는 기계/, /máy khoan|khoan/i] },
     { id: 'cutting_machine', label: 'Máy cắt', ko: '절단기 / 커터기', patterns: [/절단기|전동커터기|절단하는 기계|자르는 기계/, /máy cắt/i] },
     { id: 'grinder', label: 'Máy mài', ko: '그라인더', patterns: [/그라인더|다듬는 기계|가는 기계/, /máy mài/i] },
-    { id: 'press_machine', label: 'Máy dập / máy ép', ko: '프레스 기계', patterns: [/프레스|압축하는 기계|찍어 내는 기계/, /máy dập|máy ép/i] },
-    { id: 'lathe_machine', label: 'Máy gọt gỗ / Máy tiện gỗ', ko: '원목 깎는 기계 / 선반 기계', patterns: [/선반 기계|원목.*깎|목재.*깎|도려내는 기계/, /máy tiện|máy gọt gỗ|gọt gỗ|bào gỗ/i] },
+    { id: 'press_machine', label: 'Máy dập / máy ép', ko: '프레스 기계', patterns: [/프레스|압축하는 기계|찍어 내는 기계|철판을\s*구부리는\s*기계/, /máy dập|máy ép|uốn tấm thép/i] },
+    { id: 'lathe_machine', label: 'Máy tiện', ko: '깎는 기계 / 선반 기계', patterns: [/선반 기계|원목.*깎|목재.*깎|(?:금속|플라스틱)을\s*깎는\s*기계|깎는\s*기계를\s*이용|도려내는 기계/, /máy tiện|máy gọt gỗ|gọt gỗ|bào gỗ/i] },
     { id: 'milling_machine', label: 'Máy phay', ko: '멀링 머신', patterns: [/멀링\s*머신/, /máy phay/i] },
     { id: 'hoist', label: 'Tời', ko: '호이스트', patterns: [/호이스트/, /tời/i] },
-    { id: 'control_panel', label: 'Bảng điều khiển', ko: '컨트롤 판넬', patterns: [/컨트롤\s*판넬|제어반|조작반/, /bảng điều khiển/i] },
+    { id: 'control_panel', label: 'Bảng điều khiển', ko: '컨트롤 판넬', patterns: [/컨트롤\s*판넬|제어반|조작반|(?:압력|온도)(?:을|를)\s*(?:낮추|높이|조절)/, /bảng điều khiển|điều chỉnh (?:áp suất|nhiệt độ)/i] },
     { id: 'circuit_tester', label: 'Máy kiểm tra mạch', ko: '회로시험기', patterns: [/회로시험기/, /kiểm tra mạch/i] },
-    { id: 'switch_tool', label: 'Công tắc / Tay gạt công tắc', ko: '스위치 / 레버', patterns: [/스위치|버튼|레버/, /công tắc|cầu dao|gạt công tắc/i] },
-    { id: 'rust_preventive_oil', label: 'Dầu chống rỉ', ko: '방청유 / 녹 방지 오일', patterns: [/방청유|녹을?\s*방지.*오일|녹\s*방지\s*오일/, /dầu\s*(?:dùng để\s*)?(?:chống|ngăn)\s*rỉ|dầu chống gỉ/i] },
-    { id: 'generic_tool', label: 'Công cụ phù hợp', ko: '도구', patterns: [/도구를 이용|기계를 이용|장비를 이용|장치를 이용/, /công cụ|thiết bị|máy/i] }
+    { id: 'switch_tool', label: 'Công tắc / Tay gạt công tắc', ko: '스위치 / 레버', patterns: [/스위치|버튼|레버|전원을\s*(?:켜|끄)|핸들을\s*돌리/, /công tắc|cầu dao|gạt công tắc/i] },
+    { id: 'rust_preventive_oil', label: 'Dầu chống rỉ', ko: '방청유 / 녹 방지 오일', patterns: [/방청유|녹을?\s*방지.*오일|녹\s*방지\s*오일|금속\s*표면에\s*바르는\s*오일/, /dầu\s*(?:dùng để\s*)?(?:chống|ngăn)\s*rỉ|dầu chống gỉ/i] },
+    { id: 'generic_tool', label: 'Không nêu dụng cụ cụ thể', ko: '도구', patterns: [/도구를 이용|기계를 이용|장비를 이용|장치를 이용/, /công cụ|thiết bị|máy/i] }
 ]
 
 export const TARGET_DEFINITIONS: Definition[] = [
+    { id: 'nail', label: 'Đinh', ko: '못', patterns: [/못을\s*(?:박|빼|뽑)/, /(?:đóng|nhổ)\s*đinh/i] },
+    { id: 'stone', label: 'Đá', ko: '돌', patterns: [/돌을\s*(?:쪼|깎|파내)/, /(?:đục|đẽo|khoét)\s*đá/i] },
+    { id: 'marking_surface', label: 'Bề mặt cần lấy dấu', ko: '금 긋기 대상', patterns: [/금을\s*긋/, /(?:bề mặt|vật).*lấy dấu|lấy dấu/i] },
+    { id: 'groove', label: 'Rãnh/khe cần trám', ko: '홈', patterns: [/홈을\s*메우/, /trám\s*(?:rãnh|khe)|lấp\s*(?:rãnh|khe)/i] },
+    { id: 'work_area', label: 'Khu vực làm việc', ko: '작업 공간', patterns: [/작업등.*(?:밝은\s*조명|제공)/, /đèn làm việc.*chiếu sáng|cung cấp ánh sáng/i] },
+    { id: 'water_surface', label: 'Bề mặt/khu vực cần phun nước', ko: '물을 뿌릴 곳', patterns: [/물을\s*뿌리/, /(?:bề mặt|khu vực).*xịt nước|xịt nước/i] },
+    { id: 'hole', label: 'Lỗ cần gia công', ko: '구멍', patterns: [/구멍을\s*다듬/, /doa\s*lỗ|gia công lỗ/i] },
+    { id: 'rusty_area', label: 'Vị trí bị gỉ', ko: '녹슨 부분', patterns: [/녹슨\s*부분/, /(?:vị trí|phần).*gỉ|loại bỏ gỉ/i] },
+    { id: 'flame', label: 'Ngọn lửa/tia lửa', ko: '불꽃', patterns: [/불꽃을\s*조절/, /điều chỉnh (?:ngọn lửa|tia lửa)/i] },
+    { id: 'packaged_product', label: 'Sản phẩm cần đóng đai', ko: '포장할 제품', patterns: [/제품에\s*PP\s*밴드/, /sản phẩm.*dây PP/i] },
+    { id: 'pressure_setting', label: 'Cài đặt áp suất', ko: '압력 설정', patterns: [/압력(?:을|를)\s*(?:낮추|높이|조절)/, /(?:giảm|tăng|điều chỉnh)\s*áp (?:lực|suất)/i] },
+    { id: 'temperature_setting', label: 'Cài đặt nhiệt độ', ko: '온도 설정', patterns: [/온도(?:을|를)\s*(?:낮추|높이|조절)/, /(?:giảm|tăng|điều chỉnh)\s*nhiệt độ/i] },
+    { id: 'bolted_joint', label: 'Mối ghép bu-lông/đai ốc', ko: '볼트·너트 체결부', patterns: [/토크|회전력/, /mô-?men|lực xoay/i] },
+    { id: 'inclined_surface', label: 'Bề mặt cần đo độ nghiêng', ko: '경사면', patterns: [/경사를\s*측정/, /đo độ nghiêng/i] },
+    { id: 'rebar', label: 'Thép cây', ko: '철근', patterns: [/철근/, /thép cây/i] },
+    { id: 'measured_object', label: 'Chi tiết cần đo', ko: '측정 대상', patterns: [/(?:길이|두께|깊이)(?:을|를)\s*측정/, /đo (?:chiều dài|bề dày|độ sâu)/i] },
+    { id: 'finish_surface', label: 'Bề mặt cần xử lý', ko: '표면', patterns: [/사포.*(?:샌딩|사포질)|스프레이\s*건.*뿌리|열풍기.*(?:말리|건조)/, /(?:đánh giấy nhám|phun sơn|sấy khô)/i] },
+    { id: 'cargo', label: 'Hàng hóa/vật cần vận chuyển', ko: '짐 / 물건', patterns: [/(?:짐|물건)(?:을|를)\s*(?:나르|옮기|들어\s*올리|내리)/, /(?:vận chuyển|nâng|hạ)\s*(?:hàng|vật)/i] },
+    { id: 'drilled_hole', label: 'Vị trí/lỗ cần khoan', ko: '구멍', patterns: [/구멍을\s*(?:내|뚫)|뚫는\s*행동/, /(?:khoan|đục)\s*lỗ/i] },
+    { id: 'raw_materials', label: 'Nguyên liệu và chất phụ gia', ko: '원재료와 첨가제', patterns: [/원재료와\s*첨가제/, /nguyên liệu.*chất phụ gia/i] },
+    { id: 'weighed_item', label: 'Vật/nguyên liệu cần cân', ko: '측정 대상', patterns: [/(?:무게|중량)(?:을|를)\s*(?:재|측정)/, /cân (?:trọng lượng|khối lượng)/i] },
+    { id: 'machine_control', label: 'Máy cần điều khiển', ko: '제어 대상 기계', patterns: [/기계\s*작동\s*제어/, /điều khiển vận hành máy/i] },
+    { id: 'electric_circuit', label: 'Mạch điện', ko: '전기 회로', patterns: [/전기\s*회로/, /mạch điện/i] },
+    { id: 'processed_material', label: 'Vật liệu/chi tiết cần gia công', ko: '가공 대상', patterns: [/(?:깎는|절단하는|자르는|압축하는)\s*기계/, /(?:máy|thực hiện).*(?:gọt|cắt|ép|nén)/i] },
     { id: 'phillips_screw', label: 'Ốc vít rãnh chữ thập', ko: '십자 홈이 있는 나사', patterns: [/십자\s*홈.*나사|십자.*나사/, /rãnh chữ thập/i] },
     { id: 'slotted_screw', label: 'Ốc vít rãnh thẳng', ko: '일자 홈이 있는 나사', patterns: [/일자\s*홈.*나사|일자.*나사/, /rãnh thẳng|rãnh dẹt/i] },
     { id: 'hex_bolt', label: 'Bu lông / đai ốc', ko: '볼트 / 너트', patterns: [/볼트|너트|암나사|수나사/, /bu lông|đai ốc|ren ngoài/i] },
@@ -97,10 +147,20 @@ export const TARGET_DEFINITIONS: Definition[] = [
     { id: 'varnish_can', label: 'Hộp véc-ni', ko: '바니시 / 마감재', patterns: [/바니시|마감재/, /véc-?ni|vecni|lớp hoàn thiện/i] },
     { id: 'shelf', label: 'Kệ', ko: '선반', patterns: [/선반/, /kệ/i] },
     { id: 'box', label: 'Hộp công cụ', ko: '공구함 / 함 / 전용함', patterns: [/공구함|전용함|함에 넣/, /hộp|hộp chuyên dụng/i] },
-    { id: 'workpiece', label: 'Vật thể gia công', ko: '공작물', patterns: [/공작물|제품|물건|짐|원재료|첨가제|오일|방청유/, /vật|hàng|nguyên liệu|dầu/i] }
+    { id: 'workpiece', label: 'Chi tiết/vật cần thao tác', ko: '공작물', patterns: [/공작물|제품|물건|짐|원재료|첨가제|오일|방청유/, /vật|hàng|nguyên liệu|dầu/i] }
 ]
 
 export const ACTION_DEFINITIONS: Definition[] = [
+    { id: 'hammer_nail', label: 'Đóng đinh', ko: '못을 박다', patterns: [/못을\s*박/, /đóng\s*đinh/i] },
+    { id: 'chisel', label: 'Đục/chẻ đá', ko: '돌을 쪼다', patterns: [/돌을\s*쪼/, /đục\s*đá|chẻ\s*đá/i] },
+    { id: 'mark', label: 'Lấy dấu/vạch dấu', ko: '금을 긋다', patterns: [/금을\s*긋/, /lấy\s*dấu|vạch\s*dấu/i] },
+    { id: 'fill', label: 'Trám/lấp khe', ko: '홈을 메우다', patterns: [/홈을\s*메우/, /trám\s*(?:rãnh|khe)|lấp\s*(?:rãnh|khe)/i] },
+    { id: 'illuminate', label: 'Chiếu sáng khu vực làm việc', ko: '밝은 조명을 제공하다', patterns: [/밝은\s*조명을\s*제공|조명을\s*제공/, /chiếu\s*sáng|cung cấp ánh sáng/i] },
+    { id: 'spray_water', label: 'Phun/xịt nước', ko: '물을 뿌리다', patterns: [/물을\s*뿌리/, /(?:phun|xịt)\s*nước/i] },
+    { id: 'package', label: 'Đóng đai/đóng gói', ko: '밴드를 감아 포장하다', patterns: [/PP\s*밴드를\s*감아\s*포장/, /cuốn dây PP|đóng gói/i] },
+    { id: 'ream', label: 'Doa/làm nhẵn lỗ', ko: '구멍을 다듬다', patterns: [/구멍을\s*다듬/, /doa\s*lỗ|làm nhẵn lỗ/i] },
+    { id: 'remove_rust', label: 'Loại bỏ gỉ', ko: '녹슨 부분을 제거하다', patterns: [/녹슨\s*부분을\s*제거/, /loại bỏ gỉ/i] },
+    { id: 'adjust_flame', label: 'Điều chỉnh ngọn lửa', ko: '불꽃을 조절하다', patterns: [/불꽃을\s*조절/, /điều chỉnh (?:ngọn lửa|tia lửa)/i] },
     { id: 'clockwise', label: 'Siết / vặn vào', ko: '조이다 / 체결하다', patterns: [/조이|체결|조이는/, /siết|vặn vào/i] },
     { id: 'counter_clockwise', label: 'Tháo / vặn ra', ko: '풀다', patterns: [/푸는|풀다/, /tháo|vặn ra/i] },
     { id: 'cut', label: 'Cắt', ko: '자르다 / 절단하다 / 끊다', patterns: [/자르|절단|끊/, /cắt/i] },
@@ -110,8 +170,8 @@ export const ACTION_DEFINITIONS: Definition[] = [
     { id: 'insert', label: 'Lắp / gắn / đặt vào', ko: '끼우다 / 장착하다 / 넣다', patterns: [/끼우|장착|넣/, /lắp|gắn|bỏ|đặt vào|cất vào/i] },
     { id: 'pull', label: 'Kéo / lấy ra / nhổ ra', ko: '당기다 / 빼다 / 뽑다', patterns: [/당기|빼|뽑|꺼내/, /kéo|lấy ra|nhổ/i] },
     { id: 'push', label: 'Đẩy / ấn', ko: '밀다 / 누르다', patterns: [/미는|밀다|누르/, /đẩy|ấn|bấm/i] },
-    { id: 'turn_on', label: 'Bật / gạt lên', ko: '켜다 / 올리다', patterns: [/켜|올리/, /bật|mở nguồn|gạt lên/i] },
-    { id: 'turn_off', label: 'Tắt / gạt xuống / ngắt', ko: '끄다 / 내리다 / 차단하다', patterns: [/끄|내리|차단/, /tắt|gạt xuống|ngắt/i] },
+    { id: 'turn_on', label: 'Bật / gạt lên', ko: '켜다 / 올리다', patterns: [/켜|(?:스위치|레버)를\s*올리/, /bật|mở nguồn|gạt lên/i] },
+    { id: 'turn_off', label: 'Tắt / gạt xuống / ngắt', ko: '끄다 / 내리다 / 차단하다', patterns: [/끄|차단|(?:스위치|레버)를\s*내리/, /tắt|gạt xuống|ngắt/i] },
     { id: 'rotate', label: 'Xoay', ko: '돌리다', patterns: [/돌리/, /xoay/i] },
     { id: 'measure', label: 'Đo / cân', ko: '측정하다 / 재다', patterns: [/측정|재는|검사/, /đo|cân|kiểm tra/i] },
     { id: 'weld', label: 'Hàn', ko: '용접하다', patterns: [/용접/, /(?:^|[\s,.;:])hàn(?:[\s,.;:]|$)/i] },
@@ -128,7 +188,8 @@ export const ACTION_DEFINITIONS: Definition[] = [
     { id: 'adjust', label: 'Điều chỉnh', ko: '조절하다 / 제어하다', patterns: [/조절|제어/, /điều chỉnh|điều khiển/i] },
     { id: 'fix', label: 'Cố định / kẹp chặt', ko: '고정하다', patterns: [/고정/, /cố định/i] },
     { id: 'compress', label: 'Ép / nén', ko: '압축하다', patterns: [/압축/, /(?:^|[\s,.;:])(?:ép|nén)(?:[\s,.;:]|$)/i] },
-    { id: 'stamp', label: 'Dập / đột', ko: '찍어 내다', patterns: [/찍어 내/, /(?:^|[\s,.;:])dập(?:[\s,.;:]|$)|đột/i] }
+    { id: 'stamp', label: 'Dập / đột', ko: '찍어 내다', patterns: [/찍어 내/, /(?:^|[\s,.;:])dập(?:[\s,.;:]|$)|đột/i] },
+    { id: 'perform', label: 'Thực hiện thao tác', ko: '행동을 하다', patterns: [] }
 ]
 
 const DEFAULT_DESK_TOOLS = ['phillips_screwdriver', 'flat_screwdriver', 'wrench', 'pliers', 'hammer']
@@ -147,8 +208,8 @@ function refineTool(tool: Definition | undefined, target: Definition | undefined
     if (target?.id === 'phillips_screw') return TOOL_DEFINITIONS.find((item) => item.id === 'phillips_screwdriver')
     if (target?.id === 'slotted_screw') return TOOL_DEFINITIONS.find((item) => item.id === 'flat_screwdriver')
     if (tool && tool.id !== 'generic_tool') return tool
-    if (/나사|드라이버|ốc vít|tua vít/i.test(text)) return TOOL_DEFINITIONS.find((item) => item.id === 'screwdriver')
     if (/너트|볼트|암나사|수나사|bu lông|đai ốc/i.test(text)) return TOOL_DEFINITIONS.find((item) => item.id === 'wrench')
+    if (/나사|드라이버|ốc vít|tua vít/i.test(text)) return TOOL_DEFINITIONS.find((item) => item.id === 'screwdriver')
     if (/전선|철사|선재|구리선|dây/i.test(text)) return TOOL_DEFINITIONS.find((item) => item.id === 'pliers')
     if (/못|đinh/i.test(text)) return TOOL_DEFINITIONS.find((item) => item.id === 'hammer')
     return tool || TOOL_DEFINITIONS.find((item) => item.id === 'generic_tool')
@@ -185,6 +246,10 @@ function resolveDeskTools(correctTool: string) {
         paint_roller: ['paint_brush', 'spray_gun', 'ruler', 'pliers'],
         paint_brush: ['paint_roller', 'spray_gun', 'ruler', 'pliers'],
         spray_gun: ['paint_roller', 'paint_brush', 'ruler', 'pliers'],
+        clamp: ['vise', 'pliers', 'wrench', 'screwdriver'],
+        sprayer: ['spray_gun', 'paint_roller', 'paint_brush', 'sandpaper'],
+        sandpaper: ['hand_file', 'grinder', 'paint_brush', 'sprayer'],
+        putty_knife: ['sandpaper', 'paint_brush', 'paint_roller', 'sprayer'],
         scale: ['electronic_scale', 'pan_scale', 'industrial_scale', 'ruler'],
         electronic_scale: ['pan_scale', 'industrial_scale', 'scale', 'ruler'],
         pan_scale: ['electronic_scale', 'industrial_scale', 'scale', 'ruler'],
@@ -194,12 +259,10 @@ function resolveDeskTools(correctTool: string) {
     return Array.from(new Set([correctTool, ...(distractorsByFamily[correctTool] || DEFAULT_DESK_TOOLS)])).slice(0, 5)
 }
 
-export function buildAnswerSteps(config: Pick<ToolQuestionConfig, 'correct_tool' | 'target_object' | 'correct_action' | 'requires_action'>) {
-    const steps: ToolAnswerStep[] = [
-        { step: 1, kind: 'tool', expected: config.correct_tool },
-        { step: 2, kind: 'target', expected: config.target_object }
-    ]
-    if (config.requires_action) steps.push({ step: 3, kind: 'action', expected: config.correct_action || '' })
+export function buildAnswerSteps(config: Pick<ToolQuestionConfig, 'correct_tool' | 'target_object' | 'requires_target' | 'correct_action' | 'requires_action'>) {
+    const steps: ToolAnswerStep[] = [{ step: 1, kind: 'tool', expected: config.correct_tool }]
+    if (config.requires_target !== false) steps.push({ step: 2, kind: 'target', expected: config.target_object })
+    if (config.requires_action) steps.push({ step: config.requires_target === false ? 2 : 3, kind: 'action', expected: config.correct_action || '' })
     return steps
 }
 
@@ -209,7 +272,7 @@ export function completeToolConfig(config: ToolQuestionConfig): ToolQuestionConf
         answer_steps: buildAnswerSteps(config),
         scoring: {
             tool: 1,
-            target: 1,
+            target: config.requires_target === false ? 0 : 1,
             action: config.requires_action ? 1 : 0,
             pass_all_required: true
         }
@@ -221,12 +284,12 @@ export function analyzeToolQuestionText(questionText: string, vietnameseMeaning 
     const isStorageCommand = /공구함|전용함|함에\s*넣|선반에\s*넣|선반에\s*놓|함에\s*보관|공구함에\s*보관|bỏ.*hộp|cất.*hộp|bỏ.*kệ|cất.*kệ|đặt.*kệ|cho.*vào.*hộp|cho.*vào.*kệ/i.test(text)
     const rawTarget = isStorageCommand
         ? TARGET_DEFINITIONS.find((item) => item.id === (/선반|kệ/i.test(text) ? 'shelf' : 'box'))
-        : firstMatch(TARGET_DEFINITIONS, text)
+        : firstMatch(TARGET_DEFINITIONS, questionText) || firstMatch(TARGET_DEFINITIONS, vietnameseMeaning)
     const target = refineTarget(rawTarget, text) || TARGET_DEFINITIONS[TARGET_DEFINITIONS.length - 1]
     const action = isStorageCommand
         ? ACTION_DEFINITIONS.find((item) => item.id === 'insert') || ACTION_DEFINITIONS[0]
-        : firstMatch(ACTION_DEFINITIONS, text) || ACTION_DEFINITIONS[ACTION_DEFINITIONS.length - 1]
-    const rawTool = firstMatch(TOOL_DEFINITIONS, text)
+        : firstMatch(ACTION_DEFINITIONS, questionText) || firstMatch(ACTION_DEFINITIONS, vietnameseMeaning) || ACTION_DEFINITIONS[ACTION_DEFINITIONS.length - 1]
+    const rawTool = firstMatch(TOOL_DEFINITIONS, questionText) || firstMatch(TOOL_DEFINITIONS, vietnameseMeaning)
     const tool = refineTool(rawTool, target, text) || TOOL_DEFINITIONS[TOOL_DEFINITIONS.length - 1]
     const toolTerm = rawTool && rawTool.id !== 'generic_tool' ? matchedTerm(tool, text) : tool.ko
     const isStorage = target.id === 'shelf' || target.id === 'box'
@@ -238,18 +301,27 @@ export function analyzeToolQuestionText(questionText: string, vietnameseMeaning 
             ? 'toolbox_center'
             : target.id
     const requiresAction = !isStorage
+    const inferredOnlyTargets = new Set([
+        'pressure_setting', 'temperature_setting', 'bolted_joint', 'inclined_surface',
+        'measured_object', 'finish_surface', 'work_area', 'water_surface',
+        'weighed_item', 'processed_material',
+    ])
+    const requiresTarget = isStorage || Boolean(rawTarget && !inferredOnlyTargets.has(target.id))
 
     return completeToolConfig({
         schema_version: 3,
         tools_on_desk: resolveDeskTools(tool.id),
         correct_tool: tool.id,
         target_object: targetObject,
+        requires_target: requiresTarget,
         correct_action: requiresAction ? action.id : null,
         requires_action: requiresAction,
         vietnamese_instruction: vietnameseMeaning,
         vocabulary_analysis: [
             { term: toolTerm, meaning: tool.label, role: 'tool' },
-            { term: matchedTerm(target, text), meaning: target.label, role: isStorage ? 'location' : 'target' },
+            requiresTarget
+                ? { term: matchedTerm(target, text), meaning: target.label, role: isStorage ? 'location' : 'target' }
+                : { term: '—', meaning: 'Không nêu trong câu', role: 'target' },
             { term: matchedTerm(action, text), meaning: action.label, role: 'action' }
         ]
     })
@@ -281,7 +353,17 @@ export function resolveToolQuestionConfig(
         : (analyzedConfig.target_object || storedConfig.target_object)
 
     const requires_action = !isStorage
+    const requires_target = analyzedConfig.requires_target !== false
     const correct_action = requires_action ? (analyzedConfig.correct_action || storedConfig.correct_action) : null
+    const storedVocabularyIsGeneric = storedConfig.vocabulary_analysis?.some((item) =>
+        item.role === 'tool' && (item.meaning === 'Công cụ phù hợp' || item.term === '도구')
+    )
+    const storedTargetWasInferred = requires_target === false && storedConfig.vocabulary_analysis?.some((item) => item.role === 'target')
+    const storedToolIsStale = Boolean(
+        analyzedConfig.correct_tool !== 'generic_tool' &&
+        storedConfig.correct_tool &&
+        storedConfig.correct_tool !== analyzedConfig.correct_tool
+    )
 
     return completeToolConfig({
         ...analyzedConfig,
@@ -289,9 +371,14 @@ export function resolveToolQuestionConfig(
         correct_tool,
         target_object,
         correct_action,
+        requires_target,
         schema_version: 3,
-        tools_on_desk: storedConfig.tools_on_desk?.length ? storedConfig.tools_on_desk : analyzedConfig.tools_on_desk,
-        vocabulary_analysis: storedConfig.vocabulary_analysis?.length ? storedConfig.vocabulary_analysis : analyzedConfig.vocabulary_analysis,
+        tools_on_desk: storedToolIsStale
+            ? analyzedConfig.tools_on_desk
+            : (storedConfig.tools_on_desk?.length ? storedConfig.tools_on_desk : analyzedConfig.tools_on_desk),
+        vocabulary_analysis: (storedVocabularyIsGeneric || storedTargetWasInferred || storedToolIsStale)
+            ? analyzedConfig.vocabulary_analysis
+            : (storedConfig.vocabulary_analysis?.length ? storedConfig.vocabulary_analysis : analyzedConfig.vocabulary_analysis),
         requires_action
     } as ToolQuestionConfig)
 }

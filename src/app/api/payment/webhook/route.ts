@@ -30,6 +30,25 @@ type WebhookLogStatus =
     | 'completed'
     | 'error'
 
+function extractTransactionCodeCandidates(parsedCode: string | undefined, content: string) {
+    const candidates: string[] = []
+    const addCandidate = (value: string) => {
+        const normalized = value.trim().toUpperCase()
+        if (/^(SEVQR|TOPIK)[A-Z0-9]+$/.test(normalized) && !candidates.includes(normalized)) {
+            candidates.push(normalized)
+        }
+    }
+
+    // The code parsed by SePay can be shorter than the code embedded in the
+    // bank transfer content. Read the content first so the complete code wins.
+    for (const match of content.matchAll(/(?:SEVQR|TOPIK)[A-Z0-9]+/gi)) {
+        addCandidate(match[0])
+    }
+    if (parsedCode) addCandidate(parsedCode)
+
+    return candidates
+}
+
 async function writeWebhookLog(
     supabase: ReturnType<typeof createAdminClient>,
     payload: SePayWebhookPayload,
@@ -113,12 +132,8 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ message: 'Not an incoming transfer' }, { status: 200 })
         }
 
-        // Prefer SePay's parsed code, then fall back to extracting it from the
-        // bank content for legacy transactions created before code rules were configured.
-        const parsedCode = webhookPayload.code?.trim().toUpperCase() || ''
-        const transactionCodeMatch = parsedCode.match(/^(SEVQR|TOPIK)[A-Z0-9]+$/i)
-            || content.match(/(SEVQR|TOPIK)[A-Z0-9]+/i)
-        if (!transactionCodeMatch) {
+        const transactionCodeCandidates = extractTransactionCodeCandidates(webhookPayload.code, content)
+        if (transactionCodeCandidates.length === 0) {
             console.log('No transaction code found in content:', content)
             await writeWebhookLog(supabase, webhookPayload, {
                 status: 'no_transaction_code',
@@ -129,19 +144,23 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ message: 'No transaction code found' }, { status: 200 })
         }
 
-        const transactionCode = transactionCodeMatch[0].toUpperCase()
-        console.log('Found transaction code:', transactionCode)
+        console.log('Found transaction code candidates:', transactionCodeCandidates)
 
-        // Find by code regardless of status. A previous webhook may have marked
-        // the payment completed before its entitlement activation succeeded.
-        const { data: transaction, error: findError } = await supabase
+        // Match every candidate against the database instead of trusting SePay's
+        // parsed code. Some banks append metadata directly after the payment code,
+        // causing SePay to return only a shortened prefix.
+        const { data: matchingTransactions, error: findError } = await supabase
             .from('payment_transactions')
             .select('*')
-            .eq('transaction_code', transactionCode)
-            .single()
+            .in('transaction_code', transactionCodeCandidates)
+
+        const transaction = transactionCodeCandidates
+            .map(candidate => matchingTransactions?.find(item => item.transaction_code.toUpperCase() === candidate))
+            .find(Boolean)
+        const transactionCode = transaction?.transaction_code || transactionCodeCandidates[0]
 
         if (findError || !transaction) {
-            console.log('Transaction not found or not pending:', transactionCode)
+            console.log('Transaction not found for candidates:', transactionCodeCandidates)
             await writeWebhookLog(supabase, webhookPayload, {
                 status: 'transaction_not_found',
                 amount,

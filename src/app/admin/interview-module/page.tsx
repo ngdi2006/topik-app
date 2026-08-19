@@ -224,7 +224,7 @@ export default function InterviewModuleAdminPage() {
         const config = resolveToolQuestionConfig(q.question_text || '', q.vietnamese_meaning || '', q.tool_config)
         return {
             tool: definitionLabel(TOOL_DEFINITIONS, config.correct_tool),
-            target: definitionLabel(TARGET_DEFINITIONS, config.target_object),
+            target: config.requires_target === false ? 'Không nêu trong câu' : definitionLabel(TARGET_DEFINITIONS, config.target_object),
             action: config.requires_action ? definitionLabel(ACTION_DEFINITIONS, config.correct_action || '') : 'Đặt/cất đúng vị trí',
             vocabulary: config.vocabulary_analysis || []
         }

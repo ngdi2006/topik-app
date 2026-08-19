@@ -26,6 +26,8 @@ type PreviewRow = {
     dateOfBirth: string
 }
 
+type SpreadsheetRow = Record<string, unknown>
+
 export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImportModalProps) {
     const [step, setStep] = useState<1 | 2>(1)
     const [previewData, setPreviewData] = useState<PreviewRow[]>([])
@@ -58,19 +60,19 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
             setProgressPercent(50)
             const wb = XLSX.read(arrayBuffer, { type: 'array' })
             const ws = wb.Sheets[wb.SheetNames[0]]
-            const rawData = XLSX.utils.sheet_to_json(ws)
+            const rawData = XLSX.utils.sheet_to_json<SpreadsheetRow>(ws)
 
             setProgressStatus('Đang phân tích dữ liệu...')
             
             const parsedRows: PreviewRow[] = []
             const emailSet = new Set<string>()
             
-            rawData.forEach((row: any, index: number) => {
+            rawData.forEach((row, index) => {
                 const errors: string[] = []
                 let isValid = true
 
                 // Normalize keys: NFC, lowercase, remove all spaces
-                const normalizedRow: Record<string, any> = {}
+                const normalizedRow: SpreadsheetRow = {}
                 for (const key in row) {
                     if (key && typeof key === 'string') {
                         const cleanKey = key.normalize('NFC').toLowerCase().replace(/[\s_]+/g, '')
@@ -121,7 +123,7 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
 
                 const groupName = normalizedRow['nhóm/lớp'] || normalizedRow['lớp'] || normalizedRow['nhóm'] || normalizedRow['groupname'] || ''
                 
-                let rawDateOfBirth = normalizedRow['ngàysinh'] || normalizedRow['dob'] || normalizedRow['dateofbirth'] || ''
+                const rawDateOfBirth = normalizedRow['ngàysinh'] || normalizedRow['dob'] || normalizedRow['dateofbirth'] || ''
                 let dateOfBirth = ''
                 if (rawDateOfBirth) {
                     if (rawDateOfBirth instanceof Date) {
@@ -152,8 +154,8 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
             setPreviewData(parsedRows)
             setStep(2)
             setProgressPercent(100)
-        } catch (error: any) {
-            toast.error('Lỗi khi phân tích: ' + error.message)
+        } catch (error: unknown) {
+            toast.error('Lỗi khi phân tích: ' + (error instanceof Error ? error.message : 'Không xác định'))
         } finally {
             setIsImporting(false)
         }
@@ -193,13 +195,15 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
 
             setProgressPercent(100)
             setProgressStatus('Hoàn thành!')
-            
+
+            const skippedCount = Number(resData.skippedCount || 0)
             if (resData.errors && resData.errors.length > 0) {
                 const firstError = resData.errors[0]?.error || 'Lỗi không xác định';
-                toast.warning(`Thành công ${resData.successCount}. Lỗi ${resData.errors.length} tài khoản. Lỗi mẫu: ${firstError}`)
-                console.warn("Import errors:", resData.errors)
+                toast.warning(`Tạo mới ${resData.successCount}. Đã tồn tại ${skippedCount}. Lỗi ${resData.errors.length}. Lỗi mẫu: ${firstError}`)
+            } else if (resData.successCount === 0 && skippedCount > 0) {
+                toast.info(`Không có tài khoản mới. Đã bỏ qua ${skippedCount} email tồn tại.`)
             } else {
-                toast.success(`Đã import thành công ${resData.successCount} người dùng!`)
+                toast.success(`Tạo mới ${resData.successCount} tài khoản. Bỏ qua ${skippedCount} tài khoản đã tồn tại.`)
             }
             
             setTimeout(() => {
@@ -207,9 +211,10 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                 onClose()
             }, 1000)
 
-        } catch (error: any) {
-            toast.error('Lỗi khi import: ' + error.message)
-            setProgressStatus('Lỗi: ' + error.message)
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Không xác định'
+            toast.error('Lỗi khi import: ' + message)
+            setProgressStatus('Lỗi: ' + message)
         } finally {
             setIsImporting(false)
         }

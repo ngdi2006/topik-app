@@ -22,10 +22,38 @@ export async function POST(request: Request) {
 
         const adminAuthClient = createAdminClient()
         let successCount = 0
-        const errors = []
+        const errors: Array<{ email: string; error: string }> = []
+        const skipped: Array<{ email: string; reason: string }> = []
+
+        // Load the existing Auth directory once. This avoids sending one failed
+        // create request per duplicate email during repeated Excel imports.
+        const existingEmails = new Set<string>()
+        const perPage = 1000
+        for (let page = 1; ; page += 1) {
+            const { data, error } = await adminAuthClient.auth.admin.listUsers({ page, perPage })
+            if (error) throw error
+            for (const existingUser of data.users) {
+                if (existingUser.email) existingEmails.add(existingUser.email.trim().toLowerCase())
+            }
+            if (data.users.length < perPage) break
+        }
 
         for (const u of users) {
-            let { name, email, password, role, groupName, dateOfBirth } = u
+            const { password, groupName, dateOfBirth } = u
+            let { name, email, role } = u
+
+            email = String(email || '').trim().toLowerCase()
+            name = String(name || '').trim()
+
+            if (!email || !password) {
+                errors.push({ email: email || '(trống)', error: 'Thiếu email hoặc mật khẩu' })
+                continue
+            }
+
+            if (existingEmails.has(email)) {
+                skipped.push({ email, reason: 'Tài khoản đã tồn tại' })
+                continue
+            }
 
             if (profile.role === 'teacher') {
                 role = 'learner'
@@ -44,6 +72,11 @@ export async function POST(request: Request) {
             })
 
             if (createError) {
+                if (createError.message.toLowerCase().includes('already been registered')) {
+                    existingEmails.add(email)
+                    skipped.push({ email, reason: 'Tài khoản đã tồn tại' })
+                    continue
+                }
                 errors.push({ email, error: createError.message })
                 continue
             }
@@ -65,9 +98,16 @@ export async function POST(request: Request) {
             }
             
             successCount++
+            existingEmails.add(email)
         }
 
-        return NextResponse.json({ success: true, successCount, errors }, { status: 200 })
+        return NextResponse.json({
+            success: true,
+            successCount,
+            skippedCount: skipped.length,
+            skipped,
+            errors,
+        }, { status: 200 })
 
     } catch (error) {
         const message = error instanceof Error ? error.message : "Internal Server Error"

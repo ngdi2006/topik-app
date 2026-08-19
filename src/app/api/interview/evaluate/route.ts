@@ -6,6 +6,35 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || "placeholder-api-key" });
 
+const UNKNOWN_ANSWER_PATTERN = /^(모릅니다|모르겠습니다|잘모릅니다|잘모르겠습니다|몰라요|모르겠어요)$/
+
+function normalizeAnswer(value: string) {
+    return value
+        .normalize('NFC')
+        .toLowerCase()
+        .replace(/[\s.,!?~'"“”‘’…_-]/g, '')
+}
+
+function zeroScoreEvaluation(reason: string, meaning = 'Không biết hoặc không hiểu câu hỏi.') {
+    return {
+        is_correct: false,
+        score: 0,
+        pronunciation_score: 0,
+        grammar_score: 0,
+        fluency_score: 0,
+        answer_status: 'unknown',
+        is_relevant: false,
+        is_intelligible: true,
+        user_transcript_meaning: meaning,
+        feedback_vi: reason,
+    }
+}
+
+function clampScore(value: unknown) {
+    const score = Number(value)
+    return Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : 0
+}
+
 export async function POST(request: Request) {
     const startedAt = Date.now()
     try {
@@ -24,11 +53,6 @@ export async function POST(request: Request) {
         if (!access.hasFullAccess) {
             return NextResponse.json({ success: false, code: 'INTERVIEW_SUBSCRIPTION_REQUIRED', error: 'Tính năng AI cần gói Vòng 2 đang hoạt động' }, { status: 403 })
         }
-        const quota = await consumeInterviewAiQuota(supabase, user.id)
-        if (!quota.allowed) {
-            return NextResponse.json({ success: false, code: 'AI_DAILY_LIMIT_REACHED', error: `Bạn đã dùng hết ${quota.limit} lượt AI hôm nay`, quota }, { status: 429 })
-        }
-
         // Fetch question details for context
         const { data: question } = await supabase
             .from('interview_questions')
@@ -36,16 +60,24 @@ export async function POST(request: Request) {
             .eq('id', question_id)
             .single()
 
-        // Fetch global prompt and industry prompts
-        const { data: settings } = await supabase
-            .from('system_settings')
-            .select('ai_global_prompt, industry_prompts')
-            .eq('id', 1)
-            .single()
+        const normalizedTranscript = normalizeAnswer(String(transcript))
+        if (UNKNOWN_ANSWER_PATTERN.test(normalizedTranscript)) {
+            return NextResponse.json({
+                success: true,
+                data: {
+                    ...zeroScoreEvaluation('Câu trả lời có nghĩa “Tôi không biết”, vì vậy câu này không có điểm.'),
+                    user_transcript: transcript,
+                    sample_answer: question?.suggested_answers?.[0] || 'Câu trả lời mẫu từ AI',
+                },
+                quota: null,
+            })
+        }
 
-        // Select the prompt based on industry
-        const industry = question?.industry || 'Sản xuất chế tạo';
-        
+        const quota = await consumeInterviewAiQuota(supabase, user.id)
+        if (!quota.allowed) {
+            return NextResponse.json({ success: false, code: 'AI_DAILY_LIMIT_REACHED', error: `Bạn đã dùng hết ${quota.limit} lượt AI hôm nay`, quota }, { status: 429 })
+        }
+
         let evaluation;
         try {
             const prompt = `
@@ -63,7 +95,11 @@ Hãy đánh giá và cho điểm theo 3 tiêu chí:
 3. Độ trôi chảy (fluency_score): mức độ hoàn chỉnh và mạch lạc của câu trả lời.
 
 Quy tắc chấm điểm:
-- Nếu câu trả lời hoàn toàn không liên quan đến câu hỏi (ví dụ: hỏi về cách xử lý sản phẩm lỗi mà học viên chỉ nói lời chào hỏi xã giao '안녕하세요' hoặc trả lời lạc đề sang chuyện khác), điểm Ngữ pháp & Từ vựng (grammar_score) phải ở mức tối thiểu (dưới 10), điểm tổng thể (score) phải dưới 20 và "is_correct" bắt buộc phải là false.
+- Trước tiên phân loại answer_status là một trong: "valid", "unknown", "unintelligible", "off_topic".
+- "모릅니다", "모르겠습니다", "몰라요" và mọi câu mang nghĩa không biết/không hiểu: answer_status="unknown", tất cả điểm bằng 0.
+- Câu nhận diện không thành từ/câu tiếng Hàn có nghĩa hoặc phát âm quá mơ hồ: answer_status="unintelligible", tất cả điểm bằng 0.
+- Câu không trả lời đúng chủ đề, chỉ chào hỏi hoặc nói nội dung khác: answer_status="off_topic", tất cả điểm bằng 0.
+- Chỉ answer_status="valid" mới được chấm điểm thành phần. Câu trả lời sai một phần nhưng vẫn đúng chủ đề có thể nhận điểm một phần.
 - Điểm tổng thể (score) là trung bình cộng của 3 tiêu chí trên.
 - "is_correct" là true nếu điểm tổng thể >= 70.
 
@@ -74,6 +110,9 @@ Trả về kết quả chấm điểm dưới dạng JSON duy nhất với cấu
   "pronunciation_score": <điểm từ 0 đến 100>,
   "grammar_score": <điểm từ 0 đến 100>,
   "fluency_score": <điểm từ 0 đến 100>,
+  "answer_status": "valid|unknown|unintelligible|off_topic",
+  "is_relevant": true/false,
+  "is_intelligible": true/false,
   "user_transcript_meaning": "<Dịch nghĩa tiếng Việt CHÍNH XÁC của câu học viên thực tế đã nói. Ví dụ nếu họ nói '안녕하세요' thì phải dịch là 'Xin chào', không được dịch câu hỏi hay câu mẫu chuẩn>",
   "feedback_vi": "<Nhận xét chi tiết bằng tiếng Việt khách quan: Chỉ rõ học viên phát âm đúng/sai từ nào, cấu trúc ngữ pháp có chính xác không, đã trả lời đúng trọng tâm câu hỏi chưa, chỉ ra từ sai nếu có>"
 }
@@ -93,40 +132,43 @@ Chỉ trả về chuỗi JSON thô, không nằm trong khối markdown \`\`\`jso
             const cleanedJsonText = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
             evaluation = JSON.parse(cleanedJsonText);
         } catch (err) {
-            console.error("Gemini evaluation error, using fallback mock:", err);
-            // Fallback mock
-            const hasKorean = /[\u3131-\uD79D]/ugi.test(transcript);
-            const isGreeting = transcript.includes('안녕') || transcript.includes('반갑') || transcript.includes('감사') || transcript.includes('수고');
-            const isTooShort = transcript.trim().length < 6;
-            const is_correct = hasKorean && !isGreeting && !isTooShort;
-            const score = is_correct ? Math.floor(Math.random() * 20) + 70 : 15;
+            console.error('Gemini evaluation error:', err)
+            return NextResponse.json({
+                success: false,
+                code: 'EVALUATION_UNAVAILABLE',
+                error: 'Chưa thể chấm câu trả lời một cách tin cậy. Vui lòng thử lại.',
+                quota,
+            }, { status: 503 })
+        }
+
+        const answerStatus = String(evaluation.answer_status || 'valid')
+        const rawScore = clampScore(evaluation.score)
+        const mustScoreZero = ['unknown', 'unintelligible', 'off_topic'].includes(answerStatus)
+            || evaluation.is_relevant === false
+            || evaluation.is_intelligible === false
+            || rawScore < 20
+
+        if (mustScoreZero) {
+            const originalFeedback = String(evaluation.feedback_vi || '').replace(/\*\*/g, '').trim()
             evaluation = {
-                is_correct,
-                score,
-                pronunciation_score: is_correct ? 80 : 20,
-                grammar_score: is_correct ? 75 : 10,
-                fluency_score: is_correct ? 70 : 15,
-                user_transcript_meaning: isGreeting 
-                    ? 'Lời chào hỏi xã giao (Xin chào, Cám ơn, v.v.)' 
-                    : (hasKorean ? 'Dịch nghĩa tiếng Việt thực tế của câu nói.' : 'Câu trả lời không có tiếng Hàn hoặc quá ngắn.'),
-                feedback_vi: is_correct 
-                    ? 'Bạn phát âm ổn. Cần cải thiện ngữ điệu trôi chảy hơn.' 
-                    : (isGreeting 
-                        ? 'Lỗi: Câu hỏi yêu cầu giải pháp chuyên môn, học viên chỉ chào hỏi nên không đạt.' 
-                        : 'Câu trả lời không đúng trọng tâm hoặc quá ngắn. Vui lòng thử lại.')
-            };
+                ...zeroScoreEvaluation(
+                    originalFeedback || 'Câu trả lời không rõ nghĩa hoặc không đúng trọng tâm nên không có điểm.',
+                    evaluation.user_transcript_meaning || 'Không xác định được ý nghĩa phù hợp.',
+                ),
+                answer_status: answerStatus,
+            }
         }
 
         const responseData = {
-            is_correct: evaluation.is_correct,
-            score: evaluation.score,
-            pronunciation_score: evaluation.pronunciation_score || 0,
-            grammar_score: evaluation.grammar_score || 0,
-            fluency_score: evaluation.fluency_score || 0,
+            is_correct: mustScoreZero ? false : Boolean(evaluation.is_correct),
+            score: mustScoreZero ? 0 : rawScore,
+            pronunciation_score: mustScoreZero ? 0 : clampScore(evaluation.pronunciation_score),
+            grammar_score: mustScoreZero ? 0 : clampScore(evaluation.grammar_score),
+            fluency_score: mustScoreZero ? 0 : clampScore(evaluation.fluency_score),
             user_transcript: transcript,
             user_transcript_meaning: evaluation.user_transcript_meaning || 'Không rõ nghĩa',
             sample_answer: question?.suggested_answers?.[0] || 'Câu trả lời mẫu từ AI',
-            feedback_vi: evaluation.feedback_vi
+            feedback_vi: String(evaluation.feedback_vi || '').replace(/\*\*/g, '')
         };
 
         void createAdminClient().from('interview_api_usage_logs').insert({

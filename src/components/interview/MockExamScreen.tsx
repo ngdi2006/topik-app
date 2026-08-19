@@ -77,6 +77,15 @@ function checkSpeechAnswer(userTranscript: string, correctOption: string): boole
     return false
 }
 
+function roundToHalfPoint(value: number) {
+    return Math.round(value * 2) / 2
+}
+
+function formatExamScore(value: number) {
+    const normalized = roundToHalfPoint(Number(value) || 0)
+    return Number.isInteger(normalized) ? String(normalized) : normalized.toFixed(1)
+}
+
 export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
     const [loading, setLoading] = useState(true)
     const [questions, setQuestions] = useState<ExamQuestion[]>([])
@@ -471,9 +480,11 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
                                     if (evaluation.success) {
                                         const percentScore = evaluation.data.score || 0
                                         isCorrect = percentScore >= 70
-                                        score = Number(((percentScore / 100) * q.points).toFixed(1))
+                                        score = roundToHalfPoint((percentScore / 100) * q.points)
                                         feedback = evaluation.data.feedback_vi
                                         transcriptMeaning = evaluation.data.user_transcript_meaning
+                                    } else {
+                                        feedback = evaluation.error || 'Không thể chấm câu trả lời một cách tin cậy.'
                                     }
                                 } catch (e) {
                                     console.error('Grading error:', e)
@@ -485,8 +496,8 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
                     }
 
                     // Tally scores
-                    sectionScores[q.section] = (sectionScores[q.section] || 0) + score
-                    totalScore += score
+                    sectionScores[q.section] = roundToHalfPoint((sectionScores[q.section] || 0) + score)
+                    totalScore = roundToHalfPoint(totalScore + score)
 
                     return {
                         ...q,
@@ -502,7 +513,7 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
                 })
             )
 
-            const finalScore = Number(totalScore.toFixed(1))
+            const finalScore = roundToHalfPoint(totalScore)
             const correctCount = gradedQuestions.filter((question) => question.isCorrect).length
             const incorrectCount = gradedQuestions.length - correctCount
 
@@ -580,7 +591,7 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
                     <div className="relative mx-auto flex size-28 items-center justify-center md:size-40">
                         <div className="absolute inset-0 scale-105 animate-pulse rounded-full bg-blue-500 opacity-15 motion-reduce:animate-none"></div>
                         <div className="flex size-24 flex-col items-center justify-center rounded-full border-[6px] border-blue-600 bg-white shadow-xl md:size-36 md:border-8">
-                            <span className="text-4xl font-black leading-none text-slate-850 md:text-5xl">{resultsData.totalScore}</span>
+                            <span className="text-4xl font-black leading-none text-slate-850 md:text-5xl">{formatExamScore(resultsData.totalScore)}</span>
                             <span className="mt-1 text-[9px] font-black uppercase tracking-wider text-slate-400 md:text-[11px] md:tracking-widest">/ 50 điểm</span>
                         </div>
                     </div>
@@ -604,39 +615,39 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
                         <div className="space-y-2 max-md:[&>div]:p-2.5 max-md:[&_span]:text-[10px] md:space-y-3">
                             <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
                                 <span className="text-slate-600 font-bold text-xs uppercase">1.A Hội thoại giao tiếp (4đ)</span>
-                                <strong className="text-slate-800 font-black text-sm">{resultsData.sectionScores['1.A'] || 0} / 4</strong>
+                                <strong className="text-slate-800 font-black text-sm">{formatExamScore(resultsData.sectionScores['1.A'])} / 4</strong>
                             </div>
                             <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
                                 <span className="text-slate-600 font-bold text-xs uppercase">1.B Mệnh lệnh hành động (4đ)</span>
-                                <strong className="text-slate-800 font-black text-sm">{resultsData.sectionScores['1.B'] || 0} / 4</strong>
+                                <strong className="text-slate-800 font-black text-sm">{formatExamScore(resultsData.sectionScores['1.B'])} / 4</strong>
                             </div>
                             <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
                                 <span className="text-slate-600 font-bold text-xs uppercase">2. Nhận diện dụng cụ (5đ)</span>
-                                <strong className="text-slate-800 font-black text-sm">{resultsData.sectionScores['2'] || 0} / 5</strong>
+                                <strong className="text-slate-800 font-black text-sm">{formatExamScore(resultsData.sectionScores['2'])} / 5</strong>
                             </div>
                             <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
                                 <span className="text-slate-600 font-bold text-xs uppercase">3. Thực hành thao tác (15đ)</span>
-                                <strong className="text-slate-800 font-black text-sm">{resultsData.sectionScores['3'] || 0} / 15</strong>
+                                <strong className="text-slate-800 font-black text-sm">{formatExamScore(resultsData.sectionScores['3'])} / 15</strong>
                             </div>
                         </div>
                         <div className="space-y-2 max-md:[&>div]:p-2.5 max-md:[&_span]:text-[10px] md:space-y-3">
                             <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
                                 <span className="text-slate-600 font-bold text-xs uppercase">4. NCS Năng lực nghề nghiệp (6đ)</span>
                                 <strong className="text-slate-800 font-black text-sm">
-                                    {Number((resultsData.sectionScores['4.A'] || 0) + (resultsData.sectionScores['4.B'] || 0)).toFixed(1)} / 6
+                                    {formatExamScore((resultsData.sectionScores['4.A'] || 0) + (resultsData.sectionScores['4.B'] || 0))} / 6
                                 </strong>
                             </div>
                             <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
                                 <span className="text-slate-600 font-bold text-xs uppercase">5. Hệ thống biển báo (6đ)</span>
-                                <strong className="text-slate-800 font-black text-sm">{resultsData.sectionScores['5'] || 0} / 6</strong>
+                                <strong className="text-slate-800 font-black text-sm">{formatExamScore(resultsData.sectionScores['5'])} / 6</strong>
                             </div>
                             <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
                                 <span className="text-slate-600 font-bold text-xs uppercase">6. Câu hỏi an toàn (10đ)</span>
-                                <strong className="text-slate-800 font-black text-sm">{resultsData.sectionScores['6'] || 0} / 10</strong>
+                                <strong className="text-slate-800 font-black text-sm">{formatExamScore(resultsData.sectionScores['6'])} / 10</strong>
                             </div>
                             <div className="flex justify-between items-center bg-blue-50/50 p-3 rounded-xl border border-blue-100">
                                 <span className="text-blue-700 font-black text-xs uppercase">TỔNG ĐIỂM BÀI THI (50đ)</span>
-                                <strong className="text-blue-700 font-black text-base">{resultsData.totalScore} / 50</strong>
+                                <strong className="text-blue-700 font-black text-base">{formatExamScore(resultsData.totalScore)} / 50</strong>
                             </div>
                         </div>
                     </div>
@@ -659,7 +670,7 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
                                     <span className={`px-2.5 py-1 rounded-xl text-xs font-black shrink-0 ${
                                         q.isCorrect ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
                                     }`}>
-                                        {q.score} / {q.points} Điểm
+                                        {formatExamScore(q.score)} / {q.points} Điểm
                                     </span>
                                 </div>
 

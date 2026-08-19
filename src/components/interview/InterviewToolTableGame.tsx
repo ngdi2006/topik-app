@@ -118,17 +118,17 @@ type InventoryKind = 'tool' | 'target'
 type DragState = { id: string; kind: InventoryKind } | null
 
 const SLOT_POSITIONS = [
-    { left: '35%', top: '47%', rotate: '-7deg' },
-    { left: '52%', top: '44%', rotate: '5deg' },
-    { left: '43%', top: '57%', rotate: '-2deg' },
-    { left: '61%', top: '52%', rotate: '8deg' },
+    { left: '20%', top: '43%', rotate: '-5deg' },
+    { left: '36%', top: '42%', rotate: '4deg' },
+    { left: '50%', top: '43%', rotate: '-2deg' },
+    { left: '64%', top: '42%', rotate: '5deg' },
 ]
 
 const TABLE_OPERATION_POLYGON = [
-    { x: 0.66, y: 0.33 },
-    { x: 0.91, y: 0.38 },
-    { x: 0.42, y: 0.73 },
-    { x: 0.12, y: 0.58 },
+    { x: 0.13, y: 0.53 },
+    { x: 0.87, y: 0.53 },
+    { x: 0.97, y: 0.60 },
+    { x: 0.03, y: 0.60 },
 ] as const
 
 const TABLE_CLIP_PATH = `polygon(${TABLE_OPERATION_POLYGON.map(({ x, y }) => `${x * 100}% ${y * 100}%`).join(', ')})`
@@ -271,17 +271,17 @@ export function InterviewToolTableGame({
 
     return (
         <section aria-label="Bàn thi thực hành" className="w-full lg:pr-[300px]">
-            <div className="relative mx-auto aspect-square w-full overflow-hidden bg-slate-100 overscroll-contain sm:rounded-lg lg:overflow-visible">
+            <div className="relative mx-auto mb-[206px] aspect-square w-full overflow-visible bg-slate-100 overscroll-contain sm:mb-[222px] sm:rounded-lg lg:mb-0">
                 <Image
-                    src="/assets/workshop/scenes/interview-table.png"
+                    src="/assets/workshop/scenes/interview-table-v2.png"
                     alt="Bàn thi thực hành trước mặt giám khảo"
-                    width={2048}
-                    height={2058}
+                    width={1254}
+                    height={1254}
                     draggable={false}
                     className="absolute inset-0 h-full w-full select-none rounded-lg object-contain"
                 />
 
-                <div className="pointer-events-none absolute left-[28%] top-[34%] z-20 rounded-full bg-blue-950/75 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-white shadow-sm sm:text-[10px]">
+                <div className="pointer-events-none absolute left-[7%] top-[49%] z-20 rounded-full bg-blue-950/80 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-white shadow-sm sm:text-[10px]">
                     Vùng thao tác
                 </div>
                 <svg
@@ -311,44 +311,47 @@ export function InterviewToolTableGame({
                     className="absolute inset-0 z-10 h-full w-full bg-transparent focus-visible:outline-none"
                 >
                     <span className="sr-only">Chạm để đặt dụng cụ đã chọn</span>
+                </button>
+
+                <div className="pointer-events-none absolute inset-0 z-20" aria-hidden="true">
                     {placedTools.map((tool, index) => {
                         const asset = TOOL_ASSETS[tool]
                         const slot = SLOT_POSITIONS[index % SLOT_POSITIONS.length]
                         return (
                             <span
                                 key={tool}
-                                className="absolute grid h-14 w-14 place-items-center rounded-xl bg-slate-950/20 shadow-[0_8px_18px_rgba(15,23,42,0.28)] backdrop-blur-[2px] sm:h-[72px] sm:w-[72px]"
+                                className="absolute grid h-16 w-16 place-items-center rounded-xl bg-slate-950/20 shadow-[0_8px_18px_rgba(15,23,42,0.28)] backdrop-blur-[2px] sm:h-[84px] sm:w-[84px]"
                                 style={{ left: slot.left, top: slot.top, rotate: slot.rotate }}
                             >
                                 {asset ? (
-                                    <Image src={asset.src} alt="" width={72} height={72} draggable={false} className="h-full w-full object-contain p-1" />
-                                ) : renderFallback(tool, 'h-11 w-11')}
-                                <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-blue-600 text-[10px] font-bold text-white shadow" aria-hidden="true">
+                                    <Image src={asset.src} alt="" width={84} height={84} draggable={false} className="h-full w-full object-contain" />
+                                ) : renderFallback(tool, 'h-14 w-14 sm:h-[72px] sm:w-[72px]')}
+                                <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-blue-600 text-[10px] font-bold text-white shadow">
                                     {index + 1}
                                 </span>
                             </span>
                         )
                     })}
                     {placedTarget ? (
-                        <span className="absolute left-[55%] top-[50%] grid h-14 w-14 place-items-center rounded-lg bg-amber-50/90 shadow-[0_8px_18px_rgba(15,23,42,0.22)] sm:h-[72px] sm:w-[72px]">
-                            {renderTarget(placedTarget, 'h-11 w-11 sm:h-14 sm:w-14')}
-                            <span className="absolute -right-1 -top-1 rounded bg-amber-500 px-1.5 py-0.5 text-[8px] font-bold uppercase text-white">Chi tiết</span>
+                        <span className="absolute left-[76%] top-[43%] grid h-16 w-16 place-items-center rounded-xl bg-amber-50/95 shadow-[0_8px_18px_rgba(15,23,42,0.22)] sm:h-[84px] sm:w-[84px]">
+                            {renderTarget(placedTarget, 'h-14 w-14 sm:h-[72px] sm:w-[72px]')}
+                            <span className="absolute -right-1 -top-2 rounded bg-amber-500 px-1.5 py-0.5 text-[8px] font-bold uppercase text-white shadow-sm">Chi tiết</span>
                         </span>
                     ) : null}
-                </button>
+                </div>
 
-                <div className="absolute inset-x-[1.5%] bottom-[1.5%] z-30 bg-white/95 p-1 backdrop-blur-sm sm:inset-x-[2%] lg:bottom-0 lg:left-[calc(100%+16px)] lg:right-auto lg:top-0 lg:flex lg:h-full lg:w-[284px] lg:flex-col lg:rounded-xl lg:border lg:border-slate-200 lg:bg-white lg:p-3 lg:shadow-sm lg:backdrop-blur-none">
-                    <div className="mb-1 flex items-center gap-1 pb-1 lg:mb-3 lg:grid lg:grid-cols-2 lg:gap-2 lg:border-b lg:border-slate-200 lg:pb-3" role="tablist" aria-label="Loại vật thể">
-                        <button type="button" role="tab" aria-selected={visibleInventoryKind === 'tool'} onClick={() => setInventoryKind('tool')} className={`min-h-7 rounded px-2 text-[10px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 lg:min-h-9 ${visibleInventoryKind === 'tool' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
+                <div className="absolute inset-x-[1.5%] top-[calc(100%+6px)] bottom-auto z-30 rounded-2xl border border-white/80 bg-white/65 p-2 shadow-[0_8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:inset-x-[2%] sm:p-2.5 lg:bottom-0 lg:left-[calc(100%+16px)] lg:right-auto lg:top-0 lg:flex lg:h-full lg:w-[284px] lg:flex-col lg:border-slate-200/70 lg:bg-white/80 lg:p-3">
+                    <div className="flex items-center gap-1 rounded-xl bg-slate-100/80 p-1 lg:mb-3 lg:grid lg:grid-cols-2 lg:gap-1.5" role="tablist" aria-label="Loại vật thể">
+                        <button type="button" role="tab" aria-selected={visibleInventoryKind === 'tool'} onClick={() => setInventoryKind('tool')} className={`min-h-9 rounded-lg px-3 text-[10px] font-bold transition-[background-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${visibleInventoryKind === 'tool' ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:bg-white/70'}`}>
                             1. Dụng cụ <span className="opacity-70">{placedTools.length}</span>
                         </button>
-                        {requiresTarget ? <button type="button" role="tab" aria-selected={visibleInventoryKind === 'target'} disabled={stage === 1} onClick={() => setInventoryKind('target')} className={`min-h-7 rounded px-2 text-[10px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-40 lg:min-h-9 ${visibleInventoryKind === 'target' ? 'bg-amber-500 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
+                        {requiresTarget ? <button type="button" role="tab" aria-selected={visibleInventoryKind === 'target'} disabled={stage === 1} onClick={() => setInventoryKind('target')} className={`min-h-9 rounded-lg px-3 text-[10px] font-bold transition-[background-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-40 ${visibleInventoryKind === 'target' ? 'bg-white text-amber-700 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:bg-white/70'}`}>
                             2. Chi tiết {placedTarget ? '✓' : ''}
                         </button> : null}
-                        <span className="ml-auto text-[9px] font-medium text-slate-400 lg:col-span-2 lg:ml-0 lg:text-center lg:text-[10px]">{stage === 1 ? 'Chọn đủ dụng cụ' : stage === 2 ? 'Chọn vật cần thao tác' : 'Sẵn sàng thao tác'}</span>
+                        <span className="ml-auto px-2 text-[9px] font-semibold text-slate-400 lg:col-span-2 lg:ml-0 lg:text-center lg:text-[10px]">{stage === 1 ? 'Chọn đủ dụng cụ' : stage === 2 ? 'Chọn chi tiết' : 'Sẵn sàng thao tác'}</span>
                     </div>
 
-                    {visibleInventoryKind === 'tool' ? <div role="tablist" aria-label="Nhóm dụng cụ" className="flex touch-pan-x gap-0.5 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:grid-cols-2 lg:gap-1 lg:overflow-visible lg:border-b lg:border-slate-100 lg:pb-3">
+                    {visibleInventoryKind === 'tool' ? <div role="tablist" aria-label="Nhóm dụng cụ" className="mt-1.5 flex touch-pan-x gap-1.5 overflow-x-auto overscroll-x-contain border-y border-slate-200/70 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:grid-cols-2 lg:overflow-visible lg:py-3">
                         {groupedTools.map(([group, groupTools]) => {
                             const isActive = activeGroup === group
                             return (
@@ -359,10 +362,10 @@ export function InterviewToolTableGame({
                                     aria-selected={isActive}
                                     aria-controls="active-tool-group"
                                     onClick={() => setRequestedGroup(group)}
-                                    className={`inline-flex min-h-7 shrink-0 touch-manipulation items-center justify-center gap-1 rounded px-2 py-1 text-[9px] font-bold uppercase tracking-wide transition-[background-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:text-[10px] lg:min-h-8 lg:whitespace-normal lg:text-center lg:text-[9px] ${
+                                    className={`inline-flex min-h-8 shrink-0 touch-manipulation items-center justify-center gap-1 rounded-full px-3 py-1 text-[9px] font-bold uppercase tracking-wide transition-[background-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:text-[10px] lg:min-h-9 lg:whitespace-normal lg:rounded-lg lg:text-center lg:text-[9px] ${
                                         isActive
                                             ? 'bg-blue-600 text-white shadow-sm'
-                                            : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+                                            : 'bg-white/70 text-slate-500 ring-1 ring-slate-200 hover:bg-white hover:text-slate-900'
                                     }`}
                                 >
                                     {group}
@@ -372,7 +375,7 @@ export function InterviewToolTableGame({
                         })}
                     </div> : null}
 
-                    <div id="active-tool-group" role="tabpanel" aria-label={visibleInventoryKind === 'tool' ? activeGroup || 'Dụng cụ' : 'Chi tiết cần thao tác'} className="flex min-h-14 touch-pan-x snap-x snap-mandatory items-center gap-1 overflow-x-auto overscroll-x-contain pt-1 pr-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:min-h-16 lg:grid lg:flex-1 lg:auto-rows-min lg:grid-cols-2 lg:content-start lg:items-stretch lg:gap-2 lg:overflow-y-auto lg:pr-0 lg:pt-3">
+                    <div id="active-tool-group" role="tabpanel" aria-label={visibleInventoryKind === 'tool' ? activeGroup || 'Dụng cụ' : 'Chi tiết cần thao tác'} className="flex min-h-[76px] touch-pan-x snap-x snap-mandatory items-center gap-2 overflow-x-auto overscroll-x-contain py-2 pr-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:min-h-[84px] lg:grid lg:flex-1 lg:auto-rows-min lg:grid-cols-2 lg:content-start lg:items-stretch lg:overflow-y-auto lg:pr-0 lg:pt-3">
                         {visibleInventoryKind === 'tool' && activeGroupTools.length > 0 ? (
                             activeGroupTools.map((tool) => {
                                     const asset = TOOL_ASSETS[tool]
@@ -390,7 +393,7 @@ export function InterviewToolTableGame({
                                             onPointerUp={finishDrag}
                                             onPointerCancel={cancelDrag}
                                             onClick={() => handleItemClick(tool, 'tool')}
-                                            className={`relative grid h-12 min-w-12 snap-start touch-pan-x place-items-center bg-transparent transition-[transform,background-color] hover:bg-blue-50 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:h-14 sm:min-w-14 lg:h-auto lg:min-h-[88px] lg:touch-none lg:grid-cols-[62px_1fr] lg:justify-items-start lg:gap-1 lg:rounded-md lg:bg-slate-50 lg:px-2 ${isTapSelected ? 'bg-blue-50 ring-2 ring-blue-500 ring-inset' : ''}`}
+                                            className={`relative grid h-[68px] min-w-[68px] snap-start touch-pan-x place-items-center rounded-xl bg-white/75 p-1 shadow-sm ring-1 ring-slate-200/80 transition-[transform,background-color,box-shadow] hover:bg-white active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:h-[76px] sm:min-w-[76px] lg:h-auto lg:min-h-[96px] lg:touch-none lg:grid-cols-[68px_1fr] lg:justify-items-start lg:gap-1 lg:px-2 ${isTapSelected ? 'bg-blue-50 ring-2 ring-blue-500' : ''}`}
                                         >
                                             {asset ? (
                                                 <Image
@@ -400,7 +403,7 @@ export function InterviewToolTableGame({
                                                     height={72}
                                                     draggable={false}
                                                     style={{ transform: `scale(${asset.scale ?? 1})` }}
-                                                    className="pointer-events-none h-full w-full object-contain p-1 lg:p-0"
+                                                    className="pointer-events-none h-full w-full object-contain lg:p-0"
                                                 />
                                             ) : renderFallback(tool, 'h-9 w-9 pointer-events-none lg:h-14 lg:w-14')}
                                             <span className="hidden min-w-0 line-clamp-2 text-left text-[9px] font-medium leading-[1.25] text-slate-600 lg:block">{label}</span>
@@ -423,9 +426,9 @@ export function InterviewToolTableGame({
                                         onPointerUp={finishDrag}
                                         onPointerCancel={cancelDrag}
                                         onClick={() => handleItemClick(target, 'target')}
-                                        className={`relative flex h-12 min-w-28 snap-start touch-pan-x items-center gap-2 bg-transparent px-2 text-left transition-[transform,background-color] hover:bg-amber-50 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 sm:h-14 lg:h-auto lg:min-h-[88px] lg:min-w-0 lg:touch-none lg:rounded-md lg:bg-amber-50 ${isTapSelected ? 'bg-amber-50 ring-2 ring-amber-500 ring-inset' : ''}`}
+                                        className={`relative flex h-16 min-w-32 snap-start touch-pan-x items-center gap-2 bg-transparent px-2 text-left transition-[transform,background-color] hover:bg-amber-50 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 sm:h-[72px] lg:h-auto lg:min-h-[96px] lg:min-w-0 lg:touch-none lg:rounded-md lg:bg-amber-50 ${isTapSelected ? 'bg-amber-50 ring-2 ring-amber-500 ring-inset' : ''}`}
                                     >
-                                        {renderTarget(target, 'h-9 w-9 shrink-0 lg:h-14 lg:w-14')}
+                                        {renderTarget(target, 'h-14 w-14 shrink-0 lg:h-16 lg:w-16')}
                                         <span className="line-clamp-2 text-[9px] font-medium leading-[1.25] text-slate-600">{targetNames[target] || target}</span>
                                         <GripVertical className="ml-auto h-3 w-3 shrink-0 text-slate-400" aria-hidden="true" />
                                     </button>
@@ -442,7 +445,11 @@ export function InterviewToolTableGame({
                 <p className="min-w-0 text-pretty">
                     {tapSelected
                         ? `Đã chọn ${tapSelected.kind === 'tool' ? toolNames[tapSelected.id]?.vi || tapSelected.id : targetNames[tapSelected.id] || tapSelected.id}. Chạm vùng thao tác để đặt.`
-                        : stage === 1 ? 'Kéo đủ dụng cụ cần dùng lên bàn.' : stage === 2 ? 'Kéo chi tiết cần thao tác lên bàn.' : requiresTarget ? 'Dụng cụ và chi tiết đã sẵn sàng.' : 'Dụng cụ đã sẵn sàng để thao tác.'}
+                        : stage === 1
+                            ? placedTools.length > 0 ? 'Tiếp tục chọn đủ dụng cụ, hoặc trả lại để đổi.' : 'Kéo dụng cụ cần dùng lên bàn.'
+                            : stage === 2
+                                ? placedTarget ? 'Đã chọn chi tiết. Bạn có thể trả lại để đổi.' : 'Kéo chi tiết cần thao tác lên bàn.'
+                                : requiresTarget ? 'Dụng cụ và chi tiết đã sẵn sàng.' : 'Dụng cụ đã sẵn sàng để thao tác.'}
                 </p>
                 {placedTools.length > 0 ? (
                     <button

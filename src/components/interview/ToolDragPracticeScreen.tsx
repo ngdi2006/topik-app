@@ -1000,12 +1000,11 @@ export function ToolDragPracticeScreen({
         const nextPlacedTools = Array.from(new Set([...placedTools, tool]))
         setPlacedTools(nextPlacedTools)
 
-        // Step 1 only verifies that the learner has placed enough objects.
-        // Correctness is evaluated after completing the target/action flow.
+        // Let learners complete the whole command before grading. The action
+        // can provide useful context, while the final result still evaluates
+        // the tool, target and action together.
         const requiredToolCount = Math.max(1, config.required_tools?.filter(Boolean).length || 1)
-        const hasSelectedEnoughTools = nextPlacedTools.length >= requiredToolCount
-
-        if (!hasSelectedEnoughTools) {
+        if (nextPlacedTools.length < requiredToolCount) {
             setStep(1)
             return
         }
@@ -1477,7 +1476,7 @@ export function ToolDragPracticeScreen({
                 )}
 
                 {!isExamMode && feedbackState !== 'idle' && (
-                    <div className="w-full max-w-4xl mt-5 z-20 animate-in fade-in slide-in-from-bottom-6 duration-500">
+                    <div className="z-20 mt-3 w-[calc(100%-1.5rem)] max-w-4xl animate-in fade-in slide-in-from-bottom-6 duration-500 sm:w-full">
                         {feedbackState === 'success' ? (
                             <div className="bg-emerald-950/80 backdrop-blur-md border-2 border-emerald-500/30 rounded-2xl p-5 shadow-2xl relative overflow-hidden">
                                 <div className="absolute top-0 right-0 p-3 opacity-20">
@@ -1495,67 +1494,70 @@ export function ToolDragPracticeScreen({
                                 </div>
                             </div>
                         ) : (
-                            <div className="bg-rose-950/85 backdrop-blur-md border-2 border-rose-500/30 rounded-2xl p-5 shadow-2xl relative overflow-hidden">
-                                <div className="absolute top-0 right-0 p-3 opacity-20">
-                                    <AlertTriangle className="w-16 h-16 text-rose-400" />
-                                </div>
-                                <div className="flex items-start gap-4">
-                                    <div className="h-10 w-10 rounded-full bg-rose-500/20 border border-rose-500/30 flex items-center justify-center shrink-0">
-                                        <AlertTriangle className="w-6 h-6 text-rose-400" />
+                            <div className="relative overflow-hidden rounded-2xl border border-rose-200 bg-white shadow-lg shadow-slate-200/70">
+                                <div className="absolute inset-y-0 left-0 w-1 bg-rose-500" aria-hidden="true" />
+                                <div className="p-4 sm:p-5">
+                                    <div className="flex items-start gap-3">
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+                                            <AlertTriangle className="h-5 w-5" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex flex-wrap items-baseline justify-between gap-1">
+                                                <h4 className="text-base font-extrabold text-slate-900">Chưa chính xác</h4>
+                                                <span className="text-xs font-semibold text-rose-600">틀렸습니다</span>
+                                            </div>
+                                            <p className="mt-2 text-sm font-bold leading-relaxed text-slate-800 sm:text-base">{currentQ.question_text}</p>
+                                            <p className="mt-1 text-xs leading-relaxed text-slate-500 sm:text-sm">{currentQ.vietnamese_meaning}</p>
+                                        </div>
                                     </div>
-                                    <div className="space-y-2 w-full">
-                                        <h4 className="text-rose-400 font-bold text-lg">틀렸습니다! (Sai rồi)</h4>
-                                        <p className="text-slate-300 font-bold text-base">{currentQ.question_text}</p>
-                                        <p className="text-slate-400 text-sm italic">{currentQ.vietnamese_meaning}</p>
                                         
-                                        <div className="p-3 bg-slate-950/60 rounded-xl border border-rose-500/10 space-y-1 text-xs">
-                                            <div className="font-bold text-slate-400 uppercase tracking-wide border-b border-slate-900 pb-1.5 mb-1.5">Kết quả từng bước:</div>
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-slate-400">Bước 1: Chọn dụng cụ</span>
-                                                <span className={heldTool === config.correct_tool ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
+                                        <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-xs">
+                                            <div className="border-b border-slate-200 px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Kết quả từng bước</div>
+                                            <div className="flex min-h-10 items-center justify-between gap-3 border-b border-slate-200 px-3 py-2">
+                                                <span className="text-slate-600">1. Chọn dụng cụ</span>
+                                                <span className={heldTool === config.correct_tool ? "font-bold text-emerald-600" : "font-bold text-rose-600"}>
                                                     {heldTool === config.correct_tool ? "✓ Chính xác" : "✗ Sai"}
                                                 </span>
                                             </div>
-                                            {config.requires_target !== false ? <div className="flex items-center justify-between">
-                                                <span className="text-slate-400">Bước 2: Chọn vật thể tác động</span>
-                                                <span className={selectedTarget === config.target_object ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
+                                            {config.requires_target !== false ? <div className="flex min-h-10 items-center justify-between gap-3 border-b border-slate-200 px-3 py-2">
+                                                <span className="text-slate-600">2. Chọn chi tiết</span>
+                                                <span className={selectedTarget === config.target_object ? "font-bold text-emerald-600" : "font-bold text-rose-600"}>
                                                     {selectedTarget === config.target_object ? "✓ Chính xác" : "✗ Sai"}
                                                 </span>
-                                            </div> : <div className="flex items-center justify-between">
-                                                <span className="text-slate-400">Vật thể</span>
-                                                <span className="font-bold text-slate-300">Không nêu trong câu</span>
+                                            </div> : <div className="flex min-h-10 items-center justify-between gap-3 border-b border-slate-200 px-3 py-2">
+                                                <span className="text-slate-600">Chi tiết</span>
+                                                <span className="font-bold text-slate-500">Không yêu cầu</span>
                                             </div>}
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-slate-400">Bước {config.requires_target === false ? '2' : '3'}: Chọn thao tác</span>
-                                                <span className={!config.requires_action || selectedAction === config.correct_action ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
+                                            <div className="flex min-h-10 items-center justify-between gap-3 px-3 py-2">
+                                                <span className="text-slate-600">{config.requires_target === false ? '2' : '3'}. Chọn thao tác</span>
+                                                <span className={!config.requires_action || selectedAction === config.correct_action ? "font-bold text-emerald-600" : "font-bold text-rose-600"}>
                                                     {!config.requires_action ? "Không cần" : selectedAction === config.correct_action ? "✓ Chính xác" : "✗ Sai"}
                                                 </span>
                                             </div>
 
                                             {showCorrectAnswer && (
-                                                <div className="mt-3 pt-3 border-t border-slate-800 text-xs space-y-1 animate-in fade-in duration-300 text-slate-200">
-                                                    <div className="font-extrabold text-emerald-400 uppercase tracking-wider mb-1.5">Đáp án đúng của khẩu lệnh:</div>
-                                                    <div>Bước 1: Chọn <span className="text-emerald-400 font-bold">{TOOL_NAMES[correctToolId]?.vi}</span></div>
-                                                    {config.requires_target !== false ? <div>Bước 2: Chọn <span className="text-emerald-400 font-bold">{EXACT_TARGET_LABELS[targetObjectId] || targetObjectId}</span></div> : null}
+                                                <div className="space-y-1 border-t border-emerald-200 bg-emerald-50 px-3 py-3 text-xs text-slate-700 animate-in fade-in duration-300">
+                                                    <div className="mb-1.5 font-extrabold uppercase tracking-wider text-emerald-700">Đáp án đúng</div>
+                                                    <div>Bước 1: Chọn <span className="font-bold text-emerald-700">{TOOL_NAMES[correctToolId]?.vi}</span></div>
+                                                    {config.requires_target !== false ? <div>Bước 2: Chọn <span className="font-bold text-emerald-700">{EXACT_TARGET_LABELS[targetObjectId] || targetObjectId}</span></div> : null}
                                                     {config.requires_action && (
-                                                        <div>Bước 3: Thực hiện <span className="text-emerald-400 font-bold">{getActionDisplay(correctActionId).label}</span></div>
+                                                        <div>Bước 3: Thực hiện <span className="font-bold text-emerald-700">{getActionDisplay(correctActionId).label}</span></div>
                                                     )}
                                                 </div>
                                             )}
                                         </div>
-                                    </div>
                                 </div>
                             </div>
                         )}
 
-                        <div className="mt-5 flex flex-col sm:flex-row justify-center items-center gap-3">
+                        <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:justify-center">
                             {feedbackState === 'fail' && (
                                 <>
                                     <Button 
                                         type="button"
                                         size="lg" 
                                         onClick={(e) => { e.stopPropagation(); resetSteps(); }} 
-                                        className="w-full sm:w-auto px-8 py-5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-100 hover:text-white text-sm font-bold rounded-xl shadow-md cursor-pointer"
+                                        className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 sm:w-auto sm:px-8"
                                     >
                                         <RotateCcw className="w-4 h-4 mr-1.5" /> Thử lại
                                     </Button>
@@ -1563,7 +1565,7 @@ export function ToolDragPracticeScreen({
                                         type="button"
                                         size="lg" 
                                         onClick={(e) => { e.stopPropagation(); setShowCorrectAnswer(true); }} 
-                                        className="w-full sm:w-auto px-8 py-5 bg-cyan-950/80 hover:bg-cyan-900/80 border border-cyan-800/40 text-cyan-400 text-sm font-bold rounded-xl shadow-md cursor-pointer"
+                                        className="min-h-11 w-full rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-blue-700 sm:w-auto sm:px-8"
                                     >
                                         <Eye className="w-4 h-4 mr-1.5" /> Xem đáp án đúng
                                     </Button>

@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import { ArrowLeft, CheckCircle2, GripVertical, PackageOpen, RotateCcw } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { ArrowLeft, CheckCircle2, GripVertical, Loader2, PackageOpen, RotateCcw, Square, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { speakText, stopTTS } from '@/lib/tts'
 import { getWorkshopAsset, resolveWorkshopAssetId } from '@/features/workshop/assetRegistry'
 import { legacyToolConfigToWorkshopGame } from '@/features/workshop/legacyAdapter'
 import { resolveToolQuestionConfig, TOOL_DEFINITIONS } from './toolQuestionAnalysis'
@@ -12,6 +13,8 @@ type ToolQuestion = {
     id: string
     question_text: string
     vietnamese_meaning?: string
+    question_audio_url?: string | null
+    audio_url?: string | null
     tool_config?: unknown
 }
 
@@ -86,21 +89,38 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
     const [result, setResult] = useState<'correct' | 'wrong' | null>(null)
     const [answers, setAnswers] = useState<Record<string, string>>({})
     const [mastered, setMastered] = useState<string[]>([])
+    const [audioState, setAudioState] = useState<'idle' | 'loading' | 'playing' | 'error'>('idle')
+    const [isQuestionVisible, setIsQuestionVisible] = useState(false)
     const dropZoneRef = useRef<HTMLElement>(null)
     const dropBoundsRef = useRef<DOMRect | null>(null)
     const activeDragRef = useRef<string | null>(null)
     const dragStartRef = useRef({ x: 0, y: 0 })
     const dragMovedRef = useRef(false)
-    const round = rounds[index]
+    const questionAudioRef = useRef<HTMLAudioElement | null>(null)
+    const playbackTokenRef = useRef(0)
+    const autoPlayRef = useRef<() => void>(() => undefined)
+    const round = rounds[index]!
 
-    if (!round) {
-        return <div className="mx-auto max-w-xl rounded-3xl border bg-white p-8 text-center shadow-sm">
-            <PackageOpen className="mx-auto mb-3 size-10 text-orange-500" />
-            <h2 className="text-xl font-bold">Chưa đủ dữ liệu kéo thả</h2>
-            <p className="mt-2 text-sm text-slate-500">Các câu hỏi cần có cấu hình dụng cụ và phương án lựa chọn.</p>
-            <Button className="mt-5" onClick={onBack}>Quay lại chế độ học</Button>
-        </div>
+    const stopQuestionAudio = () => {
+        playbackTokenRef.current += 1
+        questionAudioRef.current?.pause()
+        questionAudioRef.current = null
+        stopTTS()
+        setAudioState('idle')
     }
+
+    useEffect(() => () => {
+        playbackTokenRef.current += 1
+        questionAudioRef.current?.pause()
+        stopTTS()
+    }, [])
+
+    const roundId = round?.question.id
+    useEffect(() => {
+        if (!roundId) return
+        const timer = window.setTimeout(() => autoPlayRef.current(), 120)
+        return () => window.clearTimeout(timer)
+    }, [roundId])
 
     const submit = (tool: string) => {
         if (result) return
@@ -155,6 +175,7 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
     }
 
     const next = () => {
+        stopQuestionAudio()
         if (index === rounds.length - 1) {
             onFinish(answers, mastered)
             return
@@ -164,12 +185,84 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
         setIsDraggingOver(false)
         setDraggingTool(null)
         setResult(null)
+        setIsQuestionVisible(false)
+    }
+
+    const toggleQuestionAudio = async () => {
+        if (audioState === 'loading' || audioState === 'playing') {
+            stopQuestionAudio()
+            setIsQuestionVisible(true)
+            return
+        }
+
+        stopQuestionAudio()
+        const token = playbackTokenRef.current
+        const storedUrl = round.question.question_audio_url || round.question.audio_url
+        setAudioState('loading')
+
+        const playFallback = () => {
+            if (token !== playbackTokenRef.current) return
+            speakText(
+                round.question.question_text,
+                0.95,
+                () => token === playbackTokenRef.current && setAudioState('playing'),
+                () => {
+                    if (token !== playbackTokenRef.current) return
+                    setAudioState('idle')
+                    setIsQuestionVisible(true)
+                },
+                () => {
+                    if (token !== playbackTokenRef.current) return
+                    setAudioState('error')
+                    setIsQuestionVisible(true)
+                },
+            )
+        }
+
+        if (!storedUrl || storedUrl.includes('translate.google.com')) {
+            playFallback()
+            return
+        }
+
+        const audio = new Audio(storedUrl)
+        questionAudioRef.current = audio
+        audio.preload = 'auto'
+        audio.playbackRate = 0.95
+        audio.setAttribute('playsinline', 'true')
+        audio.onplaying = () => token === playbackTokenRef.current && setAudioState('playing')
+        audio.onended = () => {
+            if (token !== playbackTokenRef.current) return
+            setAudioState('idle')
+            setIsQuestionVisible(true)
+        }
+        audio.onerror = playFallback
+        try {
+            await audio.play()
+        } catch {
+            playFallback()
+        }
+    }
+
+    useEffect(() => {
+        autoPlayRef.current = () => {
+            setIsQuestionVisible(false)
+            void toggleQuestionAudio()
+        }
+    })
+
+    if (!round) {
+        return <div className="mx-auto max-w-xl rounded-3xl border bg-white p-8 text-center shadow-sm">
+            <PackageOpen className="mx-auto mb-3 size-10 text-orange-500" />
+            <h2 className="text-xl font-bold">Chưa đủ dữ liệu kéo thả</h2>
+            <p className="mt-2 text-sm text-slate-500">Các câu hỏi cần có cấu hình dụng cụ và phương án lựa chọn.</p>
+            <Button className="mt-5" onClick={onBack}>Quay lại chế độ học</Button>
+        </div>
     }
 
     return <div className="mx-auto w-full max-w-3xl px-3 py-2 md:px-6">
         <div className="overflow-hidden rounded-3xl border border-orange-100 bg-white shadow-xl shadow-orange-100/40">
             <header className="flex items-center gap-3 border-b px-4 py-3 md:px-6">
-                <button onClick={onBack} className="grid size-10 place-items-center rounded-full border bg-white text-slate-600 shadow-sm" aria-label="Quay lại">
+                <button onClick={() => { stopQuestionAudio(); onBack() }} className="grid size-10 place-items-center rounded-full border bg-white text-slate-600 shadow-sm" aria-label="Quay lại">
                     <ArrowLeft className="size-5" />
                 </button>
                 <div className="min-w-0 flex-1">
@@ -183,8 +276,29 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
 
             <main className="space-y-4 p-4 md:p-6">
                 <section className="rounded-2xl bg-slate-900 p-4 text-white md:p-5">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-orange-300">Yêu cầu thao tác</p>
-                    <p className="mt-2 text-base font-bold leading-relaxed md:text-lg">{round.question.question_text}</p>
+                    <div className="flex items-center justify-between gap-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-orange-300">Yêu cầu thao tác</p>
+                        <button
+                            type="button"
+                            onClick={toggleQuestionAudio}
+                            className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-white/10 px-3 text-xs font-bold text-white transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+                            aria-label={audioState === 'playing' ? 'Dừng đọc câu hỏi' : 'Nghe câu hỏi'}
+                        >
+                            {audioState === 'loading' ? <Loader2 className="size-4 animate-spin" /> : audioState === 'playing' ? <Square className="size-3 fill-current" /> : <Volume2 className="size-4" />}
+                            {audioState === 'loading' ? 'Đang tải' : audioState === 'playing' ? 'Dừng' : 'Nghe câu hỏi'}
+                        </button>
+                    </div>
+                    {isQuestionVisible ? (
+                        <p className="mt-3 text-base font-bold leading-relaxed md:text-lg">{round.question.question_text}</p>
+                    ) : (
+                        <div className="mt-3 flex min-h-14 items-center gap-3 rounded-xl bg-white/5 px-3 text-sm text-slate-300" aria-live="polite">
+                            <span className="flex size-8 items-center justify-center rounded-full bg-orange-500/15 text-orange-300">
+                                <Volume2 className="size-4" />
+                            </span>
+                            <span>Hãy nghe câu hỏi. Nội dung tiếng Hàn sẽ hiện sau khi đọc xong.</span>
+                        </div>
+                    )}
+                    {audioState === 'error' ? <p className="mt-2 text-xs text-rose-300" role="status">Chưa thể phát âm thanh. Vui lòng thử lại.</p> : null}
                 </section>
 
                 <section
@@ -198,8 +312,8 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
                         <p className="mt-2 font-bold text-slate-900">{result === 'correct' ? 'Chính xác!' : `Đáp án: ${labelFor(round.correct)}`}</p>
                     </div> : <div>
                         <PackageOpen className="mx-auto size-8 text-orange-500" />
-                        <p className="mt-2 text-sm font-bold text-slate-800">Thả dụng cụ vào bàn làm việc</p>
-                        <p className="text-xs text-slate-500">Điện thoại: chọn dụng cụ, sau đó chạm vào bàn</p>
+                        <p className="mt-2 text-sm font-bold text-slate-800">{selected ? `Đưa ${labelFor(selected)} vào bàn` : 'Thả dụng cụ vào bàn làm việc'}</p>
+                        <p className="text-xs text-slate-500">{selected ? 'Kéo và thả, hoặc chạm vào vùng này để xác nhận' : 'Nhấn giữ dụng cụ rồi kéo vào đây'}</p>
                     </div>}
                 </section>
 
@@ -214,9 +328,9 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
                         onClick={() => setSelected(tool)}
                         disabled={Boolean(result)}
                         aria-pressed={selected === tool}
-                        className={`flex min-h-20 touch-none select-none items-center gap-2 rounded-2xl border-2 p-3 text-left transition-[border-color,background-color,transform,box-shadow,opacity] hover:-translate-y-0.5 hover:border-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 motion-reduce:transform-none ${selected === tool ? 'border-orange-500 bg-orange-50 shadow-sm' : 'border-slate-200 bg-white'} ${draggingTool === tool ? 'opacity-40' : ''} disabled:hover:translate-y-0`}
+                        className={`flex min-h-20 touch-none select-none items-center gap-3 rounded-xl border p-3 text-left transition-[border-color,background-color,transform,box-shadow,opacity] hover:-translate-y-0.5 hover:border-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 motion-reduce:transform-none ${selected === tool ? 'border-orange-500 bg-orange-50 shadow-sm ring-1 ring-orange-500' : 'border-slate-200 bg-white'} ${draggingTool === tool ? 'opacity-40' : ''} disabled:hover:translate-y-0`}
                     >
-                        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600"><WorkshopToolIcon type={iconIdFor(tool)} className="size-9" /></span>
+                        <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-slate-50 text-slate-600"><WorkshopToolIcon type={iconIdFor(tool)} className="size-10" /></span>
                         <span className="min-w-0 flex-1 text-xs font-bold text-slate-800 md:text-sm">{labelFor(tool)}</span>
                         <GripVertical className="size-4 shrink-0 text-slate-300" />
                     </button>)}

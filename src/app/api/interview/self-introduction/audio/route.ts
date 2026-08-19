@@ -14,6 +14,38 @@ const MEMBER_DAILY_LIMIT = 3
 const MAX_INTRODUCTION_CHARACTERS = 500
 const QUOTA_METADATA_KEY = 'self_introduction_tts_quota'
 
+function describeGenerationError(error: unknown) {
+    const details = error instanceof Error ? error.message : ''
+    if (/ElevenLabs trả về (401|403)/.test(details) || details.includes('ELEVENLABS_API_KEY')) {
+        return {
+            code: 'ELEVENLABS_AUTH',
+            message: 'Dịch vụ tạo giọng trên máy chủ chưa được cấu hình đúng. Hệ thống đã hoàn lại lượt.',
+        }
+    }
+    if (details.includes('ElevenLabs trả về 429')) {
+        return {
+            code: 'ELEVENLABS_LIMIT',
+            message: 'Dịch vụ tạo giọng đã đạt giới hạn sử dụng. Hệ thống đã hoàn lại lượt.',
+        }
+    }
+    if (details.includes('Không thể lưu âm thanh vào Supabase Storage')) {
+        return {
+            code: 'STORAGE_UPLOAD',
+            message: 'Đã tạo được giọng nhưng máy chủ chưa thể lưu file âm thanh. Hệ thống đã hoàn lại lượt.',
+        }
+    }
+    if (/ElevenLabs trả về 5\d\d/.test(details)) {
+        return {
+            code: 'ELEVENLABS_UNAVAILABLE',
+            message: 'Dịch vụ tạo giọng đang tạm gián đoạn. Hệ thống đã hoàn lại lượt, vui lòng thử lại sau.',
+        }
+    }
+    return {
+        code: 'TTS_UNKNOWN',
+        message: 'Tạo giọng thất bại do lỗi hệ thống. Lượt đã được hoàn lại; quản trị viên cần kiểm tra log máy chủ.',
+    }
+}
+
 function normalizeSpeechText(text: string) {
     return text.trim().replace(/\s+/g, ' ')
 }
@@ -182,8 +214,7 @@ export async function POST(request: Request) {
             await rollbackMetadataReservation(user.id)
         }
         console.error('[Self introduction TTS]', error)
-        return NextResponse.json({
-            error: 'Dịch vụ tạo giọng đang bận. Hệ thống đã hoàn lại lượt, vui lòng thử lại sau.',
-        }, { status: 503 })
+        const failure = describeGenerationError(error)
+        return NextResponse.json({ error: failure.message, errorCode: failure.code }, { status: 503 })
     }
 }

@@ -156,6 +156,7 @@ export function InterviewToolTableGame({
     const pointRef = useRef({ x: 0, y: 0 })
     const frameRef = useRef<number | null>(null)
     const movedRef = useRef(false)
+    const dragRef = useRef<DragState>(null)
     const previousBodyOverflowRef = useRef('')
     const [drag, setDrag] = useState<DragState>(null)
     const [isOverDropZone, setIsOverDropZone] = useState(false)
@@ -222,19 +223,31 @@ export function InterviewToolTableGame({
                 (pointX < ((previousPoint.x - currentPoint.x) * (pointY - currentPoint.y)) / (previousPoint.y - currentPoint.y) + currentPoint.x)
             if (intersects) inside = !inside
         }
-        return inside
+        // Keep the visible outline precise, but make the touch target more
+        // forgiving on phones by accepting the full visible table area.
+        const insideTableTouchArea = pointX >= 0.03 && pointX <= 0.97 && pointY >= 0.49 && pointY <= 0.72
+        return inside || insideTableTouchArea
     }
 
     const beginDrag = (event: ReactPointerEvent<HTMLButtonElement>, id: string, kind: InventoryKind) => {
         if (disabled) return
-        event.currentTarget.setPointerCapture(event.pointerId)
+        event.preventDefault()
+        try {
+            event.currentTarget.setPointerCapture(event.pointerId)
+        } catch {
+            // Older iOS versions can reject pointer capture during a fast touch.
+        }
         movedRef.current = false
-        setDrag({ id, kind })
+        const nextDrag = { id, kind }
+        dragRef.current = nextDrag
+        setDrag(nextDrag)
         updateFloatingPosition(event.clientX, event.clientY)
     }
 
     const moveDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
-        if (!drag) return
+        const activeDrag = dragRef.current
+        if (!activeDrag) return
+        event.preventDefault()
         movedRef.current = true
         updateFloatingPosition(event.clientX, event.clientY)
         const nextIsOver = isPointInDropZone(event.clientX, event.clientY)
@@ -242,17 +255,21 @@ export function InterviewToolTableGame({
     }
 
     const finishDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
-        if (!drag) return
+        const activeDrag = dragRef.current
+        if (!activeDrag) return
+        event.preventDefault()
         const shouldPlace = isPointInDropZone(event.clientX, event.clientY)
         if (shouldPlace) {
-            if (drag.kind === 'tool') onPlace(drag.id)
-            else onPlaceTarget(drag.id)
+            if (activeDrag.kind === 'tool') onPlace(activeDrag.id)
+            else onPlaceTarget(activeDrag.id)
         }
+        dragRef.current = null
         setIsOverDropZone(false)
         setDrag(null)
     }
 
     const cancelDrag = () => {
+        dragRef.current = null
         setIsOverDropZone(false)
         setDrag(null)
     }
@@ -393,7 +410,7 @@ export function InterviewToolTableGame({
                                             onPointerUp={finishDrag}
                                             onPointerCancel={cancelDrag}
                                             onClick={() => handleItemClick(tool, 'tool')}
-                                            className={`relative grid h-[68px] min-w-[68px] snap-start touch-pan-x place-items-center rounded-xl bg-white/75 p-1 shadow-sm ring-1 ring-slate-200/80 transition-[transform,background-color,box-shadow] hover:bg-white active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:h-[76px] sm:min-w-[76px] lg:h-auto lg:min-h-[96px] lg:touch-none lg:grid-cols-[68px_1fr] lg:justify-items-start lg:gap-1 lg:px-2 ${isTapSelected ? 'bg-blue-50 ring-2 ring-blue-500' : ''}`}
+                                            className={`relative grid h-[68px] min-w-[68px] snap-start touch-none place-items-center rounded-xl bg-white/75 p-1 shadow-sm ring-1 ring-slate-200/80 transition-[transform,background-color,box-shadow] hover:bg-white active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:h-[76px] sm:min-w-[76px] lg:h-auto lg:min-h-[96px] lg:grid-cols-[68px_1fr] lg:justify-items-start lg:gap-1 lg:px-2 ${isTapSelected ? 'bg-blue-50 ring-2 ring-blue-500' : ''}`}
                                         >
                                             {asset ? (
                                                 <Image
@@ -426,7 +443,7 @@ export function InterviewToolTableGame({
                                         onPointerUp={finishDrag}
                                         onPointerCancel={cancelDrag}
                                         onClick={() => handleItemClick(target, 'target')}
-                                        className={`relative flex h-16 min-w-32 snap-start touch-pan-x items-center gap-2 bg-transparent px-2 text-left transition-[transform,background-color] hover:bg-amber-50 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 sm:h-[72px] lg:h-auto lg:min-h-[96px] lg:min-w-0 lg:touch-none lg:rounded-md lg:bg-amber-50 ${isTapSelected ? 'bg-amber-50 ring-2 ring-amber-500 ring-inset' : ''}`}
+                                        className={`relative flex h-16 min-w-32 snap-start touch-none items-center gap-2 bg-transparent px-2 text-left transition-[transform,background-color] hover:bg-amber-50 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 sm:h-[72px] lg:h-auto lg:min-h-[96px] lg:min-w-0 lg:rounded-md lg:bg-amber-50 ${isTapSelected ? 'bg-amber-50 ring-2 ring-amber-500 ring-inset' : ''}`}
                                     >
                                         {renderTarget(target, 'h-14 w-14 shrink-0 lg:h-16 lg:w-16')}
                                         <span className="line-clamp-2 text-[9px] font-medium leading-[1.25] text-slate-600">{targetNames[target] || target}</span>

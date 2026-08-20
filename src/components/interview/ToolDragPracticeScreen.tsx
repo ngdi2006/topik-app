@@ -825,6 +825,7 @@ export function ToolDragPracticeScreen({
     const [placedTools, setPlacedTools] = useState<string[]>([])
     const [selectedTarget, setSelectedTarget] = useState<string | null>(null)
     const [selectedAction, setSelectedAction] = useState<string | null>(null)
+    const [choiceSessionSeed] = useState(() => Math.random().toString(36).slice(2))
 
     const currentToolsOnDesk = useMemo(() => {
         if (!config) return ['phillips_screwdriver', 'flat_screwdriver', 'wrench', 'pliers', 'hammer']
@@ -850,8 +851,11 @@ export function ToolDragPracticeScreen({
             if (!finalTools.includes(fb)) finalTools.push(fb)
         }
 
-        return finalTools.slice(0, deskToolCount)
-    }, [config, currentIndex, currentQ.id])
+        return shuffleBySeed(
+            finalTools.slice(0, deskToolCount),
+            `${currentQ.id}-${choiceSessionSeed}-tool-order`,
+        )
+    }, [choiceSessionSeed, config, currentIndex, currentQ.id])
 
     const currentTargetsOnDesk = useMemo(() => {
         const correctTarget = config?.target_object || 'workpiece'
@@ -859,8 +863,11 @@ export function ToolDragPracticeScreen({
             TARGET_DISTRACTOR_POOL.filter((target) => target !== correctTarget),
             `${currentQ.id}-${currentIndex}-${correctTarget}-targets`,
         ).slice(0, 4)
-        return [correctTarget, ...distractors]
-    }, [config?.target_object, currentIndex, currentQ.id])
+        return shuffleBySeed(
+            [correctTarget, ...distractors],
+            `${currentQ.id}-${choiceSessionSeed}-${correctTarget}-target-order`,
+        )
+    }, [choiceSessionSeed, config?.target_object, currentIndex, currentQ.id])
 
     // Feedback States
     const [isShake, setIsShake] = useState(false)
@@ -1111,15 +1118,18 @@ export function ToolDragPracticeScreen({
         ? [targetObjectId, ...ALL_WORKBENCH_ITEMS.filter((t) => t !== targetObjectId)].slice(0, 4)
         : ALL_WORKBENCH_ITEMS.slice(0, 4)
 
-    const actionChoiceIds = Array.from(new Set([
-        correctActionId,
+    const actionCandidates = Array.from(new Set([
         ...(selectedTarget === 'hex_bolt' || selectedTarget === 'phillips_screw' || selectedTarget === 'slotted_screw' ? ['clockwise', 'counter_clockwise'] : []),
         ...(selectedTarget === 'electric_wire' ? ['cut', 'strip', 'pull', 'bend'] : []),
         ...(selectedTarget === 'switch_power' ? ['turn_on', 'turn_off'] : []),
         ...(SHELF_TARGETS.includes(selectedTarget || '') || BOX_TARGETS.includes(selectedTarget || '') ? ['insert', 'pull'] : []),
         'push',
         'pull'
-    ])).filter(Boolean).slice(0, 4)
+    ])).filter(Boolean)
+    const actionChoiceIds = shuffleBySeed(
+        [correctActionId, ...actionCandidates.filter((actionId) => actionId !== correctActionId)].filter(Boolean).slice(0, 4),
+        `${currentQ.id}-${choiceSessionSeed}-${selectedTarget || 'no-target'}-action-order`,
+    )
 
     return (
         <div className={`${isExamMode ? 'max-w-none' : 'max-w-5xl'} relative mx-auto select-none overflow-x-hidden bg-white`}>

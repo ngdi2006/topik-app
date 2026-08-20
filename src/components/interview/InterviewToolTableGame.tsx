@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import Image from 'next/image'
-import { GripVertical, RotateCcw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, GripVertical, RotateCcw } from 'lucide-react'
 import toolMetadata from '../../../DATA-EPS/img/metadata_tools.json'
 
 type ToolGroup = 'Tháo lắp' | 'Kìm & cắt' | 'Đo kiểm' | 'Gia công' | 'Sơn & hoàn thiện'
@@ -46,46 +46,46 @@ const METADATA_TOOL_ASSETS: Record<string, ToolAsset> = Object.fromEntries(
     toolMetadata.map((item) => [
         TOOL_IDS_BY_NUMBER[item.id - 1],
         {
-            src: `/assets/workshop/tools/${item.filename}`,
+            src: `/assets/workshop/tools/game-v2/${item.filename}`,
             group: groupForToolNumber(item.id),
         },
     ]),
 )
 
 const CURATED_TOOL_ASSETS: Record<string, ToolAsset> = {
-    screwdriver: { src: '/assets/workshop/tools/game-v2/screwdriver.png', group: 'Tháo lắp' },
-    flat_screwdriver: { src: '/assets/workshop/tools/02_tuavitdet_iljadriver.png', group: 'Tháo lắp' },
-    phillips_screwdriver: { src: '/assets/workshop/tools/03_tuavitchuthap_sipjadriver.png', group: 'Tháo lắp' },
-    pliers: { src: '/assets/workshop/tools/game-v2/pliers.png', group: 'Kìm & cắt', scale: 0.84 },
-    long_nose_pliers: { src: '/assets/workshop/tools/05_kimmuidai_longnosepliers.png', group: 'Kìm & cắt', scale: 1.12 },
-    pincers: { src: '/assets/workshop/tools/06_kimbam_penchi.png', group: 'Kìm & cắt', scale: 1.06 },
-    nipper: { src: '/assets/workshop/tools/07_kimcat_nipper.png', group: 'Kìm & cắt', scale: 0.7 },
-    bolt_cutter: { src: '/assets/workshop/tools/25_kimcongluc_jeoldangi.png', group: 'Kìm & cắt', scale: 0.94 },
-    socket_wrench: { src: '/assets/workshop/tools/08_cole_daukhau_socketwrench.png', group: 'Tháo lắp', scale: 1.08 },
-    socket: { src: '/assets/workshop/tools/09_daukhau_socket.png', group: 'Tháo lắp', scale: 1.08 },
-    wrench: { src: '/assets/workshop/tools/10_cole_spanner.png', group: 'Tháo lắp' },
-    adjustable_wrench: { src: '/assets/workshop/tools/11_molet_monkeyspanner.png', group: 'Tháo lắp' },
-    torque_wrench: { src: '/assets/workshop/tools/12_coleluc_torquewrench.png', group: 'Tháo lắp' },
-    allen_wrench: { src: '/assets/workshop/tools/13_khoalucgiac_hexwrench.png', group: 'Tháo lắp', scale: 1.16 },
-    pipe_wrench: { src: '/assets/workshop/tools/14_moletrang_pipewrench.png', group: 'Tháo lắp' },
-    bearing_puller: { src: '/assets/workshop/tools/15_caobacdan_puller.png', group: 'Tháo lắp' },
-    ruler: { src: '/assets/workshop/tools/game-v2/ruler.png', group: 'Đo kiểm' },
-    hammer: { src: '/assets/workshop/tools/game-v2/claw-hammer.png', group: 'Gia công' },
-    spirit_level: { src: '/assets/workshop/tools/game-v2/spirit-level.png', group: 'Đo kiểm' },
-    hand_file: { src: '/assets/workshop/tools/game-v2/hand-file.png', group: 'Gia công' },
-    saw: { src: '/assets/workshop/tools/19_cuasat_soetop.png', group: 'Gia công' },
-    paint_brush: { src: '/assets/workshop/tools/36_coson_but.png', group: 'Sơn & hoàn thiện' },
-    paint_roller: { src: '/assets/workshop/tools/37_conlanson_roller.png', group: 'Sơn & hoàn thiện' },
-    spray_gun: { src: '/assets/workshop/tools/41_sungphunson_spraygun.png', group: 'Sơn & hoàn thiện' },
-    rust_preventive_oil: { src: '/assets/workshop/tools/43_dauchonggi_bangcheongyu.png', group: 'Sơn & hoàn thiện' },
-    welder: { src: '/assets/workshop/tools/57_mayhanco2_co2yongjeopgi.png', group: 'Gia công' },
-    scale: { src: '/assets/workshop/tools/60_candia_jeopsijeoul.png', group: 'Đo kiểm' },
-    pan_scale: { src: '/assets/workshop/tools/60_candia_jeopsijeoul.png', group: 'Đo kiểm' },
-    electronic_scale: { src: '/assets/workshop/tools/61_candientu_jeonjajeoul.png', group: 'Đo kiểm' },
-    industrial_scale: { src: '/assets/workshop/tools/61_candientu_jeonjajeoul.png', group: 'Đo kiểm' },
-    lathe_machine: { src: '/assets/workshop/tools/63_maycuadia_wonhyeongtop.png', group: 'Gia công' },
-    drill: { src: '/assets/workshop/tools/53_khoandien_jeongidrill.png', group: 'Gia công' },
-    switch_tool: { src: '/assets/workshop/tools/68_bangdieukhien_controlpanel.png', group: 'Đo kiểm' },
+    screwdriver: { src: '/assets/workshop/tools/game-v2/01_tuavit_driver.png', group: 'Tháo lắp' },
+    flat_screwdriver: { src: '/assets/workshop/tools/game-v2/02_tuavitdet_iljadriver.png', group: 'Tháo lắp' },
+    phillips_screwdriver: { src: '/assets/workshop/tools/game-v2/03_tuavitchuthap_sipjadriver.png', group: 'Tháo lắp' },
+    pliers: { src: '/assets/workshop/tools/game-v2/04_kimmonhon_pliers.png', group: 'Kìm & cắt', scale: 0.84 },
+    long_nose_pliers: { src: '/assets/workshop/tools/game-v2/05_kimmuidai_longnosepliers.png', group: 'Kìm & cắt', scale: 1.12 },
+    pincers: { src: '/assets/workshop/tools/game-v2/06_kimbam_penchi.png', group: 'Kìm & cắt', scale: 1.06 },
+    nipper: { src: '/assets/workshop/tools/game-v2/07_kimcat_nipper.png', group: 'Kìm & cắt', scale: 0.7 },
+    bolt_cutter: { src: '/assets/workshop/tools/game-v2/25_kimcongluc_jeoldangi.png', group: 'Kìm & cắt', scale: 0.94 },
+    socket_wrench: { src: '/assets/workshop/tools/game-v2/08_cole_daukhau_socketwrench.png', group: 'Tháo lắp', scale: 1.08 },
+    socket: { src: '/assets/workshop/tools/game-v2/09_daukhau_socket.png', group: 'Tháo lắp', scale: 1.08 },
+    wrench: { src: '/assets/workshop/tools/game-v2/10_cole_spanner.png', group: 'Tháo lắp' },
+    adjustable_wrench: { src: '/assets/workshop/tools/game-v2/11_molet_monkeyspanner.png', group: 'Tháo lắp' },
+    torque_wrench: { src: '/assets/workshop/tools/game-v2/12_coleluc_torquewrench.png', group: 'Tháo lắp' },
+    allen_wrench: { src: '/assets/workshop/tools/game-v2/13_khoalucgiac_hexwrench.png', group: 'Tháo lắp', scale: 1.16 },
+    pipe_wrench: { src: '/assets/workshop/tools/game-v2/14_moletrang_pipewrench.png', group: 'Tháo lắp' },
+    bearing_puller: { src: '/assets/workshop/tools/game-v2/15_caobacdan_puller.png', group: 'Tháo lắp' },
+    ruler: { src: '/assets/workshop/tools/game-v2/26_thuoc_ja.png', group: 'Đo kiểm' },
+    hammer: { src: '/assets/workshop/tools/game-v2/17_bua_mangchi.png', group: 'Gia công' },
+    spirit_level: { src: '/assets/workshop/tools/game-v2/16_thuocthuy_sujungi.png', group: 'Đo kiểm' },
+    hand_file: { src: '/assets/workshop/tools/game-v2/20_dua_jul.png', group: 'Gia công' },
+    saw: { src: '/assets/workshop/tools/game-v2/19_cuasat_soetop.png', group: 'Gia công' },
+    paint_brush: { src: '/assets/workshop/tools/game-v2/36_coson_but.png', group: 'Sơn & hoàn thiện' },
+    paint_roller: { src: '/assets/workshop/tools/game-v2/37_conlanson_roller.png', group: 'Sơn & hoàn thiện' },
+    spray_gun: { src: '/assets/workshop/tools/game-v2/41_sungphunson_spraygun.png', group: 'Sơn & hoàn thiện' },
+    rust_preventive_oil: { src: '/assets/workshop/tools/game-v2/43_dauchonggi_bangcheongyu.png', group: 'Sơn & hoàn thiện' },
+    welder: { src: '/assets/workshop/tools/game-v2/57_mayhanco2_co2yongjeopgi.png', group: 'Gia công' },
+    scale: { src: '/assets/workshop/tools/game-v2/60_candia_jeopsijeoul.png', group: 'Đo kiểm' },
+    pan_scale: { src: '/assets/workshop/tools/game-v2/60_candia_jeopsijeoul.png', group: 'Đo kiểm' },
+    electronic_scale: { src: '/assets/workshop/tools/game-v2/61_candientu_jeonjajeoul.png', group: 'Đo kiểm' },
+    industrial_scale: { src: '/assets/workshop/tools/game-v2/61_candientu_jeonjajeoul.png', group: 'Đo kiểm' },
+    lathe_machine: { src: '/assets/workshop/tools/game-v2/63_maycuadia_wonhyeongtop.png', group: 'Gia công' },
+    drill: { src: '/assets/workshop/tools/game-v2/53_khoandien_jeongidrill.png', group: 'Gia công' },
+    switch_tool: { src: '/assets/workshop/tools/game-v2/68_bangdieukhien_controlpanel.png', group: 'Đo kiểm' },
 }
 
 const TOOL_ASSETS: Record<string, ToolAsset> = {
@@ -157,6 +157,7 @@ export function InterviewToolTableGame({
     const frameRef = useRef<number | null>(null)
     const movedRef = useRef(false)
     const dragRef = useRef<DragState>(null)
+    const inventoryScrollRef = useRef<HTMLDivElement | null>(null)
     const previousBodyOverflowRef = useRef('')
     const [drag, setDrag] = useState<DragState>(null)
     const [isOverDropZone, setIsOverDropZone] = useState(false)
@@ -185,6 +186,19 @@ export function InterviewToolTableGame({
     const activeGroupTools = groupedTools.find(([group]) => group === activeGroup)?.[1] || []
     const availableTargets = targets.filter((target) => target !== placedTarget)
     const visibleInventoryKind: InventoryKind = stage === 1 || !requiresTarget ? 'tool' : stage === 2 ? 'target' : inventoryKind
+
+    useEffect(() => {
+        inventoryScrollRef.current?.scrollTo({ left: 0, behavior: 'smooth' })
+    }, [activeGroup, visibleInventoryKind])
+
+    const scrollInventory = (direction: -1 | 1) => {
+        const container = inventoryScrollRef.current
+        if (!container) return
+        container.scrollBy({
+            left: direction * Math.max(220, container.clientWidth * 0.75),
+            behavior: 'smooth',
+        })
+    }
 
     useEffect(() => {
         if (!drag) return
@@ -392,7 +406,16 @@ export function InterviewToolTableGame({
                         })}
                     </div> : null}
 
-                    <div id="active-tool-group" role="tabpanel" aria-label={visibleInventoryKind === 'tool' ? activeGroup || 'Dụng cụ' : 'Chi tiết cần thao tác'} className="flex min-h-[76px] touch-pan-x snap-x snap-mandatory items-center gap-2 overflow-x-auto overscroll-x-contain py-2 pr-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:min-h-[84px] lg:grid lg:flex-1 lg:auto-rows-min lg:grid-cols-2 lg:content-start lg:items-stretch lg:overflow-y-auto lg:pr-0 lg:pt-3">
+                    <div className="relative lg:flex lg:min-h-0 lg:flex-1">
+                        <button
+                            type="button"
+                            onClick={() => scrollInventory(-1)}
+                            aria-label="Xem các dụng cụ phía trước"
+                            className="absolute left-0 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white/95 text-slate-600 shadow-md hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 lg:hidden"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <div ref={inventoryScrollRef} id="active-tool-group" role="tabpanel" aria-label={visibleInventoryKind === 'tool' ? activeGroup || 'Dụng cụ' : 'Chi tiết cần thao tác'} className="flex min-h-[76px] w-full touch-pan-x snap-x snap-mandatory items-center gap-2 overflow-x-auto overscroll-x-contain px-11 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:min-h-[84px] lg:grid lg:flex-1 lg:auto-rows-min lg:grid-cols-2 lg:content-start lg:items-stretch lg:overflow-y-auto lg:px-0 lg:pt-3">
                         {visibleInventoryKind === 'tool' && activeGroupTools.length > 0 ? (
                             activeGroupTools.map((tool) => {
                                     const asset = TOOL_ASSETS[tool]
@@ -454,6 +477,15 @@ export function InterviewToolTableGame({
                         ) : (
                             <p className="w-full text-center text-[10px] text-slate-400">Nhóm này không còn dụng cụ.</p>
                         )}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => scrollInventory(1)}
+                            aria-label="Xem thêm dụng cụ phía sau"
+                            className="absolute right-0 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white/95 text-blue-600 shadow-md hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 lg:hidden"
+                        >
+                            <ChevronRight className="h-4 w-4" />
+                        </button>
                     </div>
                 </div>
             </div>

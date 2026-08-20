@@ -296,17 +296,24 @@ function normalizeToolId(toolId: string | undefined): string {
 function normalizeToolConfig(rawConfig: ToolPracticeConfig, question: ToolPracticeQuestion): ToolPracticeConfig {
     const sourceConfig = resolveToolQuestionConfig(question.question_text || '', question.vietnamese_meaning || '', rawConfig)
     const text = `${question?.question_text || ''} ${question?.vietnamese_meaning || ''} ${sourceConfig.vietnamese_instruction || ''}`.toLowerCase()
+    const koreanText = question.question_text || ''
+    const vietnameseText = `${question.vietnamese_meaning || ''} ${sourceConfig.vietnamese_instruction || ''}`.toLowerCase()
 
     const target_object = inferExactTarget(sourceConfig, question)
     const isStorageTarget = isStorageQuestionText(text)
     const requires_action = !isStorageTarget
+    const isRotationalFastener = ['hex_bolt', 'phillips_screw', 'slotted_screw'].includes(target_object || '')
+    const hasKoreanLoosenAction = /푸는|풀다|해체|분리/.test(koreanText)
+    const hasKoreanTightenAction = /조이|체결/.test(koreanText)
+    const hasLoosenAction = hasKoreanLoosenAction || (!hasKoreanTightenAction && /tháo|vặn ra|nhổ|lấy/.test(vietnameseText))
+    const hasTightenAction = hasKoreanTightenAction || (!hasKoreanLoosenAction && /siết|vặn vào/.test(vietnameseText))
 
     let correct_action = sourceConfig.correct_action
     if (requires_action) {
-        if (/푸는|풀다|해체|tháo|vặn ra|nhổ|lấy|분리/i.test(text)) {
-            correct_action = target_object === 'switch_power' ? 'turn_off' : target_object === 'electric_wire' ? 'cut' : target_object === 'hex_bolt' ? 'counter_clockwise' : 'pull'
-        } else if (/조이|체결|siết|vặn vào/i.test(text)) {
-            correct_action = target_object === 'switch_power' ? 'turn_on' : target_object === 'electric_wire' ? 'cut' : target_object === 'hex_bolt' ? 'clockwise' : 'push'
+        if (hasLoosenAction) {
+            correct_action = target_object === 'switch_power' ? 'turn_off' : target_object === 'electric_wire' ? 'cut' : isRotationalFastener ? 'counter_clockwise' : 'pull'
+        } else if (hasTightenAction) {
+            correct_action = target_object === 'switch_power' ? 'turn_on' : target_object === 'electric_wire' ? 'cut' : isRotationalFastener ? 'clockwise' : 'push'
         } else if (/피복|탈피|tước|tuốt/i.test(text)) {
             correct_action = 'strip'
         } else if (/자르는|절단|끊는|cắt/i.test(text)) {
@@ -1106,6 +1113,9 @@ export function ToolDragPracticeScreen({
     const correctToolId = config.correct_tool || 'screwdriver'
     const targetObjectId = config.target_object || ''
     const correctActionId = config.correct_action || ''
+    const displayedVietnameseMeaning = /조이|체결/.test(currentQ.question_text || '')
+        ? (currentQ.vietnamese_meaning || '').replace(/\s*\(\s*tháo\s*\)/gi, '')
+        : currentQ.vietnamese_meaning || ''
 
     const ALL_PANEL_ITEMS = ['switch_power', 'emergency_button', 'signal_light']
     const ALL_WORKBENCH_ITEMS = ['paint_can', 'primer_can', 'varnish_can', 'hex_bolt', 'phillips_screw', 'slotted_screw', 'electric_wire', 'gear', 'metal_pipe', 'wood_workpiece', 'metal_workpiece', 'lever', 'workpiece']
@@ -1499,7 +1509,7 @@ export function ToolDragPracticeScreen({
                                     <div className="space-y-1">
                                         <h4 className="text-emerald-400 font-bold text-lg">정답입니다! (Chính xác)</h4>
                                         <p className="text-slate-200 font-bold text-base">{currentQ.question_text}</p>
-                                        <p className="text-slate-400 text-sm italic">{currentQ.vietnamese_meaning}</p>
+                                        <p className="text-slate-400 text-sm italic">{displayedVietnameseMeaning}</p>
                                     </div>
                                 </div>
                             </div>
@@ -1517,7 +1527,7 @@ export function ToolDragPracticeScreen({
                                                 <span className="text-xs font-semibold text-rose-600">틀렸습니다</span>
                                             </div>
                                             <p className="mt-2 text-sm font-bold leading-relaxed text-slate-800 sm:text-base">{currentQ.question_text}</p>
-                                            <p className="mt-1 text-xs leading-relaxed text-slate-500 sm:text-sm">{currentQ.vietnamese_meaning}</p>
+                                            <p className="mt-1 text-xs leading-relaxed text-slate-500 sm:text-sm">{displayedVietnameseMeaning}</p>
                                         </div>
                                     </div>
                                         

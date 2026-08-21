@@ -50,7 +50,8 @@ export const TOOL_DEFINITIONS: Definition[] = [
     { id: 'bolt_cutter', label: 'Kìm cộng lực', ko: '절단기', patterns: [/(?:철근을\s*절단하는\s*도구|절단기를\s*이용하여\s*철근)/, /kìm cộng lực|cắt thép cây/i] },
     { id: 'nipper', label: 'Kìm cắt', ko: '니퍼', patterns: [/니퍼/, /kìm cắt/i] },
     { id: 'pliers', label: 'Kìm', ko: '펜치 / 플라이어', patterns: [/펜치|플라이어|끼우는 도구|당기는 도구|구부리는 도구|펴는 도구|끊는 도구|전선을\s*자르는\s*도구/, /kìm|công cụ cắt dây|công cụ bẻ cong/i] },
-    { id: 'hammer', label: 'Búa', ko: '망치 / 장도리', patterns: [/망치|장도리|못을 박|못을 빼|못을 뽑/, /búa|đóng đinh|nhổ đinh/i] },
+    { id: 'claw_hammer', label: 'Búa nhổ đinh', ko: '장도리', patterns: [/장도리|못을 빼|못을 뽑/, /búa nhổ đinh|nhổ đinh/i] },
+    { id: 'hammer', label: 'Búa', ko: '망치', patterns: [/망치|못을 박/, /(?:^|\s)búa(?:\s|$)|đóng đinh/i] },
     { id: 'saw', label: 'Cưa tay', ko: '쇠톱 / 톱', patterns: [/쇠톱|톱날|날물|톱을/, /cưa|lưỡi cưa/i] },
     { id: 'welder', label: 'Máy hàn', ko: '용접기', patterns: [/용접기|용접하는 기계|CO2용접기|용접/, /máy hàn|que hàn|mối hàn|gá hàn|hàn kim loại|hàn nối/i] },
     { id: 'torch', label: 'Đèn hàn', ko: '토치', patterns: [/토치/, /đèn hàn/i] },
@@ -65,7 +66,7 @@ export const TOOL_DEFINITIONS: Definition[] = [
     { id: 'marking_needle', label: 'Mũi vạch dấu', ko: '금 긋기 바늘', patterns: [/금\s*긋기\s*바늘/, /mũi\s*vạch\s*dấu/i] },
     { id: 'vise', label: 'Ê-tô', ko: '바이스', patterns: [/바이스|물체를\s*고정하는\s*도구/, /ê-?tô/i] },
     { id: 'tin_snips', label: 'Kéo cắt tôn', ko: '판금 가위', patterns: [/판금\s*가위|얇은\s*금속\s*판재를\s*자르는\s*도구/, /kéo\s*cắt\s*tôn|cắt tấm kim loại mỏng/i] },
-    { id: 'hand_plane', label: 'Bào tay', ko: '대패', patterns: [/대패|(?:목재|원목)\s*표면을\s*(?:평탄|다듬)는\s*도구/, /bào\s*(?:tay|gỗ)?/i] },
+    { id: 'hand_plane', label: 'Bào tay', ko: '대패', patterns: [/대패|(?:목재|원목)\s*표면을\s*(?:밀어\s*)?깎는\s*도구|(?:목재|원목)\s*표면을\s*(?:평탄|다듬)는\s*도구/, /bào\s*(?:tay|gỗ|bề mặt gỗ)?/i] },
     { id: 'wood_chisel', label: 'Đục gỗ', ko: '끌', patterns: [/끌을\s*이용|(?:목재|원목|금속|돌)(?:을|를)\s*(?:파내는|깎는)\s*도구/, /đục\s*gỗ/i] },
     { id: 'heat_gun', label: 'Máy thổi nhiệt', ko: '열풍기', patterns: [/열풍기/, /máy\s*thổi\s*nhiệt/i] },
     { id: 'ladder', label: 'Thang', ko: '사다리', patterns: [/사다리|높은\s*곳에\s*물건을\s*꺼내는\s*도구/, /(?:cái\s+)?thang/i] },
@@ -93,8 +94,8 @@ export const TOOL_DEFINITIONS: Definition[] = [
     { id: 'cutting_machine', label: 'Máy cắt', ko: '절단기 / 커터기', patterns: [/절단기|전동커터기|절단하는 기계|자르는 기계/, /máy cắt/i] },
     { id: 'grinder', label: 'Máy mài', ko: '그라인더', patterns: [/그라인더|다듬는 기계|가는 기계/, /máy mài/i] },
     { id: 'press_machine', label: 'Máy dập / máy ép', ko: '프레스 기계', patterns: [/프레스|압축하는 기계|찍어 내는 기계|철판을\s*구부리는\s*기계/, /máy dập|máy ép|uốn tấm thép/i] },
-    { id: 'lathe_machine', label: 'Máy tiện', ko: '깎는 기계 / 선반 기계', patterns: [/선반 기계|원목.*깎|목재.*깎|(?:금속|플라스틱)을\s*깎는\s*기계|깎는\s*기계를\s*이용|도려내는 기계/, /máy tiện|máy gọt gỗ|gọt gỗ|bào gỗ/i] },
-    { id: 'milling_machine', label: 'Máy phay', ko: '멀링 머신', patterns: [/멀링\s*머신/, /máy phay/i] },
+    { id: 'lathe_machine', label: 'Máy tiện', ko: '선반 기계', patterns: [/선반\s*기계|(?:금속|플라스틱)을\s*깎는\s*기계|선반을\s*이용/, /máy tiện/i] },
+    { id: 'milling_machine', label: 'Máy phay', ko: '밀링 머신', patterns: [/밀링\s*머신|밀링\s*기계/, /máy phay/i] },
     { id: 'hoist', label: 'Tời', ko: '호이스트', patterns: [/호이스트/, /tời/i] },
     { id: 'control_panel', label: 'Bảng điều khiển', ko: '컨트롤 판넬', patterns: [/컨트롤\s*판넬|제어반|조작반|(?:압력|온도)(?:을|를)\s*(?:낮추|높이|조절)/, /bảng điều khiển|điều chỉnh (?:áp suất|nhiệt độ)/i] },
     { id: 'circuit_tester', label: 'Máy kiểm tra mạch', ko: '회로시험기', patterns: [/회로시험기/, /kiểm tra mạch/i] },
@@ -227,11 +228,15 @@ function resolveDeskTools(correctTool: string) {
         flat_screwdriver: ['phillips_screwdriver', 'screwdriver', 'wrench', 'pliers'],
         screwdriver: ['phillips_screwdriver', 'flat_screwdriver', 'wrench', 'pliers'],
         wrench: ['adjustable_wrench', 'socket_wrench', 'pliers', 'screwdriver'],
+        torque_wrench: ['wrench', 'socket_wrench', 'adjustable_wrench', 'allen_wrench'],
         adjustable_wrench: ['wrench', 'socket_wrench', 'pliers', 'screwdriver'],
         socket_wrench: ['wrench', 'adjustable_wrench', 'pliers', 'screwdriver'],
         pliers: ['nipper', 'long_nose_pliers', 'wrench', 'screwdriver'],
         nipper: ['pliers', 'long_nose_pliers', 'wrench', 'screwdriver'],
+        electric_cutter: ['saw', 'cutting_machine', 'grinder', 'bolt_cutter'],
+        claw_hammer: ['hammer', 'pliers', 'saw', 'screwdriver'],
         hammer: ['pliers', 'saw', 'screwdriver', 'wrench'],
+        hand_plane: ['wood_chisel', 'hand_file', 'saw', 'hammer'],
         saw: ['hammer', 'pliers', 'ruler', 'welder'],
         welder: ['torch', 'saw', 'pliers', 'wrench'],
         drill: ['cutting_machine', 'grinder', 'ruler', 'saw'],
@@ -289,7 +294,21 @@ export function analyzeToolQuestionText(questionText: string, vietnameseMeaning 
     const action = isStorageCommand
         ? ACTION_DEFINITIONS.find((item) => item.id === 'insert') || ACTION_DEFINITIONS[0]
         : firstMatch(ACTION_DEFINITIONS, questionText) || firstMatch(ACTION_DEFINITIONS, vietnameseMeaning) || ACTION_DEFINITIONS[ACTION_DEFINITIONS.length - 1]
-    const rawTool = firstMatch(TOOL_DEFINITIONS, questionText) || firstMatch(TOOL_DEFINITIONS, vietnameseMeaning)
+    // Compound tool names must win over their generic suffix. Without this
+    // priority, "토크 렌치" is captured by the generic "렌치" definition.
+    const isHandPlane = /대패|(?:목재|원목)\s*표면을\s*(?:밀어\s*)?깎|bào\s*(?:tay|gỗ|bề mặt gỗ)?/i.test(text)
+    const isTorqueWrench = /토크\s*렌치|토크|cờ lê lực|mô-?men(?: xoắn)?/i.test(text)
+    const isPipeCutting = /파이프를\s*(?:자르|절단)|(?:máy|công cụ)\s*(?:dùng\s*)?(?:để\s*)?cắt\s*ống|cắt\s*ống/i.test(text)
+    const isAdjustableWrench = /크기를\s*조절해.*(?:수나사|암나사|너트|볼트)|조절식.*(?:렌치|스패너)|mỏ\s*lết|điều chỉnh kích (?:cỡ|thước).*(?:ren ngoài|bu lông|đai ốc)/i.test(text)
+    const rawTool = isPipeCutting
+        ? TOOL_DEFINITIONS.find((item) => item.id === 'electric_cutter')
+        : isAdjustableWrench
+        ? TOOL_DEFINITIONS.find((item) => item.id === 'adjustable_wrench')
+        : isHandPlane
+        ? TOOL_DEFINITIONS.find((item) => item.id === 'hand_plane')
+        : isTorqueWrench
+        ? TOOL_DEFINITIONS.find((item) => item.id === 'torque_wrench')
+        : firstMatch(TOOL_DEFINITIONS, questionText) || firstMatch(TOOL_DEFINITIONS, vietnameseMeaning)
     const tool = refineTool(rawTool, target, text) || TOOL_DEFINITIONS[TOOL_DEFINITIONS.length - 1]
     const toolTerm = rawTool && rawTool.id !== 'generic_tool' ? matchedTerm(tool, text) : tool.ko
     const isStorage = target.id === 'shelf' || target.id === 'box'

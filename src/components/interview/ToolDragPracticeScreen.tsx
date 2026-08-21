@@ -1,13 +1,17 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import { Play, ArrowLeft, Volume2, CheckCircle2, AlertTriangle, Sparkles, HelpCircle, RotateCcw, Eye } from 'lucide-react'
+import { Play, ArrowLeft, Volume2, CheckCircle2, AlertTriangle, Sparkles, HelpCircle, RotateCcw, Eye, ChevronRight } from 'lucide-react'
 import toolConfigMap from './tool_config_map.json'
 import { speakText, stopTTS } from '@/lib/tts'
 import { resolveToolQuestionConfig, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type VocabularyItem } from './toolQuestionAnalysis'
 import { WorkshopToolIcon } from './WorkshopToolIcon'
 import { FULL_TOOL_IDS, FULL_TOOL_NAMES, InterviewToolTableGame } from './InterviewToolTableGame'
+import { ToolGameOnboarding, type ToolGameTourStep } from './ToolGameOnboarding'
+
+const TOOL_GAME_ONBOARDING_KEY = 'tool_game_onboarding_v1'
 
 const ZONE_LABELS: Record<string, string> = {
     'shelf_top_left': 'Kệ trên (Trái)',
@@ -31,7 +35,8 @@ const TOOL_NAMES: Record<string, { ko: string; vi: string }> = {
     'phillips_screwdriver': { ko: '십자드라이버', vi: 'Tua vít chữ thập' },
     'flat_screwdriver': { ko: '일자드라이버', vi: 'Tua vít dẹt' },
     'screwdriver': { ko: '드라이버', vi: 'Tua vít' },
-    'hammer': { ko: '망치 / 장도리', vi: 'Búa nhổ đinh' },
+    'hammer': { ko: '망치', vi: 'Búa' },
+    'claw_hammer': { ko: '장도리', vi: 'Búa nhổ đinh' },
     'pliers': { ko: '펜치 / 니퍼 / 플라이어', vi: 'Kìm mỏ nhọn / Kìm bấm' },
     'long_nose_pliers': { ko: '롱노즈 플라이어', vi: 'Kìm mũi dài' },
     'pincers': { ko: '펜치', vi: 'Kìm bấm' },
@@ -42,27 +47,29 @@ const TOOL_NAMES: Record<string, { ko: string; vi: string }> = {
     'welder': { ko: '용접기', vi: 'Máy hàn' },
     'ruler': { ko: '자 / 줄자', vi: 'Thước đo' },
     'bearing_puller': { ko: '풀러', vi: 'Cảo tháo / Cảo bạc đạn' },
-    'lathe_machine': { ko: '원목 깎는 기계 / 선반 기계', vi: 'Máy gọt gỗ / Máy tiện' },
+    'hand_plane': { ko: '대패', vi: 'Bào tay' },
+    'lathe_machine': { ko: '선반 기계', vi: 'Máy tiện' },
+    'milling_machine': { ko: '밀링 머신', vi: 'Máy phay' },
     'switch_tool': { ko: '스위치 / 레버', vi: 'Công tắc / Tay gạt công tắc' },
     'generic_tool': { ko: '도구 / 손', vi: 'Công tắc / Tay thao tác' }
 }
 
 const TARGET_NAMES: Record<string, string> = {
-    ...Object.fromEntries(TARGET_DEFINITIONS.map((item) => [item.id, `${item.label} (Khu vực thi công)`])),
-    'phillips_screw': 'Ốc vít rãnh chữ thập (Khu vực thi công)',
-    'slotted_screw': 'Ốc vít rãnh dẹt (Khu vực thi công)',
-    'hex_bolt': 'Bu lông (Khu vực thi công)',
-    'electric_wire': 'Dây dẫn (Khu vực thi công)',
-    'coil_spring': 'Lò xo (Khu vực thi công)',
-    'bearing': 'Ổ bi / Bạc đạn (Khu vực thi công)',
-    'gear': 'Bánh răng (Khu vực thi công)',
-    'metal_pipe': 'Ống sắt (Khu vực thi công)',
-    'wood_workpiece': 'Phôi gỗ (Khu vực thi công)',
-    'switch_power': 'Cầu dao / Công tắc (Bảng điều khiển)',
-    'emergency_button': 'Nút khẩn cấp (Bảng điều khiển)',
-    'signal_light': 'Đèn báo (Bảng điều khiển)',
-    'box': 'Hộp công cụ (Phía dưới)',
-    'shelf': 'Ngăn kệ (Hai bên)'
+    ...Object.fromEntries(TARGET_DEFINITIONS.map((item) => [item.id, item.label])),
+    'phillips_screw': 'Ốc vít rãnh chữ thập',
+    'slotted_screw': 'Ốc vít rãnh dẹt',
+    'hex_bolt': 'Bu lông',
+    'electric_wire': 'Dây dẫn',
+    'coil_spring': 'Lò xo',
+    'bearing': 'Ổ bi / Bạc đạn',
+    'gear': 'Bánh răng',
+    'metal_pipe': 'Ống sắt',
+    'wood_workpiece': 'Phôi gỗ',
+    'switch_power': 'Cầu dao / Công tắc',
+    'emergency_button': 'Nút khẩn cấp',
+    'signal_light': 'Đèn báo',
+    'box': 'Hộp công cụ',
+    'shelf': 'Ngăn kệ'
 }
 
 const ACTION_NAMES: Record<string, string> = {
@@ -95,13 +102,41 @@ function getActionDisplay(actionId: string) {
 const SHELF_TARGETS = ['shelf_top_left', 'shelf_bottom_left', 'shelf_top_right', 'shelf_bottom_right']
 const BOX_TARGETS = ['toolbox_center', 'special_box']
 const ALL_SYSTEM_TOOLS = [...FULL_TOOL_IDS]
+
+const DETAIL_ASSETS: Record<string, string> = {
+    hex_bolt: '/assets/workshop/details-v2/hex_bolt.png',
+    phillips_screw: '/assets/workshop/details-v2/phillips_screw.png',
+    slotted_screw: '/assets/workshop/details-v2/slotted_screw.png',
+    paint_can: '/assets/workshop/details-v2/paint_can.png',
+    primer_can: '/assets/workshop/details-v2/primer_can.png',
+    varnish_can: '/assets/workshop/details-v2/varnish_can.png',
+    gear: '/assets/workshop/details-v2/gear.png',
+    coil_spring: '/assets/workshop/details-v2/coil_spring.png',
+    bearing: '/assets/workshop/details-v2/bearing.png',
+    electric_wire: '/assets/workshop/details-v2/electric_wire.png',
+    metal_pipe: '/assets/workshop/details-v2/metal_pipe.png',
+    wood_workpiece: '/assets/workshop/details-v2/wood_workpiece.png',
+    metal_workpiece: '/assets/workshop/details-v2/metal_workpiece.png',
+    marking_surface: '/assets/workshop/details-v2/marking_surface.png',
+    lever: '/assets/workshop/details-v2/lever.png',
+    workpiece: '/assets/workshop/details-v2/workpiece.png',
+    box: '/assets/workshop/details-v2/box.png',
+    shelf: '/assets/workshop/details-v2/shelf.png',
+    switch_power: '/assets/workshop/details-v2/switch_power.png',
+    emergency_button: '/assets/workshop/details-v2/emergency_button.png',
+    signal_light: '/assets/workshop/details-v2/signal_light.png',
+    plastic_workpiece: '/assets/workshop/details-v2/plastic_workpiece.png',
+}
 const TARGET_DISTRACTOR_POOL = ['hex_bolt', 'phillips_screw', 'slotted_screw', 'electric_wire', 'metal_pipe', 'bearing', 'gear', 'coil_spring', 'wood_workpiece', 'metal_workpiece', 'switch_power', 'lever', 'paint_can', 'workpiece']
 const TOOL_DISTRACTORS: Record<string, string[]> = {
     phillips_screwdriver: ['flat_screwdriver', 'screwdriver', 'allen_wrench', 'wrench'],
     flat_screwdriver: ['phillips_screwdriver', 'screwdriver', 'allen_wrench', 'wrench'],
     allen_wrench: ['socket_wrench', 'torque_wrench', 'wrench', 'adjustable_wrench'],
     screwdriver: ['allen_wrench', 'wrench', 'pliers', 'hammer'],
+    electric_cutter: ['saw', 'cutting_machine', 'grinder', 'bolt_cutter'],
+    claw_hammer: ['hammer', 'pliers', 'saw', 'screwdriver'],
     hammer: ['screwdriver', 'pliers', 'wrench', 'saw'],
+    hand_plane: ['wood_chisel', 'hand_file', 'saw', 'hammer'],
     pliers: ['wrench', 'screwdriver', 'saw', 'ruler'],
     wrench: ['adjustable_wrench', 'socket_wrench', 'torque_wrench', 'pipe_wrench'],
     socket_wrench: ['socket', 'wrench', 'torque_wrench', 'adjustable_wrench'],
@@ -109,7 +144,8 @@ const TOOL_DISTRACTORS: Record<string, string[]> = {
     torque_wrench: ['socket_wrench', 'wrench', 'allen_wrench', 'adjustable_wrench'],
     pipe_wrench: ['adjustable_wrench', 'wrench', 'socket_wrench', 'pliers'],
     bearing_puller: ['wrench', 'pliers', 'screwdriver', 'hammer'],
-    lathe_machine: ['saw', 'drill', 'hammer', 'wrench'],
+    lathe_machine: ['milling_machine', 'drill', 'grinder', 'cutting_machine'],
+    milling_machine: ['lathe_machine', 'drill', 'grinder', 'cutting_machine'],
     switch_tool: ['screwdriver', 'pliers', 'wrench', 'hammer'],
     rust_preventive_oil: ['ruler', 'pliers', 'wrench', 'screwdriver'],
     paint_roller: ['paint_brush', 'spray_gun', 'ruler', 'pliers'],
@@ -218,6 +254,7 @@ function inferTargetFromQuestionText(text: string): string {
     if (/코일\s*스프링|스프링|lò xo/i.test(t)) return 'coil_spring'
     if (/베어링|ổ bi|bạc đạn/i.test(t)) return 'bearing'
     if (/기어|부품|bánh răng|linh kiện/i.test(t)) return 'gear'
+    if (/금\s*긋기\s*바늘|금을\s*긋|bút lấy dấu|mũi vạch dấu|lấy dấu|vạch dấu/i.test(t)) return 'marking_surface'
     if (/조작반|제어반|스위치|버튼|레버|신호등|cầu dao|công tắc|nút khẩn cấp|đèn báo/i.test(t)) return 'switch_power'
     if (/금속|철판|phôi kim loại/i.test(t)) return 'metal_workpiece'
     if (/플라스틱|phôi nhựa/i.test(t)) return 'plastic_workpiece'
@@ -255,6 +292,13 @@ function inferExactTarget(config: ToolPracticeConfig, question: ToolPracticeQues
 function inferToolFromText(question: ToolPracticeQuestion, targetObject: string) {
     const text = `${question.question_text || ''} ${question.vietnamese_meaning || ''}`.toLowerCase()
 
+    if (/파이프를\s*(?:자르|절단)|(?:máy|công cụ)\s*(?:dùng\s*)?(?:để\s*)?cắt\s*ống|cắt\s*ống/i.test(text)) return 'electric_cutter'
+    if (/크기를\s*조절해.*(?:수나사|암나사|너트|볼트)|조절식.*(?:렌치|스패너)|mỏ\s*lết|điều chỉnh kích (?:cỡ|thước).*(?:ren ngoài|bu lông|đai ốc)/i.test(text)) return 'adjustable_wrench'
+    if (/대패|(?:목재|원목)\s*표면을\s*(?:밀어\s*)?깎|bào\s*(?:tay|gỗ|bề mặt gỗ)?/i.test(text)) return 'hand_plane'
+    // Check the full compound name before generic measurement/wrench rules.
+    if (/토크\s*렌치|토크|cờ lê lực|mô-?men(?: xoắn)?/i.test(text)) return 'torque_wrench'
+    if (/장도리|못을\s*(?:빼|뽑)|búa nhổ đinh|nhổ đinh/i.test(text)) return 'claw_hammer'
+    if (/금\s*긋기\s*바늘|금을\s*긋|bút lấy dấu|mũi vạch dấu|vạch dấu/i.test(text)) return 'marking_needle'
     if (/롤러|con lăn(?: sơn)?/i.test(text)) return 'paint_roller'
     if (/붓|cọ(?: sơn)?|chổi sơn/i.test(text)) return 'paint_brush'
     if (/스프레이\s*건|도장\s*건|분사기|súng phun sơn|máy phun sơn/i.test(text)) return 'spray_gun'
@@ -280,7 +324,8 @@ function inferToolFromText(question: ToolPracticeQuestion, targetObject: string)
     if (targetObject === 'phillips_screw') return 'phillips_screwdriver'
     if (targetObject === 'slotted_screw') return 'flat_screwdriver'
     if (targetObject === 'electric_wire') return 'pliers'
-    if (targetObject === 'metal_pipe') return 'saw'
+    if (targetObject === 'metal_pipe' && /자르|절단|cắt/i.test(text)) return 'electric_cutter'
+    if (targetObject === 'metal_pipe') return 'pipe_wrench'
     if (targetObject === 'bearing') return 'bearing_puller'
     if (targetObject === 'switch_power' || targetObject === 'emergency_button' || targetObject === 'signal_light') return 'switch_tool'
     return null
@@ -310,7 +355,9 @@ function normalizeToolConfig(rawConfig: ToolPracticeConfig, question: ToolPracti
 
     let correct_action = sourceConfig.correct_action
     if (requires_action) {
-        if (hasLoosenAction) {
+        if (/금\s*긋기\s*바늘|금을\s*긋|bút lấy dấu|lấy dấu|vạch dấu/i.test(text)) {
+            correct_action = 'mark'
+        } else if (hasLoosenAction) {
             correct_action = target_object === 'switch_power' ? 'turn_off' : target_object === 'electric_wire' ? 'cut' : isRotationalFastener ? 'counter_clockwise' : 'pull'
         } else if (hasTightenAction) {
             correct_action = target_object === 'switch_power' ? 'turn_on' : target_object === 'electric_wire' ? 'cut' : isRotationalFastener ? 'clockwise' : 'push'
@@ -337,6 +384,10 @@ function normalizeToolConfig(rawConfig: ToolPracticeConfig, question: ToolPracti
     return {
         ...sourceConfig,
         target_object,
+        // The table-game flow always needs a real object/detail when one can
+        // be resolved from the command. Older records may still explicitly
+        // disable this step even though they contain a valid target_object.
+        requires_target: Boolean(target_object),
         correct_tool,
         tools_on_desk: Array.from(new Set([correct_tool, ...rawDeskTools])),
         correct_action,
@@ -374,7 +425,9 @@ function getFallbackToolConfig(ko: string, vi: string) {
     
     // 1. Tool Matching
     let correct_tool = 'screwdriver'
-    if (koText.includes('스위치') || koText.includes('버튼') || koText.includes('레버') || viText.includes('công tắc') || viText.includes('cầu dao') || viText.includes('nút khẩn cấp') || viText.includes('nút bấm') || viText.includes('gạt công tắc')) {
+    if (/토크\s*렌치|토크/.test(koText) || /cờ lê lực|mô-?men(?: xoắn)?/i.test(viText)) {
+        correct_tool = 'torque_wrench'
+    } else if (koText.includes('스위치') || koText.includes('버튼') || koText.includes('레버') || viText.includes('công tắc') || viText.includes('cầu dao') || viText.includes('nút khẩn cấp') || viText.includes('nút bấm') || viText.includes('gạt công tắc')) {
         correct_tool = 'switch_tool'
     } else if (koText.includes('육각 렌치') || koText.includes('육각렌치')) {
         correct_tool = 'allen_wrench'
@@ -631,6 +684,20 @@ function LegacySmallToolIcon({ type, className = "w-10 h-10" }: { type: string; 
 }
 
 function TargetObjectIcon({ type, className = "w-10 h-10", activeAction }: { type: string; className?: string; activeAction?: string | null }) {
+    const detailAsset = DETAIL_ASSETS[type]
+    if (detailAsset) {
+        return (
+            <Image
+                src={detailAsset}
+                alt=""
+                width={128}
+                height={128}
+                draggable={false}
+                className={`${className} pointer-events-none object-contain`}
+            />
+        )
+    }
+
     if (['paint_can', 'primer_can', 'varnish_can'].includes(type)) {
         const fill = type === 'paint_can' ? '#3b82f6' : type === 'primer_can' ? '#f8fafc' : '#d97706'
         return (
@@ -881,6 +948,66 @@ export function ToolDragPracticeScreen({
     const [feedbackState, setFeedbackState] = useState<'idle' | 'success' | 'fail'>('idle')
     const [showCorrectAnswer, setShowCorrectAnswer] = useState(false)
     const [isExamSubmitted, setIsExamSubmitted] = useState(false)
+    const [isTourOpen, setIsTourOpen] = useState(false)
+
+    const tourSteps = useMemo<ToolGameTourStep[]>(() => [
+        {
+            selector: '[data-tour="audio-controls"]',
+            title: 'Nghe yêu cầu của giám khảo',
+            description: 'Bấm Nghe lại khi cần và chọn tốc độ đọc phù hợp trước khi bắt đầu.',
+        },
+        {
+            selector: '[data-tour="tool-groups"]',
+            title: 'Chọn nhóm dụng cụ',
+            description: 'Chọn đúng nhóm để thu hẹp danh sách và tìm dụng cụ nhanh hơn.',
+        },
+        {
+            selector: '[data-tour="tool-inventory"]',
+            title: 'Nhấc dụng cụ cần dùng',
+            description: 'Nhấn giữ dụng cụ rồi kéo. Trên điện thoại, giữ nhẹ một nhịp trước khi di chuyển ngón tay.',
+        },
+        {
+            selector: '[data-tour="operation-zone"]',
+            title: 'Thả vào vùng thao tác',
+            description: 'Kéo dụng cụ lên mặt bàn. Khi vùng thao tác sáng lên, thả tay để đặt dụng cụ.',
+        },
+        ...(config?.requires_target !== false ? [{
+            selector: '[data-tour="target-tab"]',
+            title: 'Chọn chi tiết cần thao tác',
+            description: 'Sau khi đặt đủ dụng cụ, mở tab Chi tiết rồi kéo vật cần thao tác lên bàn.',
+        }] : []),
+        ...(config?.requires_action !== false ? [{
+            selector: '[data-tour="operation-zone"]',
+            title: 'Thực hiện thao tác cuối cùng',
+            description: 'Khi dụng cụ và chi tiết đã sẵn sàng, chọn hành động đúng theo yêu cầu của giám khảo.',
+        }] : []),
+        {
+            selector: '[data-tour="operation-zone"]',
+            title: 'Muốn chọn lại?',
+            description: 'Nhấn giữ vật đã đặt trên bàn và kéo vào biểu tượng thùng rác để trả lại, sau đó chọn vật khác.',
+        },
+    ], [config?.requires_action, config?.requires_target])
+
+    const closeTour = useCallback(() => {
+        setIsTourOpen(false)
+        try {
+            window.localStorage.setItem(TOOL_GAME_ONBOARDING_KEY, 'completed')
+        } catch {
+            // The walkthrough still works when storage is unavailable.
+        }
+    }, [])
+
+    useEffect(() => {
+        let completed = false
+        try {
+            completed = window.localStorage.getItem(TOOL_GAME_ONBOARDING_KEY) === 'completed'
+        } catch {
+            completed = false
+        }
+        if (completed) return
+        const timer = window.setTimeout(() => setIsTourOpen(true), 650)
+        return () => window.clearTimeout(timer)
+    }, [])
 
     const masteredIdsRef = useRef<Set<string>>(new Set())
     const failedIdsRef = useRef<Set<string>>(new Set())
@@ -1134,7 +1261,13 @@ export function ToolDragPracticeScreen({
         ...(selectedTarget === 'switch_power' ? ['turn_on', 'turn_off'] : []),
         ...(SHELF_TARGETS.includes(selectedTarget || '') || BOX_TARGETS.includes(selectedTarget || '') ? ['insert', 'pull'] : []),
         'push',
-        'pull'
+        'pull',
+        // Always provide enough plausible distractors for a complete
+        // four-choice set, even when the selected target has sparse metadata.
+        'clockwise',
+        'counter_clockwise',
+        'cut',
+        'measure'
     ])).filter(Boolean)
     const actionChoiceIds = shuffleBySeed(
         [correctActionId, ...actionCandidates.filter((actionId) => actionId !== correctActionId)].filter(Boolean).slice(0, 4),
@@ -1163,7 +1296,7 @@ export function ToolDragPracticeScreen({
                     </div>
                 </div>
 
-                <div className="order-3 flex shrink-0 items-center gap-2 sm:order-none">
+                <div data-tour="audio-controls" className="order-3 flex shrink-0 items-center gap-1.5 sm:order-none">
                     <div className="flex rounded-lg bg-slate-100 p-0.5">
                         {([0.8, 1.0, 1.2] as const).map(rate => (
                             <button
@@ -1183,6 +1316,15 @@ export function ToolDragPracticeScreen({
                     <Button variant="ghost" size="sm" onClick={replayAudio} className="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
                         <Play className="w-3.5 h-3.5 mr-1 text-orange-500 fill-orange-500" /> Nghe lại
                     </Button>
+                    <button
+                        type="button"
+                        onClick={() => setIsTourOpen(true)}
+                        aria-label="Xem lại hướng dẫn sử dụng"
+                        title="Xem hướng dẫn"
+                        className="grid size-9 shrink-0 place-items-center rounded-full text-blue-700 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    >
+                        <HelpCircle className="size-[18px]" strokeWidth={2.2} />
+                    </button>
                 </div>
 
                 <div className="order-3 flex min-w-24 flex-1 items-center gap-2 sm:order-none sm:max-w-48">
@@ -1229,7 +1371,30 @@ export function ToolDragPracticeScreen({
                         targetNames={EXACT_TARGET_LABELS}
                         stage={step}
                         requiresTarget={config.requires_target !== false}
-                        disabled={step === 3 || feedbackState !== 'idle' || isExamSubmitted}
+                        disabled={feedbackState !== 'idle' || isExamSubmitted || isTourOpen}
+                        actionPanel={step === 3 && config.requires_action && feedbackState === 'idle' ? (
+                            <div aria-live="polite">
+                                <div className="mb-1 flex items-center justify-between gap-2 px-0.5 sm:mb-1.5 sm:px-1">
+                                    <div className="min-w-0">
+                                        <h5 className="text-[9px] font-extrabold uppercase tracking-wide text-slate-700 sm:text-xs">Chọn thao tác</h5>
+                                        <p className="hidden truncate text-[10px] text-slate-500 sm:block">Chọn đúng hành động theo yêu cầu của giám khảo</p>
+                                    </div>
+                                    <span className="shrink-0 text-[8px] font-bold uppercase tracking-wide text-slate-500 sm:px-2 sm:py-1 sm:text-[9px]">Bước 3</span>
+                                </div>
+                                <div className="grid grid-cols-4 gap-1 sm:gap-1.5">
+                                    {actionChoiceIds.map((actionId) => (
+                                        <Button
+                                            key={actionId}
+                                            type="button"
+                                            onClick={() => executeAction(actionId)}
+                                            className="flex min-h-8 min-w-0 flex-col whitespace-normal rounded-md border border-white/70 bg-gradient-to-b from-white/95 to-slate-100/90 px-1 py-1 text-center text-[9px] font-bold leading-tight text-slate-700 shadow-[0_3px_0_rgba(148,163,184,0.48),0_5px_9px_rgba(15,23,42,0.1),inset_0_1px_0_rgba(255,255,255,0.95)] transition-[transform,box-shadow,color,background-color] hover:-translate-y-0.5 hover:text-blue-700 hover:shadow-[0_4px_0_rgba(96,165,250,0.42),0_7px_12px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,1)] active:translate-y-[2px] active:shadow-[0_1px_0_rgba(148,163,184,0.5),0_2px_4px_rgba(15,23,42,0.1),inset_0_1px_3px_rgba(148,163,184,0.18)] focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 sm:min-h-10 sm:rounded-lg sm:px-2 sm:py-1.5 sm:text-[11px]"
+                                        >
+                                            <span className="line-clamp-2">{getActionDisplay(actionId).label}</span>
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
                         renderFallback={(tool, className) => <SmallToolIcon type={tool} className={className} />}
                         renderTarget={(target, className) => <TargetObjectIcon type={target} className={className} />}
                         onPlace={placeToolInOperationZone}
@@ -1238,35 +1403,6 @@ export function ToolDragPracticeScreen({
                         onRemoveTarget={removeTargetFromOperationZone}
                     />
                 </div>
-
-                {step === 3 && config.requires_action && feedbackState === 'idle' && (
-                    <div className="z-20 mt-2 w-[calc(100%-1.5rem)] max-w-[820px] rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-lg sm:w-full" aria-live="polite">
-                        <div className="mb-3 text-center">
-                            <h5 className="text-sm font-extrabold uppercase tracking-wider text-slate-900">Thực hiện thao tác</h5>
-                            <p className="mt-1 text-xs text-slate-600">Dụng cụ đã ở đúng vùng. Chọn hành động theo yêu cầu của giám khảo.</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            {actionChoiceIds.map((actionId) => (
-                                <Button
-                                    key={actionId}
-                                    type="button"
-                                    onClick={() => executeAction(actionId)}
-                                    className="flex min-h-14 flex-col whitespace-normal break-words border border-blue-200 bg-white px-3 py-2 text-center text-xs font-bold leading-snug text-slate-800 shadow-sm hover:border-blue-500 hover:bg-blue-100 focus-visible:ring-2 focus-visible:ring-blue-500"
-                                >
-                                    <span>{getActionDisplay(actionId).label}</span>
-                                    {getActionDisplay(actionId).hint ? <span className="mt-0.5 text-[10px] font-medium text-slate-500">{getActionDisplay(actionId).hint}</span> : null}
-                                </Button>
-                            ))}
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => placedTools[placedTools.length - 1] && removeToolFromOperationZone(placedTools[placedTools.length - 1])}
-                            className="mx-auto mt-3 block rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-blue-100 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                        >
-                            Đổi dụng cụ
-                        </button>
-                    </div>
-                )}
 
                 {/* Main simulation grid */}
                 <div className="hidden relative w-full max-w-4xl h-[380px] bg-slate-950 rounded-3xl border-4 border-slate-900 mx-auto overflow-hidden shadow-2xl backdrop-blur-lg">
@@ -1570,7 +1706,7 @@ export function ToolDragPracticeScreen({
                             </div>
                         )}
 
-                        <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:justify-center">
+                        <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
                             {feedbackState === 'fail' && (
                                 <>
                                     <Button 
@@ -1595,15 +1731,17 @@ export function ToolDragPracticeScreen({
                                 <Button 
                                     size="lg" 
                                     onClick={handleNext} 
-                                    className="w-full sm:w-auto px-12 py-6 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-slate-950 text-base font-black tracking-wider uppercase rounded-xl shadow-lg shadow-orange-500/25 transition-transform hover:scale-[1.02]"
+                                    className="min-h-10 w-auto max-w-full rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-2 text-sm font-bold text-slate-950 shadow-sm shadow-orange-500/20 transition-[transform,box-shadow] hover:from-orange-600 hover:to-amber-600 hover:shadow-md active:scale-[0.98] sm:px-5"
                                 >
-                                    {currentIndex < questions.length - 1 ? 'Câu tiếp theo' : 'Hoàn thành bài tập'}
+                                    <span>{currentIndex < questions.length - 1 ? 'Câu tiếp theo' : 'Hoàn thành bài tập'}</span>
+                                    <ChevronRight className="ml-1.5 size-4" aria-hidden="true" />
                                 </Button>
                             )}
                         </div>
                     </div>
                 )}
             </div>
+            {isTourOpen ? <ToolGameOnboarding open steps={tourSteps} onClose={closeTour} /> : null}
         </div>
     )
 }

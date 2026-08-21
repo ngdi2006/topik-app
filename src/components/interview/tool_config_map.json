@@ -2159,15 +2159,15 @@
   },
   "금 긋기 바늘을 이용하여 금을 긋는 행동을 합니다.": {
     "tools_on_desk": [
-      "allen_wrench",
+      "marking_needle",
       "screwdriver",
-      "hammer",
-      "pliers",
-      "wrench"
+      "metal_chisel",
+      "hand_file",
+      "ruler"
     ],
-    "correct_tool": "welder",
-    "target_object": "hex_bolt",
-    "correct_action": "counter_clockwise",
+    "correct_tool": "marking_needle",
+    "target_object": "marking_surface",
+    "correct_action": "mark",
     "vietnamese_instruction": "Sử dụng bút lấy dấu rồi thực hiện hành động lấy dấu."
   },
   "물체를 고정하는 도구를 이용하여 물체를 고정하는 행동을 합니다.": {

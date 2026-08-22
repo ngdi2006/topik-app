@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import Image from 'next/image'
-import { ChevronLeft, ChevronRight, GripVertical, RotateCcw, Trash2 } from 'lucide-react'
+import { GripVertical, RotateCcw, Trash2 } from 'lucide-react'
 import toolMetadata from '../../../DATA-EPS/img/metadata_tools.json'
 
 type ToolGroup = 'Tháo lắp' | 'Kìm & cắt' | 'Đo kiểm' | 'Gia công' | 'Sơn & hoàn thiện'
@@ -30,6 +30,22 @@ const TOOL_IDS_BY_NUMBER = [
     'circuit_tester',
 ] as const
 
+// Thiết bị không phù hợp với thao tác kéo-thả mô phỏng trực tiếp trên bàn.
+const EXCLUDED_PRACTICE_TOOL_IDS = new Set([
+    'ladder',
+    'forklift',
+    'platform_cart',
+    'hand_cart',
+    'pallet_truck',
+    'strapping_machine',
+    'drill_press',
+    'drill',
+    'mixer',
+    'table_saw',
+    'air_compressor',
+    'hoist',
+])
+
 const groupForToolNumber = (number: number): ToolGroup => {
     if ([1, 2, 3, 8, 9, 10, 11, 12, 13, 14, 15, 23, 31].includes(number)) return 'Tháo lắp'
     if ([4, 5, 6, 7, 19, 24, 25, 54, 55].includes(number)) return 'Kìm & cắt'
@@ -38,7 +54,9 @@ const groupForToolNumber = (number: number): ToolGroup => {
     return 'Gia công'
 }
 
-export const FULL_TOOL_IDS = toolMetadata.map((item) => TOOL_IDS_BY_NUMBER[item.id - 1])
+export const FULL_TOOL_IDS = toolMetadata
+    .map((item) => TOOL_IDS_BY_NUMBER[item.id - 1])
+    .filter((toolId) => !EXCLUDED_PRACTICE_TOOL_IDS.has(toolId))
 export const FULL_TOOL_NAMES: Record<string, { ko: string; vi: string }> = Object.fromEntries(
     toolMetadata.map((item) => [TOOL_IDS_BY_NUMBER[item.id - 1], { ko: item.kr, vi: item.vi }]),
 )
@@ -135,8 +153,13 @@ const TABLE_OPERATION_POLYGON = [
     { x: 0.03, y: 0.60 },
 ] as const
 
-const TABLE_CLIP_PATH = `polygon(${TABLE_OPERATION_POLYGON.map(({ x, y }) => `${x * 100}% ${y * 100}%`).join(', ')})`
 const TABLE_SVG_POINTS = TABLE_OPERATION_POLYGON.map(({ x, y }) => `${x * 100},${y * 100}`).join(' ')
+const COMPACT_SCENE_CROP = 1 / 6
+const COMPACT_TABLE_OPERATION_POLYGON = TABLE_OPERATION_POLYGON.map(({ x, y }) => ({
+    x,
+    y: (y - COMPACT_SCENE_CROP) / (1 - COMPACT_SCENE_CROP),
+}))
+const COMPACT_TABLE_SVG_POINTS = COMPACT_TABLE_OPERATION_POLYGON.map(({ x, y }) => `${x * 100},${y * 100}`).join(' ')
 
 export function InterviewToolTableGame({
     tools,
@@ -196,17 +219,8 @@ export function InterviewToolTableGame({
     const isDropZonePrompted = Boolean(drag || tapSelected || isDropZoneFocused)
 
     useEffect(() => {
-        inventoryScrollRef.current?.scrollTo({ left: 0, behavior: 'smooth' })
+        inventoryScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
     }, [activeGroup, visibleInventoryKind])
-
-    const scrollInventory = (direction: -1 | 1) => {
-        const container = inventoryScrollRef.current
-        if (!container) return
-        container.scrollBy({
-            left: direction * Math.max(220, container.clientWidth * 0.75),
-            behavior: 'smooth',
-        })
-    }
 
     useEffect(() => {
         if (!drag) return
@@ -237,17 +251,19 @@ export function InterviewToolTableGame({
         if (!rect || rect.width === 0 || rect.height === 0) return false
         const pointX = (x - rect.left) / rect.width
         const pointY = (y - rect.top) / rect.height
+        const operationPolygon = rect.width / rect.height > 1.1 ? COMPACT_TABLE_OPERATION_POLYGON : TABLE_OPERATION_POLYGON
         let inside = false
-        for (let index = 0, previous = TABLE_OPERATION_POLYGON.length - 1; index < TABLE_OPERATION_POLYGON.length; previous = index, index += 1) {
-            const currentPoint = TABLE_OPERATION_POLYGON[index]
-            const previousPoint = TABLE_OPERATION_POLYGON[previous]
+        for (let index = 0, previous = operationPolygon.length - 1; index < operationPolygon.length; previous = index, index += 1) {
+            const currentPoint = operationPolygon[index]
+            const previousPoint = operationPolygon[previous]
             const intersects = ((currentPoint.y > pointY) !== (previousPoint.y > pointY)) &&
                 (pointX < ((previousPoint.x - currentPoint.x) * (pointY - currentPoint.y)) / (previousPoint.y - currentPoint.y) + currentPoint.x)
             if (intersects) inside = !inside
         }
         // Keep the visible outline precise, but make the touch target more
         // forgiving on phones by accepting the full visible table area.
-        const insideTableTouchArea = pointX >= 0.03 && pointX <= 0.97 && pointY >= 0.49 && pointY <= 0.72
+        const isCompactScene = rect.width / rect.height > 1.1
+        const insideTableTouchArea = pointX >= 0.03 && pointX <= 0.97 && pointY >= (isCompactScene ? 0.38 : 0.49) && pointY <= (isCompactScene ? 0.66 : 0.72)
         return inside || insideTableTouchArea
     }
 
@@ -366,17 +382,17 @@ export function InterviewToolTableGame({
 
     return (
         <section aria-label="Bàn thi thực hành" className="w-full lg:pr-[300px]">
-            <div data-tour="operation-zone" className="relative mx-auto mb-[206px] aspect-square w-full overflow-visible bg-slate-100 overscroll-contain sm:mb-[222px] sm:rounded-lg lg:mb-0">
+            <div data-tour="operation-zone" className="relative mx-auto mb-[338px] aspect-[6/5] w-full overflow-visible bg-slate-100 overscroll-contain sm:mb-[354px] sm:aspect-square sm:rounded-lg lg:mb-0">
                 <Image
                     src="/assets/workshop/scenes/interview-table-v2.png"
                     alt="Bàn thi thực hành trước mặt giám khảo"
                     width={1254}
                     height={1254}
                     draggable={false}
-                    className="absolute inset-0 h-full w-full select-none rounded-lg object-contain"
+                    className="absolute inset-0 h-full w-full select-none rounded-lg object-cover object-bottom sm:object-contain"
                 />
 
-                <div className={`pointer-events-none absolute right-[6%] top-[62%] z-20 rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-white transition-[background-color,box-shadow,transform] duration-200 sm:right-[7%] sm:top-[61.5%] sm:text-[10px] ${
+                <div className={`pointer-events-none absolute right-[6%] top-[54%] z-20 rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-white transition-[background-color,box-shadow,transform] duration-200 sm:right-[7%] sm:top-[61.5%] sm:text-[10px] ${
                     isOverDropZone
                         ? 'scale-105 bg-emerald-600 shadow-[0_0_18px_rgba(16,185,129,0.75)]'
                         : isDropZonePrompted
@@ -388,11 +404,11 @@ export function InterviewToolTableGame({
                 <svg
                     viewBox="0 0 100 100"
                     preserveAspectRatio="none"
-                    className="pointer-events-none absolute inset-0 z-10 h-full w-full"
+                    className="pointer-events-none absolute inset-0 z-10 h-full w-full sm:hidden"
                     aria-hidden="true"
                 >
                     <polygon
-                        points={TABLE_SVG_POINTS}
+                        points={COMPACT_TABLE_SVG_POINTS}
                         className="transition-[fill,stroke,stroke-width,filter] duration-200"
                         fill={isOverDropZone ? 'rgba(16, 185, 129, 0.3)' : isDropZonePrompted ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.035)'}
                         stroke={isOverDropZone ? '#34d399' : isDropZonePrompted ? '#60a5fa' : 'rgba(255, 255, 255, 0.58)'}
@@ -402,6 +418,9 @@ export function InterviewToolTableGame({
                         vectorEffect="non-scaling-stroke"
                     />
                 </svg>
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 z-10 hidden h-full w-full sm:block" aria-hidden="true">
+                    <polygon points={TABLE_SVG_POINTS} className="transition-[fill,stroke,stroke-width,filter] duration-200" fill={isOverDropZone ? 'rgba(16, 185, 129, 0.3)' : isDropZonePrompted ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.035)'} stroke={isOverDropZone ? '#34d399' : isDropZonePrompted ? '#60a5fa' : 'rgba(255, 255, 255, 0.58)'} strokeWidth={isOverDropZone ? 1.15 : isDropZonePrompted ? 0.8 : 0.35} strokeDasharray={isDropZonePrompted ? undefined : '1.4 1.2'} style={{ filter: isOverDropZone ? 'drop-shadow(0 0 7px rgba(52, 211, 153,0.95))' : isDropZonePrompted ? 'drop-shadow(0 0 5px rgba(96, 165, 250, 0.8))' : 'none' }} vectorEffect="non-scaling-stroke" />
+                </svg>
                 <button
                     ref={dropZoneRef}
                     type="button"
@@ -410,8 +429,7 @@ export function InterviewToolTableGame({
                     onBlur={() => setIsDropZoneFocused(false)}
                     disabled={disabled}
                     aria-label={tapSelected ? `Đặt ${tapSelected.kind === 'tool' ? toolNames[tapSelected.id]?.vi || tapSelected.id : targetNames[tapSelected.id] || tapSelected.id} vào vùng thao tác` : 'Vùng thao tác trước mặt giám khảo'}
-                    style={{ clipPath: TABLE_CLIP_PATH }}
-                    className="absolute inset-0 z-10 h-full w-full bg-transparent focus-visible:outline-none"
+                    className="absolute inset-0 z-10 h-full w-full bg-transparent [clip-path:polygon(13%_44%,87%_44%,97%_52%,3%_52%)] focus-visible:outline-none sm:[clip-path:polygon(13%_53%,87%_53%,97%_60%,3%_60%)]"
                 >
                     <span className="sr-only">Chạm để đặt dụng cụ đã chọn</span>
                 </button>
@@ -431,8 +449,8 @@ export function InterviewToolTableGame({
                                 }}
                                 aria-label={`Kéo ${toolNames[tool]?.vi || tool} vào thùng rác để chọn lại`}
                                 title={`Giữ và kéo ${toolNames[tool]?.vi || tool} vào thùng rác`}
-                                className={`group pointer-events-auto absolute grid h-[68px] w-[76px] -translate-x-1/2 -translate-y-1/2 touch-none place-items-center rounded-xl transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:pointer-events-none sm:h-[92px] sm:w-[102px] sm:cursor-grab sm:active:cursor-grabbing ${drag?.origin === 'table' && drag.kind === 'tool' && drag.id === tool ? 'opacity-15' : 'opacity-100'}`}
-                                style={{ left: slot.left, top: slot.top, rotate: slot.rotate }}
+                                className={`group pointer-events-auto absolute top-[var(--mobile-top)] grid h-[68px] w-[76px] -translate-x-1/2 -translate-y-1/2 touch-none place-items-center rounded-xl transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:pointer-events-none sm:top-[var(--desktop-top)] sm:h-[92px] sm:w-[102px] sm:cursor-grab sm:active:cursor-grabbing ${drag?.origin === 'table' && drag.kind === 'tool' && drag.id === tool ? 'opacity-15' : 'opacity-100'}`}
+                                style={{ left: slot.left, rotate: slot.rotate, '--mobile-top': `calc(${slot.top} - 10%)`, '--desktop-top': slot.top } as CSSProperties}
                             >
                                 <span className="absolute bottom-[8%] left-[12%] right-[12%] h-[15%] rounded-full bg-slate-950/30 blur-[5px] sm:blur-[7px]" />
                                 {asset ? (
@@ -462,7 +480,7 @@ export function InterviewToolTableGame({
                             }}
                             aria-label={`Kéo ${targetNames[placedTarget] || placedTarget} vào thùng rác để chọn lại`}
                             title={`Giữ và kéo ${targetNames[placedTarget] || placedTarget} vào thùng rác`}
-                            className={`group pointer-events-auto absolute left-[78%] top-[52.5%] grid h-[76px] w-[84px] -translate-x-1/2 -translate-y-1/2 touch-none place-items-center rounded-xl transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:pointer-events-none sm:h-[100px] sm:w-[110px] sm:cursor-grab sm:active:cursor-grabbing ${drag?.origin === 'table' && drag.kind === 'target' ? 'opacity-15' : 'opacity-100'}`}
+                            className={`group pointer-events-auto absolute left-[78%] top-[42.5%] grid h-[76px] w-[84px] -translate-x-1/2 -translate-y-1/2 touch-none place-items-center rounded-xl transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:pointer-events-none sm:top-[52.5%] sm:h-[100px] sm:w-[110px] sm:cursor-grab sm:active:cursor-grabbing ${drag?.origin === 'table' && drag.kind === 'target' ? 'opacity-15' : 'opacity-100'}`}
                         >
                             <span className="absolute bottom-[7%] left-[13%] right-[13%] h-[15%] rounded-full bg-slate-950/30 blur-[5px] sm:blur-[7px]" />
                             <span className="relative z-10 grid h-full w-full place-items-center drop-shadow-[0_5px_4px_rgba(15,23,42,0.28)]">
@@ -496,18 +514,18 @@ export function InterviewToolTableGame({
                     </div>
                 ) : null}
 
-                <div className="absolute inset-x-[1.5%] top-[calc(100%+6px)] bottom-auto z-30 rounded-lg bg-white/55 px-2 py-1.5 shadow-[0_4px_16px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:inset-x-[2%] sm:px-2.5 sm:py-2 lg:bottom-0 lg:left-[calc(100%+16px)] lg:right-auto lg:top-0 lg:flex lg:h-full lg:w-[284px] lg:flex-col lg:bg-white/75 lg:p-3">
+                <div className="absolute inset-x-[1.5%] top-[calc(100%+6px)] bottom-auto z-30 flex h-[326px] flex-col rounded-lg bg-white/55 px-2 py-1.5 shadow-[0_4px_16px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:inset-x-[2%] sm:h-[342px] sm:px-2.5 sm:py-2 lg:bottom-0 lg:left-[calc(100%+16px)] lg:right-auto lg:top-0 lg:h-full lg:w-[284px] lg:bg-white/75 lg:p-3">
                     <div className="flex items-center gap-1 border-b border-slate-200/60 pb-1 lg:mb-2 lg:grid lg:grid-cols-2 lg:gap-1.5" role="tablist" aria-label="Loại vật thể">
-                        <button type="button" role="tab" aria-selected={visibleInventoryKind === 'tool'} onClick={() => setInventoryKind('tool')} className={`min-h-8 rounded-md px-3 text-[10px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${visibleInventoryKind === 'tool' ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50'}`}>
+                        <button type="button" role="tab" aria-selected={visibleInventoryKind === 'tool'} onClick={() => setInventoryKind('tool')} className={`min-h-8 rounded-lg px-3 text-[10px] font-bold transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${visibleInventoryKind === 'tool' ? 'bg-white text-blue-700 shadow-sm ring-1 ring-blue-200' : 'text-slate-500 hover:bg-white/70'}`}>
                             1. Dụng cụ <span className="opacity-70">{placedTools.length}</span>
                         </button>
-                        {requiresTarget ? <button data-tour="target-tab" type="button" role="tab" aria-selected={visibleInventoryKind === 'target'} disabled={stage === 1} onClick={() => setInventoryKind('target')} className={`min-h-8 rounded-md px-3 text-[10px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-40 ${visibleInventoryKind === 'target' ? 'bg-amber-50 text-amber-700' : 'text-slate-500 hover:bg-slate-50'}`}>
+                        {requiresTarget ? <button data-tour="target-tab" type="button" role="tab" aria-selected={visibleInventoryKind === 'target'} disabled={stage === 1} onClick={() => setInventoryKind('target')} className={`min-h-8 rounded-lg px-3 text-[10px] font-bold transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-40 ${visibleInventoryKind === 'target' ? 'bg-white text-amber-700 shadow-sm ring-1 ring-amber-200' : 'text-slate-500 hover:bg-white/70'}`}>
                             2. Chi tiết {placedTarget ? '✓' : ''}
                         </button> : null}
                         <span className="ml-auto px-2 text-[9px] font-semibold text-slate-400 lg:col-span-2 lg:ml-0 lg:text-center lg:text-[10px]">{stage === 1 ? 'Chọn đủ dụng cụ' : stage === 2 ? 'Chọn chi tiết' : 'Sẵn sàng thao tác'}</span>
                     </div>
 
-                    {visibleInventoryKind === 'tool' ? <div data-tour="tool-groups" role="tablist" aria-label="Nhóm dụng cụ" className="mt-1 grid grid-cols-5 gap-0.5 border-b border-slate-200/60 py-1.5 lg:grid-cols-2 lg:gap-1 lg:py-2">
+                    {visibleInventoryKind === 'tool' ? <div data-tour="tool-groups" role="tablist" aria-label="Nhóm dụng cụ" className="mt-1 grid grid-cols-5 gap-0.5 border-b border-blue-300/90 pt-1.5 lg:grid-cols-2 lg:gap-1 lg:pt-2">
                         {groupedTools.map(([group]) => {
                             const isActive = activeGroup === group
                             return (
@@ -518,10 +536,10 @@ export function InterviewToolTableGame({
                                     aria-selected={isActive}
                                     aria-controls="active-tool-group"
                                     onClick={() => setRequestedGroup(group)}
-                                    className={`inline-flex min-h-8 min-w-0 touch-manipulation items-center justify-center rounded-md px-1 py-1 text-center text-[7px] font-bold uppercase leading-[1.15] tracking-[0.02em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:text-[9px] lg:min-h-9 lg:px-2 lg:text-[9px] ${
+                                    className={`inline-flex min-h-8 min-w-0 touch-manipulation items-center justify-center px-1 py-1 text-center text-[7px] font-bold uppercase leading-[1.15] tracking-[0.02em] transition-[color,background-color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:text-[9px] lg:min-h-9 lg:px-2 lg:text-[9px] ${
                                         isActive
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-transparent text-slate-500 hover:bg-slate-100/70 hover:text-slate-900'
+                                            ? 'relative z-10 -mb-px rounded-t-lg rounded-b-[3px] border border-blue-500 bg-blue-600 text-white shadow-[0_-2px_10px_rgba(37,99,235,0.16)]'
+                                            : 'rounded-t-lg text-slate-500 hover:bg-white hover:text-slate-900'
                                     }`}
                                 >
                                     {group}
@@ -530,24 +548,8 @@ export function InterviewToolTableGame({
                         })}
                     </div> : null}
 
-                    <div className="relative lg:flex lg:min-h-0 lg:flex-1">
-                        <div className="pointer-events-none absolute inset-x-[-3px] top-1/2 z-20 flex -translate-y-1/2 justify-between lg:hidden">
-                            <button type="button" onClick={() => scrollInventory(-1)} aria-label="Xem các dụng cụ phía trước" className="pointer-events-auto grid h-7 w-7 place-items-center rounded-lg bg-white/75 text-slate-700 opacity-[0.62] shadow-sm ring-1 ring-slate-300/70 backdrop-blur-sm transition-[background-color,opacity,transform] hover:bg-white hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:scale-95 active:opacity-100">
-                                <ChevronLeft className="h-4 w-4" strokeWidth={3} />
-                            </button>
-                            <button type="button" onClick={() => scrollInventory(1)} aria-label="Xem thêm dụng cụ phía sau" className="pointer-events-auto grid h-7 w-7 place-items-center rounded-lg bg-white/75 text-slate-700 opacity-[0.62] shadow-sm ring-1 ring-slate-300/70 backdrop-blur-sm transition-[background-color,opacity,transform] hover:bg-white hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:scale-95 active:opacity-100">
-                                <ChevronRight className="h-4 w-4" strokeWidth={3} />
-                            </button>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => scrollInventory(-1)}
-                            aria-label="Xem các dụng cụ phía trước"
-                            className="hidden"
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </button>
-                        <div data-tour="tool-inventory" ref={inventoryScrollRef} id="active-tool-group" role="tabpanel" aria-label={visibleInventoryKind === 'tool' ? activeGroup || 'Dụng cụ' : 'Chi tiết cần thao tác'} className="flex min-h-[76px] w-full touch-pan-x snap-x snap-mandatory items-center gap-1.5 overflow-x-auto overscroll-x-contain pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:min-h-[84px] lg:grid lg:flex-1 lg:auto-rows-min lg:grid-cols-2 lg:content-start lg:items-stretch lg:gap-2 lg:overflow-y-auto lg:pt-3">
+                    <div className={`relative min-h-0 flex-1 overflow-hidden border bg-white/35 shadow-[0_5px_18px_rgba(15,23,42,0.05)] transition-[border-color,background-color,box-shadow] ${visibleInventoryKind === 'tool' ? 'mt-0 rounded-b-xl rounded-t-[3px] border-blue-300/90 ring-1 ring-blue-100' : 'mt-1 rounded-xl border-amber-300/90 ring-1 ring-amber-100'}`}>
+                        <div data-tour="tool-inventory" ref={inventoryScrollRef} id="active-tool-group" role="tabpanel" aria-label={visibleInventoryKind === 'tool' ? activeGroup || 'Dụng cụ' : 'Chi tiết cần thao tác'} className={`grid h-full min-h-0 w-full content-start gap-1.5 overflow-y-auto overscroll-y-contain p-1.5 [scrollbar-width:thin] sm:gap-2 sm:p-2 ${visibleInventoryKind === 'tool' ? 'grid-cols-5 auto-rows-[64px] sm:auto-rows-[70px]' : 'grid-cols-3 auto-rows-[94px] sm:auto-rows-[104px]'} lg:grid-cols-2 lg:auto-rows-min lg:items-stretch lg:gap-2 lg:p-2`}>
                         {visibleInventoryKind === 'tool' && activeGroupTools.length > 0 ? (
                             activeGroupTools.map((tool) => {
                                     const asset = TOOL_ASSETS[tool]
@@ -565,7 +567,7 @@ export function InterviewToolTableGame({
                                             onPointerUp={finishDrag}
                                             onPointerCancel={cancelDrag}
                                             onClick={() => handleItemClick(tool, 'tool')}
-                                            className={`relative grid h-[68px] min-w-[68px] snap-start touch-none place-items-center rounded-md bg-white/45 p-1 transition-[transform,background-color,box-shadow] hover:bg-white/80 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:h-[76px] sm:min-w-[76px] lg:h-auto lg:min-h-[96px] lg:grid-cols-[68px_1fr] lg:justify-items-start lg:gap-1 lg:px-2 ${isTapSelected ? 'bg-blue-50 shadow-[inset_0_0_0_2px_rgb(59_130_246)]' : ''}`}
+                                            className={`relative grid h-full min-w-0 touch-none place-items-center rounded-md bg-white/45 p-1 transition-[transform,background-color,box-shadow] hover:bg-white/80 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 lg:h-auto lg:min-h-[96px] lg:grid-cols-[68px_1fr] lg:justify-items-start lg:gap-1 lg:px-2 ${isTapSelected ? 'bg-blue-50 shadow-[inset_0_0_0_2px_rgb(59_130_246)]' : ''}`}
                                         >
                                             {asset ? (
                                                 <Image
@@ -618,7 +620,7 @@ export function InterviewToolTableGame({
                                         onPointerUp={finishDrag}
                                         onPointerCancel={cancelDrag}
                                         onClick={() => handleItemClick(target, 'target')}
-                                        className={`group relative grid h-[94px] min-w-[112px] snap-start touch-none grid-rows-[62px_1fr] place-items-center rounded-xl border bg-white px-2 pb-2 pt-1.5 text-center shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-[transform,border-color,background-color,box-shadow] hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 sm:h-[104px] sm:min-w-[124px] sm:grid-rows-[70px_1fr] lg:h-auto lg:min-h-[130px] lg:min-w-0 lg:grid-rows-[82px_1fr] lg:px-2.5 lg:pb-3 ${isTapSelected ? 'border-amber-500 bg-amber-50/40 ring-2 ring-amber-500 ring-inset' : 'border-slate-200/90'}`}
+                                        className={`group relative grid h-full min-w-0 touch-none grid-rows-[62px_1fr] place-items-center rounded-xl border bg-white px-2 pb-2 pt-1.5 text-center shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-[transform,border-color,background-color,box-shadow] hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 sm:grid-rows-[70px_1fr] lg:h-auto lg:min-h-[130px] lg:grid-rows-[82px_1fr] lg:px-2.5 lg:pb-3 ${isTapSelected ? 'border-amber-500 bg-amber-50/40 ring-2 ring-amber-500 ring-inset' : 'border-slate-200/90'}`}
                                     >
                                         <span className="grid h-[62px] w-[72px] place-items-center sm:h-[70px] sm:w-20 lg:h-[82px] lg:w-[92px]">
                                             {renderTarget(target, 'h-full w-full drop-shadow-[0_3px_4px_rgba(15,23,42,0.14)] transition-transform group-hover:scale-105')}
@@ -632,14 +634,6 @@ export function InterviewToolTableGame({
                             <p className="w-full text-center text-[10px] text-slate-400">Nhóm này không còn dụng cụ.</p>
                         )}
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => scrollInventory(1)}
-                            aria-label="Xem thêm dụng cụ phía sau"
-                            className="hidden"
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </button>
                     </div>
                 </div>
             </div>

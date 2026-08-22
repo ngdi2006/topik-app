@@ -108,6 +108,7 @@ const LEGACY_METADATA: Record<string, Pick<WorkshopAsset, 'legacyIds' | 'fallbac
     pipe_wrench: { fallbackIconId: 'wrench' },
     open_end_wrench: { legacyIds: ['wrench'], fallbackIconId: 'wrench' },
     diagonal_cutters: { legacyIds: ['nipper'], fallbackIconId: 'nipper' },
+    digital_scale: { legacyIds: ['electronic_scale', 'industrial_scale'] },
     bolt: { legacyIds: ['hex_bolt'] },
     steel_wire: { legacyIds: ['electric_wire'] },
     toolbox: { legacyIds: ['toolbox_center', 'box'] },

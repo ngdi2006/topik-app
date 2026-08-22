@@ -1,0 +1,87 @@
+import toolMetadata from '../../../DATA-EPS/img/metadata_tools.json'
+
+const TOOL_IDS_BY_NUMBER = [
+    'screwdriver', 'flat_screwdriver', 'phillips_screwdriver', 'pliers', 'long_nose_pliers',
+    'pincers', 'nipper', 'socket_wrench', 'socket', 'wrench', 'adjustable_wrench', 'torque_wrench',
+    'allen_wrench', 'pipe_wrench', 'bearing_puller', 'spirit_level', 'hammer', 'claw_hammer', 'saw',
+    'hand_file', 'metal_chisel', 'marking_needle', 'vise', 'tin_snips', 'bolt_cutter', 'ruler',
+    'tape_measure', 'vernier_caliper', 'hand_plane', 'wood_chisel', 'clamp', 'sprayer', 'sandpaper',
+    'putty_knife', 'putty', 'paint_brush', 'paint_roller', 'primer', 'paint', 'varnish', 'spray_gun',
+    'heat_gun', 'rust_preventive_oil', 'ladder', 'work_light', 'cable_reel', 'forklift', 'platform_cart',
+    'hand_cart', 'pallet_truck', 'strapping_machine', 'drill_press', 'drill', 'handheld_cutter',
+    'electric_cutter', 'reamer', 'welder', 'torch', 'mixer', 'scale', 'electronic_scale', 'table_saw',
+    'circular_saw', 'grinder', 'drill_mixer', 'leakage_breaker', 'air_compressor', 'switch_tool', 'hoist',
+    'circuit_tester',
+] as const
+
+const TOOL_IMAGE_BY_ID = new Map<string, string>(
+    toolMetadata.map((item) => [
+        TOOL_IDS_BY_NUMBER[item.id - 1],
+        `/assets/workshop/tools/game-v2/${item.filename}`,
+    ]),
+)
+
+// The game uses annotated screwdriver images so their tips remain clear on mobile.
+TOOL_IMAGE_BY_ID.set('flat_screwdriver', '/assets/workshop/tools/game-v2/02_tuavitdet_iljadriver_marked.png')
+TOOL_IMAGE_BY_ID.set('phillips_screwdriver', '/assets/workshop/tools/game-v2/03_tuavitchuthap_sipjadriver_marked.png')
+
+const TOOL_ALIASES: Record<string, string> = {
+    pan_scale: 'scale',
+    industrial_scale: 'electronic_scale',
+    digital_scale: 'electronic_scale',
+    level: 'spirit_level',
+    cutting_machine: 'electric_cutter',
+    flathead_screwdriver: 'flat_screwdriver',
+    open_end_wrench: 'wrench',
+    combination_pliers: 'pliers',
+    diagonal_cutters: 'nipper',
+    hex_key: 'allen_wrench',
+    metal_file: 'hand_file',
+    cold_chisel: 'metal_chisel',
+    scriber: 'marking_needle',
+    bench_vise: 'vise',
+    c_clamp: 'clamp',
+}
+
+const DETAIL_IMAGE_BY_ID: Record<string, string> = {
+    nail: 'nail.png',
+    hex_bolt: 'hex_bolt.png',
+    phillips_screw: 'phillips_screw.png',
+    slotted_screw: 'slotted_screw.png',
+    bearing: 'bearing.png',
+    gear: 'gear.png',
+    coil_spring: 'coil_spring.png',
+    electric_wire: 'electric_wire.png',
+    metal_wire: 'metal_wire.png',
+    metal_pipe: 'metal_pipe.png',
+    wood_workpiece: 'wood_workpiece.png',
+    metal_workpiece: 'metal_workpiece.png',
+    plastic_workpiece: 'plastic_workpiece.png',
+    marking_surface: 'marking_surface.png',
+    measured_object: 'workpiece.png',
+    finish_surface: 'workpiece.png',
+    processed_material: 'workpiece.png',
+    weighed_item: 'workpiece.png',
+    paint_can: 'paint_can.png',
+    primer_can: 'primer_can.png',
+    varnish_can: 'varnish_can.png',
+    switch_power: 'switch_power.png',
+    emergency_button: 'emergency_button.png',
+    signal_light: 'signal_light.png',
+    lever: 'lever.png',
+    box: 'box.png',
+    toolbox_center: 'box.png',
+    special_box: 'box.png',
+    shelf: 'shelf.png',
+}
+
+export function getWorkshopToolImage(toolId?: string | null) {
+    if (!toolId) return null
+    return TOOL_IMAGE_BY_ID.get(TOOL_ALIASES[toolId] || toolId) || null
+}
+
+export function getWorkshopDetailImage(targetId?: string | null) {
+    if (!targetId) return null
+    const filename = DETAIL_IMAGE_BY_ID[targetId]
+    return filename ? `/assets/workshop/details-v2/${filename}` : null
+}

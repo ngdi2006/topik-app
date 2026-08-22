@@ -6,6 +6,7 @@ import type { WorkshopGameConfig } from '../model'
 import { getWorkshopAsset } from '../assetRegistry'
 import { getWorkshopAction } from '../actionRegistry'
 import { DraggableWorkshopAsset, WorkshopDropTarget } from './WorkshopDragDrop'
+import { getWorkshopDetailImage, getWorkshopToolImage } from '@/components/interview/workshopVisualAssets'
 
 type WorkshopGamePreviewProps = {
     config: WorkshopGameConfig
@@ -26,7 +27,15 @@ export function WorkshopGamePreview({ config, questionKo, questionVi }: Workshop
             <p className="mt-2 text-xs font-semibold text-blue-600">{getWorkshopAction(config.actionId)?.nameVi || config.type}</p>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {choices.map((assetId) => <DraggableWorkshopAsset key={assetId} assetId={assetId} disabled={result !== null} onSelect={(selected) => setResult(selected === expectedId)} />)}
+            {choices.map((assetId) => (
+                <DraggableWorkshopAsset
+                    key={assetId}
+                    assetId={assetId}
+                    imageSrc={getWorkshopToolImage(assetId) || getWorkshopDetailImage(assetId)}
+                    disabled={result !== null}
+                    onSelect={(selected) => setResult(selected === expectedId)}
+                />
+            ))}
         </div>
         <WorkshopDropTarget assetId={targetAssetId} expectedAssetId={expectedId} disabled={result !== null} onDropAsset={({ correct }) => setResult(correct)}>
             <span className="text-center text-sm font-bold text-blue-700">Thả vào {getWorkshopAsset(targetAssetId || '')?.nameVi || 'vùng thao tác'}</span>

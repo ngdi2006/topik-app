@@ -1,6 +1,7 @@
 'use client'
 
 import type { DragEvent, KeyboardEvent, ReactNode } from 'react'
+import Image from 'next/image'
 import { WorkshopAssetIcon } from './WorkshopAssetIcon'
 import { getWorkshopAsset } from '../assetRegistry'
 
@@ -11,9 +12,10 @@ type DraggableWorkshopAssetProps = {
     className?: string
     disabled?: boolean
     onSelect?: (assetId: string) => void
+    imageSrc?: string | null
 }
 
-export function DraggableWorkshopAsset({ assetId, className = '', disabled = false, onSelect }: DraggableWorkshopAssetProps) {
+export function DraggableWorkshopAsset({ assetId, className = '', disabled = false, onSelect, imageSrc }: DraggableWorkshopAssetProps) {
     const asset = getWorkshopAsset(assetId)
     const select = () => { if (!disabled) onSelect?.(assetId) }
     const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
@@ -38,7 +40,18 @@ export function DraggableWorkshopAsset({ assetId, className = '', disabled = fal
         className={`flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-white p-3 text-center transition hover:-translate-y-0.5 hover:border-blue-400 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
         aria-label={`Kéo ${asset?.nameVi || assetId}`}
     >
-        <WorkshopAssetIcon assetId={assetId} size={52} draggable />
+        {imageSrc ? (
+            <Image
+                src={imageSrc}
+                alt=""
+                width={112}
+                height={112}
+                draggable={false}
+                className="h-20 w-full object-contain"
+            />
+        ) : (
+            <WorkshopAssetIcon assetId={assetId} size={52} draggable />
+        )}
         <span className="text-xs font-bold text-slate-800">{asset?.nameVi || assetId}</span>
         {asset?.nameKo ? <span className="text-[11px] text-slate-500">{asset.nameKo}</span> : null}
     </button>

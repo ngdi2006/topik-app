@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import { Play, ArrowLeft, Volume2, CheckCircle2, AlertTriangle, Sparkles, HelpCircle, RotateCcw, Eye, ChevronRight } from 'lucide-react'
+import { Play, ArrowLeft, Volume2, CheckCircle2, AlertTriangle, Sparkles, HelpCircle, RotateCcw, Eye, EyeOff, ChevronRight, X } from 'lucide-react'
 import toolConfigMap from './tool_config_map.json'
 import { speakText, stopTTS } from '@/lib/tts'
 import { resolveToolQuestionConfig, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type VocabularyItem } from './toolQuestionAnalysis'
@@ -60,6 +60,7 @@ const TARGET_NAMES: Record<string, string> = {
     'slotted_screw': 'Ốc vít rãnh dẹt',
     'hex_bolt': 'Bu lông',
     'electric_wire': 'Dây dẫn',
+    'metal_wire': 'Dây kim loại',
     'coil_spring': 'Lò xo',
     'bearing': 'Ổ bi / Bạc đạn',
     'gear': 'Bánh răng',
@@ -104,6 +105,7 @@ const BOX_TARGETS = ['toolbox_center', 'special_box']
 const ALL_SYSTEM_TOOLS = [...FULL_TOOL_IDS]
 
 const DETAIL_ASSETS: Record<string, string> = {
+    nail: '/assets/workshop/details-v2/nail.png',
     hex_bolt: '/assets/workshop/details-v2/hex_bolt.png',
     phillips_screw: '/assets/workshop/details-v2/phillips_screw.png',
     slotted_screw: '/assets/workshop/details-v2/slotted_screw.png',
@@ -114,10 +116,13 @@ const DETAIL_ASSETS: Record<string, string> = {
     coil_spring: '/assets/workshop/details-v2/coil_spring.png',
     bearing: '/assets/workshop/details-v2/bearing.png',
     electric_wire: '/assets/workshop/details-v2/electric_wire.png',
+    metal_wire: '/assets/workshop/details-v2/metal_wire.png',
     metal_pipe: '/assets/workshop/details-v2/metal_pipe.png',
     wood_workpiece: '/assets/workshop/details-v2/wood_workpiece.png',
     metal_workpiece: '/assets/workshop/details-v2/metal_workpiece.png',
     marking_surface: '/assets/workshop/details-v2/marking_surface.png',
+    measured_object: '/assets/workshop/details-v2/workpiece.png',
+    finish_surface: '/assets/workshop/details-v2/workpiece.png',
     lever: '/assets/workshop/details-v2/lever.png',
     workpiece: '/assets/workshop/details-v2/workpiece.png',
     box: '/assets/workshop/details-v2/box.png',
@@ -127,7 +132,7 @@ const DETAIL_ASSETS: Record<string, string> = {
     signal_light: '/assets/workshop/details-v2/signal_light.png',
     plastic_workpiece: '/assets/workshop/details-v2/plastic_workpiece.png',
 }
-const TARGET_DISTRACTOR_POOL = ['hex_bolt', 'phillips_screw', 'slotted_screw', 'electric_wire', 'metal_pipe', 'bearing', 'gear', 'coil_spring', 'wood_workpiece', 'metal_workpiece', 'switch_power', 'lever', 'paint_can', 'workpiece']
+const TARGET_DISTRACTOR_POOL = ['nail', 'hex_bolt', 'phillips_screw', 'slotted_screw', 'electric_wire', 'metal_wire', 'metal_pipe', 'bearing', 'gear', 'coil_spring', 'wood_workpiece', 'metal_workpiece', 'switch_power', 'lever', 'paint_can', 'workpiece']
 const TOOL_DISTRACTORS: Record<string, string[]> = {
     phillips_screwdriver: ['flat_screwdriver', 'screwdriver', 'allen_wrench', 'wrench'],
     flat_screwdriver: ['phillips_screwdriver', 'screwdriver', 'allen_wrench', 'wrench'],
@@ -165,6 +170,7 @@ const TARGET_SHORT_LABELS: Record<string, string> = {
     slotted_screw: 'Ốc vít dẹt',
     hex_bolt: 'Bu lông',
     electric_wire: 'Dây dẫn',
+    metal_wire: 'Dây kim loại',
     coil_spring: 'Lò xo',
     bearing: 'Ổ bi / Bạc đạn',
     gear: 'Bánh răng',
@@ -240,13 +246,16 @@ function isStorageQuestionText(text: string): boolean {
 function inferTargetFromQuestionText(text: string): string {
     const t = text.toLowerCase()
 
+    if (/(?:길이|두께|깊이)(?:을|를)\s*(?:재|측정)|đo\s*(?:chiều dài|bề dày|độ sâu)/i.test(t)) return 'measured_object'
+    if (/사포|샌딩|giấy\s*nhám|đánh\s*giấy\s*nhám/i.test(t)) return 'finish_surface'
     if (/바니시|마감재|véc-?ni|vecni|lớp hoàn thiện/i.test(t)) return 'varnish_can'
     if (/젯소|초벌재|sơn lót/i.test(t)) return 'primer_can'
     if (/페인트|hộp sơn|thùng sơn|sơn màu/i.test(t)) return 'paint_can'
     if (/방청유|녹을?\s*방지|dầu\s*(?:dùng để\s*)?(?:chống|ngăn)\s*rỉ|dầu chống gỉ/i.test(t)) return 'metal_workpiece'
     if (/드릴|드릴링머신|뚫는|구멍|khoan|đục lỗ|목재|원목|나무|phôi gỗ|tấm gỗ|gỗ/i.test(t)) return 'wood_workpiece'
-    if (/망치|장도리|못|đóng đinh|nhổ đinh/i.test(t)) return 'wood_workpiece'
-    if (/전선|철사|철선|선재|구리선|dây điện|dây kim loại|dây sắt|thép ly/i.test(t)) return 'electric_wire'
+    if (/망치|장도리|못|đóng đinh|nhổ đinh/i.test(t)) return 'nail'
+    if (/철사|철선|선재|dây kim loại|dây sắt|dây thép|thép ly/i.test(t)) return 'metal_wire'
+    if (/전선|구리선|dây điện|dây đồng/i.test(t)) return 'electric_wire'
     if (/십자\s*홈|rãnh chữ thập|rãnh thập|ốc vít chữ thập/i.test(t)) return 'phillips_screw'
     if (/일자\s*홈|rãnh dẹt|rãnh thẳng|ốc vít dẹt/i.test(t)) return 'slotted_screw'
     if (/볼트|너트|암나사|수나사|bu lông|đai ốc/i.test(t)) return 'hex_bolt'
@@ -292,11 +301,14 @@ function inferExactTarget(config: ToolPracticeConfig, question: ToolPracticeQues
 function inferToolFromText(question: ToolPracticeQuestion, targetObject: string) {
     const text = `${question.question_text || ''} ${question.vietnamese_meaning || ''}`.toLowerCase()
 
+    if (targetObject === 'metal_wire' && /자르는|절단|끊는|cắt/i.test(text)) return 'nipper'
+    if (targetObject === 'metal_wire') return 'pliers'
     if (/파이프를\s*(?:자르|절단)|(?:máy|công cụ)\s*(?:dùng\s*)?(?:để\s*)?cắt\s*ống|cắt\s*ống/i.test(text)) return 'electric_cutter'
     if (/크기를\s*조절해.*(?:수나사|암나사|너트|볼트)|조절식.*(?:렌치|스패너)|mỏ\s*lết|điều chỉnh kích (?:cỡ|thước).*(?:ren ngoài|bu lông|đai ốc)/i.test(text)) return 'adjustable_wrench'
     if (/대패|(?:목재|원목)\s*표면을\s*(?:밀어\s*)?깎|bào\s*(?:tay|gỗ|bề mặt gỗ)?/i.test(text)) return 'hand_plane'
     // Check the full compound name before generic measurement/wrench rules.
     if (/토크\s*렌치|토크|cờ lê lực|mô-?men(?: xoắn)?/i.test(text)) return 'torque_wrench'
+    if (/소켓\s*렌치|소켓을\s*끼워|cờ lê\s*(?:đầu khẩu|ổ cắm)|đầu khẩu/i.test(text)) return 'socket_wrench'
     if (/장도리|못을\s*(?:빼|뽑)|búa nhổ đinh|nhổ đinh/i.test(text)) return 'claw_hammer'
     if (/금\s*긋기\s*바늘|금을\s*긋|bút lấy dấu|mũi vạch dấu|vạch dấu/i.test(text)) return 'marking_needle'
     if (/롤러|con lăn(?: sơn)?/i.test(text)) return 'paint_roller'
@@ -358,9 +370,15 @@ function normalizeToolConfig(rawConfig: ToolPracticeConfig, question: ToolPracti
         if (/금\s*긋기\s*바늘|금을\s*긋|bút lấy dấu|lấy dấu|vạch dấu/i.test(text)) {
             correct_action = 'mark'
         } else if (hasLoosenAction) {
-            correct_action = target_object === 'switch_power' ? 'turn_off' : target_object === 'electric_wire' ? 'cut' : isRotationalFastener ? 'counter_clockwise' : 'pull'
+            correct_action = target_object === 'switch_power'
+                ? 'turn_off'
+                : ['electric_wire', 'metal_wire'].includes(target_object || '')
+                  ? 'cut'
+                  : isRotationalFastener || target_object === 'metal_pipe'
+                    ? 'counter_clockwise'
+                    : 'pull'
         } else if (hasTightenAction) {
-            correct_action = target_object === 'switch_power' ? 'turn_on' : target_object === 'electric_wire' ? 'cut' : isRotationalFastener ? 'clockwise' : 'push'
+            correct_action = target_object === 'switch_power' ? 'turn_on' : ['electric_wire', 'metal_wire'].includes(target_object || '') ? 'cut' : isRotationalFastener ? 'clockwise' : 'push'
         } else if (/피복|탈피|tước|tuốt/i.test(text)) {
             correct_action = 'strip'
         } else if (/자르는|절단|끊는|cắt/i.test(text)) {
@@ -370,7 +388,7 @@ function normalizeToolConfig(rawConfig: ToolPracticeConfig, question: ToolPracti
         } else if (/끄는|내리|차단|tắt|gạt xuống/i.test(text)) {
             correct_action = 'turn_off'
         } else if (!correct_action) {
-            correct_action = target_object === 'electric_wire' ? 'cut' : target_object === 'hex_bolt' ? 'clockwise' : 'push'
+            correct_action = ['electric_wire', 'metal_wire'].includes(target_object || '') ? 'cut' : target_object === 'hex_bolt' ? 'clockwise' : 'push'
         }
     } else {
         correct_action = null
@@ -451,7 +469,9 @@ function getFallbackToolConfig(ko: string, vi: string) {
 
     // 2. Target Object Matching
     let target_object = 'hex_bolt'
-    if (koText.includes('전선') || koText.includes('철선') || koText.includes('철사') || koText.includes('선재') || koText.includes('구리선')) {
+    if (koText.includes('철선') || koText.includes('철사') || koText.includes('선재')) {
+        target_object = 'metal_wire'
+    } else if (koText.includes('전선') || koText.includes('구리선')) {
         target_object = 'electric_wire'
     } else if (koText.includes('조작반') || koText.includes('제어반') || koText.includes('스위치') || koText.includes('버튼') || koText.includes('레버') || koText.includes('신호등')) {
         target_object = 'switch_power'
@@ -472,7 +492,7 @@ function getFallbackToolConfig(ko: string, vi: string) {
     if (koText.includes('푸는') || koText.includes('해체') || koText.includes('풀기') || koText.includes('빼') || koText.includes('뽑') || viText.includes('tháo') || viText.includes('nhổ') || viText.includes('lấy')) {
         if (target_object === 'switch_power') {
             correct_action = 'turn_off'
-        } else if (target_object === 'electric_wire') {
+        } else if (target_object === 'electric_wire' || target_object === 'metal_wire') {
             if (koText.includes('피복') || koText.includes('탈피')) {
                 correct_action = 'strip'
             } else {
@@ -488,7 +508,7 @@ function getFallbackToolConfig(ko: string, vi: string) {
     else if (koText.includes('조이') || koText.includes('체결') || koText.includes('박') || koText.includes('끼우') || koText.includes('넣') || koText.includes('장착') || viText.includes('siết') || viText.includes('đóng') || viText.includes('cất') || viText.includes('gắn') || viText.includes('lắp') || viText.includes('bỏ')) {
         if (target_object === 'switch_power') {
             correct_action = 'turn_on'
-        } else if (target_object === 'electric_wire') {
+        } else if (target_object === 'electric_wire' || target_object === 'metal_wire') {
             correct_action = 'cut'
         } else if (target_object === 'hex_bolt') {
             correct_action = 'clockwise'
@@ -892,6 +912,8 @@ export function ToolDragPracticeScreen({
     const audioRef = useRef<HTMLAudioElement | null>(null)
     const [audioState, setAudioState] = useState<'idle' | 'playing' | 'ended' | 'error'>('idle')
     const [speed, setSpeed] = useState<number>(1.0)
+    const [showKoreanText, setShowKoreanText] = useState(true)
+    const [showVietnameseText, setShowVietnameseText] = useState(true)
 
     // Game 3-Step Selection States
     const [step, setStep] = useState<1 | 2 | 3>(1)
@@ -946,6 +968,7 @@ export function ToolDragPracticeScreen({
     // Feedback States
     const [isShake, setIsShake] = useState(false)
     const [feedbackState, setFeedbackState] = useState<'idle' | 'success' | 'fail'>('idle')
+    const [isFeedbackOpen, setIsFeedbackOpen] = useState(false)
     const [showCorrectAnswer, setShowCorrectAnswer] = useState(false)
     const [isExamSubmitted, setIsExamSubmitted] = useState(false)
     const [isTourOpen, setIsTourOpen] = useState(false)
@@ -1011,6 +1034,15 @@ export function ToolDragPracticeScreen({
 
     const masteredIdsRef = useRef<Set<string>>(new Set())
     const failedIdsRef = useRef<Set<string>>(new Set())
+    const feedbackRef = useRef<HTMLDivElement>(null)
+
+    const revealFeedback = useCallback(() => {
+        // Wait for React to commit the result sheet, then move keyboard and
+        // screen-reader focus to it. The sheet itself is fixed in the viewport.
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => feedbackRef.current?.focus({ preventScroll: true }))
+        })
+    }, [])
 
     useEffect(() => {
         if (audioRef.current) {
@@ -1124,11 +1156,15 @@ export function ToolDragPracticeScreen({
 
         if (isCorrect) {
             setFeedbackState('success')
+            setIsFeedbackOpen(true)
+            revealFeedback()
             if (!failedIdsRef.current.has(currentQ.id)) {
                 masteredIdsRef.current.add(currentQ.id)
             }
         } else {
             setFeedbackState('fail')
+            setIsFeedbackOpen(true)
+            revealFeedback()
             failedIdsRef.current.add(currentQ.id)
             setIsShake(true)
             setTimeout(() => setIsShake(false), 500)
@@ -1216,6 +1252,7 @@ export function ToolDragPracticeScreen({
         setSelectedTarget(null)
         setSelectedAction(null)
         setFeedbackState('idle')
+        setIsFeedbackOpen(false)
         setShowCorrectAnswer(false)
         setIsExamSubmitted(false)
         setIsShake(false)
@@ -1245,7 +1282,7 @@ export function ToolDragPracticeScreen({
         : currentQ.vietnamese_meaning || ''
 
     const ALL_PANEL_ITEMS = ['switch_power', 'emergency_button', 'signal_light']
-    const ALL_WORKBENCH_ITEMS = ['paint_can', 'primer_can', 'varnish_can', 'hex_bolt', 'phillips_screw', 'slotted_screw', 'electric_wire', 'gear', 'metal_pipe', 'wood_workpiece', 'metal_workpiece', 'lever', 'workpiece']
+    const ALL_WORKBENCH_ITEMS = ['paint_can', 'primer_can', 'varnish_can', 'hex_bolt', 'phillips_screw', 'slotted_screw', 'electric_wire', 'metal_wire', 'gear', 'metal_pipe', 'wood_workpiece', 'metal_workpiece', 'lever', 'workpiece']
 
     const visiblePanelTargets = ALL_PANEL_ITEMS.includes(targetObjectId)
         ? [targetObjectId, ...ALL_PANEL_ITEMS.filter((t) => t !== targetObjectId)].slice(0, 3)
@@ -1257,7 +1294,7 @@ export function ToolDragPracticeScreen({
 
     const actionCandidates = Array.from(new Set([
         ...(selectedTarget === 'hex_bolt' || selectedTarget === 'phillips_screw' || selectedTarget === 'slotted_screw' ? ['clockwise', 'counter_clockwise'] : []),
-        ...(selectedTarget === 'electric_wire' ? ['cut', 'strip', 'pull', 'bend'] : []),
+        ...(['electric_wire', 'metal_wire'].includes(selectedTarget || '') ? ['cut', 'strip', 'pull', 'bend'] : []),
         ...(selectedTarget === 'switch_power' ? ['turn_on', 'turn_off'] : []),
         ...(SHELF_TARGETS.includes(selectedTarget || '') || BOX_TARGETS.includes(selectedTarget || '') ? ['insert', 'pull'] : []),
         'push',
@@ -1294,27 +1331,41 @@ export function ToolDragPracticeScreen({
                         <div className="hidden h-4 w-px bg-slate-200 sm:block" />
                         <span className="hidden text-xs font-medium text-slate-500 sm:inline">Mô phỏng sử dụng công cụ</span>
                     </div>
+                    <div className="ml-auto shrink-0 rounded-full bg-blue-50 px-2.5 py-1 font-mono text-[11px] font-bold tabular-nums text-blue-700 ring-1 ring-blue-100">
+                        {currentIndex + 1}/{questions.length}
+                    </div>
                 </div>
 
                 <div data-tour="audio-controls" className="order-3 flex shrink-0 items-center gap-1.5 sm:order-none">
-                    <div className="flex rounded-lg bg-slate-100 p-0.5">
-                        {([0.8, 1.0, 1.2] as const).map(rate => (
-                            <button
-                                key={rate}
-                                onClick={() => setSpeed(rate)}
-                                className={`rounded-md px-2.5 py-1 text-xs font-bold transition-[background-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${
-                                    speed === rate 
-                                        ? 'bg-orange-500 text-white shadow-sm'
-                                        : 'text-slate-500 hover:bg-white hover:text-slate-900'
-                                }`}
-                            >
-                                {rate === 1.0 ? 'Chuẩn' : `${rate}x`}
-                            </button>
-                        ))}
-                    </div>
+                    <label className="relative grid size-9 shrink-0 place-items-center rounded-full bg-slate-100 text-[10px] font-extrabold text-slate-700 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-orange-500">
+                        <span aria-hidden="true">{speed === 1 ? '1x' : `${speed}x`}</span>
+                        <span className="sr-only">Tốc độ đọc</span>
+                        <select
+                            value={speed}
+                            onChange={(event) => setSpeed(Number(event.target.value))}
+                            aria-label="Chọn tốc độ đọc"
+                            className="absolute inset-0 size-full cursor-pointer appearance-none rounded-full opacity-0"
+                        >
+                            <option value="0.8">0.8x</option>
+                            <option value="1">1x</option>
+                            <option value="1.2">1.2x</option>
+                        </select>
+                    </label>
 
-                    <Button variant="ghost" size="sm" onClick={replayAudio} className="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">
-                        <Play className="w-3.5 h-3.5 mr-1 text-orange-500 fill-orange-500" /> Nghe lại
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={replayAudio}
+                        aria-pressed={audioState === 'playing'}
+                        aria-label={audioState === 'playing' ? 'Câu hỏi đang được phát' : 'Nghe lại câu hỏi'}
+                        className={`min-w-[84px] px-2.5 py-1 text-xs font-semibold transition-colors ${audioState === 'playing' ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-200' : 'text-slate-700 hover:bg-slate-100'}`}
+                    >
+                        {audioState === 'playing' ? (
+                            <Volume2 className="mr-1 size-3.5 animate-pulse text-orange-600" />
+                        ) : (
+                            <Play className="mr-1 size-3.5 fill-orange-500 text-orange-500" />
+                        )}
+                        <span aria-live="polite">{audioState === 'playing' ? 'Đang phát' : 'Nghe lại'}</span>
                     </Button>
                     <button
                         type="button"
@@ -1325,17 +1376,40 @@ export function ToolDragPracticeScreen({
                     >
                         <HelpCircle className="size-[18px]" strokeWidth={2.2} />
                     </button>
+                    <div className="flex items-center rounded-xl bg-slate-100 p-1 ring-1 ring-inset ring-slate-200" role="group" aria-label="Ẩn hoặc hiện nội dung câu hỏi">
+                        <button
+                            type="button"
+                            aria-pressed={showKoreanText}
+                            onClick={() => setShowKoreanText((visible) => !visible)}
+                            title={showKoreanText ? 'Ẩn tiếng Hàn' : 'Hiện tiếng Hàn'}
+                            className={`inline-flex min-h-7 items-center gap-1 rounded-lg px-2 text-[10px] font-bold transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${showKoreanText ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/70' : 'text-slate-500 hover:bg-white/70 hover:text-slate-700'}`}
+                        >
+                            {showKoreanText ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
+                            Hàn
+                        </button>
+                        <button
+                            type="button"
+                            aria-pressed={showVietnameseText}
+                            onClick={() => setShowVietnameseText((visible) => !visible)}
+                            title={showVietnameseText ? 'Ẩn tiếng Việt' : 'Hiện tiếng Việt'}
+                            className={`inline-flex min-h-7 items-center gap-1 rounded-lg px-2 text-[10px] font-bold transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${showVietnameseText ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/70' : 'text-slate-500 hover:bg-white/70 hover:text-slate-700'}`}
+                        >
+                            {showVietnameseText ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
+                            Việt
+                        </button>
+                    </div>
                 </div>
 
-                <div className="order-3 flex min-w-24 flex-1 items-center gap-2 sm:order-none sm:max-w-48">
-                    <div className="whitespace-nowrap font-mono text-xs font-bold tabular-nums text-slate-500">
-                        {currentIndex + 1} / {questions.length}
-                    </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
-                        <div 
-                            className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-[width] duration-500 ease-out motion-reduce:transition-none"
-                            style={{ width: `${Math.max(5, ((currentIndex + 1) / questions.length) * 100)}%` }}
-                        />
+            </div>
+
+            <div className="border-b border-slate-100 bg-slate-50/70 px-4 py-2.5 sm:px-5 sm:py-3" aria-live="polite">
+                <div className="mx-auto max-w-4xl">
+                    <div className="space-y-1.5">
+                    {showKoreanText ? <p lang="ko" className="text-sm font-bold leading-relaxed text-slate-900 sm:text-base">{currentQ.question_text}</p> : null}
+                    {showVietnameseText && displayedVietnameseMeaning ? (
+                        <p lang="vi" className="text-xs leading-relaxed text-slate-600 sm:text-sm">{displayedVietnameseMeaning}</p>
+                    ) : null}
+                    {!showKoreanText && !showVietnameseText ? <p className="py-1 text-center text-[11px] italic text-slate-400">Đã ẩn nội dung để luyện nghe.</p> : null}
                     </div>
                 </div>
             </div>
@@ -1343,22 +1417,12 @@ export function ToolDragPracticeScreen({
             {/* Workbench Simulator */}
             <div className={`relative flex flex-col items-center gap-1.5 overflow-visible bg-white pb-1 ${isShake ? 'animate-shake' : ''}`}>
                 
-                <div className="z-10 flex w-full flex-col items-center gap-1.5 px-3 py-2">
-                    {audioState === 'playing' && (
+                {audioState === 'playing' ? <div className="z-10 flex w-full flex-col items-center px-3 py-1.5">
                         <div className="flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-700">
                             <Volume2 className="h-4 w-4 text-blue-600" />
                             <span>Hãy nghe kỹ khẩu lệnh của giám khảo trước khi chọn dụng cụ!</span>
                         </div>
-                    )}
-
-                    {audioState === 'ended' && feedbackState === 'idle' && (
-                        <div className="mt-1 px-2 text-center text-sm font-bold text-pretty">
-                            {step === 1 && <span className="text-blue-700">BƯỚC 1: Chọn và đặt đủ dụng cụ cần dùng lên bàn</span>}
-                            {step === 2 && <span className="text-amber-700">BƯỚC 2: Chọn chi tiết hoặc vật thể cần thao tác</span>}
-                            {step === 3 && config.requires_action && <span className="font-extrabold text-violet-700">BƯỚC {config.requires_target === false ? '2' : '3'}: Thực hiện thao tác với dụng cụ{config.requires_target === false ? '' : ' và chi tiết đã chọn'}</span>}
-                        </div>
-                    )}
-                </div>
+                </div> : null}
 
                 <div className="z-10 w-full max-w-[1120px]">
                     <InterviewToolTableGame
@@ -1631,8 +1695,22 @@ export function ToolDragPracticeScreen({
                     </div>
                 )}
 
-                {!isExamMode && feedbackState !== 'idle' && (
-                    <div className="z-20 mt-3 w-[calc(100%-1.5rem)] max-w-4xl animate-in fade-in slide-in-from-bottom-6 duration-500 sm:w-full">
+                {!isExamMode && feedbackState !== 'idle' && isFeedbackOpen && (
+                    <div
+                        ref={feedbackRef}
+                        tabIndex={-1}
+                        role="status"
+                        aria-live="assertive"
+                        className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[80] mx-auto max-h-[calc(100dvh-6rem)] max-w-2xl overflow-y-auto overscroll-contain rounded-2xl bg-white/95 p-2 shadow-[0_24px_70px_rgba(15,23,42,0.35)] ring-1 ring-slate-200 backdrop-blur-xl outline-none animate-in fade-in slide-in-from-bottom-6 duration-300"
+                    >
+                        <button
+                            type="button"
+                            onClick={() => setIsFeedbackOpen(false)}
+                            aria-label="Đóng kết quả để xem lại bài"
+                            className="absolute right-3 top-3 z-20 grid size-9 place-items-center rounded-full bg-white/90 text-slate-600 shadow-md ring-1 ring-slate-200 transition-colors hover:bg-white hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                        >
+                            <X className="size-5" />
+                        </button>
                         {feedbackState === 'success' ? (
                             <div className="bg-emerald-950/80 backdrop-blur-md border-2 border-emerald-500/30 rounded-2xl p-5 shadow-2xl relative overflow-hidden">
                                 <div className="absolute top-0 right-0 p-3 opacity-20">
@@ -1706,7 +1784,7 @@ export function ToolDragPracticeScreen({
                             </div>
                         )}
 
-                        <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                        <div className="sticky bottom-0 mt-2 flex flex-wrap items-center justify-end gap-2 rounded-xl bg-white/95 p-1.5 backdrop-blur-md">
                             {feedbackState === 'fail' && (
                                 <>
                                     <Button 
@@ -1740,6 +1818,20 @@ export function ToolDragPracticeScreen({
                         </div>
                     </div>
                 )}
+                {!isExamMode && feedbackState !== 'idle' && !isFeedbackOpen ? (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setShowCorrectAnswer(true)
+                            setIsFeedbackOpen(true)
+                            revealFeedback()
+                        }}
+                        className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-3 z-[75] inline-flex min-h-11 items-center gap-2 rounded-full bg-blue-600 px-4 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition-[transform,background-color] hover:bg-blue-700 active:scale-[0.98] sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:hover:-translate-x-1/2 sm:active:-translate-x-1/2"
+                    >
+                        <Eye className="size-4" />
+                        Xem lại đáp án
+                    </button>
+                ) : null}
             </div>
             {isTourOpen ? <ToolGameOnboarding open steps={tourSteps} onClose={closeTour} /> : null}
         </div>

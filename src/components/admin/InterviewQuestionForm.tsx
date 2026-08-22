@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,11 +9,12 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { MediaUploader } from '@/components/admin/MediaUploader'
-import { ArrowLeft, Save, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Save, Plus, Trash2, ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { analyzeToolQuestionText, resolveToolQuestionConfig, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type VocabularyItem } from '@/components/interview/toolQuestionAnalysis'
 import { legacyToolConfigToWorkshopGame, type WorkshopGameConfig } from '@/features/workshop'
-import { WorkshopGameConfigFields, WorkshopGamePreview } from '@/features/workshop/components'
+import { WorkshopGamePreview } from '@/features/workshop/components'
+import { getWorkshopDetailImage, getWorkshopToolImage } from '@/components/interview/workshopVisualAssets'
 
 type ToolAnswerStep = {
     step: number
@@ -60,17 +62,6 @@ interface InterviewQuestionFormProps {
 
 const CATEGORIES = ['Khẩu lệnh', 'Giao tiếp', 'Toán học', 'Sử dụng công cụ', 'Xử lý tình huống', 'An toàn lao động']
 const INDUSTRIES = ['Sản xuất chế tạo', 'Ngư nghiệp', 'Nông nghiệp', 'Lâm nghiệp', 'Xây dựng', 'Dịch vụ']
-
-const ZONE_OPTIONS = [
-    { id: 'shelf_top_left', label: 'Kệ trên (Trái)' },
-    { id: 'shelf_bottom_left', label: 'Kệ dưới (Trái)' },
-    { id: 'machine_panel', label: 'Bảng điều khiển / Máy móc' },
-    { id: 'work_area', label: 'Khu vực thi công' },
-    { id: 'toolbox_center', label: 'Hộp công cụ chung' },
-    { id: 'special_box', label: 'Hộp chuyên dụng' },
-    { id: 'shelf_top_right', label: 'Kệ trên (Phải)' },
-    { id: 'shelf_bottom_right', label: 'Kệ dưới (Phải)' }
-]
 
 const TOOL_OPTIONS = [
     { id: 'phillips_screwdriver', label: 'Tua vít chữ thập', ko: '십자드라이버' },
@@ -163,27 +154,6 @@ const DEFAULT_TOOL_CONFIG: ToolConfig = {
     }
 }
 
-function vocabularyToText(items: VocabularyItem[] = []) {
-    return items.map((item) => `${item.term || ''} | ${item.meaning || ''} | ${item.role || ''}`).join('\n')
-}
-
-function normalizeVocabularyRole(role: string): VocabularyItem['role'] {
-    return ['tool', 'target', 'action', 'location', 'keyword'].includes(role)
-        ? role as VocabularyItem['role']
-        : 'keyword'
-}
-
-function parseVocabularyText(value: string) {
-    return value
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => {
-            const [term = '', meaning = '', role = 'keyword'] = line.split('|').map((part) => part.trim())
-            return { term, meaning, role: normalizeVocabularyRole(role) }
-        })
-}
-
 function buildToolConfig(config: ToolConfig, vietnameseInstruction: string): ToolConfig {
     const answerSteps: ToolAnswerStep[] = [
         { step: 1, kind: 'tool', expected: config.correct_tool },
@@ -214,6 +184,51 @@ function buildToolAnswerText(config: ToolConfig) {
     return config.requires_action
         ? `Chọn ${tool}; tác động vào ${target}; thực hiện ${action}.`
         : `Chọn ${tool}; đặt đúng vào ${target}.`
+}
+
+function AnswerVisualPreview({ config }: { config: ToolConfig }) {
+    const tool = TOOL_SELECT_OPTIONS.find((item) => item.id === config.correct_tool)
+    const target = TARGET_SELECT_OPTIONS.find((item) => item.id === config.target_object)
+    const action = ACTION_SELECT_OPTIONS.find((item) => item.id === config.correct_action)
+    const toolImage = getWorkshopToolImage(config.correct_tool)
+    const targetImage = getWorkshopDetailImage(config.target_object)
+
+    const items = [
+        { key: 'tool', eyebrow: '1. Dụng cụ', label: tool?.label || config.correct_tool, image: toolImage },
+        { key: 'target', eyebrow: '2. Chi tiết / vật thể', label: target?.label || config.target_object, image: targetImage },
+    ]
+
+    return (
+        <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-3">
+            {items.map((item) => (
+                <div key={item.key} className="flex min-w-0 items-center gap-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200/70">
+                    <div className="grid size-20 shrink-0 place-items-center rounded-lg bg-white">
+                        {item.image ? (
+                            <Image src={item.image} alt={item.label} width={96} height={96} className="size-[72px] object-contain" />
+                        ) : (
+                            <div className="grid place-items-center gap-1 text-center text-[10px] text-slate-400">
+                                <ImageIcon className="size-5" />
+                                <span>Chưa có ảnh</span>
+                            </div>
+                        )}
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{item.eyebrow}</p>
+                        <p className="mt-1 text-sm font-semibold leading-snug text-slate-800">{item.label}</p>
+                    </div>
+                </div>
+            ))}
+            <div className="flex min-w-0 items-center gap-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200/70">
+                <div className="grid size-20 shrink-0 place-items-center rounded-lg bg-emerald-50 text-center text-sm font-extrabold text-emerald-700">
+                    {action?.label || config.correct_action || '—'}
+                </div>
+                <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">3. Thao tác</p>
+                    <p className="mt-1 text-sm font-semibold leading-snug text-slate-800">{action?.label || config.correct_action || 'Không chọn'}</p>
+                </div>
+            </div>
+        </div>
+    )
 }
 
 function getErrorMessage(error: unknown) {
@@ -333,16 +348,17 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
         }))
     }
 
-    const toggleDeskTool = (toolId: string) => {
-        const currentTools = formData.tool_config.tools_on_desk || []
-        const nextTools = currentTools.includes(toolId)
-            ? currentTools.filter((id: string) => id !== toolId)
-            : [...currentTools, toolId]
-        updateToolConfig({ tools_on_desk: nextTools })
-    }
-
     const analyzeToolQuestion = () => {
-        updateToolConfig(analyzeToolQuestionText(formData.question_text, formData.vietnamese_meaning))
+        const analyzed = analyzeToolQuestionText(formData.question_text, formData.vietnamese_meaning)
+        updateToolConfig({
+            ...analyzed,
+            // Replace the old structured answer too. Keeping the previous
+            // game_config made the preview/runtime continue using stale data.
+            game_config: legacyToolConfigToWorkshopGame({
+                ...analyzed,
+                game_config: null,
+            }),
+        })
     }
 
     const isToolCategory = formData.category === CATEGORIES[3]
@@ -462,7 +478,7 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
                 </div>
 
                 {isToolCategory && (
-                    <div className="space-y-5 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                    <div className="space-y-5 rounded-xl border border-orange-200 bg-orange-50/50 p-4">
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                             <h3 className="font-semibold text-orange-800">Khung chấm điểm bài &quot;Sử dụng công cụ&quot;</h3>
                             <Button type="button" variant="outline" size="sm" onClick={analyzeToolQuestion}>
@@ -470,18 +486,12 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
                             </Button>
                         </div>
 
-                        <WorkshopGameConfigFields
-                            value={formData.tool_config.game_config || legacyToolConfigToWorkshopGame(formData.tool_config)}
-                            onChange={(game_config) => updateToolConfig({ game_config })}
-                        />
-
-                        <WorkshopGamePreview
-                            config={formData.tool_config.game_config || legacyToolConfigToWorkshopGame(formData.tool_config)}
-                            questionKo={formData.question_text}
-                            questionVi={formData.vietnamese_meaning}
-                        />
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <section className="rounded-xl border border-emerald-200 bg-white p-4 shadow-sm">
+                            <div className="mb-4">
+                                <h4 className="font-semibold text-slate-900">Đáp án chấm điểm</h4>
+                                <p className="text-xs text-slate-500">Ba trường quan trọng cần kiểm tra trước khi lưu.</p>
+                            </div>
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                             <div className="space-y-2">
                                 <Label>Dụng cụ đúng</Label>
                                 <Select value={formData.tool_config.correct_tool} onValueChange={(value) => updateToolConfig({ correct_tool: value })}>
@@ -517,72 +527,37 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
                                     </SelectContent>
                                 </Select>
                             </div>
-                        </div>
+                            </div>
 
-                        <label className="flex items-center gap-2 text-sm font-medium text-orange-900">
+                            <AnswerVisualPreview config={formData.tool_config} />
+
+                            <label className="mt-4 flex items-center gap-2 text-sm font-medium text-slate-700">
                             <input
                                 type="checkbox"
                                 checked={Boolean(formData.tool_config.requires_action)}
                                 onChange={(event) => updateToolConfig({ requires_action: event.target.checked })}
                             />
                             Câu này cần chọn bước hành động
-                        </label>
-
-                        <div className="space-y-2">
-                            <Label>Dụng cụ xuất hiện trên bàn làm việc</Label>
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                                {TOOL_SELECT_OPTIONS.map((item) => (
-                                    <label key={item.id} className="flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-xs">
-                                        <input
-                                            type="checkbox"
-                                            checked={(formData.tool_config.tools_on_desk || []).includes(item.id)}
-                                            onChange={() => toggleDeskTool(item.id)}
-                                        />
-                                        <span>{item.label}</span>
-                                    </label>
-                                ))}
+                            </label>
+                            <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                                Danh sách dụng cụ trong game được tải tự động theo từng nhóm. Không cần đánh dấu toàn bộ dụng cụ tại đây.
                             </div>
-                        </div>
+                        </section>
 
-                        <div className="space-y-2">
-                            <Label>Phân tích từ vựng trong câu</Label>
-                            <Textarea
-                                rows={4}
-                                value={vocabularyToText(formData.tool_config.vocabulary_analysis)}
-                                onChange={(event) => updateToolConfig({ vocabulary_analysis: parseVocabularyText(event.target.value) })}
-                                placeholder="십자드라이버 | tua vít chữ thập | tool\n십자 홈이 있는 나사 | ốc vít có rãnh chữ thập | target\n조이는 행동 | hành động siết/vặn vào | action"
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <Label>Ảnh vật phẩm cần kéo (tool_image_url)</Label>
-                                <MediaUploader
-                                    type="image"
-                                    currentUrl={formData.tool_image_url}
-                                    onUploadComplete={(url) => setFormData({...formData, tool_image_url: url})}
-                                    folder="interview_tools"
+                        <details className="group rounded-xl border border-slate-200 bg-white">
+                            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 font-semibold text-slate-800 marker:content-none">
+                                <span>Xem trước bài kéo thả</span>
+                                <span className="text-xs font-normal text-slate-500">Mở khi cần kiểm tra trực quan</span>
+                            </summary>
+                            <div className="border-t border-slate-100 p-3">
+                                <WorkshopGamePreview
+                                    config={formData.tool_config.game_config || legacyToolConfigToWorkshopGame(formData.tool_config)}
+                                    questionKo={formData.question_text}
+                                    questionVi={formData.vietnamese_meaning}
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <Label>ID vùng thả cũ (target_zone_id)</Label>
-                                <Select value={formData.target_zone_id} onValueChange={(value) => setFormData({...formData, target_zone_id: value})}>
-                                    <SelectTrigger className="w-full"><SelectValue placeholder="Chọn vùng thả" /></SelectTrigger>
-                                    <SelectContent>
-                                        {ZONE_OPTIONS.map((zone) => (
-                                            <SelectItem key={zone.id} value={zone.id}>{zone.label} ({zone.id})</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <div className="rounded-md bg-white border p-3 text-xs text-slate-600 space-y-1">
-                                    <div className="font-semibold text-slate-800">Đáp án sẽ lưu:</div>
-                                    <div>{buildToolAnswerText(formData.tool_config)}</div>
-                                    <div>Bước 1: {formData.tool_config.correct_tool}</div>
-                                    <div>Bước 2: {formData.tool_config.target_object}</div>
-                                    {formData.tool_config.requires_action && <div>Bước 3: {formData.tool_config.correct_action}</div>}
-                                </div>
-                            </div>
-                        </div>
+                        </details>
+
                     </div>
                 )}
                 <div className="flex justify-end gap-3 pt-6 border-t">

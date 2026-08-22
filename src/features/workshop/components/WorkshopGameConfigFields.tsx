@@ -41,8 +41,7 @@ export function WorkshopGameConfigFields({ value, onChange }: Props) {
         update({ distractorIds: Array.from(next) })
     }
 
-    return <div className="space-y-4 rounded-2xl border border-blue-200 bg-blue-50/40 p-4">
-        <div><h3 className="font-bold text-slate-900">Cấu hình Workshop Asset</h3><p className="text-xs text-slate-500">Dữ liệu có cấu trúc, không cần nhập JSON thủ công.</p></div>
+    return <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-1.5 text-sm font-semibold text-slate-700"><span>Loại game</span>
                 <Select value={value.type} onValueChange={(type) => update({ type: type as WorkshopGameType })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{GAME_TYPES.map((type) => <SelectItem key={type.id} value={type.id}>{type.label}</SelectItem>)}</SelectContent></Select>
@@ -54,13 +53,19 @@ export function WorkshopGameConfigFields({ value, onChange }: Props) {
                 <Select value={value.actionId || '__none__'} onValueChange={(actionId) => update({ actionId: actionId === '__none__' ? undefined : actionId as WorkshopGameConfig['actionId'] })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">Không chọn</SelectItem>{WORKSHOP_ACTIONS.map((action) => <SelectItem key={action.id} value={action.id}>{action.nameVi} · {action.nameKo}</SelectItem>)}</SelectContent></Select>
             </label>
         </div>
-        <fieldset className="space-y-2">
-            <legend className="text-sm font-semibold text-slate-700">Phương án nhiễu</legend>
-            <p className="text-xs text-slate-500">Chọn các asset sẽ xuất hiện cùng đáp án đúng.</p>
-            <div className="grid max-h-44 gap-2 overflow-y-auto rounded-xl border border-blue-100 bg-white p-3 sm:grid-cols-2 lg:grid-cols-3">
+        <details className="group rounded-xl border border-slate-200 bg-white">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-slate-700 marker:content-none">
+                <span>Phương án nhiễu</span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+                    {selectedDistractors.size} đã chọn · Mở để chỉnh
+                </span>
+            </summary>
+            <div className="border-t border-slate-100 p-3">
+                <p className="mb-2 text-xs text-slate-500">Chỉ chọn những asset cần xuất hiện cùng đáp án đúng.</p>
+                <div className="grid max-h-56 gap-1 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3 [content-visibility:auto]">
                 {WORKSHOP_ASSETS
                     .filter((asset) => asset.id !== value.toolId && asset.id !== value.objectId && asset.id !== value.targetId)
-                    .map((asset) => <label key={asset.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-blue-50">
+                    .map((asset) => <label key={asset.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50">
                         <input
                             type="checkbox"
                             checked={selectedDistractors.has(asset.id)}
@@ -69,7 +74,8 @@ export function WorkshopGameConfigFields({ value, onChange }: Props) {
                         />
                         <span className="min-w-0 truncate">{asset.nameVi} · {asset.nameKo}</span>
                     </label>)}
+                </div>
             </div>
-        </fieldset>
+        </details>
     </div>
 }

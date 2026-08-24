@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import Image from 'next/image'
 import { ArrowLeft, CheckCircle2, GripVertical, Loader2, PackageOpen, RotateCcw, Square, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { speakText, stopTTS } from '@/lib/tts'
@@ -8,6 +9,7 @@ import { getWorkshopAsset, resolveWorkshopAssetId } from '@/features/workshop/as
 import { legacyToolConfigToWorkshopGame } from '@/features/workshop/legacyAdapter'
 import { resolveToolQuestionConfig, TOOL_DEFINITIONS } from './toolQuestionAnalysis'
 import { WorkshopToolIcon } from './WorkshopToolIcon'
+import { getGameV2ToolAsset } from './InterviewToolTableGame'
 
 type ToolQuestion = {
     id: string
@@ -318,22 +320,27 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
                 </section>
 
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {round.choices.map((tool) => <button
-                        key={tool}
-                        type="button"
-                        onPointerDown={(event) => startPointerDrag(event, tool)}
-                        onPointerMove={movePointerDrag}
-                        onPointerUp={(event) => finishPointerDrag(event)}
-                        onPointerCancel={(event) => finishPointerDrag(event, true)}
-                        onClick={() => setSelected(tool)}
-                        disabled={Boolean(result)}
-                        aria-pressed={selected === tool}
-                        className={`flex min-h-20 touch-none select-none items-center gap-3 rounded-xl border p-3 text-left transition-[border-color,background-color,transform,box-shadow,opacity] hover:-translate-y-0.5 hover:border-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 motion-reduce:transform-none ${selected === tool ? 'border-orange-500 bg-orange-50 shadow-sm ring-1 ring-orange-500' : 'border-slate-200 bg-white'} ${draggingTool === tool ? 'opacity-40' : ''} disabled:hover:translate-y-0`}
-                    >
-                        <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-slate-50 text-slate-600"><WorkshopToolIcon type={iconIdFor(tool)} className="size-10" /></span>
-                        <span className="min-w-0 flex-1 text-xs font-bold text-slate-800 md:text-sm">{labelFor(tool)}</span>
-                        <GripVertical className="size-4 shrink-0 text-slate-300" />
-                    </button>)}
+                    {round.choices.map((tool) => {
+                        const asset = getGameV2ToolAsset(tool)
+                        return <button
+                            key={tool}
+                            type="button"
+                            onPointerDown={(event) => startPointerDrag(event, tool)}
+                            onPointerMove={movePointerDrag}
+                            onPointerUp={(event) => finishPointerDrag(event)}
+                            onPointerCancel={(event) => finishPointerDrag(event, true)}
+                            onClick={() => setSelected(tool)}
+                            disabled={Boolean(result)}
+                            aria-pressed={selected === tool}
+                            className={`flex min-h-20 touch-none select-none items-center gap-3 rounded-xl border p-2.5 text-left transition-[border-color,background-color,transform,box-shadow,opacity] hover:-translate-y-0.5 hover:border-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 motion-reduce:transform-none ${selected === tool ? 'border-orange-500 bg-orange-50 shadow-sm ring-1 ring-orange-500' : 'border-slate-200 bg-white'} ${draggingTool === tool ? 'opacity-40' : ''} disabled:hover:translate-y-0`}
+                        >
+                            <span className="grid size-14 shrink-0 place-items-center text-slate-600">
+                                {asset ? <Image src={asset.src} alt="" width={88} height={88} draggable={false} style={{ transform: `scale(${asset.scale ?? 1})` }} className="pointer-events-none size-14 object-contain" /> : <WorkshopToolIcon type={iconIdFor(tool)} className="size-11" />}
+                            </span>
+                            <span className="min-w-0 flex-1 text-xs font-bold text-slate-800 md:text-sm">{labelFor(tool)}</span>
+                            <GripVertical className="size-4 shrink-0 text-slate-300" />
+                        </button>
+                    })}
                 </div>
 
                 {draggingTool ? (
@@ -342,7 +349,11 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
                         className="pointer-events-none fixed z-[100] grid size-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-2xl border-2 border-orange-400 bg-white shadow-2xl will-change-transform"
                         style={{ left: dragPosition.x, top: dragPosition.y }}
                     >
-                        <WorkshopToolIcon type={iconIdFor(draggingTool)} className="size-12" />
+                        {getGameV2ToolAsset(draggingTool) ? (
+                            <Image src={getGameV2ToolAsset(draggingTool)!.src} alt="" width={96} height={96} draggable={false} className="size-14 object-contain" />
+                        ) : (
+                            <WorkshopToolIcon type={iconIdFor(draggingTool)} className="size-12" />
+                        )}
                     </div>
                 ) : null}
 

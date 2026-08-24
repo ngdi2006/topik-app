@@ -117,6 +117,25 @@ const TOOL_ASSETS: Record<string, ToolAsset> = {
     industrial_scale: METADATA_TOOL_ASSETS.electronic_scale,
 }
 
+const TOOL_ASSET_ALIASES: Record<string, string> = {
+    open_end_wrench: 'wrench',
+    spanner: 'wrench',
+    flathead_screwdriver: 'flat_screwdriver',
+    combination_pliers: 'pliers',
+    needle_nose_pliers: 'long_nose_pliers',
+    diagonal_cutters: 'nipper',
+    hex_key: 'allen_wrench',
+    electric_drill: 'drill',
+    metal_file: 'hand_file',
+    hacksaw: 'saw',
+    paint_brush: 'brush',
+    sprayer: 'spray_bottle',
+}
+
+export function getGameV2ToolAsset(toolId: string): ToolAsset | undefined {
+    return TOOL_ASSETS[TOOL_ASSET_ALIASES[toolId] || toolId]
+}
+
 type Props = {
     tools: string[]
     placedTools: string[]

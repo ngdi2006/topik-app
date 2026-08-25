@@ -262,9 +262,9 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
     }
 
     return <div className="mx-auto w-full max-w-3xl px-3 py-2 md:px-6">
-        <div className="overflow-hidden rounded-3xl border border-orange-100 bg-white shadow-xl shadow-orange-100/40">
-            <header className="flex items-center gap-3 border-b px-4 py-3 md:px-6">
-                <button onClick={() => { stopQuestionAudio(); onBack() }} className="grid size-10 place-items-center rounded-full border bg-white text-slate-600 shadow-sm" aria-label="Quay lại">
+        <div className="overflow-hidden bg-white">
+            <header className="flex items-center gap-3 border-b border-slate-100 px-3 py-3 md:px-5">
+                <button onClick={() => { stopQuestionAudio(); onBack() }} className="grid size-10 place-items-center rounded-full bg-slate-50 text-slate-600 transition-colors hover:bg-slate-100" aria-label="Quay lại">
                     <ArrowLeft className="size-5" />
                 </button>
                 <div className="min-w-0 flex-1">
@@ -276,8 +276,8 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
 
             <div className="h-1 bg-slate-100"><div className="h-full bg-gradient-to-r from-orange-500 to-amber-400 transition-all" style={{ width: `${((index + 1) / rounds.length) * 100}%` }} /></div>
 
-            <main className="space-y-4 p-4 md:p-6">
-                <section className="rounded-2xl bg-slate-900 p-4 text-white md:p-5">
+            <main className="space-y-3 p-3 md:p-5">
+                <section className="rounded-xl bg-slate-900 p-4 text-white md:p-5">
                     <div className="flex items-center justify-between gap-3">
                         <p className="text-[10px] font-black uppercase tracking-widest text-orange-300">Yêu cầu thao tác</p>
                         <button
@@ -307,7 +307,7 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
                     ref={dropZoneRef}
                     onClick={() => selected && !result && submit(selected)}
                     aria-label={selected ? `Đưa ${labelFor(selected)} vào bàn làm việc` : 'Bàn làm việc, hãy thả dụng cụ vào đây'}
-                    className={`grid min-h-28 place-items-center rounded-2xl border-2 border-dashed p-4 text-center transition-[border-color,background-color,transform,box-shadow] ${result === 'correct' ? 'border-emerald-400 bg-emerald-50' : result === 'wrong' ? 'border-rose-300 bg-rose-50' : isDraggingOver ? 'scale-[1.01] border-orange-500 bg-orange-100 shadow-md motion-reduce:transform-none' : selected ? 'cursor-pointer border-orange-400 bg-orange-50' : 'border-orange-300 bg-orange-50/60'}`}
+                    className={`grid min-h-28 place-items-center rounded-xl border border-dashed p-4 text-center transition-[border-color,background-color,transform,box-shadow] ${result === 'correct' ? 'border-emerald-400 bg-emerald-50' : result === 'wrong' ? 'border-rose-300 bg-rose-50' : isDraggingOver ? 'scale-[1.01] border-orange-500 bg-orange-100 shadow-md motion-reduce:transform-none' : selected ? 'cursor-pointer border-orange-400 bg-orange-50' : 'border-orange-300/80 bg-orange-50/45'}`}
                 >
                     {result ? <div>
                         {result === 'correct' ? <CheckCircle2 className="mx-auto size-8 text-emerald-500" /> : <RotateCcw className="mx-auto size-8 text-rose-500" />}
@@ -319,7 +319,7 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
                     </div>}
                 </section>
 
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2">
                     {round.choices.map((tool) => {
                         const asset = getGameV2ToolAsset(tool)
                         return <button
@@ -332,7 +332,7 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
                             onClick={() => setSelected(tool)}
                             disabled={Boolean(result)}
                             aria-pressed={selected === tool}
-                            className={`flex min-h-20 touch-none select-none items-center gap-3 rounded-xl border p-2.5 text-left transition-[border-color,background-color,transform,box-shadow,opacity] hover:-translate-y-0.5 hover:border-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 motion-reduce:transform-none ${selected === tool ? 'border-orange-500 bg-orange-50 shadow-sm ring-1 ring-orange-500' : 'border-slate-200 bg-white'} ${draggingTool === tool ? 'opacity-40' : ''} disabled:hover:translate-y-0`}
+                            className={`flex min-h-20 touch-none select-none items-center gap-2 rounded-xl border p-2 text-left transition-[border-color,background-color,transform,box-shadow,opacity] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 motion-reduce:transform-none ${selected === tool ? 'border-orange-400 bg-orange-50 shadow-sm ring-1 ring-orange-200' : 'border-transparent bg-slate-50/80 hover:bg-white hover:shadow-sm'} ${draggingTool === tool ? 'opacity-40' : ''} disabled:hover:translate-y-0`}
                         >
                             <span className="grid size-14 shrink-0 place-items-center text-slate-600">
                                 {asset ? <Image src={asset.src} alt="" width={88} height={88} draggable={false} style={{ transform: `scale(${asset.scale ?? 1})` }} className="pointer-events-none size-14 object-contain" /> : <WorkshopToolIcon type={iconIdFor(tool)} className="size-11" />}
@@ -346,7 +346,7 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
                 {draggingTool ? (
                     <div
                         aria-hidden="true"
-                        className="pointer-events-none fixed z-[100] grid size-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-2xl border-2 border-orange-400 bg-white shadow-2xl will-change-transform"
+                        className="pointer-events-none fixed z-[100] grid size-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-xl bg-white/95 shadow-2xl ring-1 ring-orange-300 will-change-transform"
                         style={{ left: dragPosition.x, top: dragPosition.y }}
                     >
                         {getGameV2ToolAsset(draggingTool) ? (

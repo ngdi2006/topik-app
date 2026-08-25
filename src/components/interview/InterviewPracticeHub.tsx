@@ -20,7 +20,7 @@ import { MicrophoneCheck } from '@/components/interview/MicrophoneCheck'
 import { saveSelfIntroductionCompletion } from '@/features/second-round-interview/storage'
 import PodcastMode from '@/components/vocabulary-vong2/PodcastMode'
 import { toast } from 'sonner'
-import { Headphones, Bot, ArrowLeft, Wrench, Mic, CheckCircle, Calculator, MessageSquare, Presentation, Factory, Fish, Trees, Tractor, Home, Coffee, Layers, RefreshCw, Play, MousePointer2, Zap, ShieldAlert, BookOpen, Award, ChevronRight, FileText, UserRound, ListChecks } from 'lucide-react'
+import { Headphones, Bot, ArrowLeft, Wrench, Mic, CheckCircle, Calculator, MessageSquare, Presentation, Factory, Fish, Trees, Tractor, Home, Coffee, Layers, RefreshCw, Play, MousePointer2, Zap, ShieldAlert, BookOpen, Target, Award, ChevronRight, FileText, UserRound, ListChecks } from 'lucide-react'
 
 const INDUSTRIES = [
     { 
@@ -1852,7 +1852,68 @@ export function InterviewPracticeHub({
                         {selectedTopicObj?.id === 'command' && (
                             <InterviewFreePreviewBanner kind="command" />
                         )}
-                        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-5">
+                        {selectedTopicObj?.id === 'tools' ? (
+                            <div className="mx-auto w-full max-w-4xl space-y-6 pb-6 md:space-y-8">
+                                <section aria-labelledby="learn-modes-title">
+                                    <div className="mb-3 flex items-center gap-3">
+                                        <span className="grid size-9 place-items-center rounded-xl bg-blue-50 text-blue-600">
+                                            <BookOpen className="size-4.5" aria-hidden="true" />
+                                        </span>
+                                        <div>
+                                            <h3 id="learn-modes-title" className="text-sm font-extrabold text-slate-900 md:text-base">Học & ghi nhớ</h3>
+                                            <p className="text-xs text-slate-500">Làm quen hình ảnh, tên gọi và cách phát âm.</p>
+                                        </div>
+                                    </div>
+                                    <div className="grid gap-2.5 md:grid-cols-2 md:gap-3">
+                                        <button type="button" onClick={() => startFlashcardPractice(false)} className="group flex min-h-24 w-full touch-manipulation items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 motion-reduce:transform-none">
+                                            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600 transition-colors group-hover:bg-blue-100"><Presentation className="size-5" aria-hidden="true" /></span>
+                                            <span className="min-w-0 flex-1"><span className="block font-bold text-slate-900">Lật thẻ</span><span className="mt-1 block text-xs leading-relaxed text-slate-500">Xem hình, nghe tiếng Hàn và ghi nhớ nghĩa.</span></span>
+                                            <ChevronRight className="size-4 shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-500 motion-reduce:transform-none" aria-hidden="true" />
+                                        </button>
+                                        <button type="button" onClick={handleStartPodcast} className="group flex min-h-24 w-full touch-manipulation items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 motion-reduce:transform-none">
+                                            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600 transition-colors group-hover:bg-blue-100"><Headphones className="size-5" aria-hidden="true" /></span>
+                                            <span className="min-w-0 flex-1"><span className="block font-bold text-slate-900">Nghe thụ động</span><span className="mt-1 block text-xs leading-relaxed text-slate-500">Nghe liên tục để quen âm và củng cố trí nhớ.</span></span>
+                                            <ChevronRight className="size-4 shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-500 motion-reduce:transform-none" aria-hidden="true" />
+                                        </button>
+                                    </div>
+                                </section>
+
+                                <section aria-labelledby="practice-modes-title">
+                                    <div className="mb-3 flex items-center gap-3">
+                                        <span className="grid size-9 place-items-center rounded-xl bg-orange-50 text-orange-600">
+                                            <Target className="size-4.5" aria-hidden="true" />
+                                        </span>
+                                        <div>
+                                            <h3 id="practice-modes-title" className="text-sm font-extrabold text-slate-900 md:text-base">Luyện tập kỹ năng</h3>
+                                            <p className="text-xs text-slate-500">Kiểm tra phản xạ và thực hành sử dụng dụng cụ.</p>
+                                        </div>
+                                    </div>
+                                    <div className="grid gap-2.5 md:grid-cols-2 md:gap-3">
+                                        <button type="button" onClick={() => handleStartListenMode('meaning_quiz')} className="group flex min-h-24 w-full touch-manipulation items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 motion-reduce:transform-none">
+                                            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-orange-50 text-orange-600"><CheckCircle className="size-5" aria-hidden="true" /></span>
+                                            <span className="min-w-0 flex-1"><span className="block font-bold text-slate-900">Trắc nghiệm</span><span className="mt-1 block text-xs leading-relaxed text-slate-500">Nghe và chọn đúng tên hoặc nghĩa của dụng cụ.</span></span>
+                                            <ChevronRight className="size-4 shrink-0 text-slate-300 group-hover:text-orange-500" aria-hidden="true" />
+                                        </button>
+                                        <button type="button" onClick={handleStartSpeedQuiz} className="group flex min-h-24 w-full touch-manipulation items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 motion-reduce:transform-none">
+                                            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-orange-50 text-orange-600"><Zap className="size-5" aria-hidden="true" /></span>
+                                            <span className="min-w-0 flex-1"><span className="flex items-center gap-2 font-bold text-slate-900">Siêu tốc <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[9px] font-extrabold uppercase text-orange-700">Phản xạ</span></span><span className="mt-1 block text-xs leading-relaxed text-slate-500">Chọn đáp án đúng trong 10 giây.</span></span>
+                                            <ChevronRight className="size-4 shrink-0 text-slate-300 group-hover:text-orange-500" aria-hidden="true" />
+                                        </button>
+                                        <button type="button" onClick={handleStartToolDropGame} className="group flex min-h-24 w-full touch-manipulation items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 motion-reduce:transform-none">
+                                            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-orange-50 text-orange-600"><MousePointer2 className="size-5" aria-hidden="true" /></span>
+                                            <span className="min-w-0 flex-1"><span className="flex items-center gap-2 font-bold text-slate-900">Kéo thả dụng cụ <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-extrabold uppercase text-blue-700">Game</span></span><span className="mt-1 block text-xs leading-relaxed text-slate-500">Nghe yêu cầu và kéo đúng dụng cụ vào bàn.</span></span>
+                                            <ChevronRight className="size-4 shrink-0 text-slate-300 group-hover:text-orange-500" aria-hidden="true" />
+                                        </button>
+                                        <button type="button" onClick={() => startPractice(selectedTopicObj, null, getSelectedGroupQuestions())} className="group flex min-h-24 w-full touch-manipulation items-center gap-4 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4 text-left shadow-sm transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-indigo-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 motion-reduce:transform-none">
+                                            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-indigo-600 text-white shadow-sm shadow-indigo-200"><Wrench className="size-5" aria-hidden="true" /></span>
+                                            <span className="min-w-0 flex-1"><span className="flex items-center gap-2 font-bold text-slate-900">Thực hành 3 bước <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[9px] font-extrabold uppercase text-indigo-700">Nâng cao</span></span><span className="mt-1 block text-xs leading-relaxed text-slate-600">Chọn dụng cụ, chi tiết và thao tác chính xác.</span></span>
+                                            <ChevronRight className="size-4 shrink-0 text-indigo-300 group-hover:text-indigo-600" aria-hidden="true" />
+                                        </button>
+                                    </div>
+                                </section>
+                            </div>
+                        ) : null}
+                        <div className={`${selectedTopicObj?.id === 'tools' ? 'hidden' : 'grid'} grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-5`}>
                             {selectedTopicObj?.id === 'command' && (
                                 <div className="relative group cursor-pointer transition-all duration-300 hover:-translate-y-1 md:col-span-2" onClick={() => setStep('list_mode')}>
                                     <div className="flex h-full items-center gap-3 rounded-2xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-blue-50 p-3.5 shadow-sm transition-all duration-300 hover:border-emerald-400 hover:shadow-xl md:p-5">

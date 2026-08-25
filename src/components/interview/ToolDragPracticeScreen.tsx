@@ -12,6 +12,8 @@ import { FULL_TOOL_IDS, FULL_TOOL_NAMES, InterviewToolTableGame } from './Interv
 import { ToolGameOnboarding, type ToolGameTourStep } from './ToolGameOnboarding'
 
 const TOOL_GAME_ONBOARDING_KEY = 'tool_game_onboarding_v1'
+const TOOL_GAME_KOREAN_VISIBILITY_KEY = 'tool_game_show_korean'
+const TOOL_GAME_VIETNAMESE_VISIBILITY_KEY = 'tool_game_show_vietnamese'
 
 const ZONE_LABELS: Record<string, string> = {
     'shelf_top_left': 'Kệ trên (Trái)',
@@ -915,6 +917,30 @@ export function ToolDragPracticeScreen({
     const [showKoreanText, setShowKoreanText] = useState(true)
     const [showVietnameseText, setShowVietnameseText] = useState(true)
 
+    const toggleKoreanText = useCallback(() => {
+        setShowKoreanText((visible) => {
+            const nextVisible = !visible
+            try {
+                window.sessionStorage.setItem(TOOL_GAME_KOREAN_VISIBILITY_KEY, String(nextVisible))
+            } catch {
+                // Keep the in-memory preference when browser storage is unavailable.
+            }
+            return nextVisible
+        })
+    }, [])
+
+    const toggleVietnameseText = useCallback(() => {
+        setShowVietnameseText((visible) => {
+            const nextVisible = !visible
+            try {
+                window.sessionStorage.setItem(TOOL_GAME_VIETNAMESE_VISIBILITY_KEY, String(nextVisible))
+            } catch {
+                // Keep the in-memory preference when browser storage is unavailable.
+            }
+            return nextVisible
+        })
+    }, [])
+
     // Game 3-Step Selection States
     const [step, setStep] = useState<1 | 2 | 3>(1)
     const [heldTool, setHeldTool] = useState<string | null>(null)
@@ -1029,6 +1055,20 @@ export function ToolDragPracticeScreen({
         }
         if (completed) return
         const timer = window.setTimeout(() => setIsTourOpen(true), 650)
+        return () => window.clearTimeout(timer)
+    }, [])
+
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            try {
+                const savedKorean = window.sessionStorage.getItem(TOOL_GAME_KOREAN_VISIBILITY_KEY)
+                const savedVietnamese = window.sessionStorage.getItem(TOOL_GAME_VIETNAMESE_VISIBILITY_KEY)
+                if (savedKorean !== null) setShowKoreanText(savedKorean === 'true')
+                if (savedVietnamese !== null) setShowVietnameseText(savedVietnamese === 'true')
+            } catch {
+                // Default to showing both languages when browser storage is unavailable.
+            }
+        }, 0)
         return () => window.clearTimeout(timer)
     }, [])
 
@@ -1380,7 +1420,7 @@ export function ToolDragPracticeScreen({
                         <button
                             type="button"
                             aria-pressed={showKoreanText}
-                            onClick={() => setShowKoreanText((visible) => !visible)}
+                            onClick={toggleKoreanText}
                             title={showKoreanText ? 'Ẩn tiếng Hàn' : 'Hiện tiếng Hàn'}
                             className={`inline-flex min-h-7 items-center gap-1 rounded-lg px-2 text-[10px] font-bold transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${showKoreanText ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/70' : 'text-slate-500 hover:bg-white/70 hover:text-slate-700'}`}
                         >
@@ -1390,7 +1430,7 @@ export function ToolDragPracticeScreen({
                         <button
                             type="button"
                             aria-pressed={showVietnameseText}
-                            onClick={() => setShowVietnameseText((visible) => !visible)}
+                            onClick={toggleVietnameseText}
                             title={showVietnameseText ? 'Ẩn tiếng Việt' : 'Hiện tiếng Việt'}
                             className={`inline-flex min-h-7 items-center gap-1 rounded-lg px-2 text-[10px] font-bold transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${showVietnameseText ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/70' : 'text-slate-500 hover:bg-white/70 hover:text-slate-700'}`}
                         >

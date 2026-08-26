@@ -2,17 +2,31 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { recordAdminUserActivity } from '@/lib/admin-user-audit'
+import { permissionsForRole } from '@/lib/admin-permissions'
+import { isAdminRole } from '@/lib/admin-role'
 
-async function requireAdmin() {
+async function requireInterviewAccessActor() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  return profile?.role === 'admin' ? user : null
+  if (!isAdminRole(profile?.role)) return null
+  if (profile.role === 'admin') return { user, role: profile.role }
+
+  const { data: permissionProfile, error: permissionError } = await supabase
+    .from('profiles')
+    .select('admin_permissions')
+    .eq('id', user.id)
+    .maybeSingle()
+  const storedPermissions = permissionError
+    ? user.app_metadata?.admin_permissions
+    : permissionProfile?.admin_permissions
+  if (!permissionsForRole(profile.role, storedPermissions).includes('interview_access')) return null
+  return { user, role: profile.role }
 }
 
 export async function GET() {
-  const actor = await requireAdmin()
+  const actor = await requireInterviewAccessActor()
   if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const admin = createAdminClient()
   const [{ data: entitlements, error }, { data: usage }, { data: profiles }, authResult] = await Promise.all([
@@ -67,7 +81,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const actor = await requireAdmin()
+  const actor = await requireInterviewAccessActor()
   if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   try {
     const { user_id, months, days, note } = await request.json()
@@ -83,14 +97,14 @@ export async function POST(request: Request) {
       p_plan_id: plan.id,
       p_days: normalizedDays,
       p_source: 'admin_internal',
-      p_performed_by: actor.id,
+      p_performed_by: actor.user.id,
       p_notes: note || `Admin cấp thêm ${normalizedDays} ngày`,
     })
     if (error) throw error
     await recordAdminUserActivity({
       targetUserId: user_id,
-      actor,
-      actorRole: 'admin',
+      actor: actor.user,
+      actorRole: actor.role,
       action: 'interview_access_granted',
       label: `Kích hoạt/gia hạn gói Vòng 2 thêm ${normalizedDays} ngày`,
       details: { days: normalizedDays, note: note || null },
@@ -102,7 +116,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const actor = await requireAdmin()
+  const actor = await requireInterviewAccessActor()
   if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
@@ -134,7 +148,7 @@ export async function PUT(request: Request) {
           p_plan_id: plan.id,
           p_days: normalizedDays,
           p_source: 'admin_internal',
-          p_performed_by: actor.id,
+          p_performed_by: actor.user.id,
           p_notes: note || `Admin cấp thêm hàng loạt ${normalizedDays} ngày`,
         })
         return { userId, data, error }
@@ -146,8 +160,8 @@ export async function PUT(request: Request) {
           entitlements.push(result.data)
           await recordAdminUserActivity({
             targetUserId: result.userId,
-            actor,
-            actorRole: 'admin',
+            actor: actor.user,
+            actorRole: actor.role,
             action: 'interview_access_granted',
             label: `Kích hoạt/gia hạn gói Vòng 2 thêm ${normalizedDays} ngày`,
             details: { days: normalizedDays, bulk: true, note: note || null },
@@ -170,7 +184,7 @@ export async function PUT(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const actor = await requireAdmin()
+  const actor = await requireInterviewAccessActor()
   if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
@@ -213,14 +227,14 @@ export async function PATCH(request: Request) {
         days: 0,
         previous_expires_at: previousExpiry,
         new_expires_at: now.toISOString(),
-        performed_by: actor.id,
+        performed_by: actor.user.id,
         metadata: { note: note || 'Admin hủy quyền truy cập' },
       })
       if (historyError) throw historyError
       await recordAdminUserActivity({
         targetUserId: user_id,
-        actor,
-        actorRole: 'admin',
+        actor: actor.user,
+        actorRole: actor.role,
         action: 'interview_access_revoked',
         label: 'Hủy quyền truy cập gói Vòng 2',
         details: { note: note || null },
@@ -239,7 +253,7 @@ export async function PATCH(request: Request) {
         expires_at: targetExpiry.toISOString(),
         status: 'active',
         source: 'admin_internal',
-        granted_by: actor.id,
+        granted_by: actor.user.id,
         notes: note || 'Admin đặt lại ngày hết hạn',
       })
       .select('*')
@@ -257,15 +271,15 @@ export async function PATCH(request: Request) {
       days: changedDays,
       previous_expires_at: previousExpiry,
       new_expires_at: targetExpiry.toISOString(),
-      performed_by: actor.id,
+      performed_by: actor.user.id,
       metadata: { note: note || 'Admin đặt lại ngày hết hạn' },
     })
     if (historyError) throw historyError
 
     await recordAdminUserActivity({
       targetUserId: user_id,
-      actor,
-      actorRole: 'admin',
+      actor: actor.user,
+      actorRole: actor.role,
       action: 'interview_expiry_changed',
       label: `Đổi hạn gói Vòng 2 đến ${targetExpiry.toLocaleDateString('vi-VN')}`,
       details: { expiresAt: targetExpiry.toISOString(), note: note || null },

@@ -148,6 +148,19 @@ export async function POST(
              throw new Error('Không thể tạo phiên làm bài')
         }
 
+        const { error: analyticsError } = await adminClient
+            .from('learning_analytics_events')
+            .insert({
+                user_id: user.id,
+                event_name: 'exam_started',
+                source: 'exam',
+                content_type: 'exam',
+                content_id: params.id,
+                session_id: attemptRow.id,
+                metadata: { attempt_number: attemptNumber, question_count: questions.length },
+            })
+        if (analyticsError) console.warn('Exam start analytics unavailable:', analyticsError.message)
+
         return NextResponse.json({
             success: true,
             attempt: {

@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
             .eq('id', user.id)
             .single()
 
-        if (!profile || !['admin', 'teacher'].includes(profile.role)) {
+        if (!profile || !['admin', 'teacher', 'supporter'].includes(profile.role)) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
             .eq('id', user.id)
             .single()
 
-        if (!profile || !['admin', 'teacher'].includes(profile.role)) {
+        if (!profile || !['admin', 'teacher', 'supporter'].includes(profile.role)) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 

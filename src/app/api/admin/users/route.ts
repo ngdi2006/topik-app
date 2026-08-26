@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server'
 import type { User } from '@supabase/supabase-js'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { permissionsForRole } from '@/lib/admin-permissions'
+import { recordAdminUserActivity, type AdminUserAuditEntry } from '@/lib/admin-user-audit'
 
-type ProfileRow = { id: string; full_name?: string | null; role?: string | null; group_name?: string | null }
+type ProfileRow = { id: string; full_name?: string | null; role?: string | null; group_name?: string | null; admin_permissions?: string[] | null }
 type CreditRow = { user_id: string; remaining_credits: number }
 type InterviewPlanRow = { name?: string | null; code?: string | null }
 type InterviewEntitlementRow = {
@@ -16,6 +18,34 @@ type InterviewEntitlementRow = {
     interview_subscription_plans: InterviewPlanRow | InterviewPlanRow[] | null
 }
 
+async function getUserManagementRole(
+    supabase: Awaited<ReturnType<typeof createClient>>,
+    userId: string,
+    authPermissions: unknown,
+) {
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single()
+
+    if (!profile || !['admin', 'teacher', 'supporter'].includes(profile.role)) return null
+    if (profile.role === 'admin') return profile.role
+
+    const { data: permissionProfile, error } = await supabase
+        .from('profiles')
+        .select('admin_permissions')
+        .eq('id', userId)
+        .single()
+
+    const storedPermissions = error ? authPermissions : permissionProfile?.admin_permissions
+    if (!permissionsForRole(profile.role, storedPermissions).includes('users')) {
+        return null
+    }
+
+    return profile.role
+}
+
 export async function GET() {
     try {
         // 1. Authentication & Authorization Check
@@ -23,9 +53,8 @@ export async function GET() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-        // Check if the current user is really an admin
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-        if (!profile || !['admin', 'teacher'].includes(profile.role)) {
+        const managementRole = await getUserManagementRole(supabase, user.id, user.app_metadata?.admin_permissions)
+        if (!managementRole) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
@@ -111,11 +140,17 @@ export async function GET() {
             const accessActive = Boolean(
                 entitlement?.status === 'active' && new Date(entitlement.expires_at).getTime() > Date.now(),
             )
+            const adminActivity = Array.isArray(u.app_metadata?.admin_user_audit)
+                ? u.app_metadata.admin_user_audit as AdminUserAuditEntry[]
+                : []
             return {
                 id: u.id,
                 email: u.email,
                 name: prof?.full_name || u.user_metadata?.full_name || 'Học viên',
                 role: prof?.role || 'learner',
+                adminPermissions: prof?.admin_permissions || u.app_metadata?.admin_permissions || [],
+                adminActivity,
+                lastAdminActivity: adminActivity[0] || null,
                 groupName: prof?.group_name || '',
                 remainingCredits: credit?.remaining_credits ?? 0,
                 status: 'Active',
@@ -152,13 +187,13 @@ export async function POST(request: Request) {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-        if (!profile || !['admin', 'teacher'].includes(profile.role)) {
+        const managementRole = await getUserManagementRole(supabase, user.id, user.app_metadata?.admin_permissions)
+        if (!managementRole) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
         // If teacher, force role to learner
-        if (profile.role === 'teacher') {
+        if (managementRole === 'teacher') {
             role = 'learner'
         }
 
@@ -197,6 +232,15 @@ export async function POST(request: Request) {
             await adminAuthClient.auth.admin.deleteUser(newUserId)
             return NextResponse.json({ error: "Failed to create user profile: " + profileError.message }, { status: 500 })
         }
+
+        await recordAdminUserActivity({
+            targetUserId: newUserId,
+            actor: user,
+            actorRole: managementRole,
+            action: 'user_created',
+            label: 'Tạo tài khoản người dùng',
+            details: { role: role || 'learner', groupName: groupName || null },
+        })
 
         return NextResponse.json({ success: true, user: newUser.user }, { status: 200 })
 

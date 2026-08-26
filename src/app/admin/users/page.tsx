@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Search, Plus, Coins, Trash2, History, Upload, Download, ShieldCheck, Loader2, CalendarDays, RotateCcw } from "lucide-react"
+import { Search, Plus, Coins, Trash2, History, Upload, Download, ShieldCheck, Loader2, CalendarDays, RotateCcw, SlidersHorizontal, Clock3 } from "lucide-react"
 import { toast } from "sonner"
 import * as XLSX from "xlsx"
 import { useUserStore } from "@/store/userStore"
@@ -16,16 +16,20 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ADMIN_MENU_ITEMS, ADMIN_PERMISSION_KEYS, sanitizeAdminPermissions, type AdminPermissionKey } from "@/lib/admin-permissions"
 
 interface UserProfile {
     id: string
     name: string
     email: string
     role: string
+    adminPermissions: AdminPermissionKey[]
     groupName: string
     remainingCredits: number
     status: string
     joinedAt: string
+    adminActivity: AdminUserAuditEntry[]
+    lastAdminActivity: AdminUserAuditEntry | null
     interviewAccess: {
         id: string
         active: boolean
@@ -69,6 +73,17 @@ const getInterviewPackageStatus = (user: UserProfile, now: number): Exclude<Inte
     const expiresAt = Date.parse(user.interviewAccess.expiresAt)
     if (Number.isNaN(expiresAt) || expiresAt <= now) return 'expired'
     return expiresAt - now <= EXPIRING_SOON_DAYS * DAY_IN_MS ? 'expiring' : 'active'
+}
+
+type AdminUserAuditEntry = {
+    id: string
+    action: string
+    label: string
+    actorEmail: string | null
+    actorName: string | null
+    actorRole: string
+    createdAt: string
+    details?: Record<string, unknown>
 }
 
 const initialGrantForm = {
@@ -144,7 +159,7 @@ export default function AdminUsersPage() {
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage, setItemsPerPage] = useState(20)
     const { role: currentUserRole } = useUserStore()
-    const isTeacher = currentUserRole === 'teacher'
+    const isTeacher = currentUserRole === 'teacher' || currentUserRole === 'supporter'
 
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
     const [isBulkImportOpen, setIsBulkImportOpen] = useState(false)
@@ -158,6 +173,9 @@ export default function AdminUsersPage() {
         dateOfBirth: ''
     })
     const [isExporting, setIsExporting] = useState(false)
+    const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<UserProfile | null>(null)
+    const [permissionDraft, setPermissionDraft] = useState<AdminPermissionKey[]>(['dashboard'])
+    const [isSavingPermissions, setIsSavingPermissions] = useState(false)
 
     const [isGrantDialogOpen, setIsGrantDialogOpen] = useState(false)
     const [selectedUserForCredits, setSelectedUserForCredits] = useState<UserProfile | null>(null)
@@ -180,6 +198,7 @@ export default function AdminUsersPage() {
     const [selectedUserHistory, setSelectedUserHistory] = useState<HistoryRecord[]>([])
     const [isFetchingHistory, setIsFetchingHistory] = useState(false)
     const [selectedUserName, setSelectedUserName] = useState("")
+    const [selectedAuditUser, setSelectedAuditUser] = useState<UserProfile | null>(null)
 
     const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
     const [isBulkDeleting, setIsBulkDeleting] = useState(false)
@@ -452,6 +471,7 @@ export default function AdminUsersPage() {
                 throw new Error(message)
             }
             toast.success("Cập nhật nhóm thành công")
+            fetchUsers()
         } catch (error) {
             toast.error(getErrorMessage(error, 'Lỗi cập nhật nhóm'))
             setUsers(previousUsers)
@@ -475,6 +495,7 @@ export default function AdminUsersPage() {
             }
             toast.success("Cập nhật quyền thành công", { id: loadingToast })
             setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u))
+            fetchUsers()
         } catch (error) {
             toast.error(getErrorMessage(error, 'Lỗi cập nhật quyền'), { id: loadingToast })
         }
@@ -662,6 +683,43 @@ export default function AdminUsersPage() {
         setSelectedInterviewFilter('all')
         setJoinedFrom('')
         setJoinedTo('')
+    }
+
+    const openPermissionDialog = (user: UserProfile) => {
+        setSelectedUserForPermissions(user)
+        setPermissionDraft(sanitizeAdminPermissions(user.adminPermissions))
+    }
+
+    const togglePermission = (permission: AdminPermissionKey) => {
+        if (permission === 'dashboard') return
+        setPermissionDraft((current) => current.includes(permission)
+            ? current.filter((item) => item !== permission)
+            : [...current, permission])
+    }
+
+    const savePermissions = async () => {
+        if (!selectedUserForPermissions) return
+        setIsSavingPermissions(true)
+        try {
+            const response = await fetch(`/api/admin/users/${selectedUserForPermissions.id}/permissions`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ permissions: permissionDraft }),
+            })
+            const data = await response.json().catch(() => null)
+            if (!response.ok) throw new Error(data?.error || 'Không thể cập nhật quyền chỉ mục')
+            const permissions = sanitizeAdminPermissions(data.permissions)
+            setUsers((current) => current.map((user) => user.id === selectedUserForPermissions.id
+                ? { ...user, adminPermissions: permissions }
+                : user))
+            setSelectedUserForPermissions(null)
+            toast.success('Đã cập nhật các chỉ mục được phép thao tác')
+            fetchUsers()
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Không thể cập nhật quyền chỉ mục'))
+        } finally {
+            setIsSavingPermissions(false)
+        }
     }
 
     const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
@@ -931,19 +989,20 @@ export default function AdminUsersPage() {
                             <th className="px-6 py-4 font-medium">Gói Phỏng vấn Vòng 2</th>
                             <th className="px-6 py-4 font-medium">Trạng thái</th>
                             <th className="px-6 py-4 font-medium">Ngày tham gia</th>
+                            <th className="px-6 py-4 font-medium">Chỉnh sửa gần nhất</th>
                             <th className="px-6 py-4 font-medium text-right">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                         {isLoading ? (
                             <tr>
-                                <td colSpan={10} className="px-6 py-8 text-center text-muted-foreground">
+                                <td colSpan={11} className="px-6 py-8 text-center text-muted-foreground">
                                     Đang tải dữ liệu...
                                 </td>
                             </tr>
                         ) : filteredUsers.length === 0 ? (
                             <tr>
-                                <td colSpan={10} className="px-6 py-8 text-center text-muted-foreground">
+                                <td colSpan={11} className="px-6 py-8 text-center text-muted-foreground">
                                     Không tìm thấy dữ liệu nào phù hợp.
                                 </td>
                             </tr>
@@ -961,21 +1020,34 @@ export default function AdminUsersPage() {
                                     <td className="px-6 py-4 font-medium text-gray-900">{user.name}</td>
                                     <td className="px-6 py-4 text-gray-500">{user.email}</td>
                                     <td className="px-6 py-4">
-                                        <select
-                                            value={user.role}
-                                            disabled={isTeacher}
-                                            onChange={(e) => handleChangeRole(user.id, e.target.value)}
-                                            className={`px-2.5 py-1 rounded-full text-xs font-medium ${!isTeacher ? 'cursor-pointer' : 'cursor-not-allowed'} outline-none appearance-none border-none text-center ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' :
-                                                user.role === 'teacher' ? 'bg-yellow-100 text-yellow-700' :
-                                                    user.role === 'supporter' ? 'bg-cyan-100 text-cyan-700' :
-                                                        'bg-blue-100 text-blue-700'
-                                                }`}
-                                        >
-                                            <option value="learner">learner</option>
-                                            <option value="supporter">supporter</option>
-                                            <option value="teacher">teacher</option>
-                                            <option value="admin">admin</option>
-                                        </select>
+                                        <div className="flex min-w-32 flex-col items-start gap-1.5">
+                                            <select
+                                                value={user.role}
+                                                disabled={isTeacher}
+                                                onChange={(e) => handleChangeRole(user.id, e.target.value)}
+                                                aria-label={`Vai trò của ${user.name}`}
+                                                className={`rounded-full px-2.5 py-1 text-center text-xs font-medium ${!isTeacher ? 'cursor-pointer' : 'cursor-not-allowed'} appearance-none border-none outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                                                    user.role === 'teacher' ? 'bg-yellow-100 text-yellow-700' :
+                                                        user.role === 'supporter' ? 'bg-cyan-100 text-cyan-700' :
+                                                            'bg-blue-100 text-blue-700'
+                                                    }`}
+                                            >
+                                                <option value="learner">learner</option>
+                                                <option value="supporter">supporter</option>
+                                                <option value="teacher">teacher</option>
+                                                <option value="admin">admin</option>
+                                            </select>
+                                            {!isTeacher && (user.role === 'teacher' || user.role === 'supporter') ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openPermissionDialog(user)}
+                                                    className="inline-flex min-h-7 items-center gap-1.5 rounded-lg bg-slate-100 px-2 text-[11px] font-semibold text-slate-700 transition-colors hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                                                >
+                                                    <SlidersHorizontal className="size-3.5" aria-hidden="true" />
+                                                    Chỉ mục: {sanitizeAdminPermissions(user.adminPermissions).length}
+                                                </button>
+                                            ) : null}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4">
                                         <Input
@@ -1017,6 +1089,28 @@ export default function AdminUsersPage() {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-gray-500">{user.joinedAt}</td>
+                                    <td className="px-6 py-4">
+                                        {user.lastAdminActivity ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedAuditUser(user)}
+                                                className="group min-w-40 text-left"
+                                                title="Xem lịch sử chỉnh sửa"
+                                            >
+                                                <span className="block text-xs font-semibold text-slate-800 group-hover:text-blue-700">
+                                                    {user.lastAdminActivity.label}
+                                                </span>
+                                                <span className="mt-1 block text-[11px] text-slate-500">
+                                                    {user.lastAdminActivity.actorName || user.lastAdminActivity.actorEmail || user.lastAdminActivity.actorRole}
+                                                </span>
+                                                <span className="block text-[11px] text-slate-400">
+                                                    {new Date(user.lastAdminActivity.createdAt).toLocaleString('vi-VN')}
+                                                </span>
+                                            </button>
+                                        ) : (
+                                            <span className="text-xs text-slate-400">Chưa có thay đổi</span>
+                                        )}
+                                    </td>
                                     <td className="px-6 py-4 text-right space-x-2">
                                         {!isTeacher && (user.role === 'learner' || Boolean(user.interviewAccess)) && (
                                             <Button
@@ -1431,6 +1525,103 @@ export default function AdminUsersPage() {
                             </Button>
                         </DialogFooter>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={Boolean(selectedUserForPermissions)} onOpenChange={(open) => !open && setSelectedUserForPermissions(null)}>
+                <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <SlidersHorizontal className="size-5 text-blue-600" aria-hidden="true" />
+                            Chỉ mục được phép thao tác
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="rounded-xl bg-slate-50 px-4 py-3">
+                            <p className="font-semibold text-slate-900">{selectedUserForPermissions?.name}</p>
+                            <p className="text-xs text-slate-500">{selectedUserForPermissions?.email} · {selectedUserForPermissions?.role}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-sm text-slate-600">Bật các mục tài khoản được nhìn thấy và truy cập trong thanh bên trái.</p>
+                            <div className="flex gap-2">
+                                <Button type="button" size="sm" variant="outline" onClick={() => setPermissionDraft(['dashboard'])}>Chỉ Dashboard</Button>
+                                <Button type="button" size="sm" variant="outline" onClick={() => setPermissionDraft([...ADMIN_PERMISSION_KEYS])}>Mở toàn bộ</Button>
+                            </div>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                            {ADMIN_MENU_ITEMS.map((item) => {
+                                const checked = permissionDraft.includes(item.key)
+                                const locked = item.key === 'dashboard'
+                                return (
+                                    <label key={item.key} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${checked ? 'border-blue-300 bg-blue-50/70' : 'border-slate-200 bg-white hover:border-slate-300'} ${locked ? 'cursor-default' : ''}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            disabled={locked}
+                                            onChange={() => togglePermission(item.key)}
+                                            className="mt-0.5 size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <span className="min-w-0">
+                                            <span className="block text-sm font-semibold text-slate-900">{item.label}</span>
+                                            <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">{locked ? 'Luôn được mở để làm trang bắt đầu.' : item.description}</span>
+                                        </span>
+                                    </label>
+                                )
+                            })}
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setSelectedUserForPermissions(null)}>Hủy</Button>
+                        <Button type="button" onClick={savePermissions} disabled={isSavingPermissions}>
+                            {isSavingPermissions ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ShieldCheck className="mr-2 size-4" />}
+                            Lưu quyền chỉ mục
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={Boolean(selectedAuditUser)} onOpenChange={(open) => { if (!open) setSelectedAuditUser(null) }}>
+                <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-[620px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Clock3 className="size-5 text-blue-600" /> Nhật ký quản trị
+                        </DialogTitle>
+                    </DialogHeader>
+                    {selectedAuditUser ? (
+                        <div className="space-y-4">
+                            <div className="rounded-xl bg-slate-50 px-4 py-3">
+                                <p className="font-semibold text-slate-900">{selectedAuditUser.name}</p>
+                                <p className="text-sm text-slate-500">{selectedAuditUser.email}</p>
+                            </div>
+                            {selectedAuditUser.adminActivity.length > 0 ? (
+                                <div className="space-y-2">
+                                    {selectedAuditUser.adminActivity.map((entry) => (
+                                        <div key={entry.id} className="rounded-xl border border-slate-200 p-4">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <p className="text-sm font-semibold text-slate-900">{entry.label}</p>
+                                                    <p className="mt-1 text-xs text-slate-500">
+                                                        Người thực hiện: {entry.actorName || entry.actorEmail || 'Không xác định'}
+                                                        <span className="ml-1 rounded bg-slate-100 px-1.5 py-0.5 font-semibold uppercase text-slate-600">{entry.actorRole}</span>
+                                                    </p>
+                                                </div>
+                                                <time className="shrink-0 text-right text-xs text-slate-400">
+                                                    {new Date(entry.createdAt).toLocaleString('vi-VN')}
+                                                </time>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="rounded-xl border border-dashed p-8 text-center text-sm text-slate-500">
+                                    Chưa có thao tác quản trị nào được ghi nhận.
+                                </div>
+                            )}
+                        </div>
+                    ) : null}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setSelectedAuditUser(null)}>Đóng</Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 

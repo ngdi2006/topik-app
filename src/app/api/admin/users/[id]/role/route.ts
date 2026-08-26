@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { recordAdminUserActivity } from '@/lib/admin-user-audit'
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
     try {
@@ -33,16 +34,27 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
             return NextResponse.json({ error: error.message }, { status: 500 })
         }
 
+        const { data: authTarget } = await adminAuthClient.auth.admin.getUserById(userId)
         const { error: metadataError } = await adminAuthClient.auth.admin.updateUserById(userId, {
-            app_metadata: { role }
+            app_metadata: { ...authTarget.user?.app_metadata, role }
         })
 
         if (metadataError) {
             return NextResponse.json({ error: metadataError.message }, { status: 500 })
         }
 
+        await recordAdminUserActivity({
+            targetUserId: userId,
+            actor: user,
+            actorRole: profile.role,
+            action: 'role_changed',
+            label: `Đổi vai trò thành ${role}`,
+            details: { role },
+        })
+
         return NextResponse.json({ success: true, newRole: role }, { status: 200 })
-    } catch (e: any) {
-        return NextResponse.json({ error: e.message || "Internal Server Error" }, { status: 500 })
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Internal Server Error"
+        return NextResponse.json({ error: message }, { status: 500 })
     }
 }

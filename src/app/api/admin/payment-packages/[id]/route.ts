@@ -12,7 +12,7 @@ async function checkAdmin(supabase: any) {
         .eq('id', user.id)
         .single()
 
-    if (!profile || !['admin', 'teacher'].includes(profile.role)) return null
+    if (!profile || !['admin', 'teacher', 'supporter'].includes(profile.role)) return null
     return user
 }
 

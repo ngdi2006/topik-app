@@ -2,10 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { History, LogOut, Settings, User as UserIcon } from "lucide-react"
+import { LogOut, User as UserIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -32,7 +31,6 @@ export function UserNav({ variant = "default", onNavigate }: UserNavProps = {}) 
     const { user, role, setUser } = useUserStore()
     const router = useRouter()
     const supabase = useMemo(() => createClient(), [])
-    const [isProfileOpen, setIsProfileOpen] = useState(false)
     const [profile, setProfile] = useState<ProfileSummary | null>(null)
 
     useEffect(() => {
@@ -97,7 +95,7 @@ export function UserNav({ variant = "default", onNavigate }: UserNavProps = {}) 
                 className="group flex min-h-16 w-full items-center gap-3 rounded-2xl border border-white/15 bg-white/10 p-2.5 text-left text-white shadow-sm backdrop-blur-sm transition hover:border-white/30 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 onClick={() => {
                     onNavigate?.()
-                    router.push("/settings")
+                    router.push("/account")
                 }}
                 type="button"
             >
@@ -147,24 +145,10 @@ export function UserNav({ variant = "default", onNavigate }: UserNavProps = {}) 
                     <DropdownMenuGroup>
                         <DropdownMenuItem className="cursor-pointer" onSelect={(event) => {
                             event.preventDefault()
-                            setIsProfileOpen(true)
+                            router.push("/account")
                         }}>
                             <UserIcon className="mr-2 size-4" />
-                            Hồ sơ của tôi
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer" onSelect={(event) => {
-                            event.preventDefault()
-                            router.push("/settings")
-                        }}>
-                            <Settings className="mr-2 size-4" />
-                            Cài đặt
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer" onSelect={(event) => {
-                            event.preventDefault()
-                            router.push("/history")
-                        }}>
-                            <History className="mr-2 size-4 text-blue-600" />
-                            Lịch sử làm bài
+                            Tài khoản & lịch sử
                         </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
@@ -174,26 +158,6 @@ export function UserNav({ variant = "default", onNavigate }: UserNavProps = {}) 
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
-
-            <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
-                <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                        <DialogTitle>Hồ sơ cá nhân</DialogTitle>
-                    </DialogHeader>
-                    <div className="flex flex-col items-center justify-center space-y-4 py-6">
-                        {renderAvatar("size-20 text-2xl")}
-                        <div className="max-w-full space-y-1 text-center">
-                            <h3 className="truncate text-xl font-semibold tracking-tight">{displayName}</h3>
-                            <p className="truncate text-sm text-muted-foreground">{user?.email}</p>
-                        </div>
-                        {role ? (
-                            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary">
-                                {role}
-                            </span>
-                        ) : null}
-                    </div>
-                </DialogContent>
-            </Dialog>
         </div>
     )
 }

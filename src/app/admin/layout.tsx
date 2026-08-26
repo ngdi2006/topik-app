@@ -4,9 +4,30 @@ import Link from "next/link"
 import { Shield, Users, FileText, Settings, LayoutDashboard, BookOpen, Menu, X, GraduationCap, Target, CreditCard, Package, BrainCircuit, ReceiptText, KeyRound } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useEffect, useRef, useState } from "react"
+import { usePathname } from "next/navigation"
 import { useUserStore } from "@/store/userStore"
+import { ADMIN_MENU_ITEMS, type AdminPermissionKey } from "@/lib/admin-permissions"
 
 const AdminUserNav = dynamic(() => import("@/components/admin/AdminUserNav").then(mod => mod.AdminUserNav), { ssr: false })
+
+const ADMIN_MENU_ICONS: Record<AdminPermissionKey, typeof LayoutDashboard> = {
+    dashboard: LayoutDashboard,
+    lessons: GraduationCap,
+    practice: Target,
+    interview: Target,
+    vocabulary_vong2: BookOpen,
+    users: Users,
+    milestones: FileText,
+    categories: BookOpen,
+    question_bank: FileText,
+    ai_sync: BrainCircuit,
+    exams: FileText,
+    payments: CreditCard,
+    interview_access: KeyRound,
+    sepay_logs: ReceiptText,
+    payment_packages: Package,
+    settings: Settings,
+}
 
 export default function AdminLayout({
     children,
@@ -15,13 +36,31 @@ export default function AdminLayout({
 }) {
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [paymentAttentionCount, setPaymentAttentionCount] = useState(0)
+    const [adminPermissions, setAdminPermissions] = useState<AdminPermissionKey[]>(['dashboard'])
     const lastAttentionCheckRef = useRef(0)
-    const { role } = useUserStore()
+    const pathname = usePathname()
+    const { role, setRole } = useUserStore()
 
+    const isAdmin = role === 'admin'
     const isTeacher = role === 'teacher'
+    const visibleMenuItems = ADMIN_MENU_ITEMS.filter((item) => isAdmin || adminPermissions.includes(item.key))
+    const canViewPayments = isAdmin || adminPermissions.includes('payments')
 
     useEffect(() => {
-        if (isTeacher) return
+        let active = true
+        fetch('/api/admin/me/permissions', { cache: 'no-store' })
+            .then(async (response) => response.ok ? response.json() : null)
+            .then((data) => {
+                if (!active || !data) return
+                setRole(data.role)
+                setAdminPermissions(Array.isArray(data.permissions) ? data.permissions : ['dashboard'])
+            })
+            .catch(() => undefined)
+        return () => { active = false }
+    }, [setRole])
+
+    useEffect(() => {
+        if (!canViewPayments) return
 
         let active = true
         const loadAttentionCount = async (force = false) => {
@@ -56,7 +95,7 @@ export default function AdminLayout({
             window.removeEventListener('focus', handleWindowFocus)
             window.removeEventListener('admin-payment-attention-changed', handlePaymentChange)
         }
-    }, [isTeacher])
+    }, [canViewPayments])
 
     return (
         <div className="flex min-h-screen bg-gray-50/50">
@@ -87,7 +126,29 @@ export default function AdminLayout({
                         <X className="w-5 h-5" />
                     </button>
                 </div>
-                <nav className="p-4 space-y-1">
+                <nav className="space-y-1 p-4" aria-label="Chỉ mục quản trị được cấp quyền">
+                    {visibleMenuItems.map((item) => {
+                        const Icon = ADMIN_MENU_ICONS[item.key]
+                        const active = item.path === '/admin' ? pathname === item.path : pathname.startsWith(item.path)
+                        return (
+                            <Link
+                                key={item.key}
+                                href={item.path}
+                                className={`flex items-center rounded-lg px-4 py-3 transition-colors ${active ? 'bg-blue-50 font-semibold text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+                                onClick={() => setSidebarOpen(false)}
+                            >
+                                <Icon className="mr-3 size-5 shrink-0" aria-hidden="true" />
+                                <span className="min-w-0 flex-1">{item.label}</span>
+                                {item.key === 'payments' && paymentAttentionCount > 0 ? (
+                                    <span className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white">
+                                        {paymentAttentionCount > 99 ? '99+' : paymentAttentionCount}
+                                    </span>
+                                ) : null}
+                            </Link>
+                        )
+                    })}
+                </nav>
+                <nav className="hidden" aria-hidden="true">
                     <Link
                         href="/admin"
                         className="flex items-center px-4 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-100 transition-colors"

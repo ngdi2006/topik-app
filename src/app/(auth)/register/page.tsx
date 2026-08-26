@@ -23,11 +23,13 @@ function RegisterForm() {
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
+    const [isExistingAccount, setIsExistingAccount] = useState(false)
     const nextPath = sanitizeNextPath(searchParams.get('next'))
 
     const handleRegister = async (event: React.FormEvent) => {
         event.preventDefault()
         setErrorMessage(null)
+        setIsExistingAccount(false)
 
         if (password !== confirmPassword) {
             setErrorMessage('Mật khẩu xác nhận chưa khớp.')
@@ -48,6 +50,13 @@ function RegisterForm() {
 
         if (error) {
             setErrorMessage(getVietnameseAuthError(error.message))
+            setIsLoading(false)
+            return
+        }
+
+        if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+            setIsExistingAccount(true)
+            setErrorMessage('Email này có thể đã được đăng ký. Hãy đăng nhập hoặc lấy lại mật khẩu thay vì chờ email xác nhận.')
             setIsLoading(false)
             return
         }
@@ -114,6 +123,12 @@ function RegisterForm() {
                         <div className="space-y-1.5"><Label htmlFor="confirm-password">Xác nhận mật khẩu</Label><Input autoComplete="new-password" id="confirm-password" minLength={6} name="confirm-password" onChange={(event) => setConfirmPassword(event.target.value)} required type={showPassword ? 'text' : 'password'} value={confirmPassword} /></div>
 
                         {errorMessage ? <p aria-live="polite" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700" role="alert">{errorMessage}</p> : null}
+                        {isExistingAccount ? (
+                            <div className="grid grid-cols-2 gap-2">
+                                <Button asChild variant="outline"><Link href={`/login?next=${encodeURIComponent(nextPath)}`}>Đăng nhập</Link></Button>
+                                <Button asChild variant="outline"><Link href="/forgot-password">Quên mật khẩu</Link></Button>
+                            </div>
+                        ) : null}
                         <Button className="min-h-11 w-full font-bold" disabled={isLoading} type="submit">{isLoading ? <><Loader2 aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" />Đang tạo tài khoản…</> : 'Tạo tài khoản'}</Button>
                     </form>
                 </CardContent>

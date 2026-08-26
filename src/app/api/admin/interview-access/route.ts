@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { recordAdminUserActivity } from '@/lib/admin-user-audit'
 
 async function requireAdmin() {
   const supabase = await createClient()
@@ -86,6 +87,14 @@ export async function POST(request: Request) {
       p_notes: note || `Admin cấp thêm ${normalizedDays} ngày`,
     })
     if (error) throw error
+    await recordAdminUserActivity({
+      targetUserId: user_id,
+      actor,
+      actorRole: 'admin',
+      action: 'interview_access_granted',
+      label: `Kích hoạt/gia hạn gói Vòng 2 thêm ${normalizedDays} ngày`,
+      details: { days: normalizedDays, note: note || null },
+    })
     return NextResponse.json({ success: true, entitlement: data })
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Không thể kích hoạt' }, { status: 500 })
@@ -133,7 +142,17 @@ export async function PUT(request: Request) {
 
       for (const result of results) {
         if (result.error) errors.push({ userId: result.userId, message: result.error.message })
-        else entitlements.push(result.data)
+        else {
+          entitlements.push(result.data)
+          await recordAdminUserActivity({
+            targetUserId: result.userId,
+            actor,
+            actorRole: 'admin',
+            action: 'interview_access_granted',
+            label: `Kích hoạt/gia hạn gói Vòng 2 thêm ${normalizedDays} ngày`,
+            details: { days: normalizedDays, bulk: true, note: note || null },
+          })
+        }
       }
     }
 
@@ -198,6 +217,14 @@ export async function PATCH(request: Request) {
         metadata: { note: note || 'Admin hủy quyền truy cập' },
       })
       if (historyError) throw historyError
+      await recordAdminUserActivity({
+        targetUserId: user_id,
+        actor,
+        actorRole: 'admin',
+        action: 'interview_access_revoked',
+        label: 'Hủy quyền truy cập gói Vòng 2',
+        details: { note: note || null },
+      })
       return NextResponse.json({ success: true, entitlement: null })
     }
 
@@ -234,6 +261,15 @@ export async function PATCH(request: Request) {
       metadata: { note: note || 'Admin đặt lại ngày hết hạn' },
     })
     if (historyError) throw historyError
+
+    await recordAdminUserActivity({
+      targetUserId: user_id,
+      actor,
+      actorRole: 'admin',
+      action: 'interview_expiry_changed',
+      label: `Đổi hạn gói Vòng 2 đến ${targetExpiry.toLocaleDateString('vi-VN')}`,
+      details: { expiresAt: targetExpiry.toISOString(), note: note || null },
+    })
 
     return NextResponse.json({ success: true, entitlement })
   } catch (error: unknown) {

@@ -150,6 +150,46 @@ export async function POST(
             console.error('Analysis insert error:', analysisError)
         }
 
+        const completedAt = Date.now()
+        const startedAt = new Date(attempt.started_at || attempt.created_at || completedAt).getTime()
+        const questionEvents = questions.map((question: any) => {
+            const selectedOption = answersMap[question.id]
+            const wasAnswered = selectedOption !== undefined
+            return {
+                user_id: user.id,
+                event_name: wasAnswered ? 'question_answered' : 'question_skipped',
+                source: 'exam',
+                content_type: 'exam_question',
+                content_id: String(question.id),
+                session_id: attemptId,
+                is_correct: wasAnswered ? selectedOption === question.correct_answer : false,
+                metadata: {
+                    exam_id: params.id,
+                    category: question.category || question.section || null,
+                    question_text: String(question.question_text || question.content || '').slice(0, 240),
+                },
+            }
+        })
+        const { error: analyticsError } = await adminClient
+            .from('learning_analytics_events')
+            .insert([{
+                user_id: user.id,
+                event_name: 'exam_completed',
+                source: 'exam',
+                content_type: 'exam',
+                content_id: params.id,
+                session_id: attemptId,
+                duration_ms: Math.max(0, completedAt - startedAt),
+                metadata: {
+                    score: result.score,
+                    total_points: result.total_points,
+                    correct_count: result.correct_count,
+                    wrong_count: result.wrong_count,
+                    blank_count: result.blank_count,
+                },
+            }, ...questionEvents])
+        if (analyticsError) console.warn('Exam completion analytics unavailable:', analyticsError.message)
+
         return NextResponse.json({
             success: true,
             result: {

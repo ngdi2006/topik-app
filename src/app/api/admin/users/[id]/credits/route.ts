@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { recordAdminUserActivity } from '@/lib/admin-user-audit'
 
 type CreditAction = 'add' | 'deduct'
 
@@ -27,7 +28,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
             .eq('id', user.id)
             .single()
 
-        if (!profile || !['admin', 'teacher'].includes(profile.role)) {
+        if (!profile || !['admin', 'teacher', 'supporter'].includes(profile.role)) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
@@ -55,6 +56,15 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         if (fetchError) {
             return NextResponse.json({ error: fetchError.message }, { status: 500 })
         }
+
+        await recordAdminUserActivity({
+            targetUserId: userId,
+            actor: user,
+            actorRole: profile.role,
+            action: action === 'add' ? 'credits_added' : 'credits_deducted',
+            label: `${action === 'add' ? 'Cộng' : 'Trừ'} ${credits} lượt thi`,
+            details: { credits, notes: notes || null },
+        })
 
         return NextResponse.json({
             success: true,

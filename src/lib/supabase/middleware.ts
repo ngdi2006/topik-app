@@ -92,7 +92,8 @@ export async function updateSession(request: NextRequest) {
     }
 
     // Role-Based Access Control logic for admin pages and APIs.
-    const isAdminPage = request.nextUrl.pathname.startsWith('/admin')
+    const isAdminPage = request.nextUrl.pathname === '/admin'
+        || request.nextUrl.pathname.startsWith('/admin/')
     const isAdminApi = request.nextUrl.pathname.startsWith('/api/admin/')
     if (user && (isAdminPage || isAdminApi)) {
         try {

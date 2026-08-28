@@ -33,7 +33,14 @@ export function permissionsForRole(role: string | null | undefined, stored: unkn
 }
 
 export function permissionForPath(pathname: string): AdminPermissionKey | null {
-    if (pathname.startsWith('/api/admin/')) {
+    // Some proxies/CDNs preserve a trailing slash (for example `/admin/`).
+    // Normalize it before matching so the dashboard permission cannot redirect
+    // `/admin/` back to `/admin` forever.
+    const normalizedPathname = pathname.length > 1
+        ? pathname.replace(/\/+$/, '')
+        : pathname
+
+    if (normalizedPathname.startsWith('/api/admin/')) {
         const apiMappings: Array<[string, AdminPermissionKey]> = [
             ['/api/admin/me', 'dashboard'],
             ['/api/admin/users', 'users'],
@@ -52,10 +59,12 @@ export function permissionForPath(pathname: string): AdminPermissionKey | null {
             ['/api/admin/payment-packages', 'payment_packages'],
             ['/api/admin/settings', 'settings'],
         ]
-        return apiMappings.find(([prefix]) => pathname.startsWith(prefix))?.[1] || null
+        return apiMappings.find(([prefix]) => normalizedPathname.startsWith(prefix))?.[1] || null
     }
     const matches = ADMIN_MENU_ITEMS
-        .filter((item) => item.path === '/admin' ? pathname === '/admin' : pathname.startsWith(item.path))
+        .filter((item) => item.path === '/admin'
+            ? normalizedPathname === '/admin'
+            : normalizedPathname === item.path || normalizedPathname.startsWith(`${item.path}/`))
         .sort((a, b) => b.path.length - a.path.length)
     return matches[0]?.key || null
 }

@@ -54,6 +54,7 @@ type InitialInterviewQuestion = {
     tool_image_url?: string
     target_zone_id?: string
     tool_config?: ToolConfig | null
+    order_index?: number | null
 }
 
 interface InterviewQuestionFormProps {
@@ -70,7 +71,7 @@ const TOOL_OPTIONS = [
     { id: 'screwdriver', label: 'Tua vít thường', ko: '드라이버' },
     { id: 'allen_wrench', label: 'Cờ lê lục giác', ko: '육각 렌치' },
     { id: 'wrench', label: 'Cờ lê / Mỏ lết', ko: '스패너 / 렌치' },
-    { id: 'pliers', label: 'Kìm', ko: '펜치' },
+    { id: 'pliers', label: 'Kìm mỏ nhọn', ko: '플라이어' },
     { id: 'hammer', label: 'Búa', ko: '망치' },
     { id: 'saw', label: 'Cưa tay', ko: '톱' },
     { id: 'welder', label: 'Máy hàn', ko: '용접기' },
@@ -105,7 +106,6 @@ const ACTION_OPTIONS = [
     { id: 'push', label: 'Đặt vào / cất vào', ko: '넣다' },
     { id: 'pull', label: 'Kéo', ko: '당기다' }
 ]
-
 const TOOL_SELECT_OPTIONS = [
     ...TOOL_OPTIONS,
     ...TOOL_DEFINITIONS
@@ -156,7 +156,7 @@ const DEFAULT_TOOL_CONFIG: ToolConfig = {
     }
 }
 
-function buildToolConfig(config: ToolConfig, vietnameseInstruction: string): ToolConfig {
+function buildToolConfig(config: ToolConfig, vietnameseInstruction: string, questionText = ''): ToolConfig {
     const answerSteps: ToolAnswerStep[] = [{ step: 1, kind: 'tool', expected: config.correct_tool }]
 
     if (config.requires_target !== false) {
@@ -167,8 +167,23 @@ function buildToolConfig(config: ToolConfig, vietnameseInstruction: string): Too
         answerSteps.push({ step: config.requires_target === false ? 2 : 3, kind: 'action', expected: config.correct_action || '' })
     }
 
+    const toolDef = TOOL_SELECT_OPTIONS.find((item) => item.id === config.correct_tool)
+    const targetDef = TARGET_SELECT_OPTIONS.find((item) => item.id === config.target_object)
+    const actionDef = ACTION_SELECT_OPTIONS.find((item) => item.id === config.correct_action)
+
+    const updatedVocabulary: VocabularyItem[] = [
+        { term: toolDef?.ko || config.correct_tool, meaning: toolDef?.label || config.correct_tool, role: 'tool' },
+        config.requires_target !== false
+            ? { term: targetDef?.ko || config.target_object, meaning: targetDef?.label || config.target_object, role: 'target' }
+            : { term: '—', meaning: 'Không nêu trong câu', role: 'target' },
+        config.requires_action && actionDef
+            ? { term: actionDef.ko, meaning: actionDef.label, role: 'action' }
+            : { term: '정해진 곳에 넣다', meaning: 'Đặt/cất đúng vị trí', role: 'action' }
+    ]
+
     return {
         ...config,
+        vocabulary_analysis: updatedVocabulary,
         vietnamese_instruction: vietnameseInstruction,
         answer_steps: answerSteps,
         scoring: {
@@ -262,6 +277,7 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
     const [formData, setFormData] = useState({
         industry: initialData?.industry || 'Sản xuất chế tạo',
         category: initialData?.category || 'Khẩu lệnh',
+        order_index: initialData?.order_index ?? 0,
         question_text: initialData?.question_text || '',
         vietnamese_meaning: initialData?.vietnamese_meaning || '',
         question_audio_url: initialData?.question_audio_url || '',
@@ -296,6 +312,7 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
 
             const payload = {
                 ...formData,
+                order_index: parseInt(String(formData.order_index), 10) || 0,
                 suggested_answers: finalAnswers.length > 0 ? finalAnswers : null,
                 countdown_after_audio: parseInt(String(formData.countdown_after_audio)) || 0,
                 tool_config: isSubmittingToolCategory ? toolConfig : null
@@ -373,7 +390,7 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
 
     const isToolCategory = formData.category === CATEGORIES[3]
     return (
-        <div className="max-w-4xl mx-auto space-y-6 pb-20">
+        <div className="w-full space-y-6 pb-20">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={() => router.back()}>
@@ -387,7 +404,7 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-lg border shadow-sm">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="space-y-2">
                         <Label>Ngành nghề (Industry) *</Label>
                         <Select
@@ -423,6 +440,18 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
                     </div>
 
                     <div className="space-y-2">
+                        <Label>Thứ tự hiển thị (STT)</Label>
+                        <Input
+                            type="number"
+                            min="0"
+                            value={formData.order_index}
+                            onChange={(e) => setFormData({...formData, order_index: e.target.value === '' ? 0 : parseInt(e.target.value, 10) || 0})}
+                            placeholder="Vd: 1"
+                        />
+                        <p className="text-xs text-muted-foreground">Số nhỏ đứng trước (1, 2, 3...)</p>
+                    </div>
+
+                    <div className="space-y-2">
                         <Label>Thời gian suy nghĩ (giây) *</Label>
                         <Input
                             type="number"
@@ -431,15 +460,13 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
                             onChange={(e) => setFormData({...formData, countdown_after_audio: e.target.value})}
                             placeholder="Vd: 5"
                         />
-                        <p className="text-xs text-muted-foreground">Chỉ kích hoạt đếm ngược sau khi audio đã chạy xong.</p>
+                        <p className="text-xs text-muted-foreground">Đếm ngược sau khi audio xong.</p>
                     </div>
                 </div>
 
                 <div className="space-y-2">
                     <Label>Nội dung câu hỏi (Tiếng Hàn) *</Label>
                     <Textarea
-                        rows={3}
-                        value={formData.question_text}
                         onChange={(e) => setFormData({...formData, question_text: e.target.value})}
                         placeholder="Ví dụ: 이름이 무엇입니까?"
                     />

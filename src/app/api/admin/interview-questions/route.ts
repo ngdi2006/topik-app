@@ -15,13 +15,22 @@ export async function GET(request: Request) {
         const adminClient = createAdminClient()
 
         const allQuestions: unknown[] = []
+        let useOrderIndex = true
 
         for (let from = 0; ; from += SUPABASE_PAGE_SIZE) {
             let query = adminClient
                 .from('interview_questions')
                 .select('*')
-                .order('created_at', { ascending: false })
-                .range(from, from + SUPABASE_PAGE_SIZE - 1)
+
+            if (useOrderIndex) {
+                query = query
+                    .order('order_index', { ascending: true, nullsFirst: false })
+                    .order('created_at', { ascending: true })
+            } else {
+                query = query.order('created_at', { ascending: false })
+            }
+
+            query = query.range(from, from + SUPABASE_PAGE_SIZE - 1)
 
             if (category && category !== 'all') {
                 query = query.eq('category', category)
@@ -32,6 +41,12 @@ export async function GET(request: Request) {
             }
 
             const { data, error } = await query
+            if (error && useOrderIndex && (error.message?.includes('order_index') || error.code === '42703')) {
+                useOrderIndex = false
+                from = 0
+                allQuestions.length = 0
+                continue
+            }
             if (error) throw error
 
             const page = data || []
@@ -57,6 +72,10 @@ export async function POST(request: Request) {
         const body = await request.json()
         const adminClient = createAdminClient()
 
+        const orderIndex = typeof body.order_index === 'number'
+            ? body.order_index
+            : (body.order_index !== undefined && body.order_index !== null && body.order_index !== '' ? parseInt(String(body.order_index), 10) : 0)
+
         const { data, error } = await adminClient
             .from('interview_questions')
             .insert({
@@ -69,7 +88,8 @@ export async function POST(request: Request) {
                 countdown_after_audio: body.countdown_after_audio,
                 tool_image_url: body.tool_image_url,
                 target_zone_id: body.target_zone_id,
-                tool_config: body.tool_config
+                tool_config: body.tool_config,
+                order_index: isNaN(orderIndex) ? 0 : orderIndex
             })
             .select()
             .single()

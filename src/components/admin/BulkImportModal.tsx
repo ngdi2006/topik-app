@@ -31,6 +31,7 @@ type PreviewRow = {
     target_zone_id: string | null;
     tool_image_url: string | null; // Raw image name from Excel
     tool_config: ToolQuestionConfig | null;
+    order_index: number | null;
 
     imageFile?: File;
     previewImageUrl?: string;
@@ -169,6 +170,15 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
 
                 const vietnamese_meaning = cellText(row['Dịch nghĩa'] || row['vietnamese_meaning'])
                 const isToolQuestion = category === 'Sử dụng công cụ'
+                
+                const rawOrder = row['STT'] !== undefined ? row['STT'] : (row['Thứ tự'] !== undefined ? row['Thứ tự'] : row['order_index'])
+                let order_index: number | null = null
+                if (rawOrder !== undefined && rawOrder !== null && rawOrder !== '') {
+                    const parsedNum = parseInt(String(rawOrder), 10)
+                    if (Number.isFinite(parsedNum)) {
+                        order_index = parsedNum
+                    }
+                }
 
                 parsedRows.push({
                     originalIndex: index + 2, // +2 because Excel index usually excludes header (1) and array is 0-indexed
@@ -178,6 +188,7 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
                     category,
                     question_text,
                     vietnamese_meaning,
+                    order_index,
                     countdown_after_audio: parseInt(cellText(row['Giây đếm ngược'] || row['countdown_after_audio'] || '5'), 10),
                     question_audio_url: cellText(row['Link Audio'] || row['question_audio_url']) || null,
                     suggested_answers: parsedAnswers && parsedAnswers.length > 0 ? parsedAnswers : null,
@@ -242,7 +253,7 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
             setProgressStatus('Đang lưu dữ liệu vào hệ thống...')
             setProgressPercent(60)
 
-            const finalDataToInsert = validData.map(r => {
+            const finalDataToInsert = validData.map((r, index) => {
                 let finalUrl = r.tool_image_url
                 if (r.imageFile && uploadedUrls[r.imageFile.name]) {
                     finalUrl = uploadedUrls[r.imageFile.name]
@@ -259,6 +270,7 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
                     target_zone_id: r.target_zone_id,
                     tool_image_url: finalUrl,
                     tool_config: r.tool_config,
+                    order_index: r.order_index ?? (index + 1),
                 }
             })
 
@@ -410,6 +422,7 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
                                                 <thead className="text-xs text-slate-700 uppercase bg-slate-100 sticky top-0 z-10 shadow-sm">
                                                     <tr>
                                                         <th className="px-4 py-3 whitespace-nowrap">Dòng (Excel)</th>
+                                                        <th className="px-3 py-3 text-center whitespace-nowrap">STT</th>
                                                         <th className="px-4 py-3 min-w-[120px]">Trạng thái</th>
                                                         <th className="px-4 py-3 min-w-[120px]">Phân loại</th>
                                                         <th className="px-4 py-3">Câu hỏi</th>
@@ -420,6 +433,7 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImportModalP
                                                     {previewData.filter(d => d.industry === ind).map((row, i) => (
                                                         <tr key={i} className={`${!row.isValid ? 'bg-red-50/30' : 'hover:bg-slate-50'}`}>
                                                             <td className="px-4 py-3 font-medium text-slate-500">{row.originalIndex}</td>
+                                                            <td className="px-3 py-3 text-center font-bold text-slate-700">{row.order_index !== null ? row.order_index : `#${i + 1}`}</td>
                                                             <td className="px-4 py-3">
                                                                 {row.isValid ? (
                                                                     <span className="inline-flex items-center text-green-600 bg-green-100 px-2.5 py-0.5 rounded-full text-xs font-medium border border-green-200">

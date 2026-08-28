@@ -28,7 +28,6 @@ TOOL_IMAGE_BY_ID.set('control_panel', '/assets/workshop/tools/game-v2/control_pa
 TOOL_IMAGE_BY_ID.set('lathe_machine', '/assets/workshop/tools/game-v2/lathe_machine.png')
 TOOL_IMAGE_BY_ID.set('milling_machine', '/assets/workshop/tools/game-v2/milling_machine.png')
 TOOL_IMAGE_BY_ID.set('press_machine', '/assets/workshop/tools/game-v2/press_machine.png')
-TOOL_IMAGE_BY_ID.set('pliers', '/assets/workshop/tools/game-v2/06_kimbam_penchi.png')
 TOOL_IMAGE_BY_ID.set('lever', '/assets/workshop/details-v2/lever.png')
 
 const TOOL_ALIASES: Record<string, string> = {
@@ -50,6 +49,19 @@ const TOOL_ALIASES: Record<string, string> = {
 }
 
 const DETAIL_IMAGE_BY_ID: Record<string, string> = {
+    temperature_controller: 'temperature_controller.png',
+    pressure_regulator: 'pressure_regulator.png',
+    pressure_gauge: 'pressure_regulator.png',
+    wood_screw: 'phillips_screw.png',
+    screw: 'phillips_screw.png',
+    male_thread_bolt: 'male_thread_bolt.png',
+    female_thread_nut: 'female_thread_nut.png',
+    nut: 'female_thread_nut.png',
+    bolt: 'male_thread_bolt.png',
+    hex_nut: 'female_thread_nut.png',
+    welding_rod: 'welding_rod.png',
+    saw_blade: 'saw_blade.png',
+    cutting_blade_tool: 'saw_blade.png',
     nail: 'nail.png',
     hex_bolt: 'hex_bolt.png',
     phillips_screw: 'phillips_screw.png',
@@ -77,10 +89,10 @@ const DETAIL_IMAGE_BY_ID: Record<string, string> = {
     inclined_surface: '/assets/workshop/tools/game-v2/inclined_surface.png',
     machine_control: '/assets/workshop/tools/game-v2/control_panel.png',
     packaged_product: '/assets/workshop/tools/game-v2/packaged_product.png',
-    pressure_setting: '/assets/workshop/tools/game-v2/control_panel.png',
+    pressure_setting: '/assets/workshop/details-v2/pressure_regulator.png',
     raw_materials: '/assets/workshop/tools/game-v2/raw_materials.png',
     rusty_area: '/assets/workshop/tools/game-v2/rusty_area.png',
-    temperature_setting: '/assets/workshop/tools/game-v2/control_panel.png',
+    temperature_setting: '/assets/workshop/details-v2/temperature_controller.png',
     water_surface: '/assets/workshop/tools/game-v2/water_surface.png',
     work_area: '/assets/workshop/tools/game-v2/work_area.png',
     workpiece: 'workpiece.png',
@@ -107,7 +119,11 @@ const DETAIL_IMAGE_BY_ID: Record<string, string> = {
 
 export function getWorkshopToolImage(toolId?: string | null) {
     if (!toolId) return null
-    return TOOL_IMAGE_BY_ID.get(TOOL_ALIASES[toolId] || toolId) || null
+    const direct = TOOL_IMAGE_BY_ID.get(TOOL_ALIASES[toolId] || toolId)
+    if (direct) return direct
+    const detail = getWorkshopDetailImage(toolId)
+    if (detail) return detail
+    return null
 }
 
 export function getWorkshopDetailImage(targetId?: string | null) {

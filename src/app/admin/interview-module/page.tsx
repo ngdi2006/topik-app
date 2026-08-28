@@ -10,11 +10,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { Plus, Edit, Trash2, Search, Filter, Upload, Download, FileSpreadsheet, Save, X } from 'lucide-react'
+import { Plus, Edit, Trash2, Search, Filter, Upload, Download, FileSpreadsheet, Save, X, Users, History, CheckCircle2, Clock, CheckCircle } from 'lucide-react'
 import { BulkImportModal } from '@/components/admin/BulkImportModal'
+import { QuestionHistoryModal } from '@/components/admin/QuestionHistoryModal'
+import { TeacherAssignmentManagerModal } from '@/components/admin/TeacherAssignmentManagerModal'
 import { resolveToolQuestionConfig, getRequiredTargetForAction, definitionLabel, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type ToolQuestionConfig, type VocabularyItem } from '@/components/interview/toolQuestionAnalysis'
 import { legacyToolConfigToWorkshopGame } from '@/features/workshop'
 import { getWorkshopDetailImage, getWorkshopToolImage } from '@/components/interview/workshopVisualAssets'
+import { Badge } from '@/components/ui/badge'
 
 type InterviewQuestionRow = {
     id: string
@@ -32,6 +35,10 @@ type InterviewQuestionRow = {
     safety_topic_number?: number | null
     safety_topic_ko?: string | null
     safety_topic_vi?: string | null
+    order_index?: number | null
+    review_status?: string | null
+    reviewed_by?: string | null
+    reviewed_at?: string | null
 }
 
 const SAFETY_GROUP_LABELS: Record<string, string> = {
@@ -80,10 +87,15 @@ export default function InterviewModuleAdminPage() {
     const [loading, setLoading] = useState(true)
     const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(() => new Set())
     const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+    const [orderDrafts, setOrderDrafts] = useState<Record<string, string>>({})
+    const [, setSavingOrderId] = useState<string | null>(null)
     
     // Filters
     const [searchQuery, setSearchQuery] = useState('')
     const [filterCategory, setFilterCategory] = useState('Tất cả')
+    const [filterReviewStatus, setFilterReviewStatus] = useState<string>('all')
+    const [filterMyAssignedOnly, setFilterMyAssignedOnly] = useState(false)
+    const [myAssignments, setMyAssignments] = useState<any[]>([])
     
     const isRestoringListState = useRef(true)
     const hasRestoredScroll = useRef(false)
@@ -92,8 +104,11 @@ export default function InterviewModuleAdminPage() {
     const [inlineDraft, setInlineDraft] = useState<ToolQuestionConfig | null>(null)
     const [inlineSavingId, setInlineSavingId] = useState<string | null>(null)
 
-    // Import Modal state
+    // Modals state
     const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
+    const [historyModalQuestion, setHistoryModalQuestion] = useState<InterviewQuestionRow | null>(null)
+    const [verifyingId, setVerifyingId] = useState<string | null>(null)
 
     // Settings state
     const [aiPrompt, setAiPrompt] = useState('')
@@ -108,6 +123,69 @@ export default function InterviewModuleAdminPage() {
     const [activeIndustryTab, setActiveIndustryTab] = useState("Sản xuất chế tạo")
     const [savingSettings, setSavingSettings] = useState(false)
 
+    const categoriesList = useMemo(() => {
+        const set = new Set<string>()
+        questions.forEach((q) => {
+            if (q.category) set.add(q.category)
+        })
+        return Array.from(set)
+    }, [questions])
+
+    const handleQuickSaveOrder = async (id: string, newOrderVal: string | undefined) => {
+        if (newOrderVal === undefined) return
+        const orderNum = newOrderVal.trim() === '' ? 0 : parseInt(newOrderVal, 10)
+        if (isNaN(orderNum)) return
+
+        const currentQ = questions.find(q => q.id === id)
+        if (currentQ && (currentQ.order_index ?? 0) === orderNum) return
+
+        setSavingOrderId(id)
+        try {
+            const res = await fetch(`/api/admin/interview-questions/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order_index: orderNum })
+            })
+            const data = await res.json() as ApiResponse<unknown>
+            if (!data.success) throw new Error(data.error)
+
+            toast.success(`Đã cập nhật STT câu hỏi thành ${orderNum}`)
+            setQuestions(prev => {
+                const updated = prev.map(q => q.id === id ? { ...q, order_index: orderNum } : q)
+                return updated.sort((a, b) => {
+                    const orderA = a.order_index ?? 0
+                    const orderB = b.order_index ?? 0
+                    return orderA - orderB
+                })
+            })
+        } catch (error: unknown) {
+            toast.error(getErrorMessage(error, 'Lỗi khi cập nhật STT'))
+        } finally {
+            setSavingOrderId(null)
+        }
+    }
+
+    const handleToggleVerify = async (q: InterviewQuestionRow) => {
+        const newStatus = q.review_status === 'verified' ? 'pending' : 'verified'
+        setVerifyingId(q.id)
+        try {
+            const res = await fetch(`/api/admin/interview-questions/${q.id}/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            })
+            const payload = await res.json()
+            if (!res.ok || !payload.success) throw new Error(payload.error || 'Lỗi cập nhật trạng thái')
+
+            toast.success(newStatus === 'verified' ? 'Đã đánh dấu kiểm tra' : 'Đã chuyển về chờ duyệt')
+            setQuestions(prev => prev.map(item => item.id === q.id ? { ...item, review_status: newStatus } : item))
+        } catch (err: any) {
+            toast.error(err.message || 'Lỗi khi cập nhật trạng thái')
+        } finally {
+            setVerifyingId(null)
+        }
+    }
+
     const visibleQuestions = useMemo(() => {
         const normalizedQuery = searchQuery.trim().toLowerCase()
 
@@ -115,12 +193,30 @@ export default function InterviewModuleAdminPage() {
             .filter((question) =>
                 filterCategory === 'Tất cả' || question.category === filterCategory
             )
+            .filter((question) => {
+                if (filterReviewStatus === 'all') return true
+                if (filterReviewStatus === 'verified') return question.review_status === 'verified'
+                return !question.review_status || question.review_status === 'pending'
+            })
+            .filter((question) => {
+                if (!filterMyAssignedOnly || myAssignments.length === 0) return true
+                return myAssignments.some((assignment) => {
+                    if (assignment.category && question.category !== assignment.category) return false
+                    if (assignment.from_order_index !== null && assignment.from_order_index !== undefined) {
+                        if ((question.order_index ?? 0) < assignment.from_order_index) return false
+                    }
+                    if (assignment.to_order_index !== null && assignment.to_order_index !== undefined) {
+                        if ((question.order_index ?? 0) > assignment.to_order_index) return false
+                    }
+                    return true
+                })
+            })
             .filter((question) =>
                 !normalizedQuery
                 || question.question_text.toLowerCase().includes(normalizedQuery)
                 || question.vietnamese_meaning?.toLowerCase().includes(normalizedQuery)
             )
-    }, [filterCategory, questions, searchQuery])
+    }, [filterCategory, filterMyAssignedOnly, filterReviewStatus, myAssignments, questions, searchQuery])
 
     const allVisibleSelected = visibleQuestions.length > 0
         && visibleQuestions.every((question) => selectedQuestionIds.has(question.id))
@@ -128,6 +224,7 @@ export default function InterviewModuleAdminPage() {
     useEffect(() => {
         fetchQuestions()
         fetchSettings()
+        fetchAssignments()
     }, [])
 
     useEffect(() => {
@@ -162,6 +259,18 @@ export default function InterviewModuleAdminPage() {
             toast.error('Lỗi tải danh sách câu hỏi')
         } finally {
             setLoading(false)
+        }
+    }
+
+    const fetchAssignments = async () => {
+        try {
+            const res = await fetch('/api/admin/interview-assignments')
+            const data = await res.json()
+            if (data.success) {
+                setMyAssignments(data.data || [])
+            }
+        } catch {
+            // Non-blocking
         }
     }
 
@@ -212,30 +321,61 @@ export default function InterviewModuleAdminPage() {
             })
             const data = await res.json() as ApiResponse<unknown>
             if (!data.success) throw new Error(data.error)
-            toast.success('Đã xóa câu hỏi!', { id: toastId })
-            setSelectedQuestionIds((current) => {
-                const next = new Set(current)
+
+            toast.success('Xóa câu hỏi thành công', { id: toastId })
+            setQuestions(questions.filter(q => q.id !== id))
+            setSelectedQuestionIds((prev) => {
+                const next = new Set(prev)
                 next.delete(id)
                 return next
             })
-            fetchQuestions()
         } catch (error: unknown) {
-            toast.error(getErrorMessage(error, 'Lỗi khi xóa'), { id: toastId })
+            toast.error(getErrorMessage(error, 'Lỗi khi xóa câu hỏi'), { id: toastId })
+        }
+    }
+
+    const handleBulkDelete = async () => {
+        const count = selectedQuestionIds.size
+        if (count === 0) return
+        if (!confirm(`Bạn có chắc chắn muốn xóa ${count} câu hỏi đã chọn không?`)) return
+
+        setIsBulkDeleting(true)
+        const toastId = toast.loading(`Đang xoá ${count} câu hỏi...`)
+        try {
+            const idsToDelete = Array.from(selectedQuestionIds)
+            const res = await fetch('/api/admin/interview-questions/bulk-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: idsToDelete })
+            })
+            const data = await res.json() as ApiResponse<unknown>
+            if (!data.success) throw new Error(data.error)
+
+            toast.success(`Đã xoá thành công ${count} câu hỏi`, { id: toastId })
+            setQuestions(prev => prev.filter(q => !selectedQuestionIds.has(q.id)))
+            setSelectedQuestionIds(new Set())
+        } catch (error: unknown) {
+            toast.error(getErrorMessage(error, 'Lỗi khi xoá hàng loạt'), { id: toastId })
+        } finally {
+            setIsBulkDeleting(false)
         }
     }
 
     const toggleQuestionSelection = (id: string) => {
-        setSelectedQuestionIds((current) => {
-            const next = new Set(current)
-            if (next.has(id)) next.delete(id)
-            else next.add(id)
+        setSelectedQuestionIds((prev) => {
+            const next = new Set(prev)
+            if (next.has(id)) {
+                next.delete(id)
+            } else {
+                next.add(id)
+            }
             return next
         })
     }
 
     const toggleAllVisibleQuestions = () => {
-        setSelectedQuestionIds((current) => {
-            const next = new Set(current)
+        setSelectedQuestionIds((prev) => {
+            const next = new Set(prev)
             if (allVisibleSelected) {
                 visibleQuestions.forEach((question) => next.delete(question.id))
             } else {
@@ -245,31 +385,12 @@ export default function InterviewModuleAdminPage() {
         })
     }
 
-    const handleBulkDelete = async () => {
-        const ids = Array.from(selectedQuestionIds)
-        if (ids.length === 0) return
-        if (!window.confirm(`Bạn có chắc muốn xoá ${ids.length} câu hỏi đã chọn? Thao tác này không thể hoàn tác.`)) return
-
-        setIsBulkDeleting(true)
-        const toastId = toast.loading(`Đang xoá ${ids.length} câu hỏi…`)
-        try {
-            const res = await fetch('/api/admin/interview-questions', {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ids }),
-            })
-            const data = await res.json() as ApiResponse<{ deleted: number }>
-            if (!res.ok || !data.success) throw new Error(data.error)
-
-            setQuestions((current) => current.filter((question) => !selectedQuestionIds.has(question.id)))
-            setSelectedQuestionIds(new Set())
-            toast.success(`Đã xoá ${data.data?.deleted ?? ids.length} câu hỏi.`, { id: toastId })
-        } catch (error: unknown) {
-            toast.error(getErrorMessage(error, 'Không thể xoá các câu hỏi đã chọn'), { id: toastId })
-            await fetchQuestions()
-        } finally {
-            setIsBulkDeleting(false)
-        }
+    const rememberListPosition = () => {
+        sessionStorage.setItem(LIST_STATE_KEY, JSON.stringify({
+            searchQuery,
+            filterCategory,
+            scrollY: window.scrollY,
+        }))
     }
 
     const getToolAnalysisSummary = (q: InterviewQuestionRow) => {
@@ -283,18 +404,10 @@ export default function InterviewModuleAdminPage() {
         }
     }
 
-    const rememberListPosition = () => {
-        sessionStorage.setItem(LIST_STATE_KEY, JSON.stringify({ searchQuery, filterCategory, scrollY: window.scrollY }))
-    }
-
-    const openInlineAnswerEditor = (question: InterviewQuestionRow) => {
-        const config = resolveToolQuestionConfig(
-            question.question_text || '',
-            question.vietnamese_meaning || '',
-            question.tool_config,
-        )
-        setInlineEditingId(question.id)
-        setInlineDraft(config)
+    const openInlineAnswerEditor = (q: InterviewQuestionRow) => {
+        const resolved = resolveToolQuestionConfig(q.question_text || '', q.vietnamese_meaning || '', q.tool_config)
+        setInlineEditingId(q.id)
+        setInlineDraft(resolved)
     }
 
     const closeInlineAnswerEditor = () => {
@@ -305,11 +418,18 @@ export default function InterviewModuleAdminPage() {
     const updateInlineDraft = (patch: Partial<ToolQuestionConfig>) => {
         setInlineDraft((current) => {
             if (!current) return current
-            const next = { ...current, ...patch }
-            const requiredTarget = getRequiredTargetForAction(next.correct_action)
-            return requiredTarget
-                ? { ...next, requires_target: true, target_object: next.requires_target === false ? requiredTarget : next.target_object || requiredTarget }
-                : next
+            const nextDraft = {
+                ...current,
+                ...patch,
+            }
+            if (patch.correct_action !== undefined) {
+                const autoTarget = getRequiredTargetForAction(patch.correct_action)
+                if (autoTarget) {
+                    nextDraft.requires_target = true
+                    nextDraft.target_object = autoTarget
+                }
+            }
+            return nextDraft
         })
     }
 
@@ -327,8 +447,23 @@ export default function InterviewModuleAdminPage() {
             if (inlineDraft.requires_action) {
                 answerSteps.push({ step: inlineDraft.requires_target === false ? 2 : 3, kind: 'action', expected: inlineDraft.correct_action || '' })
             }
+
+            const toolDef = TOOL_DEFINITIONS.find((item) => item.id === inlineDraft.correct_tool)
+            const targetDef = TARGET_DEFINITIONS.find((item) => item.id === inlineDraft.target_object)
+            const actionDef = ACTION_DEFINITIONS.find((item) => item.id === inlineDraft.correct_action)
+            const updatedVocabulary: VocabularyItem[] = [
+                { term: toolDef ? (toolDef.patterns.map((p) => question.question_text?.match(p)?.[0]).find(Boolean) || toolDef.ko) : inlineDraft.correct_tool, meaning: toolDef?.label || inlineDraft.correct_tool, role: 'tool' },
+                inlineDraft.requires_target !== false
+                    ? { term: targetDef ? (targetDef.patterns.map((p) => question.question_text?.match(p)?.[0]).find(Boolean) || targetDef.ko) : inlineDraft.target_object, meaning: targetDef?.label || inlineDraft.target_object, role: 'target' }
+                    : { term: '—', meaning: 'Không nêu trong câu', role: 'target' },
+                inlineDraft.requires_action && actionDef
+                    ? { term: actionDef.patterns.map((p) => question.question_text?.match(p)?.[0]).find(Boolean) || actionDef.ko, meaning: actionDef.label, role: 'action' }
+                    : { term: '정해진 곳에 넣다', meaning: 'Đặt/cất đúng vị trí', role: 'action' }
+            ]
+
             const updatedConfig: ToolQuestionConfig = {
                 ...inlineDraft,
+                vocabulary_analysis: updatedVocabulary,
                 answer_steps: answerSteps,
                 scoring: {
                     tool: 1,
@@ -354,6 +489,7 @@ export default function InterviewModuleAdminPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...question,
+                    is_quick_edit: true,
                     suggested_answers: [generatedAnswer, ...existingAnswers.slice(1)],
                     tool_config: updatedConfig,
                 }),
@@ -373,194 +509,104 @@ export default function InterviewModuleAdminPage() {
     const handleDownloadTemplate = () => {
         const templateData = [
             {
-                "Ngành nghề": "MANUFACTURING",
-                "Phân loại": "Khẩu lệnh",
-                "Câu hỏi": "위를 보세요.",
-                "Dịch nghĩa": "Hãy nhìn lên trên.",
-                "Giây đếm ngược": 5,
-                "Link Audio": "",
-                "Gợi ý trả lời": "네, 알겠습니다|네",
-                "Tên File Ảnh": "",
-                "ID Ô thả": ""
-            },
-            {
-                "Ngành nghề": "FISHERY",
-                "Phân loại": "Sử dụng công cụ",
-                "Câu hỏi": "망치를 오른쪽 아래 선반에 넣으세요.",
-                "Dịch nghĩa": "Hãy đặt búa vào kệ dưới bên phải.",
-                "Giây đếm ngược": 15,
-                "Link Audio": "",
-                "Gợi ý trả lời": "",
-                "Tên File Ảnh": "hammer.png",
-                "ID Ô thả": "shelf_bottom_right"
-            },
-            {
-                "Ngành nghề": "COMMON",
-                "Phân loại": "Khẩu lệnh",
-                "Câu hỏi": "앞으로 가세요.",
-                "Dịch nghĩa": "Đi về phía trước.",
-                "Giây đếm ngược": 5,
-                "Link Audio": "",
-                "Gợi ý trả lời": "네, 알겠습니다|네",
-                "Tên File Ảnh": "",
-                "ID Ô thả": ""
+                'STT': 1,
+                'Ngành nghề': 'Sản xuất chế tạo',
+                'Phân loại': 'Sử dụng công cụ',
+                'Câu hỏi (Tiếng Hàn)': '드라이버로 나사를 조이세요.',
+                'Dịch nghĩa (Tiếng Việt)': 'Hãy dùng tua vít để vặn ốc.',
+                'Gợi ý câu trả lời': '네, 드라이버로 나사를 조이겠습니다.',
+                'Thời gian chờ (giây)': 10,
+                'Tên file âm thanh': 'audio_1.mp3',
+                'Tên file ảnh': 'driver_screw.png',
+                'Vùng thao tác (ID)': 'zone_table_1'
             }
         ]
-        
+
         const ws = XLSX.utils.json_to_sheet(templateData)
-        ws['!cols'] = [
-            { wch: 18 }, // Ngành nghề
-            { wch: 15 }, // Phân loại
-            { wch: 30 }, // Câu hỏi
-            { wch: 30 }, // Dịch nghĩa
-            { wch: 15 }, // Giây đếm ngược
-            { wch: 20 }, // Link Audio
-            { wch: 25 }, // Gợi ý trả lời
-            { wch: 20 }, // Tên File Ảnh
-            { wch: 15 }  // ID Ô thả
-        ];
-
-        const guideData = [
-            ['HƯỚNG DẪN NHẬP DỮ LIỆU CÂU HỎI PHỎNG VẤN VÒNG 2'],
-            [],
-            ['1. CỘT "Ngành nghề" (Bắt buộc)'],
-            ['Nhập 1 trong các mã sau viết hoa:'],
-            ['MANUFACTURING', 'Sản xuất chế tạo'],
-            ['FISHERY', 'Ngư nghiệp'],
-            ['AGRICULTURE', 'Nông nghiệp'],
-            ['FORESTRY', 'Lâm nghiệp'],
-            ['SERVICE', 'Dịch vụ'],
-            ['CONSTRUCTION', 'Xây dựng'],
-            ['COMMON', 'Chung (Tất cả ngành)'],
-            [],
-            ['2. CỘT "Phân loại" (Bắt buộc)'],
-            ['Nhập 1 trong các mục sau:'],
-            ['Khẩu lệnh', 'Giao tiếp', 'Toán học', 'Sử dụng công cụ', 'Xử lý tình huống', 'An toàn lao động'],
-            [],
-            ['* LƯU Ý ĐỐI VỚI KHẨU LỆNH CHUNG:'],
-            ['Để nhập khẩu lệnh dùng chung cho tất cả ngành, bạn vui lòng điền:'],
-            [' - Cột "Ngành nghề":', 'COMMON'],
-            [' - Cột "Phân loại":', 'Khẩu lệnh'],
-            [],
-            ['3. CÁC CỘT KHÁC'],
-            ['Gợi ý trả lời', 'Phân cách các câu bằng dấu gạch đứng | (Ví dụ: 네|알겠습니다)'],
-            ['ID Ô thả', 'Chỉ dùng cho Phân loại "Sử dụng công cụ" (vd: shelf_bottom_right, box_1, v.v...)'],
-            ['Tên File Ảnh', 'Tên file (vd: hammer.png) nếu nén cùng file ZIP, hoặc link http'],
-            ['Link Audio', 'Link http đến file âm thanh nếu có (hoặc để trống hệ thống tự đọc AI)']
-        ];
-        const wsGuide = XLSX.utils.aoa_to_sheet(guideData);
-        wsGuide['!cols'] = [{ wch: 25 }, { wch: 80 }];
-
         const wb = XLSX.utils.book_new()
-        XLSX.utils.book_append_sheet(wb, wsGuide, "Hướng dẫn")
-        XLSX.utils.book_append_sheet(wb, ws, "Template")
-        XLSX.writeFile(wb, "Template_Phong_Van_Vong_2.xlsx")
+        XLSX.utils.book_append_sheet(wb, ws, 'Template')
+        XLSX.writeFile(wb, 'Mau_Import_Cau_Hoi_Phong_Van.xlsx')
     }
 
     const handleExportExcel = () => {
-        const selectedRows = selectedQuestionIds.size > 0
-            ? questions.filter((question) => selectedQuestionIds.has(question.id))
+        const exportSource = selectedQuestionIds.size > 0
+            ? visibleQuestions.filter(q => selectedQuestionIds.has(q.id))
             : visibleQuestions
 
-        if (selectedRows.length === 0) {
-            toast.error('Không có dữ liệu để xuất')
+        if (exportSource.length === 0) {
+            toast.error('Không có câu hỏi nào để xuất Excel')
             return
         }
 
-        const exportRows = selectedRows.map((question, index) => {
-            const resolvedToolConfig = question.category === 'Sử dụng công cụ'
-                ? resolveToolQuestionConfig(question.question_text, question.vietnamese_meaning || '', question.tool_config)
-                : null
-            const suggestedAnswers = Array.isArray(question.suggested_answers)
-                ? question.suggested_answers.join('|')
-                : question.suggested_answers || ''
+        const dataToExport = exportSource.map((q, idx) => {
+            const suggestedAnswersStr = Array.isArray(q.suggested_answers) 
+                ? q.suggested_answers.join('\n') 
+                : (q.suggested_answers || '')
 
             return {
-                'STT': index + 1,
-                'ID': question.id,
-                'Ngành nghề': question.industry || 'COMMON',
-                'Phân loại': question.category,
-                'Câu hỏi': question.question_text,
-                'Dịch nghĩa': question.vietnamese_meaning || '',
-                'Giây đếm ngược': question.countdown_after_audio ?? '',
-                'Link Audio': question.question_audio_url || '',
-                'Gợi ý trả lời': suggestedAnswers,
-                'Tên File Ảnh': question.tool_image_url || '',
-                'ID Ô thả': question.target_zone_id || '',
-                'Công cụ chính xác': resolvedToolConfig
-                    ? definitionLabel(TOOL_DEFINITIONS, resolvedToolConfig.correct_tool)
-                    : '',
-                'Mã công cụ': resolvedToolConfig?.correct_tool || '',
-                'Vật thể/Vật tư': resolvedToolConfig
-                    ? definitionLabel(TARGET_DEFINITIONS, resolvedToolConfig.target_object)
-                    : '',
-                'Mã vật thể': resolvedToolConfig?.target_object || '',
-                'Thao tác': resolvedToolConfig?.requires_action
-                    ? definitionLabel(ACTION_DEFINITIONS, resolvedToolConfig.correct_action || '')
-                    : '',
-                'Mã thao tác': resolvedToolConfig?.correct_action || '',
-                'Cấu hình công cụ (JSON)': resolvedToolConfig ? JSON.stringify(resolvedToolConfig) : ''
+                'STT': q.order_index !== null && q.order_index !== undefined ? q.order_index : idx + 1,
+                'Ngành nghề': q.industry || 'Sản xuất chế tạo',
+                'Phân loại': q.category || '',
+                'Câu hỏi (Tiếng Hàn)': q.question_text || '',
+                'Dịch nghĩa (Tiếng Việt)': q.vietnamese_meaning || '',
+                'Gợi ý câu trả lời': suggestedAnswersStr,
+                'Thời gian chờ (giây)': q.countdown_after_audio || 0,
+                'Tên file âm thanh': q.question_audio_url || '',
+                'Tên file ảnh': q.tool_image_url || '',
+                'Vùng thao tác (ID)': q.target_zone_id || '',
+                'Trạng thái duyệt': q.review_status === 'verified' ? 'Đã kiểm tra' : 'Chờ duyệt'
             }
         })
 
-        const worksheet = XLSX.utils.json_to_sheet(exportRows)
-        worksheet['!cols'] = [
-            { wch: 7 }, { wch: 38 }, { wch: 20 }, { wch: 20 }, { wch: 48 }, { wch: 48 },
-            { wch: 16 }, { wch: 42 }, { wch: 36 }, { wch: 36 }, { wch: 22 }, { wch: 24 },
-            { wch: 22 }, { wch: 24 }, { wch: 22 }, { wch: 24 }, { wch: 22 }, { wch: 80 }
-        ]
-        worksheet['!autofilter'] = { ref: worksheet['!ref'] || 'A1:R1' }
-
-        const summary = XLSX.utils.aoa_to_sheet([
-            ['BÁO CÁO DỮ LIỆU PHỎNG VẤN VÒNG 2'],
-            ['Thời gian xuất', new Date().toLocaleString('vi-VN')],
-            ['Bộ lọc', filterCategory],
-            ['Từ khóa', searchQuery || 'Không có'],
-            ['Số bản ghi', selectedRows.length],
-            ['Phạm vi', selectedQuestionIds.size > 0 ? 'Các câu đã chọn' : 'Danh sách đang hiển thị']
-        ])
-        summary['!cols'] = [{ wch: 24 }, { wch: 55 }]
-
-        const workbook = XLSX.utils.book_new()
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Danh sách câu hỏi')
-        XLSX.utils.book_append_sheet(workbook, summary, 'Thông tin xuất')
-
-        const date = new Date().toISOString().slice(0, 10)
-        const categorySlug = filterCategory === 'Tất cả'
-            ? 'Tat-ca'
-            : filterCategory.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/\s+/g, '-')
-        XLSX.writeFile(workbook, `Phong_Van_Vong_2_${categorySlug}_${date}.xlsx`)
-        toast.success(`Đã xuất ${selectedRows.length} câu hỏi ra Excel`)
+        const ws = XLSX.utils.json_to_sheet(dataToExport)
+        const wb = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(wb, ws, 'Danh sách câu hỏi')
+        
+        const timestamp = new Date().toISOString().slice(0, 10)
+        XLSX.writeFile(wb, `Danh_Sach_Cau_Hoi_Phong_Van_${timestamp}.xlsx`)
+        toast.success(`Đã xuất thành công ${dataToExport.length} câu hỏi ra Excel!`)
     }
 
     return (
-        <div className="max-w-6xl mx-auto space-y-6">
-            <div>
-                <h2 className="text-2xl font-bold">Luyện Phỏng Vấn Vòng 2</h2>
-                <p className="text-muted-foreground">Quản lý câu hỏi và cấu hình AI chấm điểm</p>
+        <div className="p-6 space-y-6 w-full max-w-full">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-4">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">Luyện Phỏng Vấn Vòng 2</h1>
+                    <p className="text-sm text-slate-500">Quản lý câu hỏi, phân công giáo viên rà soát và cấu hình AI chấm điểm</p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Button 
+                        variant="outline" 
+                        onClick={() => setIsAssignModalOpen(true)}
+                        className="border-blue-200 text-blue-700 hover:bg-blue-50 font-semibold"
+                    >
+                        <Users className="w-4 h-4 mr-2 text-blue-600" />
+                        Phân công giáo viên
+                    </Button>
+                </div>
             </div>
 
-            <Tabs defaultValue="questions" className="w-full">
-                <TabsList className="mb-4">
+            <Tabs defaultValue="questions" className="space-y-4">
+                <TabsList>
                     <TabsTrigger value="questions">Danh sách câu hỏi</TabsTrigger>
                     <TabsTrigger value="settings">Cấu hình AI (Theo ngành)</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="questions" className="space-y-4">
-                    <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-lg border">
-                        <div className="flex flex-1 items-center gap-4 w-full md:w-auto">
-                            <div className="relative flex-1 max-w-sm">
+                    <div className="flex flex-col lg:flex-row gap-4 justify-between items-stretch lg:items-center bg-white p-4 rounded-lg border">
+                        <div className="flex flex-1 flex-wrap items-center gap-3 w-full lg:w-auto">
+                            <div className="relative flex-1 min-w-[200px] max-w-sm">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
                                 <Input
                                     placeholder="Tìm câu hỏi..."
-                                    className="pl-9"
+                                    className="pl-9 text-xs"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
                             <Select value={filterCategory} onValueChange={setFilterCategory}>
-                                <SelectTrigger className="w-[180px]">
-                                    <Filter className="w-4 h-4 mr-2 text-gray-500" />
+                                <SelectTrigger className="w-[160px] text-xs">
+                                    <Filter className="w-3.5 h-3.5 mr-1.5 text-gray-500" />
                                     <SelectValue placeholder="Phân loại" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -573,22 +619,46 @@ export default function InterviewModuleAdminPage() {
                                     <SelectItem value="An toàn lao động">An toàn lao động</SelectItem>
                                 </SelectContent>
                             </Select>
+
+                            <Select value={filterReviewStatus} onValueChange={setFilterReviewStatus}>
+                                <SelectTrigger className="w-[150px] text-xs">
+                                    <SelectValue placeholder="Trạng thái duyệt" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                                    <SelectItem value="pending">⏳ Chờ duyệt</SelectItem>
+                                    <SelectItem value="verified">✓ Đã kiểm tra</SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            {myAssignments.length > 0 && (
+                                <Button
+                                    variant={filterMyAssignedOnly ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setFilterMyAssignedOnly(!filterMyAssignedOnly)}
+                                    className={`text-xs h-9 ${filterMyAssignedOnly ? 'bg-blue-600 text-white' : 'text-blue-700 border-blue-200 bg-blue-50/50'}`}
+                                >
+                                    <CheckCircle className="size-3.5 mr-1.5" />
+                                    Nhiệm vụ của tôi ({myAssignments.length})
+                                </Button>
+                            )}
                         </div>
-                        <div className="flex gap-2 w-full md:w-auto shrink-0 flex-wrap justify-end">
-                            <Button variant="outline" onClick={handleExportExcel} className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800">
-                                <FileSpreadsheet className="w-4 h-4 mr-2" />
+
+                        <div className="flex gap-2 w-full lg:w-auto shrink-0 flex-wrap justify-end">
+                            <Button variant="outline" size="sm" onClick={handleExportExcel} className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 text-xs">
+                                <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" />
                                 Xuất Excel{selectedQuestionIds.size > 0 ? ` (${selectedQuestionIds.size})` : ''}
                             </Button>
-                            <Button variant="outline" onClick={handleDownloadTemplate}>
-                                <Download className="w-4 h-4 mr-2" />
+                            <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="text-xs">
+                                <Download className="w-3.5 h-3.5 mr-1.5" />
                                 Mẫu Excel
                             </Button>
-                            <Button variant="secondary" onClick={() => setIsImportModalOpen(true)} className="whitespace-nowrap">
-                                <Upload className="w-4 h-4 mr-2" />
+                            <Button variant="secondary" size="sm" onClick={() => setIsImportModalOpen(true)} className="whitespace-nowrap text-xs">
+                                <Upload className="w-3.5 h-3.5 mr-1.5" />
                                 Import Excel (+ Zip Ảnh)
                             </Button>
-                            <Button onClick={() => router.push('/admin/interview-module/create')}>
-                                <Plus className="w-4 h-4 mr-2" />
+                            <Button size="sm" onClick={() => router.push('/admin/interview-module/create')} className="bg-blue-600 hover:bg-blue-700 text-xs">
+                                <Plus className="w-3.5 h-3.5 mr-1.5" />
                                 Thêm câu hỏi
                             </Button>
                         </div>
@@ -600,6 +670,14 @@ export default function InterviewModuleAdminPage() {
                                 <span className="font-semibold text-slate-700">
                                     {filterCategory === 'Tất cả' ? 'Tất cả câu hỏi' : filterCategory}
                                 </span>
+                                {filterMyAssignedOnly && (
+                                    <Badge className="bg-blue-600 text-white text-xs">Đang lọc theo phân công</Badge>
+                                )}
+                                {filterReviewStatus !== 'all' && (
+                                    <Badge variant="outline" className="bg-white text-xs">
+                                        {filterReviewStatus === 'verified' ? 'Đã kiểm tra' : 'Chờ duyệt'}
+                                    </Badge>
+                                )}
                                 {selectedQuestionIds.size > 0 ? (
                                     <span className="rounded-full bg-blue-700 px-2.5 py-1 text-xs font-bold text-white">
                                         Đã chọn {selectedQuestionIds.size}
@@ -614,11 +692,11 @@ export default function InterviewModuleAdminPage() {
                                         onClick={handleBulkDelete}
                                         size="sm"
                                     >
-                                        <Trash2 aria-hidden="true" className="size-3.5" />
+                                        <Trash2 aria-hidden="true" className="size-3.5 mr-1" />
                                         {isBulkDeleting ? 'Đang xoá…' : `Xoá ${selectedQuestionIds.size} câu`}
                                     </Button>
                                 ) : null}
-                                <span className="rounded-full bg-white px-3 py-1 font-bold text-blue-700 shadow-sm ring-1 ring-blue-100">
+                                <span className="rounded-full bg-white px-3 py-1 font-bold text-blue-700 shadow-sm ring-1 ring-blue-100 text-xs">
                                     Hiển thị {visibleQuestions.length} / {questions.length} câu
                                 </span>
                             </div>
@@ -626,7 +704,7 @@ export default function InterviewModuleAdminPage() {
                     ) : null}
 
                     {loading ? (
-                        <div className="text-center py-10">Đang tải...</div>
+                        <div className="text-center py-10 text-slate-500 text-sm">Đang tải danh sách câu hỏi...</div>
                     ) : (
                         <div className="bg-white rounded-lg border overflow-hidden">
                             <table className="w-full text-sm text-left">
@@ -641,125 +719,183 @@ export default function InterviewModuleAdminPage() {
                                                 type="checkbox"
                                             />
                                         </th>
-                                        <th className="px-6 py-3 font-semibold text-gray-600">Ngành nghề / Phân loại</th>
+                                        <th className="w-20 px-2 py-3 font-semibold text-gray-600 text-center">STT</th>
+                                        <th className="px-4 py-3 font-semibold text-gray-600">Ngành / Phân loại</th>
                                         <th className="px-6 py-3 font-semibold text-gray-600">Câu hỏi (Tiếng Hàn)</th>
-                                        <th className="px-6 py-3 font-semibold text-gray-600 text-right">Thao tác</th>
+                                        <th className="w-32 px-3 py-3 font-semibold text-gray-600 text-center">Rà soát</th>
+                                        <th className="px-4 py-3 font-semibold text-gray-600 text-right">Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
-                                    {visibleQuestions.map((q) => (
-                                        <tr
-                                            key={q.id}
-                                            className={`${selectedQuestionIds.has(q.id) ? 'bg-blue-50/70' : 'hover:bg-gray-50'} [content-visibility:auto] [contain-intrinsic-size:auto_72px]`}
-                                        >
-                                            <td className="px-4 py-4 text-center align-top">
-                                                <input
-                                                    aria-label={`Chọn câu hỏi ${q.question_text}`}
-                                                    checked={selectedQuestionIds.has(q.id)}
-                                                    className="size-4 cursor-pointer rounded border-gray-300 accent-blue-600"
-                                                    onChange={() => toggleQuestionSelection(q.id)}
-                                                    type="checkbox"
-                                                />
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex flex-col gap-1 items-start">
-                                                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-                                                        {q.industry || 'Sản xuất chế tạo'}
-                                                    </span>
-                                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                                                        {q.category}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="font-medium">{q.question_text}</div>
-                                                <div className="text-gray-500 text-xs mt-1 line-clamp-1">{q.vietnamese_meaning}</div>
-                                                {getToolAnalysisSummary(q) && (
-                                                    <div className="mt-2 rounded-md border border-orange-100 bg-orange-50 px-2 py-1.5 text-xs text-orange-900">
-                                                        <div className="flex flex-wrap items-start justify-between gap-2">
-                                                            <div className="font-medium">
-                                                                Công cụ: {getToolAnalysisSummary(q)?.tool} | Vật thể: {getToolAnalysisSummary(q)?.target} | Thao tác: {getToolAnalysisSummary(q)?.action}
+                                    {visibleQuestions.map((q, idx) => {
+                                        const isVerified = q.review_status === 'verified'
+                                        const isVerifyingThis = verifyingId === q.id
+
+                                        return (
+                                            <tr
+                                                key={q.id}
+                                                className={`${selectedQuestionIds.has(q.id) ? 'bg-blue-50/70' : 'hover:bg-gray-50'} [content-visibility:auto] [contain-intrinsic-size:auto_72px]`}
+                                            >
+                                                <td className="px-4 py-4 text-center align-top">
+                                                    <input
+                                                        aria-label={`Chọn câu hỏi ${q.question_text}`}
+                                                        checked={selectedQuestionIds.has(q.id)}
+                                                        className="size-4 cursor-pointer rounded border-gray-300 accent-blue-600"
+                                                        onChange={() => toggleQuestionSelection(q.id)}
+                                                        type="checkbox"
+                                                    />
+                                                </td>
+                                                <td className="px-2 py-4 text-center align-top whitespace-nowrap">
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            className="w-16 h-8 text-center text-xs font-bold text-slate-800 bg-white hover:bg-slate-50 focus:bg-white border border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded px-1 transition-all shadow-xs"
+                                                            value={orderDrafts[q.id] !== undefined ? orderDrafts[q.id] : (q.order_index ?? '')}
+                                                            onChange={(e) => setOrderDrafts(prev => ({ ...prev, [q.id]: e.target.value }))}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.currentTarget.blur()
+                                                                }
+                                                            }}
+                                                            onBlur={() => handleQuickSaveOrder(q.id, orderDrafts[q.id])}
+                                                            title="Nhập số thứ tự và nhấn Enter hoặc click ra ngoài để lưu"
+                                                        />
+                                                        <span className="text-[10px] text-slate-400 font-medium" title="Vị trí hiển thị">#{idx + 1}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap align-top">
+                                                    <div className="flex flex-col gap-1 items-start">
+                                                        <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-[11px] font-medium">
+                                                            {q.industry || 'Sản xuất chế tạo'}
+                                                        </span>
+                                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-[11px] font-medium">
+                                                            {q.category}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="font-medium">{q.question_text}</div>
+                                                    <div className="text-gray-500 text-xs mt-1 line-clamp-1">{q.vietnamese_meaning}</div>
+                                                    {getToolAnalysisSummary(q) && (
+                                                        <div className="mt-2 rounded-md border border-orange-100 bg-orange-50 px-2 py-1.5 text-xs text-orange-900">
+                                                            <div className="flex flex-wrap items-start justify-between gap-2">
+                                                                <div className="font-medium">
+                                                                    Công cụ: {getToolAnalysisSummary(q)?.tool} | Vật thể: {getToolAnalysisSummary(q)?.target} | Thao tác: {getToolAnalysisSummary(q)?.action}
+                                                                </div>
+                                                                {inlineEditingId !== q.id ? (
+                                                                    <button className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white px-2 py-1 font-semibold text-blue-700 ring-1 ring-blue-200 hover:bg-blue-50" onClick={() => openInlineAnswerEditor(q)} type="button"><Edit className="size-3" />Sửa đáp án nhanh</button>
+                                                                ) : null}
                                                             </div>
-                                                            {inlineEditingId !== q.id ? (
-                                                                <button className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white px-2 py-1 font-semibold text-blue-700 ring-1 ring-blue-200 hover:bg-blue-50" onClick={() => openInlineAnswerEditor(q)} type="button"><Edit className="size-3" />Sửa đáp án nhanh</button>
+                                                            <div className="mt-1 text-orange-700 line-clamp-1">
+                                                                {getToolAnalysisSummary(q)?.vocabulary.map((item: VocabularyItem) => `${item.term}: ${item.meaning}`).join(' · ')}
+                                                            </div>
+                                                            {inlineEditingId === q.id && inlineDraft ? (
+                                                                <div className="mt-3 rounded-lg border border-blue-200 bg-white p-3 shadow-sm">
+                                                                    <div className="grid gap-3 lg:grid-cols-3">
+                                                                        <label className="space-y-1"><span className="font-semibold text-slate-700">Dụng cụ đúng</span><select className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-900" onChange={(event) => updateInlineDraft({ correct_tool: event.target.value })} value={inlineDraft.correct_tool}>{TOOL_DEFINITIONS.map((item) => <option key={item.id} value={item.id}>{item.label} ({item.ko})</option>)}</select></label>
+                                                                        <label className="space-y-1"><span className="font-semibold text-slate-700">Vật thể đúng</span><select className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-900" onChange={(event) => event.target.value === '__none__' ? updateInlineDraft({ requires_target: false }) : updateInlineDraft({ requires_target: true, target_object: event.target.value })} value={inlineDraft.requires_target === false ? '__none__' : inlineDraft.target_object}><option disabled={!inlineDraft.requires_action || Boolean(getRequiredTargetForAction(inlineDraft.correct_action))} value="__none__">Không có vật thể</option>{TARGET_DEFINITIONS.map((item) => <option key={item.id} value={item.id}>{item.label} ({item.ko})</option>)}</select></label>
+                                                                        <label className="space-y-1"><span className="font-semibold text-slate-700">Thao tác đúng</span>{inlineDraft.requires_action ? <select className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-900" onChange={(event) => updateInlineDraft({ correct_action: event.target.value })} value={inlineDraft.correct_action || ''}>{ACTION_DEFINITIONS.filter((item) => item.id !== 'store').map((item) => <option key={item.id} value={item.id}>{item.label} ({item.ko})</option>)}</select> : <div className="flex h-9 items-center rounded-md border border-slate-200 bg-slate-100 px-2 text-xs font-medium text-slate-600">Đặt/cất đúng vị trí</div>}</label>
+                                                                    </div>
+                                                                    <div className="mt-3 grid gap-2 border-t border-slate-100 pt-3 sm:grid-cols-3">
+                                                                        <div className="flex min-w-0 items-center gap-2 rounded-lg bg-slate-50 p-2 ring-1 ring-slate-200">
+                                                                            <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-md bg-white">
+                                                                                {getWorkshopToolImage(inlineDraft.correct_tool) ? <Image alt={definitionLabel(TOOL_DEFINITIONS, inlineDraft.correct_tool)} className="size-14 object-contain" height={64} src={getWorkshopToolImage(inlineDraft.correct_tool)!} width={64} /> : <span className="text-[10px] text-slate-400">Chưa có ảnh</span>}
+                                                                            </div>
+                                                                            <div className="min-w-0"><p className="text-[10px] font-bold uppercase text-blue-500">1. Dụng cụ</p><p className="mt-1 line-clamp-2 font-semibold text-slate-800">{definitionLabel(TOOL_DEFINITIONS, inlineDraft.correct_tool)}</p></div>
+                                                                        </div>
+                                                                        <div className="flex min-w-0 items-center gap-2 rounded-lg bg-slate-50 p-2 ring-1 ring-slate-200">
+                                                                            <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-md bg-white">
+                                                                                {inlineDraft.requires_target === false ? <span className="px-1 text-center text-[10px] font-semibold text-slate-500">Không có vật thể</span> : getWorkshopDetailImage(inlineDraft.target_object) ? <Image alt={definitionLabel(TARGET_DEFINITIONS, inlineDraft.target_object)} className="size-14 object-contain" height={64} src={getWorkshopDetailImage(inlineDraft.target_object)!} width={64} /> : <span className="text-[10px] text-slate-400">Chưa có ảnh</span>}
+                                                                            </div>
+                                                                            <div className="min-w-0"><p className="text-[10px] font-bold uppercase text-violet-500">2. Vật thể</p><p className="mt-1 line-clamp-2 font-semibold text-slate-800">{inlineDraft.requires_target === false ? 'Không có vật thể' : definitionLabel(TARGET_DEFINITIONS, inlineDraft.target_object)}</p></div>
+                                                                        </div>
+                                                                        <div className="flex min-w-0 items-center gap-2 rounded-lg bg-emerald-50 p-2 ring-1 ring-emerald-100">
+                                                                            <div className="grid size-16 shrink-0 place-items-center rounded-md bg-emerald-100 px-1 text-center text-[11px] font-black text-emerald-700">{inlineDraft.requires_action ? definitionLabel(ACTION_DEFINITIONS, inlineDraft.correct_action || '') : 'Không yêu cầu'}</div>
+                                                                            <div className="min-w-0"><p className="text-[10px] font-bold uppercase text-emerald-600">{inlineDraft.requires_target === false ? '2' : '3'}. Thao tác</p><p className="mt-1 line-clamp-2 font-semibold text-slate-800">{inlineDraft.requires_action ? definitionLabel(ACTION_DEFINITIONS, inlineDraft.correct_action || '') : 'Không yêu cầu thao tác'}</p></div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="mt-3 flex justify-end gap-2">
+                                                                        <Button className="h-8 px-3 text-xs" disabled={inlineSavingId === q.id} onClick={closeInlineAnswerEditor} size="sm" variant="outline"><X className="size-3.5" />Hủy</Button>
+                                                                        <Button className="h-8 px-3 text-xs" disabled={inlineSavingId === q.id} onClick={() => void saveInlineAnswer(q)} size="sm">{inlineSavingId === q.id ? <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <Save className="size-3.5" />}Lưu đáp án</Button>
+                                                                    </div>
+                                                                </div>
                                                             ) : null}
                                                         </div>
-                                                        <div className="mt-1 text-orange-700 line-clamp-1">
-                                                            {getToolAnalysisSummary(q)?.vocabulary.map((item: VocabularyItem) => `${item.term}: ${item.meaning}`).join(' · ')}
-                                                        </div>
-                                                        {inlineEditingId === q.id && inlineDraft ? (
-                                                            <div className="mt-3 rounded-lg border border-blue-200 bg-white p-3 shadow-sm">
-                                                                <div className="grid gap-3 lg:grid-cols-3">
-                                                                    <label className="space-y-1"><span className="font-semibold text-slate-700">Dụng cụ đúng</span><select className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-900" onChange={(event) => updateInlineDraft({ correct_tool: event.target.value })} value={inlineDraft.correct_tool}>{TOOL_DEFINITIONS.map((item) => <option key={item.id} value={item.id}>{item.label} ({item.ko})</option>)}</select></label>
-                                                                    <label className="space-y-1"><span className="font-semibold text-slate-700">Vật thể đúng</span><select className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-900" onChange={(event) => event.target.value === '__none__' ? updateInlineDraft({ requires_target: false }) : updateInlineDraft({ requires_target: true, target_object: event.target.value })} value={inlineDraft.requires_target === false ? '__none__' : inlineDraft.target_object}><option disabled={!inlineDraft.requires_action || Boolean(getRequiredTargetForAction(inlineDraft.correct_action))} value="__none__">Không có vật thể</option>{TARGET_DEFINITIONS.map((item) => <option key={item.id} value={item.id}>{item.label} ({item.ko})</option>)}</select></label>
-                                                                    <label className="space-y-1"><span className="font-semibold text-slate-700">Thao tác đúng</span>{inlineDraft.requires_action ? <select className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-900" onChange={(event) => updateInlineDraft({ correct_action: event.target.value })} value={inlineDraft.correct_action || ''}>{ACTION_DEFINITIONS.filter((item) => item.id !== 'store').map((item) => <option key={item.id} value={item.id}>{item.label} ({item.ko})</option>)}</select> : <div className="flex h-9 items-center rounded-md border border-slate-200 bg-slate-100 px-2 text-xs font-medium text-slate-600">Đặt/cất đúng vị trí</div>}</label>
-                                                                </div>
-                                                                <div className="mt-3 grid gap-2 border-t border-slate-100 pt-3 sm:grid-cols-3">
-                                                                    <div className="flex min-w-0 items-center gap-2 rounded-lg bg-slate-50 p-2 ring-1 ring-slate-200">
-                                                                        <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-md bg-white">
-                                                                            {getWorkshopToolImage(inlineDraft.correct_tool) ? <Image alt={definitionLabel(TOOL_DEFINITIONS, inlineDraft.correct_tool)} className="size-14 object-contain" height={64} src={getWorkshopToolImage(inlineDraft.correct_tool)!} width={64} /> : <span className="text-[10px] text-slate-400">Chưa có ảnh</span>}
-                                                                        </div>
-                                                                        <div className="min-w-0"><p className="text-[10px] font-bold uppercase text-blue-500">1. Dụng cụ</p><p className="mt-1 line-clamp-2 font-semibold text-slate-800">{definitionLabel(TOOL_DEFINITIONS, inlineDraft.correct_tool)}</p></div>
-                                                                    </div>
-                                                                    <div className="flex min-w-0 items-center gap-2 rounded-lg bg-slate-50 p-2 ring-1 ring-slate-200">
-                                                                        <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-md bg-white">
-                                                                            {inlineDraft.requires_target === false ? <span className="px-1 text-center text-[10px] font-semibold text-slate-500">Không có vật thể</span> : getWorkshopDetailImage(inlineDraft.target_object) ? <Image alt={definitionLabel(TARGET_DEFINITIONS, inlineDraft.target_object)} className="size-14 object-contain" height={64} src={getWorkshopDetailImage(inlineDraft.target_object)!} width={64} /> : <span className="text-[10px] text-slate-400">Chưa có ảnh</span>}
-                                                                        </div>
-                                                                        <div className="min-w-0"><p className="text-[10px] font-bold uppercase text-violet-500">2. Vật thể</p><p className="mt-1 line-clamp-2 font-semibold text-slate-800">{inlineDraft.requires_target === false ? 'Không có vật thể' : definitionLabel(TARGET_DEFINITIONS, inlineDraft.target_object)}</p></div>
-                                                                    </div>
-                                                                    <div className="flex min-w-0 items-center gap-2 rounded-lg bg-emerald-50 p-2 ring-1 ring-emerald-100">
-                                                                        <div className="grid size-16 shrink-0 place-items-center rounded-md bg-emerald-100 px-1 text-center text-[11px] font-black text-emerald-700">{inlineDraft.requires_action ? definitionLabel(ACTION_DEFINITIONS, inlineDraft.correct_action || '') : 'Không yêu cầu'}</div>
-                                                                        <div className="min-w-0"><p className="text-[10px] font-bold uppercase text-emerald-600">{inlineDraft.requires_target === false ? '2' : '3'}. Thao tác</p><p className="mt-1 line-clamp-2 font-semibold text-slate-800">{inlineDraft.requires_action ? definitionLabel(ACTION_DEFINITIONS, inlineDraft.correct_action || '') : 'Không yêu cầu thao tác'}</p></div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="mt-3 flex justify-end gap-2">
-                                                                    <Button className="h-8 px-3 text-xs" disabled={inlineSavingId === q.id} onClick={closeInlineAnswerEditor} size="sm" variant="outline"><X className="size-3.5" />Hủy</Button>
-                                                                    <Button className="h-8 px-3 text-xs" disabled={inlineSavingId === q.id} onClick={() => void saveInlineAnswer(q)} size="sm">{inlineSavingId === q.id ? <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <Save className="size-3.5" />}Lưu đáp án</Button>
-                                                                </div>
+                                                    )}
+                                                    {q.category === 'An toàn lao động' && q.safety_group && (
+                                                        <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-950">
+                                                            <div className="font-semibold">
+                                                                {SAFETY_GROUP_LABELS[q.safety_group] || q.safety_group}
+                                                                {q.safety_topic_number ? ` · Chủ đề ${q.safety_topic_number}` : ''}
                                                             </div>
-                                                        ) : null}
-                                                    </div>
-                                                )}
-                                                {q.category === 'An toàn lao động' && q.safety_group && (
-                                                    <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-950">
-                                                        <div className="font-semibold">
-                                                            {SAFETY_GROUP_LABELS[q.safety_group] || q.safety_group}
-                                                            {q.safety_topic_number ? ` · Chủ đề ${q.safety_topic_number}` : ''}
+                                                            {(q.safety_topic_ko || q.safety_topic_vi) && (
+                                                                <div className="mt-1 text-amber-800">
+                                                                    {[q.safety_topic_ko, q.safety_topic_vi].filter(Boolean).join(' · ')}
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                        {(q.safety_topic_ko || q.safety_topic_vi) && (
-                                                            <div className="mt-1 text-amber-800">
-                                                                {[q.safety_topic_ko, q.safety_topic_vi].filter(Boolean).join(' · ')}
-                                                            </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-3 py-4 text-center align-top whitespace-nowrap">
+                                                    <button
+                                                        onClick={() => handleToggleVerify(q)}
+                                                        disabled={isVerifyingThis}
+                                                        title={isVerified ? 'Click để chuyển về Chưa duyệt' : 'Click để xác nhận Đã kiểm tra'}
+                                                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${
+                                                            isVerified
+                                                                ? 'bg-green-50 text-green-700 ring-1 ring-green-300 hover:bg-green-100'
+                                                                : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200 hover:bg-amber-50 hover:text-amber-700 hover:ring-amber-300'
+                                                        }`}
+                                                    >
+                                                        {isVerifyingThis ? (
+                                                            <span className="size-3 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
+                                                        ) : isVerified ? (
+                                                            <CheckCircle2 className="size-3.5 text-green-600" />
+                                                        ) : (
+                                                            <Clock className="size-3.5 text-slate-400" />
                                                         )}
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    aria-label="Chỉnh sửa câu hỏi"
-                                                    onClick={() => {
-                                                        rememberListPosition()
-                                                        router.push(`/admin/interview-module/${q.id}`)
-                                                    }}
-                                                >
-                                                    <Edit className="w-4 h-4 text-blue-600" />
-                                                </Button>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon"
-                                                    aria-label="Xoá câu hỏi"
-                                                    onClick={() => handleDelete(q.id)}
-                                                >
-                                                    <Trash2 className="w-4 h-4 text-red-600" />
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                        <span>{isVerified ? 'Đã kiểm tra' : 'Chờ duyệt'}</span>
+                                                    </button>
+                                                </td>
+                                                <td className="px-4 py-4 text-right align-top whitespace-nowrap space-x-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        title="Xem lịch sử chỉnh sửa"
+                                                        onClick={() => setHistoryModalQuestion(q)}
+                                                        className="text-slate-500 hover:text-purple-600 hover:bg-purple-50"
+                                                    >
+                                                        <History className="w-4 h-4" />
+                                                    </Button>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon" 
+                                                        aria-label="Chỉnh sửa câu hỏi"
+                                                        onClick={() => {
+                                                            rememberListPosition()
+                                                            router.push(`/admin/interview-module/${q.id}`)
+                                                        }}
+                                                        className="text-blue-600 hover:bg-blue-50"
+                                                    >
+                                                        <Edit className="w-4 h-4" />
+                                                    </Button>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon"
+                                                        aria-label="Xoá câu hỏi"
+                                                        onClick={() => handleDelete(q.id)}
+                                                        className="text-red-600 hover:bg-red-50"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
                                     {visibleQuestions.length === 0 && (
                                         <tr>
-                                            <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                                            <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                                                 Không tìm thấy câu hỏi phù hợp.
                                             </td>
                                         </tr>
@@ -810,10 +946,26 @@ export default function InterviewModuleAdminPage() {
                 </TabsContent>
             </Tabs>
 
+            {/* Modals */}
             <BulkImportModal 
                 isOpen={isImportModalOpen} 
                 onClose={() => setIsImportModalOpen(false)} 
                 onSuccess={fetchQuestions} 
+            />
+
+            <TeacherAssignmentManagerModal
+                isOpen={isAssignModalOpen}
+                onClose={() => setIsAssignModalOpen(false)}
+                categories={categoriesList}
+                onAssignmentChanged={fetchAssignments}
+            />
+
+            <QuestionHistoryModal
+                isOpen={Boolean(historyModalQuestion)}
+                onClose={() => setHistoryModalQuestion(null)}
+                questionId={historyModalQuestion?.id || null}
+                questionText={historyModalQuestion?.question_text}
+                orderIndex={historyModalQuestion?.order_index}
             />
         </div>
     )

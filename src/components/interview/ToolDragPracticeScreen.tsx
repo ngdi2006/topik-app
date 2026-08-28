@@ -39,8 +39,8 @@ const TOOL_NAMES: Record<string, { ko: string; vi: string }> = {
     'screwdriver': { ko: '드라이버', vi: 'Tua vít' },
     'hammer': { ko: '망치', vi: 'Búa' },
     'claw_hammer': { ko: '장도리', vi: 'Búa nhổ đinh' },
-    'pliers': { ko: '펜치', vi: 'Kìm' },
-    'long_nose_pliers': { ko: '플라이어', vi: 'Kìm mỏ nhọn' },
+    'pliers': { ko: '플라이어', vi: 'Kìm mỏ nhọn' },
+    'long_nose_pliers': { ko: '롱노즈 플라이어', vi: 'Kìm mũi dài' },
     'pincers': { ko: '펜치', vi: 'Kìm bấm' },
     'nipper': { ko: '니퍼', vi: 'Kìm cắt' },
     'bolt_cutter': { ko: '절단기', vi: 'Kìm cộng lực' },
@@ -354,9 +354,10 @@ function inferToolFromText(question: ToolPracticeQuestion, targetObject: string)
     if (/육각|lục giác|allen/.test(text)) return 'allen_wrench'
     if (/풀러|cảo|vam/.test(text)) return 'bearing_puller'
     if (/망치|장도리|búa|đinh/.test(text)) return 'hammer'
-    if (/플라이어|kìm (?:mỏ nhọn|mũi dài)/i.test(text)) return 'long_nose_pliers'
+    if (/롱노즈\s*플라이어|kìm mũi dài/i.test(text)) return 'long_nose_pliers'
     if (/니퍼|끊는\s*도구|전선을\s*자르는\s*도구|kìm cắt|công cụ cắt dây/i.test(text)) return 'nipper'
-    if (/펜치|kìm|kềm/.test(text)) return 'pliers'
+    if (/펜치|kìm bấm/i.test(text)) return 'pincers'
+    if (/플라이어|kìm mỏ nhọn/i.test(text)) return 'pliers'
     if (/스패너|렌치|멍키|몽키|cờ lê|mỏ lết|bu lông|đai ốc|너트|볼트/.test(text)) return 'wrench'
     if (/드라이버|tua vít|tuốc nơ vít|나사/.test(text)) return 'screwdriver'
     if (/톱|cưa/.test(text)) return 'saw'
@@ -483,11 +484,13 @@ function getFallbackToolConfig(ko: string, vi: string) {
         correct_tool = 'bearing_puller'
     } else if (koText.includes('망치') || koText.includes('장도리') || koText.includes('못을') || koText.includes('못이') || koText.includes('박는')) {
         correct_tool = 'hammer'
-    } else if (koText.includes('플라이어') || viText.includes('kìm mỏ nhọn') || viText.includes('kìm mũi dài')) {
+    } else if (koText.includes('롱노즈 플라이어') || viText.includes('kìm mũi dài')) {
         correct_tool = 'long_nose_pliers'
     } else if (koText.includes('니퍼') || /(?:끊는\s*도구|전선을\s*자르는\s*도구)/.test(koText) || viText.includes('kìm cắt')) {
         correct_tool = 'nipper'
-    } else if (koText.includes('펜치') || koText.includes('철사') || koText.includes('선재') || koText.includes('구리선') || koText.includes('철선') || koText.includes('전선')) {
+    } else if (koText.includes('펜치') || viText.includes('kìm bấm')) {
+        correct_tool = 'pincers'
+    } else if (koText.includes('플라이어') || koText.includes('철사') || koText.includes('선재') || koText.includes('구리선') || koText.includes('철선') || koText.includes('전선')) {
         correct_tool = 'pliers'
     } else if (koText.includes('스패너') || koText.includes('렌치') || koText.includes('몽키') || koText.includes('멍키') || koText.includes('토크') || koText.includes('볼트') || koText.includes('너트') || koText.includes('암나사') || koText.includes('수나사')) {
         correct_tool = 'wrench'

@@ -1,14 +1,30 @@
 'use client'
 
-import Link from "next/link"
-import { Shield, Users, FileText, Settings, LayoutDashboard, BookOpen, Menu, X, GraduationCap, Target, CreditCard, Package, BrainCircuit, ReceiptText, KeyRound } from "lucide-react"
 import dynamic from "next/dynamic"
-import { useEffect, useRef, useState } from "react"
+import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useUserStore } from "@/store/userStore"
+import { useEffect, useRef, useState } from "react"
+import {
+    BookOpen,
+    BrainCircuit,
+    CreditCard,
+    FileText,
+    GraduationCap,
+    KeyRound,
+    LayoutDashboard,
+    Menu,
+    Package,
+    ReceiptText,
+    Settings,
+    Shield,
+    Target,
+    Users,
+    X,
+} from "lucide-react"
 import { ADMIN_MENU_ITEMS, type AdminPermissionKey } from "@/lib/admin-permissions"
+import { useUserStore } from "@/store/userStore"
 
-const AdminUserNav = dynamic(() => import("@/components/admin/AdminUserNav").then(mod => mod.AdminUserNav), { ssr: false })
+const AdminUserNav = dynamic(() => import("@/components/admin/AdminUserNav").then((mod) => mod.AdminUserNav), { ssr: false })
 
 const ADMIN_MENU_ICONS: Record<AdminPermissionKey, typeof LayoutDashboard> = {
     dashboard: LayoutDashboard,
@@ -29,11 +45,16 @@ const ADMIN_MENU_ICONS: Record<AdminPermissionKey, typeof LayoutDashboard> = {
     settings: Settings,
 }
 
-export default function AdminLayout({
-    children,
-}: {
-    children: React.ReactNode
-}) {
+const ADMIN_MENU_GROUPS: Array<{ label: string; keys: AdminPermissionKey[] }> = [
+    { label: 'Tổng quan', keys: ['dashboard'] },
+    { label: 'Đào tạo', keys: ['lessons', 'milestones', 'practice', 'interview', 'vocabulary_vong2'] },
+    { label: 'Nội dung & kỳ thi', keys: ['categories', 'question_bank', 'exams', 'ai_sync'] },
+    { label: 'Người dùng', keys: ['users', 'interview_access'] },
+    { label: 'Tài chính', keys: ['payments', 'payment_packages', 'sepay_logs'] },
+    { label: 'Hệ thống', keys: ['settings'] },
+]
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [paymentAttentionCount, setPaymentAttentionCount] = useState(0)
     const [adminPermissions, setAdminPermissions] = useState<AdminPermissionKey[]>(['dashboard'])
@@ -42,8 +63,9 @@ export default function AdminLayout({
     const { role, setRole } = useUserStore()
 
     const isAdmin = role === 'admin'
-    const isTeacher = role === 'teacher'
     const visibleMenuItems = ADMIN_MENU_ITEMS.filter((item) => isAdmin || adminPermissions.includes(item.key))
+    const visibleMenuKeys = new Set(visibleMenuItems.map((item) => item.key))
+    const menuItemsByKey = new Map(visibleMenuItems.map((item) => [item.key, item]))
     const canViewPayments = isAdmin || adminPermissions.includes('payments')
 
     useEffect(() => {
@@ -98,225 +120,99 @@ export default function AdminLayout({
     }, [canViewPayments])
 
     return (
-        <div className="flex min-h-screen bg-gray-50/50">
-            {/* Mobile Overlay */}
-            {sidebarOpen && (
-                <div
-                    className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        <div className="flex min-h-screen overflow-x-hidden bg-slate-50">
+            {sidebarOpen ? (
+                <button
+                    type="button"
+                    aria-label="Đóng menu quản trị"
+                    className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-[1px] lg:hidden"
                     onClick={() => setSidebarOpen(false)}
                 />
-            )}
+            ) : null}
 
-            {/* Sidebar */}
-            <aside className={`
-                fixed lg:static inset-y-0 left-0 z-50
-                w-64 bg-white border-r border-gray-200
-                transform transition-transform duration-300 ease-in-out
-                ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-            `}>
-                <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200">
-                    <div className="flex items-center">
-                        <Shield className="w-6 h-6 text-primary mr-2" />
-                        <span className="font-bold text-lg">TOPIK Admin</span>
-                    </div>
+            <aside className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-200 bg-white shadow-xl transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 px-5">
+                    <Link href="/admin" className="flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                        <span className="grid size-9 place-items-center rounded-xl bg-blue-600 text-white shadow-sm">
+                            <Shield className="size-5" aria-hidden="true" />
+                        </span>
+                        <span className="leading-tight">
+                            <span className="block text-sm font-bold text-slate-950">TOPIK Admin</span>
+                            <span className="block text-[11px] font-medium text-slate-500">Quản trị hệ thống</span>
+                        </span>
+                    </Link>
                     <button
+                        type="button"
+                        aria-label="Đóng menu"
                         onClick={() => setSidebarOpen(false)}
-                        className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+                        className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 lg:hidden"
                     >
-                        <X className="w-5 h-5" />
+                        <X className="size-5" aria-hidden="true" />
                     </button>
                 </div>
-                <nav className="space-y-1 p-4" aria-label="Chỉ mục quản trị được cấp quyền">
-                    {visibleMenuItems.map((item) => {
-                        const Icon = ADMIN_MENU_ICONS[item.key]
-                        const active = item.path === '/admin' ? pathname === item.path : pathname.startsWith(item.path)
+
+                <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Chỉ mục quản trị được cấp quyền">
+                    {ADMIN_MENU_GROUPS.map((group) => {
+                        const groupItems = group.keys.filter((key) => visibleMenuKeys.has(key)).map((key) => menuItemsByKey.get(key)!)
+                        if (groupItems.length === 0) return null
+
                         return (
-                            <Link
-                                key={item.key}
-                                href={item.path}
-                                className={`flex items-center rounded-lg px-4 py-3 transition-colors ${active ? 'bg-blue-50 font-semibold text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
-                                onClick={() => setSidebarOpen(false)}
-                            >
-                                <Icon className="mr-3 size-5 shrink-0" aria-hidden="true" />
-                                <span className="min-w-0 flex-1">{item.label}</span>
-                                {item.key === 'payments' && paymentAttentionCount > 0 ? (
-                                    <span className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white">
-                                        {paymentAttentionCount > 99 ? '99+' : paymentAttentionCount}
-                                    </span>
-                                ) : null}
-                            </Link>
+                            <section key={group.label} className="mb-5 last:mb-0" aria-labelledby={`admin-nav-${group.label}`}>
+                                <h2 id={`admin-nav-${group.label}`} className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                                    {group.label}
+                                </h2>
+                                <div className="space-y-0.5">
+                                    {groupItems.map((item) => {
+                                        const Icon = ADMIN_MENU_ICONS[item.key]
+                                        const active = item.path === '/admin' ? pathname === item.path : pathname.startsWith(item.path)
+                                        return (
+                                            <Link
+                                                key={item.key}
+                                                href={item.path}
+                                                aria-current={active ? 'page' : undefined}
+                                                className={`group flex min-h-10 items-center rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${active ? 'bg-blue-50 font-semibold text-blue-700' : 'font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950'}`}
+                                                onClick={() => setSidebarOpen(false)}
+                                            >
+                                                <Icon className={`mr-3 size-[18px] shrink-0 ${active ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`} aria-hidden="true" />
+                                                <span className="min-w-0 flex-1 leading-5">{item.label}</span>
+                                                {item.key === 'payments' && paymentAttentionCount > 0 ? (
+                                                    <span
+                                                        className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white"
+                                                        aria-label={`${paymentAttentionCount} giao dịch cần xử lý`}
+                                                    >
+                                                        {paymentAttentionCount > 99 ? '99+' : paymentAttentionCount}
+                                                    </span>
+                                                ) : null}
+                                            </Link>
+                                        )
+                                    })}
+                                </div>
+                            </section>
                         )
                     })}
                 </nav>
-                <nav className="hidden" aria-hidden="true">
-                    <Link
-                        href="/admin"
-                        className="flex items-center px-4 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-100 transition-colors"
-                        onClick={() => setSidebarOpen(false)}
-                    >
-                        <LayoutDashboard className="w-5 h-5 mr-3" />
-                        Dashboard
-                    </Link>
-                    {!isTeacher && (
-                        <>
-                            <Link
-                                href="/admin/lessons"
-                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                                onClick={() => setSidebarOpen(false)}
-                            >
-                                <GraduationCap className="w-5 h-5 mr-3" />
-                                Bài Học
-                            </Link>
-                            <Link
-                                href="/admin/practice"
-                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                                onClick={() => setSidebarOpen(false)}
-                            >
-                                <Target className="w-5 h-5 mr-3" />
-                                Luyện Tập AI
-                            </Link>
-                            <Link
-                                href="/admin/interview-module"
-                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                                onClick={() => setSidebarOpen(false)}
-                            >
-                                <Target className="w-5 h-5 mr-3" />
-                                Phỏng Vấn (Vòng 2)
-                            </Link>
-                            <Link
-                                href="/admin/vocabulary-vong2"
-                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                                onClick={() => setSidebarOpen(false)}
-                            >
-                                <BookOpen className="w-5 h-5 mr-3" />
-                                Từ vựng Vòng 2
-                            </Link>
-                        </>
-                    )}
-                    <Link
-                        href="/admin/users"
-                        className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        onClick={() => setSidebarOpen(false)}
-                    >
-                        <Users className="w-5 h-5 mr-3" />
-                        Người dùng
-                    </Link>
-                    {!isTeacher && (
-                        <>
-                            <Link
-                                href="/admin/milestones"
-                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                                onClick={() => setSidebarOpen(false)}
-                            >
-                                <FileText className="w-5 h-5 mr-3" />
-                                Các Mốc Học
-                            </Link>
-                            <Link
-                                href="/admin/categories"
-                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                                onClick={() => setSidebarOpen(false)}
-                            >
-                                <BookOpen className="w-5 h-5 mr-3" />
-                                Quản lý Kho
-                            </Link>
-                            <Link
-                                href="/admin/question-bank"
-                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                                onClick={() => setSidebarOpen(false)}
-                            >
-                                <FileText className="w-5 h-5 mr-3" />
-                                Câu Hỏi
-                            </Link>
-                            <Link
-                                href="/admin/ai-sync"
-                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                                onClick={() => setSidebarOpen(false)}
-                            >
-                                <BrainCircuit className="w-5 h-5 mr-3" />
-                                Đồng bộ AI
-                            </Link>
-                            <Link
-                                href="/admin/exams"
-                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                                onClick={() => setSidebarOpen(false)}
-                            >
-                                <FileText className="w-5 h-5 mr-3" />
-                                Đề Thi
-                            </Link>
-                            <Link
-                                href="/admin/payments"
-                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                                onClick={() => setSidebarOpen(false)}
-                            >
-                                <CreditCard className="w-5 h-5 mr-3" />
-                                <span className="flex-1">Thanh Toán</span>
-                                {paymentAttentionCount > 0 ? (
-                                    <span
-                                        className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white"
-                                        aria-label={`${paymentAttentionCount} giao dịch đã thanh toán nhưng chưa kích hoạt`}
-                                        title={`${paymentAttentionCount} giao dịch cần kích hoạt`}
-                                    >
-                                        {paymentAttentionCount > 99 ? '99+' : paymentAttentionCount}
-                                    </span>
-                                ) : null}
-                            </Link>
-                            <Link
-                                href="/admin/interview-access"
-                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                                onClick={() => setSidebarOpen(false)}
-                            >
-                                <KeyRound className="w-5 h-5 mr-3" />
-                                Báo cáo gói Vòng 2
-                            </Link>
-                            <Link
-                                href="/admin/sepay-logs"
-                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                                onClick={() => setSidebarOpen(false)}
-                            >
-                                <ReceiptText className="w-5 h-5 mr-3" />
-                                Log SePay
-                            </Link>
-                            <Link
-                                href="/admin/payment-packages"
-                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                                onClick={() => setSidebarOpen(false)}
-                            >
-                                <Package className="w-5 h-5 mr-3" />
-                                Gói thanh toán
-                            </Link>
-                            <Link
-                                href="/admin/settings"
-                                className="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                                onClick={() => setSidebarOpen(false)}
-                            >
-                                <Settings className="w-5 h-5 mr-3" />
-                                Settings
-                            </Link>
-                        </>
-                    )}
-                </nav>
             </aside>
 
-            {/* Main Content */}
-            <main className="flex-1 flex flex-col lg:ml-0">
-                {/* Header */}
-                <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8">
-                    <div className="flex items-center gap-3">
+            <main id="main-content" className="flex min-w-0 flex-1 flex-col">
+                <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur lg:px-6">
+                    <div className="flex min-w-0 items-center gap-3">
                         <button
+                            type="button"
+                            aria-label="Mở menu quản trị"
                             onClick={() => setSidebarOpen(true)}
-                            className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+                            className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 lg:hidden"
                         >
-                            <Menu className="w-6 h-6" />
+                            <Menu className="size-5" aria-hidden="true" />
                         </button>
-                        <h1 className="text-lg lg:text-xl font-semibold text-gray-800">Cổng Quản Trị Hệ Thống</h1>
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-900 lg:text-base">Cổng Quản Trị Hệ Thống</p>
+                            <p className="hidden text-xs text-slate-500 sm:block">Theo dõi và vận hành TOPIK IBT</p>
+                        </div>
                     </div>
-                    <div className="flex items-center space-x-4">
-                        <AdminUserNav />
-                    </div>
+                    <AdminUserNav />
                 </header>
 
-                {/* Page Content */}
-                <div className="p-4 lg:p-8 flex-1 overflow-auto">
+                <div className="min-w-0 flex-1 p-4 lg:p-6 xl:p-8">
                     {children}
                 </div>
             </main>

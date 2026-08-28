@@ -14,6 +14,7 @@ export default function MiniTestScreen({ questions, categoryName, onComplete }: 
   const [selectedAnswers, setSelectedAnswers] = useState<{ [key: string]: string }>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [score, setScore] = useState(0);
+  const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
 
   const handleSelectOption = (option: string) => {
     if (isSubmitted) return;
@@ -24,8 +25,13 @@ export default function MiniTestScreen({ questions, categoryName, onComplete }: 
   };
 
   const handleNext = () => {
+    if (!isAnswerRevealed) {
+      setIsAnswerRevealed(true);
+      return;
+    }
     if (currentQuestionIdx < questions.length - 1) {
       setCurrentQuestionIdx(prev => prev + 1);
+      setIsAnswerRevealed(false);
     } else {
       handleSubmit();
     }
@@ -78,6 +84,7 @@ export default function MiniTestScreen({ questions, categoryName, onComplete }: 
                 setSelectedAnswers({});
                 setCurrentQuestionIdx(0);
                 setScore(0);
+                setIsAnswerRevealed(false);
               }}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
             >
@@ -115,13 +122,19 @@ export default function MiniTestScreen({ questions, categoryName, onComplete }: 
         <div className="space-y-2.5">
           {currentQuestion.options.map((option, idx) => {
             const isSelected = selectedAnswers[currentQuestion.id] === option;
+            const isCorrect = option === currentQuestion.answer;
             const prefix = (idx + 1).toString(); // 1, 2, 3, 4
             return (
               <button
                 key={idx}
                 onClick={() => handleSelectOption(option)}
-                className={`w-full text-left p-3 sm:p-4 rounded-xl border-2 transition-all flex items-center gap-3 sm:gap-4 group
-                  ${isSelected 
+                disabled={isAnswerRevealed}
+                className={`group flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left transition-colors sm:gap-4 sm:p-4
+                  ${isAnswerRevealed && isCorrect
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
+                    : isAnswerRevealed && isSelected
+                      ? 'border-red-400 bg-red-50 text-red-800'
+                      : isSelected
                     ? 'border-blue-600 bg-blue-50 text-blue-700' 
                     : 'border-gray-100 hover:border-blue-200 hover:bg-blue-50/50'
                   }`}
@@ -131,10 +144,50 @@ export default function MiniTestScreen({ questions, categoryName, onComplete }: 
                   {prefix}
                 </div>
                 <span className="font-medium text-sm sm:text-base">{option}</span>
+                {isAnswerRevealed && isCorrect ? <CheckCircle2 className="ml-auto size-5 shrink-0 text-emerald-600" aria-hidden="true" /> : null}
+                {isAnswerRevealed && isSelected && !isCorrect ? <XCircle className="ml-auto size-5 shrink-0 text-red-600" aria-hidden="true" /> : null}
               </button>
             );
           })}
         </div>
+
+        {isAnswerRevealed ? (
+          <div className="mt-6 space-y-4 rounded-xl border border-blue-100 bg-blue-50 p-4" aria-live="polite">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
+                {currentQuestion.analysis?.question_kind?.name || 'Phân tích đáp án'}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-700">
+                {currentQuestion.analysis?.correct_answer_explanation || 'Đáp án màu xanh là đáp án đúng của câu hỏi.'}
+              </p>
+            </div>
+            {currentQuestion.analysis?.key_clues?.length ? (
+              <div>
+                <p className="text-xs font-bold text-slate-700">Manh mối cần chú ý</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-600">
+                  {currentQuestion.analysis.key_clues.map((clue) => <li key={clue}>{clue}</li>)}
+                </ul>
+              </div>
+            ) : null}
+            {currentQuestion.analysis?.option_explanations?.length ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {currentQuestion.analysis.option_explanations.map((item) => (
+                  <div key={item.index} className="rounded-lg bg-white p-3 text-xs leading-5 text-slate-600">
+                    <span className="font-bold text-slate-800">Đáp án {item.index + 1}:</span> {item.explanation}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {currentQuestion.analysis?.solving_strategy?.length ? (
+              <div>
+                <p className="text-xs font-bold text-slate-700">Cách giải dạng này</p>
+                <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm text-slate-600">
+                  {currentQuestion.analysis.solving_strategy.map((step) => <li key={step}>{step}</li>)}
+                </ol>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="flex justify-end">
@@ -147,7 +200,7 @@ export default function MiniTestScreen({ questions, categoryName, onComplete }: 
               : 'bg-gray-100 text-gray-400 cursor-not-allowed'
             }`}
         >
-          {currentQuestionIdx === questions.length - 1 ? 'Nộp bài' : 'Câu tiếp theo'}
+          {!isAnswerRevealed ? 'Kiểm tra đáp án' : currentQuestionIdx === questions.length - 1 ? 'Nộp bài' : 'Câu tiếp theo'}
           <ArrowRight size={18} />
         </button>
       </div>

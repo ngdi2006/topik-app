@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MediaUploader } from '@/components/admin/MediaUploader'
 import { ArrowLeft, Save, Plus, Trash2, ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
-import { analyzeToolQuestionText, resolveToolQuestionConfig, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type VocabularyItem } from '@/components/interview/toolQuestionAnalysis'
+import { analyzeToolQuestionText, resolveToolQuestionConfig, getRequiredTargetForAction, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type VocabularyItem } from '@/components/interview/toolQuestionAnalysis'
 import { legacyToolConfigToWorkshopGame, type WorkshopGameConfig } from '@/features/workshop'
 import { WorkshopGamePreview } from '@/features/workshop/components'
 import { getWorkshopDetailImage, getWorkshopToolImage } from '@/components/interview/workshopVisualAssets'
@@ -27,6 +27,7 @@ type ToolConfig = {
     tools_on_desk: string[]
     correct_tool: string
     target_object: string
+    requires_target?: boolean
     correct_action: string | null
     requires_action: boolean
     vocabulary_analysis: VocabularyItem[]
@@ -69,7 +70,7 @@ const TOOL_OPTIONS = [
     { id: 'screwdriver', label: 'Tua vít thường', ko: '드라이버' },
     { id: 'allen_wrench', label: 'Cờ lê lục giác', ko: '육각 렌치' },
     { id: 'wrench', label: 'Cờ lê / Mỏ lết', ko: '스패너 / 렌치' },
-    { id: 'pliers', label: 'Kìm', ko: '펜치 / 니퍼' },
+    { id: 'pliers', label: 'Kìm', ko: '펜치' },
     { id: 'hammer', label: 'Búa', ko: '망치' },
     { id: 'saw', label: 'Cưa tay', ko: '톱' },
     { id: 'welder', label: 'Máy hàn', ko: '용접기' },
@@ -102,7 +103,7 @@ const ACTION_OPTIONS = [
     { id: 'turn_on', label: 'Bật / gạt lên', ko: '켜다 / 올리다' },
     { id: 'turn_off', label: 'Tắt / gạt xuống', ko: '끄다 / 내리다' },
     { id: 'push', label: 'Đặt vào / cất vào', ko: '넣다' },
-    { id: 'pull', label: 'Lấy ra / kéo ra', ko: '빼다' }
+    { id: 'pull', label: 'Kéo', ko: '당기다' }
 ]
 
 const TOOL_SELECT_OPTIONS = [
@@ -131,6 +132,7 @@ const DEFAULT_TOOL_CONFIG: ToolConfig = {
     tools_on_desk: ['phillips_screwdriver', 'flat_screwdriver', 'screwdriver', 'wrench', 'pliers'],
     correct_tool: 'phillips_screwdriver',
     target_object: 'phillips_screw',
+    requires_target: true,
     correct_action: 'clockwise',
     requires_action: true,
     vocabulary_analysis: [
@@ -155,13 +157,14 @@ const DEFAULT_TOOL_CONFIG: ToolConfig = {
 }
 
 function buildToolConfig(config: ToolConfig, vietnameseInstruction: string): ToolConfig {
-    const answerSteps: ToolAnswerStep[] = [
-        { step: 1, kind: 'tool', expected: config.correct_tool },
-        { step: 2, kind: 'target', expected: config.target_object }
-    ]
+    const answerSteps: ToolAnswerStep[] = [{ step: 1, kind: 'tool', expected: config.correct_tool }]
+
+    if (config.requires_target !== false) {
+        answerSteps.push({ step: 2, kind: 'target', expected: config.target_object })
+    }
 
     if (config.requires_action) {
-        answerSteps.push({ step: 3, kind: 'action', expected: config.correct_action || '' })
+        answerSteps.push({ step: config.requires_target === false ? 2 : 3, kind: 'action', expected: config.correct_action || '' })
     }
 
     return {
@@ -170,7 +173,7 @@ function buildToolConfig(config: ToolConfig, vietnameseInstruction: string): Too
         answer_steps: answerSteps,
         scoring: {
             tool: 1,
-            target: 1,
+            target: config.requires_target === false ? 0 : 1,
             action: config.requires_action ? 1 : 0,
             pass_all_required: true
         }
@@ -181,9 +184,11 @@ function buildToolAnswerText(config: ToolConfig) {
     const tool = TOOL_SELECT_OPTIONS.find((item) => item.id === config.correct_tool)?.label || config.correct_tool
     const target = TARGET_SELECT_OPTIONS.find((item) => item.id === config.target_object)?.label || config.target_object
     const action = ACTION_SELECT_OPTIONS.find((item) => item.id === config.correct_action)?.label || config.correct_action || ''
-    return config.requires_action
-        ? `Chọn ${tool}; tác động vào ${target}; thực hiện ${action}.`
-        : `Chọn ${tool}; đặt đúng vào ${target}.`
+    return config.requires_target === false
+        ? `Chọn ${tool}; thực hiện ${action}.`
+        : config.requires_action
+            ? `Chọn ${tool}; tác động vào ${target}; thực hiện ${action}.`
+            : `Chọn ${tool}; đặt đúng vào ${target}.`
 }
 
 function AnswerVisualPreview({ config }: { config: ToolConfig }) {
@@ -195,7 +200,7 @@ function AnswerVisualPreview({ config }: { config: ToolConfig }) {
 
     const items = [
         { key: 'tool', eyebrow: '1. Dụng cụ', label: tool?.label || config.correct_tool, image: toolImage },
-        { key: 'target', eyebrow: '2. Chi tiết / vật thể', label: target?.label || config.target_object, image: targetImage },
+        { key: 'target', eyebrow: '2. Chi tiết / vật thể', label: config.requires_target === false ? 'Không có vật thể' : target?.label || config.target_object, image: config.requires_target === false ? null : targetImage },
     ]
 
     return (
@@ -205,6 +210,8 @@ function AnswerVisualPreview({ config }: { config: ToolConfig }) {
                     <div className="grid size-20 shrink-0 place-items-center rounded-lg bg-white">
                         {item.image ? (
                             <Image src={item.image} alt={item.label} width={96} height={96} className="size-[72px] object-contain" />
+                        ) : config.requires_target === false && item.key === 'target' ? (
+                            <span className="px-2 text-center text-[10px] font-semibold text-slate-500">Không có vật thể</span>
                         ) : (
                             <div className="grid place-items-center gap-1 text-center text-[10px] text-slate-400">
                                 <ImageIcon className="size-5" />
@@ -223,7 +230,7 @@ function AnswerVisualPreview({ config }: { config: ToolConfig }) {
                     {action?.label || config.correct_action || '—'}
                 </div>
                 <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">3. Thao tác</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{config.requires_target === false ? '2' : '3'}. Thao tác</p>
                     <p className="mt-1 text-sm font-semibold leading-snug text-slate-800">{action?.label || config.correct_action || 'Không chọn'}</p>
                 </div>
             </div>
@@ -339,13 +346,16 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
     }
 
     const updateToolConfig = (patch: Partial<ToolConfig>) => {
-        setFormData(prev => ({
-            ...prev,
-            tool_config: {
-                ...prev.tool_config,
-                ...patch
+        setFormData(prev => {
+            const nextConfig = { ...prev.tool_config, ...patch }
+            const requiredTarget = getRequiredTargetForAction(nextConfig.correct_action)
+            return {
+                ...prev,
+                tool_config: requiredTarget
+                    ? { ...nextConfig, requires_target: true, target_object: nextConfig.requires_target === false ? requiredTarget : nextConfig.target_object || requiredTarget }
+                    : nextConfig
             }
-        }))
+        })
     }
 
     const analyzeToolQuestion = () => {
@@ -489,7 +499,7 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
                         <section className="rounded-xl border border-emerald-200 bg-white p-4 shadow-sm">
                             <div className="mb-4">
                                 <h4 className="font-semibold text-slate-900">Đáp án chấm điểm</h4>
-                                <p className="text-xs text-slate-500">Ba trường quan trọng cần kiểm tra trước khi lưu.</p>
+                                <p className="text-xs text-slate-500">Chọn hai hoặc ba bước cần kiểm tra trước khi lưu.</p>
                             </div>
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                             <div className="space-y-2">
@@ -506,9 +516,10 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
 
                             <div className="space-y-2">
                                 <Label>Vật thể / vị trí đúng</Label>
-                                <Select value={formData.tool_config.target_object} onValueChange={(value) => updateToolConfig({ target_object: value })}>
+                                <Select value={formData.tool_config.requires_target === false ? '__none__' : formData.tool_config.target_object} onValueChange={(value) => value === '__none__' ? updateToolConfig({ requires_target: false }) : updateToolConfig({ requires_target: true, target_object: value })}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
+                                    <SelectItem disabled={!formData.tool_config.requires_action || Boolean(getRequiredTargetForAction(formData.tool_config.correct_action))} value="__none__">Không có vật thể</SelectItem>
                                         {TARGET_SELECT_OPTIONS.map((item) => (
                                             <SelectItem key={item.id} value={item.id}>{item.label} ({item.ko})</SelectItem>
                                         ))}
@@ -518,14 +529,14 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
 
                             <div className="space-y-2">
                                 <Label>Hành động đúng</Label>
-                                <Select value={formData.tool_config.correct_action || 'clockwise'} onValueChange={(value) => updateToolConfig({ correct_action: value })}>
+                                {formData.tool_config.requires_action ? <Select value={formData.tool_config.correct_action || 'clockwise'} onValueChange={(value) => updateToolConfig({ correct_action: value })}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        {ACTION_SELECT_OPTIONS.map((item) => (
+                                        {ACTION_SELECT_OPTIONS.filter((item) => item.id !== 'store').map((item) => (
                                             <SelectItem key={item.id} value={item.id}>{item.label} ({item.ko})</SelectItem>
                                         ))}
                                     </SelectContent>
-                                </Select>
+                                </Select> : <div className="flex h-10 items-center rounded-md border border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-600">Đặt/cất đúng vị trí</div>}
                             </div>
                             </div>
 

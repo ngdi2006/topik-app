@@ -131,18 +131,29 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
         const generateExam = async () => {
             setLoading(true)
             try {
-                // 1. Fetch interview questions
+                // Fetch the industry pool, vocabulary and the dedicated safety bank in parallel.
                 const url = `/api/interview-questions?industry=${encodeURIComponent(industry)}`
-                const res = await fetch(url, { cache: 'no-store' })
-                const qData = await res.json()
-                const rawQuestions = qData.success ? qData.data : []
-
-                // 2. Fetch vocabulary & signs
                 const envIndustry = industry === 'Sản xuất chế tạo' ? 'MANUFACTURING' : 'COMMON'
                 const vocabUrl = `/api/vocabulary-vong2?industry=${envIndustry}`
-                const resVocab = await fetch(vocabUrl, { cache: 'no-store' })
-                const vData = await resVocab.json()
-                const rawVocab = vData.success ? vData.data : []
+                const safetyUrl = `/api/interview-questions?category=${encodeURIComponent('An toàn lao động')}`
+                const [res, resVocab, resSafety] = await Promise.all([
+                    fetch(url, { cache: 'no-store' }),
+                    fetch(vocabUrl, { cache: 'no-store' }),
+                    fetch(safetyUrl, { cache: 'no-store' }),
+                ])
+                const [qData, vData, safetyData] = await Promise.all([
+                    res.json(),
+                    resVocab.json(),
+                    resSafety.json(),
+                ])
+
+                if (!res.ok || !qData.success) throw new Error(qData.error || 'Không thể tải kho câu hỏi phỏng vấn')
+                if (!resVocab.ok || !vData.success) throw new Error(vData.error || 'Không thể tải kho từ vựng và biển báo')
+                if (!resSafety.ok || !safetyData.success) throw new Error(safetyData.error || 'Không thể tải kho An toàn lao động')
+
+                const rawQuestions = qData.data || []
+                const rawVocab = vData.data || []
+                const rawSafetyQuestions = (safetyData.data || []).filter((q: any) => q.category === 'An toàn lao động')
 
                 const translationMap: Record<string, string> = {}
                 rawVocab.forEach((v: any) => {
@@ -293,13 +304,11 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
                     })
                 })
 
-                // Section 6: Hỏi sâu về an toàn (2 questions, 5 pts each)
-                const safetyKeywords = ['안전', '보호', '아프', '불이', '사고', '다치', '소화기', '대피', '마스크', '장갑']
-                const safetyQs = sitQs.filter((q: any) => 
-                    safetyKeywords.some(k => q.question_text.includes(k) || q.vietnamese_meaning.includes(k))
-                )
-                const poolSafety = safetyQs.length >= 2 ? safetyQs : sitQs
-                const selectedSafety = shuffle(poolSafety).slice(0, 2)
+                // Section 6: only use the dedicated "An toàn lao động" bank.
+                if (rawSafetyQuestions.length < 2) {
+                    throw new Error(`Kho An toàn lao động chỉ có ${rawSafetyQuestions.length} câu, cần tối thiểu 2 câu để tạo đề`)
+                }
+                const selectedSafety = shuffle(rawSafetyQuestions).slice(0, 2)
                 selectedSafety.forEach((q: any, i: number) => {
                     examList.push({
                         id: q.id || `6-${i}`,
@@ -316,7 +325,7 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
                 setQuestions(examList)
             } catch (err) {
                 console.error(err)
-                toast.error('Lỗi khi thiết lập đề thi')
+                toast.error(err instanceof Error ? err.message : 'Lỗi khi thiết lập đề thi')
             } finally {
                 setLoading(false)
             }

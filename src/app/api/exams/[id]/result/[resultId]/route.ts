@@ -79,12 +79,25 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         const snapshot = attemptData.questions_snapshot || [];
         const questionIds = snapshot.map((q: any) => q.id);
 
-        let aiDataMap: Record<string, any> = {};
+        const aiDataMap: Record<string, any> = {};
         if (questionIds.length > 0) {
-            const { data: qbData } = await adminAuthClient
+            const detailedResult = await adminAuthClient
                 .from('question_bank')
-                .select('id, translated_text, ai_vocab_list, ai_grammar_list')
+                .select('id, translated_text, ai_vocab_list, ai_grammar_list, ai_question_analysis')
                 .in('id', questionIds);
+            let qbData: Array<Record<string, any>> = detailedResult.data || []
+            let aiDataError = detailedResult.error
+
+            if (aiDataError?.message.includes('ai_question_analysis')) {
+                const fallback = await adminAuthClient
+                    .from('question_bank')
+                    .select('id, translated_text, ai_vocab_list, ai_grammar_list')
+                    .in('id', questionIds)
+                qbData = (fallback.data || []).map((item) => ({ ...item, ai_question_analysis: null }))
+                aiDataError = fallback.error
+            }
+
+            if (aiDataError) console.error('AI metadata fetch error:', aiDataError)
             
             if (qbData) {
                 qbData.forEach((q: any) => {
@@ -97,7 +110,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
             ...q,
             translated_text: aiDataMap[q.id]?.translated_text || null,
             ai_vocab_list: aiDataMap[q.id]?.ai_vocab_list || null,
-            ai_grammar_list: aiDataMap[q.id]?.ai_grammar_list || null
+            ai_grammar_list: aiDataMap[q.id]?.ai_grammar_list || null,
+            ai_question_analysis: aiDataMap[q.id]?.ai_question_analysis || null
         }));
 
         return NextResponse.json({

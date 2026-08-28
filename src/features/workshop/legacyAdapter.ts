@@ -5,6 +5,7 @@ import type { WorkshopGameConfig, WorkshopGameType } from './model'
 export type LegacyToolConfig = {
     correct_tool?: string
     target_object?: string
+    requires_target?: boolean
     correct_action?: string | null
     tools_on_desk?: string[]
     requires_action?: boolean
@@ -13,7 +14,9 @@ export type LegacyToolConfig = {
 
 export function legacyToolConfigToWorkshopGame(config: LegacyToolConfig): WorkshopGameConfig {
     if (config.game_config?.schemaVersion === 1) return config.game_config
-    const target = config.target_object ? resolveWorkshopAssetId(config.target_object) : undefined
+    const target = config.requires_target === false
+        ? undefined
+        : config.target_object ? resolveWorkshopAssetId(config.target_object) : undefined
     const actionId = resolveWorkshopActionId(config.correct_action)
     const isPlacement = !config.requires_action || ['toolbox', 'shelf'].some((value) => target?.includes(value))
     const type: WorkshopGameType = isPlacement ? 'placement' : 'tool_action'

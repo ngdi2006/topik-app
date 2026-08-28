@@ -205,6 +205,17 @@ export default function DashboardPage() {
     const [isExamMenuOpen, setIsExamMenuOpen] = useState(false)
     const [hasInterviewMobileBack, setHasInterviewMobileBack] = useState(false)
 
+    useEffect(() => {
+        const requestedSection = new URLSearchParams(window.location.search).get('section') as ActiveTab | null
+        const validSections: ActiveTab[] = [
+            'bai-hoc', 'luyen-tap', 'thi-thu', 'ai-chat', 'kiem-tra', 'phong-van',
+            'tu-vung-vong-2', 'bang-xep-hang', 'thi-thu-de-thi', 'thi-thu-bang-xep-hang',
+            'phong-van-tong-quan', 'phong-van-luyen-tap', 'phong-van-thi-thu',
+            'phong-van-cung-co', 'phong-van-bao-cao',
+        ]
+        if (requestedSection && validSections.includes(requestedSection)) setActiveMenu(requestedSection)
+    }, [])
+
     const handleInterviewMobileBackChange = useCallback((handler: (() => void) | null) => {
         setHasInterviewMobileBack(Boolean(handler))
     }, [])

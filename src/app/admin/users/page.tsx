@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Search, Plus, Coins, Trash2, History, Upload, Download, ShieldCheck, Loader2, CalendarDays, RotateCcw, SlidersHorizontal, Clock3 } from "lucide-react"
+import { Search, Plus, Coins, Trash2, History, Upload, Download, ShieldCheck, Loader2, CalendarDays, RotateCcw, SlidersHorizontal, Clock3, Eye, KeyRound, Mail, UserRound, LogIn } from "lucide-react"
 import { toast } from "sonner"
 import * as XLSX from "xlsx"
 import { useUserStore } from "@/store/userStore"
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { ADMIN_MENU_ITEMS, ADMIN_PERMISSION_KEYS, sanitizeAdminPermissions, type AdminPermissionKey } from "@/lib/admin-permissions"
 
 interface UserProfile {
@@ -28,6 +29,10 @@ interface UserProfile {
     remainingCredits: number
     status: string
     joinedAt: string
+    createdAt: string
+    lastSignInAt: string | null
+    emailConfirmedAt: string | null
+    authProvider: string
     adminActivity: AdminUserAuditEntry[]
     lastAdminActivity: AdminUserAuditEntry | null
     interviewAccess: {
@@ -139,6 +144,11 @@ const actionTabsClasses = (isActive: boolean) =>
 
 const formatCredits = (credits: number) => `${credits} lượt`
 
+const compactInterviewPlan = (planName: string | null) => {
+    const duration = planName?.match(/(\d+)\s*ngày/i)?.[1]
+    return duration ? `V2-${duration} ngày` : 'V2'
+}
+
 const isErrorWithMessage = (error: unknown): error is Error => error instanceof Error
 
 const getErrorMessage = (error: unknown, fallback: string) =>
@@ -199,6 +209,9 @@ export default function AdminUsersPage() {
     const [isFetchingHistory, setIsFetchingHistory] = useState(false)
     const [selectedUserName, setSelectedUserName] = useState("")
     const [selectedAuditUser, setSelectedAuditUser] = useState<UserProfile | null>(null)
+    const [selectedDetailUser, setSelectedDetailUser] = useState<UserProfile | null>(null)
+    const [selectedResetUser, setSelectedResetUser] = useState<UserProfile | null>(null)
+    const [isSendingPasswordReset, setIsSendingPasswordReset] = useState(false)
 
     const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
     const [isBulkDeleting, setIsBulkDeleting] = useState(false)
@@ -685,6 +698,38 @@ export default function AdminUsersPage() {
         setJoinedTo('')
     }
 
+    const sendPasswordReset = async () => {
+        if (!selectedResetUser) return
+        setIsSendingPasswordReset(true)
+        try {
+            const response = await fetch(`/api/admin/users/${selectedResetUser.id}/reset-password`, { method: 'POST' })
+            const payload = await response.json().catch(() => null)
+            if (!response.ok) throw new Error(payload?.error || 'Không thể gửi email đặt lại mật khẩu')
+            const auditEntry: AdminUserAuditEntry = {
+                id: crypto.randomUUID(),
+                action: 'password_recovery_sent',
+                label: 'Gửi email đặt lại mật khẩu',
+                actorEmail: null,
+                actorName: 'Bạn',
+                actorRole: 'admin',
+                createdAt: new Date().toISOString(),
+                details: { delivery: 'email' },
+            }
+            setUsers((current) => current.map((user) => user.id === selectedResetUser.id
+                ? { ...user, adminActivity: [auditEntry, ...user.adminActivity], lastAdminActivity: auditEntry }
+                : user))
+            setSelectedDetailUser((current) => current?.id === selectedResetUser.id
+                ? { ...current, adminActivity: [auditEntry, ...current.adminActivity], lastAdminActivity: auditEntry }
+                : current)
+            toast.success(`Đã gửi email đặt lại mật khẩu tới ${selectedResetUser.email}`)
+            setSelectedResetUser(null)
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Không thể gửi email đặt lại mật khẩu'))
+        } finally {
+            setIsSendingPasswordReset(false)
+        }
+    }
+
     const openPermissionDialog = (user: UserProfile) => {
         setSelectedUserForPermissions(user)
         setPermissionDraft(sanitizeAdminPermissions(user.adminPermissions))
@@ -795,84 +840,81 @@ export default function AdminUsersPage() {
     )
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Quản lý Người Dùng</h2>
-                    <p className="text-muted-foreground mt-1 mb-4">
+        <div className="space-y-5">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-labelledby="users-page-title">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div className="min-w-0">
+                    <h1 id="users-page-title" className="text-pretty text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">Quản lý người dùng</h1>
+                    <p className="mt-1 text-sm text-slate-500">
                         Xem, phân quyền và quản lý tài khoản học viên/quản trị viên.
                     </p>
-                    <div className="flex space-x-3 mb-2">
-                        <div className="bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-md flex flex-col min-w-[120px]">
-                            <span className="text-xs text-blue-600 font-medium uppercase tracking-wider">Tổng tài khoản</span>
-                            <span className="text-lg font-bold text-blue-900">{users.length}</span>
-                        </div>
-                        <div className="bg-green-50 border border-green-100 px-3 py-1.5 rounded-md flex flex-col min-w-[120px]">
-                            <span className="text-xs text-green-600 font-medium uppercase tracking-wider">Học viên</span>
-                            <span className="text-lg font-bold text-green-900">{users.filter(u => u.role === 'learner').length}</span>
-                        </div>
-                        <div className="flex min-w-[140px] flex-col rounded-md border border-violet-100 bg-violet-50 px-3 py-1.5">
-                            <span className="text-xs font-medium uppercase tracking-wider text-violet-600">Gói Vòng 2</span>
-                            <span className="text-lg font-bold text-violet-900">{users.filter(u => u.interviewAccess?.active).length} đang dùng</span>
-                        </div>
-                        {!isTeacher && (
-                            <div className="bg-yellow-50 border border-yellow-100 px-3 py-1.5 rounded-md flex flex-col min-w-[120px]">
-                                <span className="text-xs text-yellow-600 font-medium uppercase tracking-wider">Giáo viên</span>
-                                <span className="text-lg font-bold text-yellow-900">{users.filter(u => u.role === 'teacher').length}</span>
-                            </div>
-                        )}
-                    </div>
                 </div>
-                <div className="flex flex-wrap justify-end gap-2">
+                <div className="flex flex-wrap gap-2 xl:max-w-[52rem] xl:justify-end">
                     {selectedUserIds.length > 0 && (
                         <>
                             {!isTeacher && (
                                 <Button variant="destructive" onClick={() => { generateMathProblem(); setIsBulkDeleteDialogOpen(true); }} className="bg-red-600 hover:bg-red-700">
-                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    <Trash2 className="mr-2 size-4" aria-hidden="true" />
                                     Xóa ({selectedUserIds.length})
                                 </Button>
                             )}
                             {!isTeacher && (
-                                <Button
-                                    onClick={() => {
-                                        setBulkInterviewDays(30)
-                                        setIsBulkInterviewDialogOpen(true)
-                                    }}
-                                    disabled={selectedLearnerCount === 0}
-                                    className="bg-violet-600 text-white hover:bg-violet-700"
-                                >
-                                    <ShieldCheck className="mr-2 size-4" />
+                                <Button onClick={() => { setBulkInterviewDays(30); setIsBulkInterviewDialogOpen(true) }} disabled={selectedLearnerCount === 0} className="bg-violet-600 text-white hover:bg-violet-700">
+                                    <ShieldCheck className="mr-2 size-4" aria-hidden="true" />
                                     Kích hoạt Vòng 2 ({selectedLearnerCount})
                                 </Button>
                             )}
-                            <Button variant="secondary" onClick={() => setIsBulkGrantDialogOpen(true)} className="bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300">
-                                <Coins className="w-4 h-4 mr-2" />
+                            <Button variant="secondary" onClick={() => setIsBulkGrantDialogOpen(true)} className="border-amber-300 bg-amber-100 text-amber-800 hover:bg-amber-200">
+                                <Coins className="mr-2 size-4" aria-hidden="true" />
                                 Điều chỉnh lượt ({selectedUserIds.length})
                             </Button>
                         </>
                     )}
                     <Button variant="outline" onClick={() => setIsBulkImportOpen(true)}>
-                        <Upload className="w-4 h-4 mr-2" />
+                        <Upload className="mr-2 size-4" aria-hidden="true" />
                         Import Excel
                     </Button>
-                    <Button variant="outline" onClick={handleExportExcel} disabled={isExporting} className="bg-green-50 text-green-700 hover:bg-green-100 border-green-200">
-                        <Download className="w-4 h-4 mr-2" />
-                        {isExporting ? "Đang xuất..." : "Xuất điểm Excel"}
+                    <Button variant="outline" onClick={handleExportExcel} disabled={isExporting} className="border-green-200 bg-green-50 text-green-700 hover:bg-green-100">
+                        <Download className="mr-2 size-4" aria-hidden="true" />
+                        {isExporting ? "Đang xuất…" : "Xuất điểm Excel"}
                     </Button>
                     <Button onClick={() => setIsAddDialogOpen(true)}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Thêm người dùng mới
+                        <Plus className="mr-2 size-4" aria-hidden="true" />
+                        Thêm người dùng
                     </Button>
                 </div>
-            </div>
+                </div>
+                <div className="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                        <div className="flex min-w-0 flex-col rounded-xl border border-blue-100 bg-blue-50 px-3 py-2.5">
+                            <span className="text-xs text-blue-600 font-medium uppercase tracking-wider">Tổng tài khoản</span>
+                            <span className="text-lg font-bold text-blue-900">{users.length}</span>
+                        </div>
+                        <div className="flex min-w-0 flex-col rounded-xl border border-green-100 bg-green-50 px-3 py-2.5">
+                            <span className="text-xs text-green-600 font-medium uppercase tracking-wider">Học viên</span>
+                            <span className="text-lg font-bold text-green-900">{users.filter(u => u.role === 'learner').length}</span>
+                        </div>
+                        <div className="flex min-w-0 flex-col rounded-xl border border-violet-100 bg-violet-50 px-3 py-2.5">
+                            <span className="text-xs font-medium uppercase tracking-wider text-violet-600">Gói Vòng 2</span>
+                            <span className="text-lg font-bold text-violet-900">{users.filter(u => u.interviewAccess?.active).length} đang dùng</span>
+                        </div>
+                        {!isTeacher && (
+                            <div className="flex min-w-0 flex-col rounded-xl border border-yellow-100 bg-yellow-50 px-3 py-2.5">
+                                <span className="text-xs text-yellow-600 font-medium uppercase tracking-wider">Giáo viên</span>
+                                <span className="text-lg font-bold text-yellow-900">{users.filter(u => u.role === 'teacher').length}</span>
+                            </div>
+                        )}
+                </div>
+            </section>
 
-            <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+            <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm" aria-label="Bộ lọc người dùng">
                 <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
                     <div className="flex min-h-10 flex-1 items-center gap-2 rounded-lg border border-gray-200 px-3 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
                         <Search className="size-4 shrink-0 text-gray-400" />
                         <input
                             type="search"
-                            placeholder="Tìm theo tên hoặc email..."
+                            placeholder="Tìm theo tên hoặc email…"
+                            name="user-search"
+                            autoComplete="off"
                             aria-label="Tìm người dùng theo tên hoặc email"
                             className="min-w-0 flex-1 border-none bg-transparent text-sm outline-none"
                             value={searchTerm}
@@ -967,30 +1009,45 @@ export default function AdminUsersPage() {
                         </span>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <table className="w-full text-sm text-left">
+            <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" aria-label="Danh sách người dùng">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[1449px] table-fixed text-left text-sm">
+                    <colgroup>
+                        <col style={{ width: 44 }} />
+                        <col style={{ width: 105 }} />
+                        <col style={{ width: 240 }} />
+                        <col style={{ width: 115 }} />
+                        <col style={{ width: 135 }} />
+                        <col style={{ width: 70 }} />
+                        <col style={{ width: 210 }} />
+                        <col style={{ width: 90 }} />
+                        <col style={{ width: 90 }} />
+                        <col style={{ width: 145 }} />
+                        <col style={{ width: 205 }} />
+                    </colgroup>
                     <thead className="bg-gray-50 border-b border-gray-200 text-gray-600">
                         <tr>
-                            <th className="px-6 py-4 font-medium w-12">
+                            <th className="w-12 px-4 py-3 font-medium">
                                 <input 
                                     type="checkbox" 
                                     className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
                                     checked={filteredUsers.length > 0 && selectedUserIds.length === filteredUsers.length}
                                     onChange={handleSelectAll}
+                                    aria-label="Chọn tất cả người dùng đang lọc"
                                 />
                             </th>
-                            <th className="px-6 py-4 font-medium">Họ Tên</th>
-                            <th className="px-6 py-4 font-medium">Email</th>
-                            <th className="px-6 py-4 font-medium">Vai trò</th>
-                            <th className="px-6 py-4 font-medium">Nhóm/Lớp</th>
-                            <th className="px-6 py-4 font-medium">Lượt</th>
-                            <th className="px-6 py-4 font-medium">Gói Phỏng vấn Vòng 2</th>
-                            <th className="px-6 py-4 font-medium">Trạng thái</th>
-                            <th className="px-6 py-4 font-medium">Ngày tham gia</th>
-                            <th className="px-6 py-4 font-medium">Chỉnh sửa gần nhất</th>
-                            <th className="px-6 py-4 font-medium text-right">Thao tác</th>
+                            <th className="px-4 py-3 font-medium">Họ tên</th>
+                            <th className="px-4 py-3 font-medium">Email</th>
+                            <th className="px-4 py-3 font-medium">Vai trò</th>
+                            <th className="px-4 py-3 font-medium">Nhóm/Lớp</th>
+                            <th className="px-4 py-3 font-medium">Lượt</th>
+                            <th className="px-3 py-3 font-medium">PV.Vòng 2</th>
+                            <th className="px-3 py-3 font-medium">Trạng thái</th>
+                            <th className="px-4 py-3 font-medium">Ngày tham gia</th>
+                            <th className="px-3 py-3 font-medium">Nhật ký chỉnh sửa</th>
+                            <th className="sticky right-0 z-20 border-l border-slate-200 bg-gray-50 px-3 py-3 text-right font-medium shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.45)]">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -1008,19 +1065,20 @@ export default function AdminUsersPage() {
                             </tr>
                         ) : (
                             paginatedUsers.map((user) => (
-                                <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                                    <td className="px-6 py-4">
+                                <tr key={user.id} className="group hover:bg-gray-50 transition-colors">
+                                    <td className="px-3 py-3">
                                         <input 
                                             type="checkbox" 
                                             className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
                                             checked={selectedUserIds.includes(user.id)}
                                             onChange={(e) => handleSelectUser(user.id, e.target.checked)}
+                                            aria-label={`Chọn ${user.name}`}
                                         />
                                     </td>
-                                    <td className="px-6 py-4 font-medium text-gray-900">{user.name}</td>
-                                    <td className="px-6 py-4 text-gray-500">{user.email}</td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex min-w-32 flex-col items-start gap-1.5">
+                                    <td className="px-3 py-3 font-medium text-gray-900">{user.name}</td>
+                                    <td className="truncate px-3 py-3 text-gray-500" title={user.email}>{user.email}</td>
+                                    <td className="px-3 py-3">
+                                        <div className="flex min-w-0 flex-col items-start gap-1.5">
                                             <select
                                                 value={user.role}
                                                 disabled={isTeacher}
@@ -1049,12 +1107,12 @@ export default function AdminUsersPage() {
                                             ) : null}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-3 py-3">
                                         <Input
                                             type="text"
                                             placeholder="Tên lớp..."
                                             defaultValue={user.groupName}
-                                            className="h-8 w-28 text-xs px-2"
+                                            className="h-8 w-24 px-2 text-xs"
                                             onBlur={(e) => {
                                                 if (e.target.value !== user.groupName) {
                                                     handleChangeGroup(user.id, e.target.value)
@@ -1065,16 +1123,15 @@ export default function AdminUsersPage() {
                                             }}
                                         />
                                     </td>
-                                    <td className="px-6 py-4 font-medium text-blue-700">{formatCredits(user.remainingCredits)}</td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-3 py-3 font-medium text-blue-700">{formatCredits(user.remainingCredits)}</td>
+                                    <td className="px-3 py-3">
                                         {user.interviewAccess?.active ? (
                                             <div className="space-y-1">
                                                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
                                                     <ShieldCheck className="size-3.5" /> Đang hoạt động
                                                 </span>
-                                                <p className="whitespace-nowrap text-[11px] text-slate-500">
-                                                    {user.interviewAccess.planName ? `${user.interviewAccess.planName} · ` : ''}
-                                                    Đến {new Date(user.interviewAccess.expiresAt).toLocaleDateString('vi-VN')}
+                                                <p className="whitespace-nowrap text-[10px] leading-4 text-slate-500">
+                                                    {compactInterviewPlan(user.interviewAccess.planName)} · Đến {new Date(user.interviewAccess.expiresAt).toLocaleDateString('vi-VN')}
                                                 </p>
                                             </div>
                                         ) : (
@@ -1083,18 +1140,18 @@ export default function AdminUsersPage() {
                                             </span>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-3 py-3">
                                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${user.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                                             {user.status}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-gray-500">{user.joinedAt}</td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-3 py-3 text-xs text-gray-500">{new Date(user.joinedAt).toLocaleDateString('vi-VN')}</td>
+                                    <td className="px-3 py-3">
                                         {user.lastAdminActivity ? (
                                             <button
                                                 type="button"
                                                 onClick={() => setSelectedAuditUser(user)}
-                                                className="group min-w-40 text-left"
+                                                className="block w-full truncate text-left"
                                                 title="Xem lịch sử chỉnh sửa"
                                             >
                                                 <span className="block text-xs font-semibold text-slate-800 group-hover:text-blue-700">
@@ -1111,7 +1168,17 @@ export default function AdminUsersPage() {
                                             <span className="text-xs text-slate-400">Chưa có thay đổi</span>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 text-right space-x-2">
+                                    <td className="sticky right-0 z-10 border-l border-slate-100 bg-white px-3 py-3 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.45)] group-hover:bg-gray-50">
+                                        <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => setSelectedDetailUser(user)}
+                                            className="h-8 w-8 bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                            title="Xem thông tin tài khoản"
+                                        >
+                                            <Eye className="h-4 w-4" />
+                                        </Button>
                                         {!isTeacher && (user.role === 'learner' || Boolean(user.interviewAccess)) && (
                                             <Button
                                                 variant="ghost"
@@ -1152,19 +1219,23 @@ export default function AdminUsersPage() {
                                                 <Trash2 className="w-4 h-4" />
                                             </Button>
                                         )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))
                         )}
                     </tbody>
                 </table>
+                </div>
                 {filteredUsers.length > 0 && (
-                    <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-gray-50">
+                    <div className="flex flex-col gap-3 border-t border-gray-200 bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="text-sm text-gray-500">
                             Hiển thị {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredUsers.length)} trong số {filteredUsers.length} tài khoản
                         </div>
                         <div className="flex items-center space-x-2">
-                            <select 
+                            <label className="sr-only" htmlFor="users-per-page">Số dòng mỗi trang</label>
+                            <select
+                                id="users-per-page"
                                 className="text-sm border-gray-300 rounded-md py-1 px-2"
                                 value={itemsPerPage}
                                 onChange={(e) => setItemsPerPage(Number(e.target.value))}
@@ -1200,7 +1271,7 @@ export default function AdminUsersPage() {
                         </div>
                     </div>
                 )}
-            </div>
+            </section>
 
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogContent className="sm:max-w-[425px]">
@@ -1576,6 +1647,76 @@ export default function AdminUsersPage() {
                             {isSavingPermissions ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ShieldCheck className="mr-2 size-4" />}
                             Lưu quyền chỉ mục
                         </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Sheet open={Boolean(selectedDetailUser)} onOpenChange={(open) => { if (!open) setSelectedDetailUser(null) }}>
+                <SheetContent className="w-full overflow-y-auto p-0 sm:max-w-xl">
+                    {selectedDetailUser ? (
+                        <>
+                            <SheetHeader className="border-b border-slate-200 bg-slate-50 px-6 py-5 pr-12">
+                                <div className="flex items-center gap-3">
+                                    <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-blue-600 font-bold text-white">
+                                        {selectedDetailUser.name.trim().charAt(0).toUpperCase() || 'U'}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <SheetTitle className="truncate text-lg">{selectedDetailUser.name}</SheetTitle>
+                                        <SheetDescription className="truncate">{selectedDetailUser.email}</SheetDescription>
+                                    </div>
+                                </div>
+                            </SheetHeader>
+                            <div className="space-y-6 px-6 py-5">
+                                <section aria-labelledby="account-overview-title">
+                                    <h3 className="mb-3 text-sm font-bold text-slate-900" id="account-overview-title">Thông tin tài khoản</h3>
+                                    <dl className="grid gap-3 rounded-xl border border-slate-200 p-4 text-sm sm:grid-cols-2">
+                                        <div><dt className="text-xs text-slate-500">Vai trò</dt><dd className="mt-1 font-semibold capitalize text-slate-900">{selectedDetailUser.role}</dd></div>
+                                        <div><dt className="text-xs text-slate-500">Nhóm/Lớp</dt><dd className="mt-1 font-semibold text-slate-900">{selectedDetailUser.groupName || 'Chưa phân nhóm'}</dd></div>
+                                        <div><dt className="text-xs text-slate-500">Trạng thái</dt><dd className="mt-1 font-semibold text-slate-900">{selectedDetailUser.status === 'Active' ? 'Đang hoạt động' : 'Đã khóa'}</dd></div>
+                                        <div><dt className="text-xs text-slate-500">Phương thức đăng nhập</dt><dd className="mt-1 font-semibold capitalize text-slate-900">{selectedDetailUser.authProvider}</dd></div>
+                                        <div><dt className="text-xs text-slate-500">Xác thực email</dt><dd className={`mt-1 font-semibold ${selectedDetailUser.emailConfirmedAt ? 'text-emerald-700' : 'text-amber-700'}`}>{selectedDetailUser.emailConfirmedAt ? 'Đã xác thực' : 'Chưa xác thực'}</dd></div>
+                                        <div><dt className="text-xs text-slate-500">Lượt thi còn lại</dt><dd className="mt-1 font-semibold text-blue-700">{formatCredits(selectedDetailUser.remainingCredits)}</dd></div>
+                                    </dl>
+                                </section>
+
+                                <section aria-labelledby="login-info-title">
+                                    <h3 className="mb-3 text-sm font-bold text-slate-900" id="login-info-title">Hoạt động đăng nhập</h3>
+                                    <div className="space-y-3 rounded-xl border border-slate-200 p-4 text-sm">
+                                        <div className="flex items-center gap-3"><UserRound className="size-4 text-slate-400" /><div><p className="text-xs text-slate-500">Ngày tạo tài khoản</p><p className="font-medium text-slate-900">{new Date(selectedDetailUser.createdAt).toLocaleString('vi-VN')}</p></div></div>
+                                        <div className="flex items-center gap-3"><LogIn className="size-4 text-slate-400" /><div><p className="text-xs text-slate-500">Đăng nhập gần nhất</p><p className="font-medium text-slate-900">{selectedDetailUser.lastSignInAt ? new Date(selectedDetailUser.lastSignInAt).toLocaleString('vi-VN') : 'Chưa từng đăng nhập'}</p></div></div>
+                                    </div>
+                                </section>
+
+                                {!isTeacher ? (
+                                    <section aria-labelledby="security-actions-title">
+                                        <h3 className="mb-3 text-sm font-bold text-slate-900" id="security-actions-title">Bảo mật</h3>
+                                        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                                            <div className="flex items-start gap-3"><KeyRound className="mt-0.5 size-5 shrink-0 text-blue-700" /><div><p className="font-semibold text-blue-950">Khôi phục mật khẩu</p><p className="mt-1 text-xs leading-5 text-blue-800">Gửi liên kết dùng một lần để người dùng tự đặt mật khẩu mới. Admin không xem được mật khẩu của người dùng.</p></div></div>
+                                            <Button className="mt-4 w-full gap-2" onClick={() => setSelectedResetUser(selectedDetailUser)}><Mail className="size-4" />Gửi email đặt lại mật khẩu</Button>
+                                        </div>
+                                    </section>
+                                ) : null}
+
+                                <Button className="w-full" onClick={() => setSelectedAuditUser(selectedDetailUser)} variant="outline"><Clock3 className="size-4" />Xem nhật ký quản trị ({selectedDetailUser.adminActivity.length})</Button>
+                            </div>
+                        </>
+                    ) : null}
+                </SheetContent>
+            </Sheet>
+
+            <Dialog open={Boolean(selectedResetUser)} onOpenChange={(open) => { if (!open && !isSendingPasswordReset) setSelectedResetUser(null) }}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2"><KeyRound className="size-5 text-blue-600" />Gửi email đặt lại mật khẩu</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3 text-sm">
+                        <p>Hệ thống sẽ gửi liên kết bảo mật tới:</p>
+                        <div className="rounded-xl bg-slate-50 p-4"><p className="font-semibold text-slate-900">{selectedResetUser?.name}</p><p className="mt-1 text-slate-600">{selectedResetUser?.email}</p></div>
+                        <p className="text-slate-500">Liên kết chỉ dùng để người nhận tự đặt mật khẩu mới. Mật khẩu hiện tại không bị hiển thị cho admin.</p>
+                    </div>
+                    <DialogFooter>
+                        <Button disabled={isSendingPasswordReset} onClick={() => setSelectedResetUser(null)} variant="outline">Hủy</Button>
+                        <Button disabled={isSendingPasswordReset} onClick={sendPasswordReset}>{isSendingPasswordReset ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}Xác nhận gửi</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

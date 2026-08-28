@@ -71,7 +71,8 @@ function AdaptiveLearningContent() {
                     options: optionStrings,
                     answer: correctAnswerText,
                     category_name: q.category?.name || q.category_name || null,
-                    translated_text: q.translated_text,
+                    translatedText: q.translated_text,
+                    analysis: q.ai_question_analysis,
                     ai_vocab_list: q.ai_vocab_list,
                     ai_grammar_list: q.ai_grammar_list
                 });

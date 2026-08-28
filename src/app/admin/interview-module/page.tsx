@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import * as XLSX from 'xlsx'
 import { Button } from '@/components/ui/button'
@@ -9,9 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { Plus, Edit, Trash2, Search, Filter, Upload, Download, FileSpreadsheet } from 'lucide-react'
+import { Plus, Edit, Trash2, Search, Filter, Upload, Download, FileSpreadsheet, Save, X } from 'lucide-react'
 import { BulkImportModal } from '@/components/admin/BulkImportModal'
-import { resolveToolQuestionConfig, definitionLabel, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type ToolQuestionConfig, type VocabularyItem } from '@/components/interview/toolQuestionAnalysis'
+import { resolveToolQuestionConfig, getRequiredTargetForAction, definitionLabel, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type ToolQuestionConfig, type VocabularyItem } from '@/components/interview/toolQuestionAnalysis'
+import { legacyToolConfigToWorkshopGame } from '@/features/workshop'
+import { getWorkshopDetailImage, getWorkshopToolImage } from '@/components/interview/workshopVisualAssets'
 
 type InterviewQuestionRow = {
     id: string
@@ -45,6 +48,28 @@ type ApiResponse<T> = {
     error?: string
 }
 
+const LIST_STATE_KEY = 'admin_interview_module_list_state_v1'
+
+type InterviewListState = {
+    searchQuery: string
+    filterCategory: string
+    scrollY: number
+}
+
+function readListState(): InterviewListState {
+    if (typeof window === 'undefined') return { searchQuery: '', filterCategory: 'Tất cả', scrollY: 0 }
+    try {
+        const stored = JSON.parse(sessionStorage.getItem(LIST_STATE_KEY) || '{}') as Partial<InterviewListState>
+        return {
+            searchQuery: typeof stored.searchQuery === 'string' ? stored.searchQuery : '',
+            filterCategory: typeof stored.filterCategory === 'string' ? stored.filterCategory : 'Tất cả',
+            scrollY: typeof stored.scrollY === 'number' ? stored.scrollY : 0,
+        }
+    } catch {
+        return { searchQuery: '', filterCategory: 'Tất cả', scrollY: 0 }
+    }
+}
+
 function getErrorMessage(error: unknown, fallback: string) {
     return error instanceof Error ? error.message : fallback
 }
@@ -60,6 +85,13 @@ export default function InterviewModuleAdminPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [filterCategory, setFilterCategory] = useState('Tất cả')
     
+    const isRestoringListState = useRef(true)
+    const hasRestoredScroll = useRef(false)
+    const pendingScrollY = useRef(0)
+    const [inlineEditingId, setInlineEditingId] = useState<string | null>(null)
+    const [inlineDraft, setInlineDraft] = useState<ToolQuestionConfig | null>(null)
+    const [inlineSavingId, setInlineSavingId] = useState<string | null>(null)
+
     // Import Modal state
     const [isImportModalOpen, setIsImportModalOpen] = useState(false)
 
@@ -97,6 +129,27 @@ export default function InterviewModuleAdminPage() {
         fetchQuestions()
         fetchSettings()
     }, [])
+
+    useEffect(() => {
+        if (isRestoringListState.current) return
+        const current = readListState()
+        sessionStorage.setItem(LIST_STATE_KEY, JSON.stringify({ ...current, searchQuery, filterCategory }))
+    }, [filterCategory, searchQuery])
+
+    useEffect(() => {
+        const stored = readListState()
+        pendingScrollY.current = stored.scrollY
+        setSearchQuery(stored.searchQuery)
+        setFilterCategory(stored.filterCategory)
+        isRestoringListState.current = false
+    }, [])
+
+    useEffect(() => {
+        if (loading || hasRestoredScroll.current) return
+        hasRestoredScroll.current = true
+        const frame = requestAnimationFrame(() => window.scrollTo({ top: pendingScrollY.current, behavior: 'instant' }))
+        return () => cancelAnimationFrame(frame)
+    }, [loading])
 
     const fetchQuestions = async () => {
         try {
@@ -227,6 +280,93 @@ export default function InterviewModuleAdminPage() {
             target: config.requires_target === false ? 'Không nêu trong câu' : definitionLabel(TARGET_DEFINITIONS, config.target_object),
             action: config.requires_action ? definitionLabel(ACTION_DEFINITIONS, config.correct_action || '') : 'Đặt/cất đúng vị trí',
             vocabulary: config.vocabulary_analysis || []
+        }
+    }
+
+    const rememberListPosition = () => {
+        sessionStorage.setItem(LIST_STATE_KEY, JSON.stringify({ searchQuery, filterCategory, scrollY: window.scrollY }))
+    }
+
+    const openInlineAnswerEditor = (question: InterviewQuestionRow) => {
+        const config = resolveToolQuestionConfig(
+            question.question_text || '',
+            question.vietnamese_meaning || '',
+            question.tool_config,
+        )
+        setInlineEditingId(question.id)
+        setInlineDraft(config)
+    }
+
+    const closeInlineAnswerEditor = () => {
+        setInlineEditingId(null)
+        setInlineDraft(null)
+    }
+
+    const updateInlineDraft = (patch: Partial<ToolQuestionConfig>) => {
+        setInlineDraft((current) => {
+            if (!current) return current
+            const next = { ...current, ...patch }
+            const requiredTarget = getRequiredTargetForAction(next.correct_action)
+            return requiredTarget
+                ? { ...next, requires_target: true, target_object: next.requires_target === false ? requiredTarget : next.target_object || requiredTarget }
+                : next
+        })
+    }
+
+    const saveInlineAnswer = async (question: InterviewQuestionRow) => {
+        if (!inlineDraft) return
+        setInlineSavingId(question.id)
+        const toastId = toast.loading('Đang lưu đáp án chấm điểm...')
+        try {
+            const answerSteps: NonNullable<ToolQuestionConfig['answer_steps']> = [
+                { step: 1, kind: 'tool', expected: inlineDraft.correct_tool },
+            ]
+            if (inlineDraft.requires_target !== false) {
+                answerSteps.push({ step: 2, kind: 'target', expected: inlineDraft.target_object })
+            }
+            if (inlineDraft.requires_action) {
+                answerSteps.push({ step: inlineDraft.requires_target === false ? 2 : 3, kind: 'action', expected: inlineDraft.correct_action || '' })
+            }
+            const updatedConfig: ToolQuestionConfig = {
+                ...inlineDraft,
+                answer_steps: answerSteps,
+                scoring: {
+                    tool: 1,
+                    target: inlineDraft.requires_target === false ? 0 : 1,
+                    action: inlineDraft.requires_action ? 1 : 0,
+                    pass_all_required: true,
+                },
+                game_config: legacyToolConfigToWorkshopGame({ ...inlineDraft, game_config: null }),
+            }
+            const toolLabel = definitionLabel(TOOL_DEFINITIONS, updatedConfig.correct_tool)
+            const targetLabel = definitionLabel(TARGET_DEFINITIONS, updatedConfig.target_object)
+            const actionLabel = definitionLabel(ACTION_DEFINITIONS, updatedConfig.correct_action || '')
+            const generatedAnswer = updatedConfig.requires_target === false
+                ? `Chọn ${toolLabel}; thực hiện ${actionLabel}.`
+                : updatedConfig.requires_action
+                    ? `Chọn ${toolLabel}; tác động vào ${targetLabel}; thực hiện ${actionLabel}.`
+                    : `Chọn ${toolLabel}; đặt đúng vào ${targetLabel}.`
+            const existingAnswers = Array.isArray(question.suggested_answers)
+                ? question.suggested_answers
+                : question.suggested_answers ? [question.suggested_answers] : []
+            const response = await fetch(`/api/admin/interview-questions/${question.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...question,
+                    suggested_answers: [generatedAnswer, ...existingAnswers.slice(1)],
+                    tool_config: updatedConfig,
+                }),
+            })
+            const payload = await response.json() as ApiResponse<InterviewQuestionRow>
+            if (!response.ok || !payload.success || !payload.data) throw new Error(payload.error || 'Không thể lưu đáp án')
+            setQuestions((current) => current.map((item) => item.id === question.id ? payload.data! : item))
+            toast.success('Đã cập nhật đáp án chấm điểm', { id: toastId })
+            closeInlineAnswerEditor()
+        } catch (error: unknown) {
+            toast.error(getErrorMessage(error, 'Không thể lưu đáp án'), { id: toastId })
+        } finally {
+            setInlineSavingId(null)
         }
     }
 
@@ -536,12 +676,48 @@ export default function InterviewModuleAdminPage() {
                                                 <div className="text-gray-500 text-xs mt-1 line-clamp-1">{q.vietnamese_meaning}</div>
                                                 {getToolAnalysisSummary(q) && (
                                                     <div className="mt-2 rounded-md border border-orange-100 bg-orange-50 px-2 py-1.5 text-xs text-orange-900">
-                                                        <div className="font-medium">
-                                                            Công cụ: {getToolAnalysisSummary(q)?.tool} | Vật thể: {getToolAnalysisSummary(q)?.target} | Thao tác: {getToolAnalysisSummary(q)?.action}
+                                                        <div className="flex flex-wrap items-start justify-between gap-2">
+                                                            <div className="font-medium">
+                                                                Công cụ: {getToolAnalysisSummary(q)?.tool} | Vật thể: {getToolAnalysisSummary(q)?.target} | Thao tác: {getToolAnalysisSummary(q)?.action}
+                                                            </div>
+                                                            {inlineEditingId !== q.id ? (
+                                                                <button className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white px-2 py-1 font-semibold text-blue-700 ring-1 ring-blue-200 hover:bg-blue-50" onClick={() => openInlineAnswerEditor(q)} type="button"><Edit className="size-3" />Sửa đáp án nhanh</button>
+                                                            ) : null}
                                                         </div>
                                                         <div className="mt-1 text-orange-700 line-clamp-1">
                                                             {getToolAnalysisSummary(q)?.vocabulary.map((item: VocabularyItem) => `${item.term}: ${item.meaning}`).join(' · ')}
                                                         </div>
+                                                        {inlineEditingId === q.id && inlineDraft ? (
+                                                            <div className="mt-3 rounded-lg border border-blue-200 bg-white p-3 shadow-sm">
+                                                                <div className="grid gap-3 lg:grid-cols-3">
+                                                                    <label className="space-y-1"><span className="font-semibold text-slate-700">Dụng cụ đúng</span><select className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-900" onChange={(event) => updateInlineDraft({ correct_tool: event.target.value })} value={inlineDraft.correct_tool}>{TOOL_DEFINITIONS.map((item) => <option key={item.id} value={item.id}>{item.label} ({item.ko})</option>)}</select></label>
+                                                                    <label className="space-y-1"><span className="font-semibold text-slate-700">Vật thể đúng</span><select className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-900" onChange={(event) => event.target.value === '__none__' ? updateInlineDraft({ requires_target: false }) : updateInlineDraft({ requires_target: true, target_object: event.target.value })} value={inlineDraft.requires_target === false ? '__none__' : inlineDraft.target_object}><option disabled={!inlineDraft.requires_action || Boolean(getRequiredTargetForAction(inlineDraft.correct_action))} value="__none__">Không có vật thể</option>{TARGET_DEFINITIONS.map((item) => <option key={item.id} value={item.id}>{item.label} ({item.ko})</option>)}</select></label>
+                                                                    <label className="space-y-1"><span className="font-semibold text-slate-700">Thao tác đúng</span>{inlineDraft.requires_action ? <select className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-900" onChange={(event) => updateInlineDraft({ correct_action: event.target.value })} value={inlineDraft.correct_action || ''}>{ACTION_DEFINITIONS.filter((item) => item.id !== 'store').map((item) => <option key={item.id} value={item.id}>{item.label} ({item.ko})</option>)}</select> : <div className="flex h-9 items-center rounded-md border border-slate-200 bg-slate-100 px-2 text-xs font-medium text-slate-600">Đặt/cất đúng vị trí</div>}</label>
+                                                                </div>
+                                                                <div className="mt-3 grid gap-2 border-t border-slate-100 pt-3 sm:grid-cols-3">
+                                                                    <div className="flex min-w-0 items-center gap-2 rounded-lg bg-slate-50 p-2 ring-1 ring-slate-200">
+                                                                        <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-md bg-white">
+                                                                            {getWorkshopToolImage(inlineDraft.correct_tool) ? <Image alt={definitionLabel(TOOL_DEFINITIONS, inlineDraft.correct_tool)} className="size-14 object-contain" height={64} src={getWorkshopToolImage(inlineDraft.correct_tool)!} width={64} /> : <span className="text-[10px] text-slate-400">Chưa có ảnh</span>}
+                                                                        </div>
+                                                                        <div className="min-w-0"><p className="text-[10px] font-bold uppercase text-blue-500">1. Dụng cụ</p><p className="mt-1 line-clamp-2 font-semibold text-slate-800">{definitionLabel(TOOL_DEFINITIONS, inlineDraft.correct_tool)}</p></div>
+                                                                    </div>
+                                                                    <div className="flex min-w-0 items-center gap-2 rounded-lg bg-slate-50 p-2 ring-1 ring-slate-200">
+                                                                        <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-md bg-white">
+                                                                            {inlineDraft.requires_target === false ? <span className="px-1 text-center text-[10px] font-semibold text-slate-500">Không có vật thể</span> : getWorkshopDetailImage(inlineDraft.target_object) ? <Image alt={definitionLabel(TARGET_DEFINITIONS, inlineDraft.target_object)} className="size-14 object-contain" height={64} src={getWorkshopDetailImage(inlineDraft.target_object)!} width={64} /> : <span className="text-[10px] text-slate-400">Chưa có ảnh</span>}
+                                                                        </div>
+                                                                        <div className="min-w-0"><p className="text-[10px] font-bold uppercase text-violet-500">2. Vật thể</p><p className="mt-1 line-clamp-2 font-semibold text-slate-800">{inlineDraft.requires_target === false ? 'Không có vật thể' : definitionLabel(TARGET_DEFINITIONS, inlineDraft.target_object)}</p></div>
+                                                                    </div>
+                                                                    <div className="flex min-w-0 items-center gap-2 rounded-lg bg-emerald-50 p-2 ring-1 ring-emerald-100">
+                                                                        <div className="grid size-16 shrink-0 place-items-center rounded-md bg-emerald-100 px-1 text-center text-[11px] font-black text-emerald-700">{inlineDraft.requires_action ? definitionLabel(ACTION_DEFINITIONS, inlineDraft.correct_action || '') : 'Không yêu cầu'}</div>
+                                                                        <div className="min-w-0"><p className="text-[10px] font-bold uppercase text-emerald-600">{inlineDraft.requires_target === false ? '2' : '3'}. Thao tác</p><p className="mt-1 line-clamp-2 font-semibold text-slate-800">{inlineDraft.requires_action ? definitionLabel(ACTION_DEFINITIONS, inlineDraft.correct_action || '') : 'Không yêu cầu thao tác'}</p></div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="mt-3 flex justify-end gap-2">
+                                                                    <Button className="h-8 px-3 text-xs" disabled={inlineSavingId === q.id} onClick={closeInlineAnswerEditor} size="sm" variant="outline"><X className="size-3.5" />Hủy</Button>
+                                                                    <Button className="h-8 px-3 text-xs" disabled={inlineSavingId === q.id} onClick={() => void saveInlineAnswer(q)} size="sm">{inlineSavingId === q.id ? <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <Save className="size-3.5" />}Lưu đáp án</Button>
+                                                                </div>
+                                                            </div>
+                                                        ) : null}
                                                     </div>
                                                 )}
                                                 {q.category === 'An toàn lao động' && q.safety_group && (
@@ -563,7 +739,10 @@ export default function InterviewModuleAdminPage() {
                                                     variant="ghost" 
                                                     size="icon" 
                                                     aria-label="Chỉnh sửa câu hỏi"
-                                                    onClick={() => router.push(`/admin/interview-module/${q.id}`)}
+                                                    onClick={() => {
+                                                        rememberListPosition()
+                                                        router.push(`/admin/interview-module/${q.id}`)
+                                                    }}
                                                 >
                                                     <Edit className="w-4 h-4 text-blue-600" />
                                                 </Button>

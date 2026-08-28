@@ -39,8 +39,8 @@ const TOOL_NAMES: Record<string, { ko: string; vi: string }> = {
     'screwdriver': { ko: '드라이버', vi: 'Tua vít' },
     'hammer': { ko: '망치', vi: 'Búa' },
     'claw_hammer': { ko: '장도리', vi: 'Búa nhổ đinh' },
-    'pliers': { ko: '펜치 / 니퍼 / 플라이어', vi: 'Kìm mỏ nhọn / Kìm bấm' },
-    'long_nose_pliers': { ko: '롱노즈 플라이어', vi: 'Kìm mũi dài' },
+    'pliers': { ko: '펜치', vi: 'Kìm' },
+    'long_nose_pliers': { ko: '플라이어', vi: 'Kìm mỏ nhọn' },
     'pincers': { ko: '펜치', vi: 'Kìm bấm' },
     'nipper': { ko: '니퍼', vi: 'Kìm cắt' },
     'bolt_cutter': { ko: '절단기', vi: 'Kìm cộng lực' },
@@ -123,12 +123,36 @@ const DETAIL_ASSETS: Record<string, string> = {
     wood_workpiece: '/assets/workshop/details-v2/wood_workpiece.png',
     metal_workpiece: '/assets/workshop/details-v2/metal_workpiece.png',
     marking_surface: '/assets/workshop/details-v2/marking_surface.png',
-    measured_object: '/assets/workshop/details-v2/workpiece.png',
+    measured_object: '/assets/workshop/tools/game-v2/measured_object.png',
+    stone: '/assets/workshop/tools/game-v2/stone.png',
+    rebar: '/assets/workshop/tools/game-v2/rebar.png',
+    bolted_joint: '/assets/workshop/tools/game-v2/bolted_joint.png',
+    cargo: '/assets/workshop/tools/game-v2/cargo.png',
+    drilled_hole: '/assets/workshop/tools/game-v2/drilled_hole.png',
+    hole: '/assets/workshop/tools/game-v2/drilled_hole.png',
+    electric_circuit: '/assets/workshop/tools/game-v2/electric_circuit.png',
+    flame: '/assets/workshop/tools/game-v2/flame.png',
+    groove: '/assets/workshop/tools/game-v2/groove.png',
+    inclined_surface: '/assets/workshop/tools/game-v2/inclined_surface.png',
+    machine_control: '/assets/workshop/tools/game-v2/control_panel.png',
+    packaged_product: '/assets/workshop/tools/game-v2/packaged_product.png',
+    pressure_setting: '/assets/workshop/tools/game-v2/control_panel.png',
+    raw_materials: '/assets/workshop/tools/game-v2/raw_materials.png',
+    rusty_area: '/assets/workshop/tools/game-v2/rusty_area.png',
+    temperature_setting: '/assets/workshop/tools/game-v2/control_panel.png',
+    water_surface: '/assets/workshop/tools/game-v2/water_surface.png',
+    work_area: '/assets/workshop/tools/game-v2/work_area.png',
+    weighed_item: '/assets/workshop/tools/game-v2/weighed_item_box.png',
     finish_surface: '/assets/workshop/details-v2/workpiece.png',
     lever: '/assets/workshop/details-v2/lever.png',
     workpiece: '/assets/workshop/details-v2/workpiece.png',
+    clamped_workpiece: '/assets/workshop/tools/game-v2/clamped_workpiece.png',
     box: '/assets/workshop/details-v2/box.png',
     shelf: '/assets/workshop/details-v2/shelf.png',
+    shelf_top_left: '/assets/workshop/details-v2/shelf.png',
+    shelf_bottom_left: '/assets/workshop/details-v2/shelf.png',
+    shelf_top_right: '/assets/workshop/details-v2/shelf.png',
+    shelf_bottom_right: '/assets/workshop/details-v2/shelf.png',
     switch_power: '/assets/workshop/details-v2/switch_power.png',
     emergency_button: '/assets/workshop/details-v2/emergency_button.png',
     signal_light: '/assets/workshop/details-v2/signal_light.png',
@@ -321,14 +345,18 @@ function inferToolFromText(question: ToolPracticeQuestion, targetObject: string)
     if (/중량을?\s*측정.*기계|중량\s*측정기|máy cân trọng lượng/i.test(text)) return 'industrial_scale'
     if (/무게를\s*재는\s*도구|저울|dụng cụ cân|cân trọng lượng/i.test(text)) return 'scale'
     if (/방청유|녹을?\s*방지.*오일|녹\s*방지\s*오일|dầu\s*(?:dùng để\s*)?(?:chống|ngăn)\s*rỉ|dầu chống gỉ/i.test(text)) return 'rust_preventive_oil'
+    if (/레버를?\s*당기|kéo cần gạt/i.test(text)) return 'lever'
     if (/스위치|버튼|레버|gạt công tắc|nút khẩn cấp|nút bấm|công tắc|cầu dao/i.test(text)) return 'switch_tool'
-    if (/줄자|자를|측정|thước|đo chiều dài|đo/.test(text)) return 'ruler'
+    if (/버니어\s*캘리퍼스|캘리퍼스|thước cặp(?: cơ khí)?|vernier caliper/i.test(text)) return 'vernier_caliper'
+    if (/줄자|자를|측정|thước đo|thước dây|đo chiều dài|đo/.test(text)) return 'ruler'
     if (/십자드라이버|tua vít chữ thập|tuốc nơ vít chữ thập/.test(text)) return 'phillips_screwdriver'
     if (/일자드라이버|tua vít dẹt|tuốc nơ vít dẹt/.test(text)) return 'flat_screwdriver'
     if (/육각|lục giác|allen/.test(text)) return 'allen_wrench'
     if (/풀러|cảo|vam/.test(text)) return 'bearing_puller'
     if (/망치|장도리|búa|đinh/.test(text)) return 'hammer'
-    if (/펜치|니퍼|플라이어|kìm|kềm/.test(text)) return 'pliers'
+    if (/플라이어|kìm (?:mỏ nhọn|mũi dài)/i.test(text)) return 'long_nose_pliers'
+    if (/니퍼|끊는\s*도구|전선을\s*자르는\s*도구|kìm cắt|công cụ cắt dây/i.test(text)) return 'nipper'
+    if (/펜치|kìm|kềm/.test(text)) return 'pliers'
     if (/스패너|렌치|멍키|몽키|cờ lê|mỏ lết|bu lông|đai ốc|너트|볼트/.test(text)) return 'wrench'
     if (/드라이버|tua vít|tuốc nơ vít|나사/.test(text)) return 'screwdriver'
     if (/톱|cưa/.test(text)) return 'saw'
@@ -400,14 +428,12 @@ function normalizeToolConfig(rawConfig: ToolPracticeConfig, question: ToolPracti
     const rawCorrect = inferredTool || sourceConfig.correct_tool || 'screwdriver'
     const correct_tool = normalizeToolId(rawCorrect)
     const rawDeskTools = (sourceConfig.tools_on_desk || []).map(normalizeToolId)
+    const toolActsDirectly = ['leakage_breaker', 'switch_tool', 'control_panel'].includes(correct_tool)
 
     return {
         ...sourceConfig,
         target_object,
-        // The table-game flow always needs a real object/detail when one can
-        // be resolved from the command. Older records may still explicitly
-        // disable this step even though they contain a valid target_object.
-        requires_target: Boolean(target_object),
+        requires_target: sourceConfig.requires_target !== false && Boolean(target_object) && !toolActsDirectly,
         correct_tool,
         tools_on_desk: Array.from(new Set([correct_tool, ...rawDeskTools])),
         correct_action,
@@ -447,6 +473,8 @@ function getFallbackToolConfig(ko: string, vi: string) {
     let correct_tool = 'screwdriver'
     if (/토크\s*렌치|토크/.test(koText) || /cờ lê lực|mô-?men(?: xoắn)?/i.test(viText)) {
         correct_tool = 'torque_wrench'
+    } else if (/레버를?\s*당기/.test(koText) || viText.includes('kéo cần gạt')) {
+        correct_tool = 'lever'
     } else if (koText.includes('스위치') || koText.includes('버튼') || koText.includes('레버') || viText.includes('công tắc') || viText.includes('cầu dao') || viText.includes('nút khẩn cấp') || viText.includes('nút bấm') || viText.includes('gạt công tắc')) {
         correct_tool = 'switch_tool'
     } else if (koText.includes('육각 렌치') || koText.includes('육각렌치')) {
@@ -455,7 +483,11 @@ function getFallbackToolConfig(ko: string, vi: string) {
         correct_tool = 'bearing_puller'
     } else if (koText.includes('망치') || koText.includes('장도리') || koText.includes('못을') || koText.includes('못이') || koText.includes('박는')) {
         correct_tool = 'hammer'
-    } else if (koText.includes('플라이어') || koText.includes('펜치') || koText.includes('니퍼') || koText.includes('롱노즈') || koText.includes('철사') || koText.includes('선재') || koText.includes('구리선') || koText.includes('철선') || koText.includes('전선')) {
+    } else if (koText.includes('플라이어') || viText.includes('kìm mỏ nhọn') || viText.includes('kìm mũi dài')) {
+        correct_tool = 'long_nose_pliers'
+    } else if (koText.includes('니퍼') || /(?:끊는\s*도구|전선을\s*자르는\s*도구)/.test(koText) || viText.includes('kìm cắt')) {
+        correct_tool = 'nipper'
+    } else if (koText.includes('펜치') || koText.includes('철사') || koText.includes('선재') || koText.includes('구리선') || koText.includes('철선') || koText.includes('전선')) {
         correct_tool = 'pliers'
     } else if (koText.includes('스패너') || koText.includes('렌치') || koText.includes('몽키') || koText.includes('멍키') || koText.includes('토크') || koText.includes('볼트') || koText.includes('너트') || koText.includes('암나사') || koText.includes('수나사')) {
         correct_tool = 'wrench'

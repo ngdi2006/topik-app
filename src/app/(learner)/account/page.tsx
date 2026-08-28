@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Award, CalendarDays, CheckCircle2, ChevronLeft, Clock3, History, Loader2, LockKeyhole, Mail, Save, ShieldCheck, UserRound, XCircle } from "lucide-react"
+import { Award, CalendarDays, CheckCircle2, ChevronLeft, Clock3, History, Loader2, LockKeyhole, Mail, Menu, Save, ShieldCheck, UserRound, XCircle } from "lucide-react"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { useUserStore } from "@/store/userStore"
 import { UserNav } from "@/components/shared/UserNav"
+import { LearnerSidebar } from "@/components/shared/LearnerSidebar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -46,6 +47,7 @@ export default function AccountPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [isSavingProfile, setIsSavingProfile] = useState(false)
     const [isSavingPassword, setIsSavingPassword] = useState(false)
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
     useEffect(() => {
         let active = true
@@ -121,10 +123,13 @@ export default function AccountPage() {
         : 0
 
     return (
-        <div className="min-h-screen bg-slate-50">
+        <div className="flex min-h-screen bg-slate-50">
+            <LearnerSidebar mobileOpen={isMobileMenuOpen} onMobileOpenChange={setIsMobileMenuOpen} />
+            <div className="min-w-0 flex-1">
             <header className="sticky top-0 z-20 border-b bg-white/95 backdrop-blur">
                 <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
                     <div className="flex items-center gap-2">
+                        <Button aria-label="Mở menu" className="md:hidden" onClick={() => setIsMobileMenuOpen(true)} size="icon" variant="ghost"><Menu className="size-6" /></Button>
                         <Button aria-label="Quay lại" onClick={() => router.push('/dashboard')} size="icon" variant="ghost"><ChevronLeft className="size-5" /></Button>
                         <div><p className="font-bold text-slate-900">Tài khoản của tôi</p><p className="hidden text-xs text-slate-500 sm:block">Thông tin, bảo mật và lịch sử học tập</p></div>
                     </div>
@@ -179,6 +184,7 @@ export default function AccountPage() {
                     </TabsContent>
                 </Tabs>
             </main>
+            </div>
         </div>
     )
 }

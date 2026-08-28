@@ -23,6 +23,26 @@ export interface Question {
   content: string;
   options: string[];
   answer: string;
+  translatedText?: string | null;
+  analysis?: QuestionAnalysis | null;
+}
+
+export interface QuestionAnalysis {
+  question_kind?: { code?: string; name?: string; skill?: string };
+  task_summary?: string;
+  passage_translation?: string;
+  question_translation?: string;
+  key_clues?: string[];
+  correct_answer_explanation?: string;
+  option_explanations?: Array<{
+    index: number;
+    is_correct: boolean;
+    translation?: string;
+    explanation?: string;
+  }>;
+  solving_strategy?: string[];
+  common_mistakes?: string[];
+  difficulty?: 'easy' | 'medium' | 'hard';
 }
 
 export interface CategoryData {

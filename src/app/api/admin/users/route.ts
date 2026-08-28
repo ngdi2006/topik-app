@@ -153,8 +153,12 @@ export async function GET() {
                 lastAdminActivity: adminActivity[0] || null,
                 groupName: prof?.group_name || '',
                 remainingCredits: credit?.remaining_credits ?? 0,
-                status: 'Active',
+                status: u.banned_until && new Date(u.banned_until).getTime() > Date.now() ? 'Blocked' : 'Active',
                 joinedAt: new Date(u.created_at).toISOString().split('T')[0],
+                createdAt: u.created_at,
+                lastSignInAt: u.last_sign_in_at || null,
+                emailConfirmedAt: u.email_confirmed_at || null,
+                authProvider: typeof u.app_metadata?.provider === 'string' ? u.app_metadata.provider : 'email',
                 interviewAccess: entitlement ? {
                     id: entitlement.id,
                     active: accessActive,

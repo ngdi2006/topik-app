@@ -67,18 +67,26 @@ export function TeacherAssignmentManagerModal({
             const teachersPayload = await teachersRes.json()
             const assignmentsPayload = await assignmentsRes.json()
 
+            if (!teachersRes.ok || !teachersPayload.success) {
+                throw new Error(teachersPayload.error || 'Không thể tải danh sách giáo viên')
+            }
+            if (!assignmentsRes.ok || !assignmentsPayload.success) {
+                throw new Error(assignmentsPayload.error || 'Không thể tải danh sách phân công')
+            }
+
             if (teachersPayload.success) {
                 const list: Teacher[] = teachersPayload.data || []
                 setTeachers(list)
-                if (list.length > 0 && !selectedTeacherId) {
-                    setSelectedTeacherId(list[0].id)
-                }
+                setSelectedTeacherId((currentId) => {
+                    if (currentId && list.some((teacher) => teacher.id === currentId)) return currentId
+                    return list[0]?.id || ''
+                })
             }
             if (assignmentsPayload.success) {
                 setAssignments(assignmentsPayload.data || [])
             }
         } catch (err) {
-            toast.error('Lỗi khi tải dữ liệu phân công')
+            toast.error(err instanceof Error ? err.message : 'Lỗi khi tải dữ liệu phân công')
         } finally {
             setLoading(false)
         }
@@ -134,8 +142,8 @@ export function TeacherAssignmentManagerModal({
             setNotes('')
             fetchData()
             onAssignmentChanged?.()
-        } catch (err: any) {
-            toast.error(err.message || 'Lỗi khi tạo phân công', { id: toastId })
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : 'Lỗi khi tạo phân công', { id: toastId })
         } finally {
             setSubmitting(false)
         }
@@ -155,12 +163,18 @@ export function TeacherAssignmentManagerModal({
             toast.success('Đã xóa phân công', { id: toastId })
             fetchData()
             onAssignmentChanged?.()
-        } catch (err: any) {
-            toast.error(err.message || 'Lỗi khi xóa', { id: toastId })
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : 'Lỗi khi xóa', { id: toastId })
         }
     }
 
     const selectedTeacher = teachers.find((t) => t.id === selectedTeacherId)
+    const hasTeacherSearch = teacherSearch.trim().length > 0
+
+    const handleTeacherSelect = (teacherId: string) => {
+        setSelectedTeacherId(teacherId)
+        setTeacherSearch('')
+    }
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -215,7 +229,41 @@ export function TeacherAssignmentManagerModal({
                                     />
                                 </div>
 
-                                <Select value={selectedTeacherId} onValueChange={setSelectedTeacherId}>
+                                {hasTeacherSearch ? (
+                                    <div className="mb-1.5 max-h-48 overflow-y-auto rounded-lg border border-blue-200 bg-white p-1 shadow-lg">
+                                        {filteredTeachers.length > 0 ? filteredTeachers.slice(0, 12).map((teacher) => (
+                                            <button
+                                                key={teacher.id}
+                                                type="button"
+                                                className={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-xs transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${teacher.id === selectedTeacherId ? 'bg-blue-50 text-blue-800' : 'text-slate-700'}`}
+                                                onClick={() => handleTeacherSelect(teacher.id)}
+                                            >
+                                                <span className="min-w-0">
+                                                    <span className="block truncate font-semibold">
+                                                        {teacher.full_name || teacher.email || 'Chưa đặt tên'}
+                                                    </span>
+                                                    {teacher.email && teacher.full_name ? (
+                                                        <span className="block truncate text-[11px] text-slate-500">{teacher.email}</span>
+                                                    ) : null}
+                                                </span>
+                                                <Badge variant="outline" className="h-4 shrink-0 py-0 text-[9px] uppercase">
+                                                    {teacher.role || 'learner'}
+                                                </Badge>
+                                            </button>
+                                        )) : (
+                                            <p className="px-3 py-4 text-center text-xs text-slate-500">
+                                                Không tìm thấy tài khoản phù hợp
+                                            </p>
+                                        )}
+                                        {filteredTeachers.length > 12 ? (
+                                            <p className="border-t px-2.5 py-1.5 text-[10px] text-slate-400">
+                                                Hiển thị 12/{filteredTeachers.length} kết quả. Nhập thêm để thu hẹp.
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                ) : null}
+
+                                <Select value={selectedTeacherId} onValueChange={handleTeacherSelect}>
                                     <SelectTrigger className="h-10 bg-white border-slate-200 text-xs shadow-xs focus:ring-2 focus:ring-blue-500">
                                         <SelectValue placeholder="Chọn giáo viên...">
                                             {selectedTeacher ? (

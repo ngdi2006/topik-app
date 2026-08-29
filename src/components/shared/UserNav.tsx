@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { LogOut, User as UserIcon } from "lucide-react"
+import { LayoutDashboard, LogOut, User as UserIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -75,6 +75,7 @@ export function UserNav({ variant = "default", onNavigate }: UserNavProps = {}) 
         .map((part: string) => part[0])
         .join("")
         .toUpperCase() || "U"
+    const canAccessAdmin = role === "admin" || role === "teacher" || role === "supporter"
 
     const renderAvatar = (sizeClass: string) => (
         <span className={`relative grid shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-blue-500 to-violet-600 font-bold text-white ring-1 ring-blue-100 ${sizeClass}`}>
@@ -150,6 +151,14 @@ export function UserNav({ variant = "default", onNavigate }: UserNavProps = {}) 
                             <UserIcon className="mr-2 size-4" />
                             Tài khoản & lịch sử
                         </DropdownMenuItem>
+                        {canAccessAdmin ? (
+                            <DropdownMenuItem className="cursor-pointer text-blue-700 focus:text-blue-800" onSelect={() => {
+                                router.push("/admin")
+                            }}>
+                                <LayoutDashboard className="mr-2 size-4" />
+                                Trang quản trị
+                            </DropdownMenuItem>
+                        ) : null}
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-700" onClick={handleSignOut}>

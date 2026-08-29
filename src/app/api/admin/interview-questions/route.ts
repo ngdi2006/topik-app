@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 
 function getErrorMessage(error: unknown) {
     return error instanceof Error ? error.message : 'Unknown error'
@@ -14,7 +15,52 @@ export async function GET(request: Request) {
         const industry = searchParams.get('industry')
         const adminClient = createAdminClient()
 
-        const allQuestions: unknown[] = []
+        // 1. Check user role and assignments
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        let userRole = 'learner'
+        let isSuperAdmin = false
+
+        if (user) {
+            const { data: profile } = await adminClient
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .maybeSingle()
+            userRole = profile?.role || user.app_metadata?.role || 'learner'
+            isSuperAdmin = userRole === 'admin'
+        }
+
+        // Fetch teacher assignments if not super admin
+        let teacherAssignments: Array<{
+            category: string | null
+            from_order_index: number | null
+            to_order_index: number | null
+        }> = []
+
+        if (!isSuperAdmin && user) {
+            const { data: assignments } = await adminClient
+                .from('interview_question_assignments')
+                .select('category, from_order_index, to_order_index')
+                .eq('teacher_id', user.id)
+
+            teacherAssignments = assignments || []
+
+            // If a non-admin teacher has 0 assignments, return empty array immediately
+            if (teacherAssignments.length === 0) {
+                return NextResponse.json({
+                    success: true,
+                    data: [],
+                    total: 0,
+                    user_role: userRole,
+                    is_restricted: true,
+                    message: 'Bạn chưa được phân công câu hỏi nào. Vui lòng liên hệ Quản trị viên để nhận nhiệm vụ.'
+                })
+            }
+        }
+
+        const allQuestions: any[] = []
         let useOrderIndex = true
 
         for (let from = 0; ; from += SUPABASE_PAGE_SIZE) {
@@ -54,10 +100,29 @@ export async function GET(request: Request) {
             if (page.length < SUPABASE_PAGE_SIZE) break
         }
 
+        // If teacher, filter strictly by assignments
+        let filteredQuestions = allQuestions
+        if (!isSuperAdmin && teacherAssignments.length > 0) {
+            filteredQuestions = allQuestions.filter((question) => {
+                return teacherAssignments.some((assignment) => {
+                    if (assignment.category && question.category !== assignment.category) return false
+                    if (assignment.from_order_index !== null && assignment.from_order_index !== undefined) {
+                        if ((question.order_index ?? 0) < assignment.from_order_index) return false
+                    }
+                    if (assignment.to_order_index !== null && assignment.to_order_index !== undefined) {
+                        if ((question.order_index ?? 0) > assignment.to_order_index) return false
+                    }
+                    return true
+                })
+            })
+        }
+
         return NextResponse.json({
             success: true,
-            data: allQuestions,
-            total: allQuestions.length,
+            data: filteredQuestions,
+            total: filteredQuestions.length,
+            user_role: userRole,
+            is_restricted: !isSuperAdmin,
         })
     } catch (error: unknown) {
         return NextResponse.json(

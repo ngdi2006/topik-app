@@ -48,12 +48,17 @@ export async function GET() {
         const authMap = new Map((authData?.users || []).map((u) => [u.id, u]))
         const profileMap = new Map((profiles || []).map((p) => [p.id, p]))
 
-        // Fetch question review stats for each assignment
-        const { data: allQuestions } = await adminClient
-            .from('interview_questions')
-            .select('id, category, order_index, review_status')
-
-        const questionsList = allQuestions || []
+        // Fetch all questions with pagination for accurate review stats
+        const questionsList: Array<{ id: string; category: string; order_index: number | null; review_status: string | null }> = []
+        for (let from = 0; ; from += 1000) {
+            const { data, error: qErr } = await adminClient
+                .from('interview_questions')
+                .select('id, category, order_index, review_status')
+                .range(from, from + 999)
+            if (qErr) break
+            if (data) questionsList.push(...data)
+            if (!data || data.length < 1000) break
+        }
 
         const enrichedAssignments = (assignments || []).map((assignment: any) => {
             const inScopeQuestions = questionsList.filter((q: any) => {

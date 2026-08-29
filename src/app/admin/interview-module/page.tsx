@@ -96,6 +96,9 @@ export default function InterviewModuleAdminPage() {
     const [filterReviewStatus, setFilterReviewStatus] = useState<string>('all')
     const [filterMyAssignedOnly, setFilterMyAssignedOnly] = useState(false)
     const [myAssignments, setMyAssignments] = useState<any[]>([])
+    const [userRole, setUserRole] = useState<string>('admin')
+    const [isRestrictedTeacher, setIsRestrictedTeacher] = useState<boolean>(false)
+    const [restrictedMessage, setRestrictedMessage] = useState<string>('')
     
     const isRestoringListState = useRef(true)
     const hasRestoredScroll = useRef(false)
@@ -190,26 +193,33 @@ export default function InterviewModuleAdminPage() {
         const normalizedQuery = searchQuery.trim().toLowerCase()
 
         return questions
-            .filter((question) =>
-                filterCategory === 'Tất cả' || question.category === filterCategory
-            )
             .filter((question) => {
-                if (filterReviewStatus === 'all') return true
-                if (filterReviewStatus === 'verified') return question.review_status === 'verified'
-                return !question.review_status || question.review_status === 'pending'
-            })
-            .filter((question) => {
-                if (!filterMyAssignedOnly || myAssignments.length === 0) return true
-                return myAssignments.some((assignment) => {
-                    if (assignment.category && question.category !== assignment.category) return false
-                    if (assignment.from_order_index !== null && assignment.from_order_index !== undefined) {
-                        if ((question.order_index ?? 0) < assignment.from_order_index) return false
-                    }
-                    if (assignment.to_order_index !== null && assignment.to_order_index !== undefined) {
-                        if ((question.order_index ?? 0) > assignment.to_order_index) return false
-                    }
-                    return true
-                })
+                if (filterMyAssignedOnly && myAssignments.length > 0) {
+                    const isAssigned = myAssignments.some((assignment) => {
+                        if (assignment.category && question.category !== assignment.category) return false
+                        if (assignment.from_order_index !== null && assignment.from_order_index !== undefined) {
+                            if ((question.order_index ?? 0) < assignment.from_order_index) return false
+                        }
+                        if (assignment.to_order_index !== null && assignment.to_order_index !== undefined) {
+                            if ((question.order_index ?? 0) > assignment.to_order_index) return false
+                        }
+                        return true
+                    })
+                    if (!isAssigned) return false
+                }
+
+                if (filterCategory !== 'Tất cả' && question.category !== filterCategory) {
+                    return false
+                }
+
+                if (filterReviewStatus === 'verified') {
+                    return question.review_status === 'verified'
+                }
+                if (filterReviewStatus === 'pending') {
+                    return !question.review_status || question.review_status === 'pending'
+                }
+
+                return true
             })
             .filter((question) =>
                 !normalizedQuery
@@ -251,9 +261,12 @@ export default function InterviewModuleAdminPage() {
     const fetchQuestions = async () => {
         try {
             const res = await fetch('/api/admin/interview-questions')
-            const data = await res.json() as ApiResponse<InterviewQuestionRow[]>
+            const data = await res.json() as ApiResponse<InterviewQuestionRow[]> & { user_role?: string; is_restricted?: boolean; message?: string }
             if (data.success) {
                 setQuestions(data.data || [])
+                if (data.user_role) setUserRole(data.user_role)
+                if (data.is_restricted !== undefined) setIsRestrictedTeacher(data.is_restricted)
+                if (data.message) setRestrictedMessage(data.message)
             }
         } catch {
             toast.error('Lỗi tải danh sách câu hỏi')
@@ -575,21 +588,29 @@ export default function InterviewModuleAdminPage() {
                     <p className="text-sm text-slate-500">Quản lý câu hỏi, phân công giáo viên rà soát và cấu hình AI chấm điểm</p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                    <Button 
-                        variant="outline" 
-                        onClick={() => setIsAssignModalOpen(true)}
-                        className="border-blue-200 text-blue-700 hover:bg-blue-50 font-semibold"
-                    >
-                        <Users className="w-4 h-4 mr-2 text-blue-600" />
-                        Phân công giáo viên
-                    </Button>
+                    {userRole === 'admin' ? (
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setIsAssignModalOpen(true)}
+                            className="border-blue-200 text-blue-700 hover:bg-blue-50 font-semibold"
+                        >
+                            <Users className="w-4 h-4 mr-2 text-blue-600" />
+                            Phân công giáo viên
+                        </Button>
+                    ) : (
+                        <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs py-1 px-3">
+                            🧑‍🏫 Tài khoản Giáo viên
+                        </Badge>
+                    )}
                 </div>
             </div>
 
             <Tabs defaultValue="questions" className="space-y-4">
                 <TabsList>
-                    <TabsTrigger value="questions">Danh sách câu hỏi</TabsTrigger>
-                    <TabsTrigger value="settings">Cấu hình AI (Theo ngành)</TabsTrigger>
+                    <TabsTrigger value="questions">Danh sách câu hỏi {isRestrictedTeacher ? `(${questions.length} câu được giao)` : ''}</TabsTrigger>
+                    {userRole === 'admin' && (
+                        <TabsTrigger value="settings">Cấu hình AI (Theo ngành)</TabsTrigger>
+                    )}
                 </TabsList>
 
                 <TabsContent value="questions" className="space-y-4">
@@ -635,8 +656,14 @@ export default function InterviewModuleAdminPage() {
                                 <Button
                                     variant={filterMyAssignedOnly ? 'default' : 'outline'}
                                     size="sm"
-                                    onClick={() => setFilterMyAssignedOnly(!filterMyAssignedOnly)}
-                                    className={`text-xs h-9 ${filterMyAssignedOnly ? 'bg-blue-600 text-white' : 'text-blue-700 border-blue-200 bg-blue-50/50'}`}
+                                    onClick={() => {
+                                        const nextState = !filterMyAssignedOnly
+                                        setFilterMyAssignedOnly(nextState)
+                                        if (nextState) {
+                                            setFilterCategory('Tất cả')
+                                        }
+                                    }}
+                                    className={`text-xs h-9 ${filterMyAssignedOnly ? 'bg-blue-600 text-white shadow-xs' : 'text-blue-700 border-blue-200 bg-blue-50/60 hover:bg-blue-100'}`}
                                 >
                                     <CheckCircle className="size-3.5 mr-1.5" />
                                     Nhiệm vụ của tôi ({myAssignments.length})
@@ -663,6 +690,29 @@ export default function InterviewModuleAdminPage() {
                             </Button>
                         </div>
                     </div>
+
+                    {isRestrictedTeacher && (
+                        <div className="rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 shadow-xs">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="size-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
+                                        ✓
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-slate-800 text-sm">Nhiệm vụ rà soát của bạn</h4>
+                                        <p className="text-xs text-slate-600 mt-0.5">
+                                            {questions.length > 0
+                                                ? `Bạn đang có ${questions.length} câu hỏi được phân công để kiểm tra nội dung và đáp án chấm điểm.`
+                                                : (restrictedMessage || 'Bạn chưa có câu hỏi nào được phân công. Vui lòng liên hệ Quản trị viên.')}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="text-xs font-semibold text-blue-700 bg-white px-3 py-1.5 rounded-lg border border-blue-100 shadow-xs">
+                                    Đã duyệt: {questions.filter(q => q.review_status === 'verified').length} / {questions.length} câu
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {!loading ? (
                         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-2.5 text-sm">

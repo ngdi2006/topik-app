@@ -1,151 +1,115 @@
-import React, { useState } from 'react';
-import { Trophy } from 'lucide-react';
+"use client"
+
+import { useState } from "react"
+import { CalendarDays, Clock3, Crown, Medal, Star, Trophy } from "lucide-react"
 
 interface LeaderboardUser {
-    rank: number;
-    name: string;
-    score: number;
-    time: string;
-    avatar: string;
+    rank: number
+    name: string
+    score: number
+    time: string
+    avatar: string
 }
 
 interface LeaderboardProps {
-    leaderboard: LeaderboardUser[];
-    currentUserRank: { rank: number | string; score: number; time: string } | null;
+    leaderboard: LeaderboardUser[]
+    currentUserRank: { rank: number | string; score: number; time: string } | null
+}
+
+const PODIUM_STYLE = {
+    1: {
+        order: "md:order-2",
+        card: "border-amber-300 bg-gradient-to-b from-amber-50/90 via-white to-amber-50 shadow-amber-200/40 md:-translate-y-5",
+        rank: "bg-gradient-to-br from-amber-300 to-orange-500 text-white",
+        avatar: "border-amber-200 bg-amber-50",
+        score: "border-amber-200 bg-amber-100/80 text-amber-800",
+        medal: "text-amber-500",
+    },
+    2: {
+        order: "md:order-1",
+        card: "border-blue-200 bg-gradient-to-b from-blue-50/80 via-white to-slate-50 shadow-blue-200/30",
+        rank: "bg-gradient-to-br from-slate-200 to-slate-400 text-slate-800",
+        avatar: "border-slate-200 bg-slate-50",
+        score: "border-blue-100 bg-blue-50 text-blue-700",
+        medal: "text-slate-400",
+    },
+    3: {
+        order: "md:order-3",
+        card: "border-orange-200 bg-gradient-to-b from-orange-50/80 via-white to-rose-50/40 shadow-orange-200/30",
+        rank: "bg-gradient-to-br from-orange-300 to-orange-600 text-white",
+        avatar: "border-orange-200 bg-orange-50",
+        score: "border-orange-100 bg-orange-50 text-orange-700",
+        medal: "text-orange-500",
+    },
+} as const
+
+function PodiumCard({ user }: { user: LeaderboardUser }) {
+    const style = PODIUM_STYLE[user.rank as 1 | 2 | 3]
+    if (!style) return null
+
+    return (
+        <article className={`relative flex min-h-[220px] flex-col items-center rounded-3xl border p-4 text-center shadow-xl transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-2xl motion-reduce:transform-none ${style.order} ${style.card}`}>
+            {user.rank === 1 ? <Crown aria-hidden="true" className="absolute -top-8 size-10 rotate-[-8deg] fill-amber-300 text-amber-500 drop-shadow-md" /> : null}
+            <span className={`absolute -top-4 grid size-9 place-items-center rounded-full text-sm font-black shadow-md ring-4 ring-white ${style.rank}`}>{user.rank}</span>
+            <div className="relative mt-3">
+                <span aria-hidden="true" className="absolute -inset-3 rounded-full bg-white/70 blur-md" />
+                {/* Avatar URLs come from multiple external identity providers. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img alt={`Ảnh đại diện của ${user.name}`} className={`relative size-20 rounded-full border-4 object-cover shadow-md ${style.avatar}`} src={user.avatar} />
+                <Medal aria-hidden="true" className={`absolute -bottom-2 -right-2 size-7 fill-current drop-shadow-sm ${style.medal}`} />
+            </div>
+            <h2 className="mt-4 w-full truncate text-base font-black text-slate-950">{user.name}</h2>
+            <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-slate-500"><Clock3 aria-hidden="true" className="size-3.5" />{user.time}</span>
+            <strong className={`mt-auto w-full rounded-xl border px-3 py-2 text-lg font-black tabular-nums ${style.score}`}>{user.score}đ</strong>
+        </article>
+    )
 }
 
 export function Leaderboard({ leaderboard, currentUserRank }: LeaderboardProps) {
-    const [activeTab, setActiveTab] = useState<'tuan-nay' | 'thang-nay'>('tuan-nay');
-
-    const top1 = leaderboard.find(u => u.rank === 1);
-    const top2 = leaderboard.find(u => u.rank === 2);
-    const top3 = leaderboard.find(u => u.rank === 3);
-    const rest = leaderboard.filter(u => u.rank > 3);
+    const [activeTab, setActiveTab] = useState<"tuan-nay" | "thang-nay">("tuan-nay")
+    const podium = [2, 1, 3].map((rank) => leaderboard.find((user) => user.rank === rank)).filter((user): user is LeaderboardUser => Boolean(user))
+    const rest = leaderboard.filter((user) => user.rank > 3)
 
     return (
-        <div className="flex flex-col gap-6 max-w-6xl mx-auto w-full pb-10">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-                <h1 className="text-2xl font-bold flex items-center gap-2 text-gray-900">
-                    <Trophy className="w-6 h-6 text-[#2B64CE]" />
-                    Bảng Xếp Hạng
-                </h1>
-                <div className="flex gap-2 bg-gray-100 p-1 rounded-full">
-                    <button 
-                        onClick={() => setActiveTab('tuan-nay')}
-                        className={`py-2 px-6 text-sm font-semibold rounded-full transition-all ${activeTab === 'tuan-nay' ? 'bg-[#2B64CE] text-white shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'}`}
-                    >
-                        Tuần này
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('thang-nay')}
-                        className={`py-2 px-6 text-sm font-medium rounded-full transition-all ${activeTab === 'thang-nay' ? 'bg-[#2B64CE] text-white shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'}`}
-                    >
-                        Tháng này
-                    </button>
+        <section className="mx-auto w-full max-w-7xl space-y-5 pb-10">
+            <header className="relative overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-r from-white via-blue-50/40 to-violet-50/60 p-5 shadow-[0_12px_36px_rgba(30,64,175,0.08)] sm:flex sm:items-center sm:justify-between sm:gap-5 sm:px-7">
+                <div aria-hidden="true" className="absolute -right-12 -top-20 size-48 rounded-full bg-violet-200/30 blur-3xl" />
+                <div className="relative flex items-center gap-3">
+                    <span className="grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200"><Trophy aria-hidden="true" className="size-6" /></span>
+                    <div><h1 className="text-xl font-black text-slate-950 sm:text-2xl">Bảng xếp hạng</h1><p className="mt-0.5 text-xs text-slate-500 sm:text-sm">Top thí sinh có thành tích tốt nhất trong kỳ thi.</p></div>
                 </div>
-            </div>
-
-            {/* Podium (Top 3) */}
-            <div className="grid grid-cols-3 gap-4 md:gap-6 items-end mt-4 md:mt-8 px-2 md:px-12">
-                {/* Top 2 */}
-                <div className="order-1 flex flex-col items-center">
-                    {top2 && (
-                        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm w-full pt-6 pb-4 px-2 md:px-4 flex flex-col items-center gap-3 relative transform hover:-translate-y-1 transition-transform">
-                            <div className="absolute -top-4 bg-gray-200 text-gray-700 w-8 h-8 rounded-full flex items-center justify-center font-bold shadow-sm border border-gray-300">
-                                2
-                            </div>
-                            <img src={top2.avatar} alt="avatar" className="w-16 h-16 rounded-full bg-blue-50 border-4 border-gray-100" />
-                            <div className="text-center w-full min-w-0">
-                                <p className="text-sm md:text-base font-bold text-gray-900 truncate">{top2.name}</p>
-                                <p className="text-xs text-gray-500 mt-0.5">{top2.time}</p>
-                            </div>
-                            <div className="mt-1 bg-blue-50 px-3 py-1 rounded-full border border-blue-100 w-full">
-                                <p className="text-sm font-bold text-[#2B64CE] text-center">{top2.score}đ</p>
-                            </div>
-                        </div>
-                    )}
+                <div className="relative mt-4 grid grid-cols-2 rounded-full bg-white/80 p-1 shadow-sm ring-1 ring-slate-200 sm:mt-0">
+                    {([['tuan-nay', 'Tuần này'], ['thang-nay', 'Tháng này']] as const).map(([id, label]) => (
+                        <button className={`min-h-9 rounded-full px-4 text-xs font-bold transition-[background-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 ${activeTab === id ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`} key={id} onClick={() => setActiveTab(id)} type="button">{label}</button>
+                    ))}
                 </div>
+            </header>
 
-                {/* Top 1 */}
-                <div className="order-2 flex flex-col items-center">
-                    {top1 && (
-                        <div className="bg-white rounded-2xl border-2 border-yellow-300 shadow-md w-full pt-8 pb-5 px-2 md:px-4 flex flex-col items-center gap-3 relative transform hover:-translate-y-1 transition-transform z-10 scale-105">
-                            <div className="absolute -top-7 text-4xl drop-shadow-[0_0_15px_rgba(250,204,21,0.8)] hover:scale-125 hover:-rotate-12 transition-all duration-300 z-20 cursor-default" title="Hạng 1">👑</div>
-                            <img src={top1.avatar} alt="avatar" className="w-20 h-20 rounded-full bg-blue-50 border-4 border-yellow-100" />
-                            <div className="text-center w-full min-w-0">
-                                <p className="text-base md:text-lg font-bold text-gray-900 truncate">{top1.name}</p>
-                                <p className="text-xs text-gray-500 mt-0.5">{top1.time}</p>
-                            </div>
-                            <div className="mt-1 bg-yellow-50 px-4 py-1.5 rounded-full border border-yellow-200 w-full">
-                                <p className="text-base font-bold text-yellow-700 text-center">{top1.score}đ</p>
-                            </div>
-                        </div>
-                    )}
+            {podium.length > 0 ? <div className="grid gap-5 px-1 pt-8 md:grid-cols-3 md:items-end md:px-10">{podium.map((user) => <PodiumCard key={user.rank} user={user} />)}</div> : null}
+
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_12px_36px_rgba(15,23,42,0.06)]">
+                <div className="hidden grid-cols-[60px_minmax(0,1fr)_minmax(160px,.7fr)_120px_44px] gap-3 border-b border-slate-100 bg-slate-50/80 px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500 md:grid">
+                    <span>#</span><span>Thí sinh</span><span>Thời gian</span><span className="text-right">Điểm số</span><span />
                 </div>
-
-                {/* Top 3 */}
-                <div className="order-3 flex flex-col items-center">
-                    {top3 && (
-                        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm w-full pt-6 pb-4 px-2 md:px-4 flex flex-col items-center gap-3 relative transform hover:-translate-y-1 transition-transform">
-                            <div className="absolute -top-4 bg-orange-100 text-orange-700 w-8 h-8 rounded-full flex items-center justify-center font-bold shadow-sm border border-orange-200">
-                                3
-                            </div>
-                            <img src={top3.avatar} alt="avatar" className="w-16 h-16 rounded-full bg-blue-50 border-4 border-gray-100" />
-                            <div className="text-center w-full min-w-0">
-                                <p className="text-sm md:text-base font-bold text-gray-900 truncate">{top3.name}</p>
-                                <p className="text-xs text-gray-500 mt-0.5">{top3.time}</p>
-                            </div>
-                            <div className="mt-1 bg-blue-50 px-3 py-1 rounded-full border border-blue-100 w-full">
-                                <p className="text-sm font-bold text-[#2B64CE] text-center">{top3.score}đ</p>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* List (Rank 4+) */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col mt-4 md:mt-8">
-                <div className="p-0">
-                    <ul className="divide-y divide-gray-50">
-                        {rest.map((user) => (
-                            <li key={user.rank} className="flex items-center gap-4 p-4 md:px-6 hover:bg-gray-50 transition-colors">
-                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 bg-gray-50 text-gray-500 border border-gray-100">
-                                    {user.rank}
-                                </div>
-                                <img src={user.avatar} alt="avatar" className="w-12 h-12 rounded-full bg-blue-50 shrink-0 border border-gray-100" />
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-base font-bold text-gray-900 truncate">{user.name}</p>
-                                    <p className="text-sm text-gray-500">{user.time}</p>
-                                </div>
-                                <div className="text-right shrink-0">
-                                    <p className="text-base font-bold text-[#2B64CE]">{user.score}đ</p>
-                                </div>
+                <ol className="divide-y divide-slate-100 px-3 sm:px-4">
+                    {rest.map((user) => {
+                        const progress = Math.max(16, Math.min(100, user.score / 2))
+                        return (
+                            <li className="grid grid-cols-[36px_42px_minmax(0,1fr)_auto] items-center gap-2.5 py-3 md:grid-cols-[60px_44px_minmax(0,1fr)_minmax(160px,.7fr)_120px_44px] md:gap-3" key={user.rank}>
+                                <span className="grid size-8 place-items-center rounded-full bg-slate-50 text-xs font-black text-slate-600 ring-1 ring-slate-200">{user.rank}</span>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img alt={`Ảnh đại diện của ${user.name}`} className="size-10 rounded-full border border-slate-200 bg-blue-50 object-cover" src={user.avatar} />
+                                <strong className="min-w-0 truncate text-sm text-slate-900">{user.name}</strong>
+                                <div className="col-span-2 col-start-3 flex items-center gap-3 md:col-span-1 md:col-start-auto"><span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-slate-500"><Clock3 aria-hidden="true" className="size-3.5 text-blue-500" />{user.time}</span><div className="hidden h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 sm:block"><span className="block h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-400" style={{ width: `${progress}%` }} /></div></div>
+                                <strong className="col-start-4 row-start-1 text-right text-sm font-black tabular-nums text-blue-700 md:col-start-auto md:row-start-auto">{user.score}đ</strong>
+                                <span className="hidden size-8 place-items-center rounded-full text-slate-400 ring-1 ring-slate-200 md:grid"><Star aria-hidden="true" className="size-4" /></span>
                             </li>
-                        ))}
-                        {rest.length === 0 && (
-                            <li className="p-8 text-center text-gray-500">
-                                Chưa có dữ liệu
-                            </li>
-                        )}
-                    </ul>
-                </div>
-
-                {/* Current User Stats Footer */}
-                {currentUserRank && (
-                    <div className="p-4 md:px-6 bg-gray-50 border-t border-gray-100">
-                        <div className="flex items-center gap-4">
-                            <div className="w-8 h-8 rounded-full bg-blue-100 text-[#2B64CE] flex items-center justify-center font-bold text-sm shrink-0">
-                                {currentUserRank.rank || '-'}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-gray-800">Vị trí của bạn</p>
-                                <p className="text-xs text-gray-500">{currentUserRank.score || 0} điểm • {currentUserRank.time || '0 phút'}</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                        )
+                    })}
+                    {rest.length === 0 ? <li className="p-8 text-center text-sm text-slate-500">Chưa có dữ liệu thứ hạng tiếp theo.</li> : null}
+                </ol>
+                {currentUserRank ? <div className="flex items-center gap-3 border-t border-blue-100 bg-blue-50/70 px-5 py-4"><span className="grid size-9 place-items-center rounded-full bg-blue-600 text-xs font-black text-white">{currentUserRank.rank || '-'}</span><div className="min-w-0 flex-1"><strong className="text-sm text-blue-950">Vị trí của bạn</strong><p className="mt-0.5 text-xs text-blue-700">{currentUserRank.score || 0} điểm · {currentUserRank.time || '0 phút'}</p></div><CalendarDays aria-hidden="true" className="size-5 text-blue-500" /></div> : null}
             </div>
-        </div>
-    );
+        </section>
+    )
 }

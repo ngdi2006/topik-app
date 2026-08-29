@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { sanitizeNextPath } from '@/lib/auth-flow'
 import { getTrustedUserRole, isAdminRole } from '@/lib/admin-role'
-import { permissionForPath, permissionsForRole } from '@/lib/admin-permissions'
+import { firstAdminPathForPermissions, permissionForPath, permissionsForRole } from '@/lib/admin-permissions'
 
 export async function updateSession(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
@@ -95,6 +95,7 @@ export async function updateSession(request: NextRequest) {
     const isAdminPage = request.nextUrl.pathname === '/admin'
         || request.nextUrl.pathname.startsWith('/admin/')
     const isAdminApi = request.nextUrl.pathname.startsWith('/api/admin/')
+    const isAdminPermissionsApi = request.nextUrl.pathname === '/api/admin/me/permissions'
     if (user && (isAdminPage || isAdminApi)) {
         try {
             const profilePromise = getTrustedUserRole(user, supabase)
@@ -124,12 +125,12 @@ export async function updateSession(request: NextRequest) {
                     role,
                     accessProfileError ? user.app_metadata?.admin_permissions : accessProfile?.admin_permissions,
                 )
-                if (!requiredPermission || !permissions.includes(requiredPermission)) {
+                if (!isAdminPermissionsApi && (!requiredPermission || !permissions.includes(requiredPermission))) {
                     if (isAdminApi) {
                         return NextResponse.json({ error: 'Bạn không có quyền thao tác chỉ mục này.' }, { status: 403 })
                     }
                     const url = request.nextUrl.clone()
-                    url.pathname = '/admin'
+                    url.pathname = firstAdminPathForPermissions(permissions) || '/dashboard'
                     url.search = ''
                     return NextResponse.redirect(url)
                 }

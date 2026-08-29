@@ -24,12 +24,17 @@ export const ADMIN_PERMISSION_KEYS = ADMIN_MENU_ITEMS.map((item) => item.key)
 export function sanitizeAdminPermissions(value: unknown): AdminPermissionKey[] {
     if (!Array.isArray(value)) return []
     const allowed = new Set<string>(ADMIN_PERMISSION_KEYS)
-    return Array.from(new Set(['dashboard', ...value.filter((item): item is string => typeof item === 'string' && allowed.has(item))])) as AdminPermissionKey[]
+    return Array.from(new Set(value.filter((item): item is string => typeof item === 'string' && allowed.has(item)))) as AdminPermissionKey[]
 }
 
 export function permissionsForRole(role: string | null | undefined, stored: unknown): AdminPermissionKey[] {
     if (role === 'admin') return [...ADMIN_PERMISSION_KEYS]
     return sanitizeAdminPermissions(stored)
+}
+
+export function firstAdminPathForPermissions(permissions: readonly AdminPermissionKey[]): string | null {
+    const allowed = new Set<AdminPermissionKey>(permissions)
+    return ADMIN_MENU_ITEMS.find((item) => allowed.has(item.key))?.path || null
 }
 
 export function permissionForPath(pathname: string): AdminPermissionKey | null {

@@ -93,19 +93,19 @@ export function UserNav({ variant = "default", onNavigate }: UserNavProps = {}) 
         return (
             <button
                 aria-label={`Mở thông tin tài khoản ${displayName}`}
-                className="group flex min-h-16 w-full items-center gap-3 rounded-2xl border border-white/15 bg-white/10 p-2.5 text-left text-white shadow-sm backdrop-blur-sm transition hover:border-white/30 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                className="group flex min-h-16 w-full items-center gap-2.5 rounded-xl border border-blue-400/20 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 p-2.5 text-left text-white shadow-md shadow-blue-300/25 transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 motion-reduce:transform-none"
                 onClick={() => {
                     onNavigate?.()
                     router.push("/account")
                 }}
                 type="button"
             >
-                {renderAvatar("size-11 text-sm ring-white/20")}
+                {renderAvatar("size-10 text-xs ring-white/30")}
                 <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-bold">{displayName}</span>
-                    <span className="block truncate text-[11px] text-blue-100">{user?.email}</span>
+                    <span className="block truncate text-[13px] font-bold">{displayName}</span>
+                    <span className="block truncate text-[10px] text-blue-100">{user?.email}</span>
                 </span>
-                <span aria-hidden="true" className="grid size-8 place-items-center rounded-full bg-white/10 text-lg transition-transform group-hover:translate-x-0.5">›</span>
+                <span aria-hidden="true" className="grid size-8 place-items-center rounded-full bg-white/15 text-xl transition-transform group-hover:translate-x-0.5">›</span>
             </button>
         )
     }

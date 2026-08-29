@@ -184,7 +184,7 @@ export default function AdminUsersPage() {
     })
     const [isExporting, setIsExporting] = useState(false)
     const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<UserProfile | null>(null)
-    const [permissionDraft, setPermissionDraft] = useState<AdminPermissionKey[]>(['dashboard'])
+    const [permissionDraft, setPermissionDraft] = useState<AdminPermissionKey[]>([])
     const [isSavingPermissions, setIsSavingPermissions] = useState(false)
 
     const [isGrantDialogOpen, setIsGrantDialogOpen] = useState(false)
@@ -736,7 +736,6 @@ export default function AdminUsersPage() {
     }
 
     const togglePermission = (permission: AdminPermissionKey) => {
-        if (permission === 'dashboard') return
         setPermissionDraft((current) => current.includes(permission)
             ? current.filter((item) => item !== permission)
             : [...current, permission])
@@ -1615,26 +1614,24 @@ export default function AdminUsersPage() {
                         <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-sm text-slate-600">Bật các mục tài khoản được nhìn thấy và truy cập trong thanh bên trái.</p>
                             <div className="flex gap-2">
-                                <Button type="button" size="sm" variant="outline" onClick={() => setPermissionDraft(['dashboard'])}>Chỉ Dashboard</Button>
+                                <Button type="button" size="sm" variant="outline" onClick={() => setPermissionDraft([])}>Ẩn toàn bộ</Button>
                                 <Button type="button" size="sm" variant="outline" onClick={() => setPermissionDraft([...ADMIN_PERMISSION_KEYS])}>Mở toàn bộ</Button>
                             </div>
                         </div>
                         <div className="grid gap-2 sm:grid-cols-2">
                             {ADMIN_MENU_ITEMS.map((item) => {
                                 const checked = permissionDraft.includes(item.key)
-                                const locked = item.key === 'dashboard'
                                 return (
-                                    <label key={item.key} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${checked ? 'border-blue-300 bg-blue-50/70' : 'border-slate-200 bg-white hover:border-slate-300'} ${locked ? 'cursor-default' : ''}`}>
+                                    <label key={item.key} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${checked ? 'border-blue-300 bg-blue-50/70' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
                                         <input
                                             type="checkbox"
                                             checked={checked}
-                                            disabled={locked}
                                             onChange={() => togglePermission(item.key)}
                                             className="mt-0.5 size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                         />
                                         <span className="min-w-0">
                                             <span className="block text-sm font-semibold text-slate-900">{item.label}</span>
-                                            <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">{locked ? 'Luôn được mở để làm trang bắt đầu.' : item.description}</span>
+                                            <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">{item.description}</span>
                                         </span>
                                     </label>
                                 )

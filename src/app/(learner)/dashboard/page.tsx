@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles, Mic, ArrowLeft, User, Trophy, ChevronDown, Award, LayoutDashboard, RotateCcw, BarChart3 } from "lucide-react"
+import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles, Mic, ArrowLeft, User, Trophy, ChevronDown, Award, LayoutDashboard, RotateCcw, BarChart3, ListChecks } from "lucide-react"
 
 const LessonList = dynamic(() => import("@/components/lessons/LessonList").then((module) => module.LessonList))
 const PracticeHub = dynamic(() => import("@/components/practice/PracticeHub").then((module) => module.PracticeHub))
@@ -273,6 +273,8 @@ export default function DashboardPage() {
             dashboardStats.streak > 0
         ),
     )
+    const overallProgress = Math.min(100, Math.max(0, Math.round((dashboardStats?.avgScore || 0) / 2)))
+    const weeklyGoalDays = Math.min(7, Math.max(0, dashboardStats?.streak || 0))
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -433,6 +435,7 @@ export default function DashboardPage() {
 
     const renderMenuButton = (item: (typeof enabledMenuItems)[number], onClick?: () => void) => {
         const Icon = item.Icon
+        const isDrawer = Boolean(onClick)
 
         if (item.key === 'thi-thu') {
             const isOpen = isExamMenuOpen
@@ -441,7 +444,7 @@ export default function DashboardPage() {
                 <div className="w-full space-y-1" key={item.key}>
                     <Button
                         aria-expanded={isOpen}
-                        className={`relative w-full overflow-hidden rounded-xl border-0 ${isActive ? 'bg-white/15 font-medium text-white hover:bg-white/20' : 'font-medium text-white/80 hover:bg-white/10 hover:text-white'}`}
+                        className={`relative w-full overflow-hidden border-0 ${isDrawer ? (isActive ? 'h-10 rounded-xl bg-blue-50 text-[13px] font-bold text-blue-700 shadow-sm hover:bg-blue-100' : 'h-10 rounded-xl text-[13px] font-bold text-slate-700 hover:bg-slate-50 hover:text-blue-700') : (isActive ? 'rounded-xl bg-white/15 font-medium text-white hover:bg-white/20' : 'rounded-xl font-medium text-white/80 hover:bg-white/10 hover:text-white')}`}
                         onClick={() => {
                             setIsExamMenuOpen((current) => !current)
                             if (!isActive) setActiveMenu('thi-thu')
@@ -449,19 +452,19 @@ export default function DashboardPage() {
                         variant="ghost"
                     >
                         <span className="flex min-w-0 flex-1 items-center">
-                            <Icon aria-hidden="true" className="mr-3 size-4 shrink-0" />
+                            <span className={isDrawer ? 'mr-2.5 grid size-8 shrink-0 place-items-center rounded-lg bg-blue-600 text-white shadow-sm shadow-blue-200' : 'mr-3'}><Icon aria-hidden="true" className="size-3.5 shrink-0" /></span>
                             <span className="truncate">{item.label}</span>
                         </span>
                         <ChevronDown aria-hidden="true" className={`size-4 shrink-0 transition-transform duration-300 motion-reduce:transition-none ${isOpen ? 'rotate-180' : ''}`} />
                     </Button>
                     {isOpen ? (
-                        <div className="ml-5 space-y-1 border-l border-white/10 pl-6 animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none">
+                        <div className={`ml-6 space-y-0.5 border-l pl-4 animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none ${isDrawer ? 'border-blue-200' : 'border-white/10'}`}>
                             {examMenuItems.map((subItem) => {
                                 const SubIcon = subItem.Icon
                                 return (
                                     <button
                                         aria-current={activeMenu === subItem.key ? 'page' : undefined}
-                                        className={`flex min-h-10 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${activeMenu === subItem.key ? 'bg-white/15 text-white shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                        className={`flex min-h-9 w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 ${isDrawer ? (activeMenu === subItem.key ? 'bg-blue-50 text-blue-700 shadow-sm ring-blue-600' : 'text-slate-700 hover:bg-slate-50 hover:text-blue-700 ring-blue-600') : (activeMenu === subItem.key ? 'bg-white/15 text-white shadow-sm ring-white' : 'text-white/70 hover:bg-white/10 hover:text-white ring-white')}`}
                                         key={subItem.key}
                                         onClick={() => {
                                             setActiveMenu(subItem.key)
@@ -487,11 +490,7 @@ export default function DashboardPage() {
                 <div className="space-y-1 w-full" key={item.key}>
                     <Button
                         variant="ghost"
-                        className={`w-full justify-between border-0 rounded-xl relative overflow-hidden ${
-                            isActive
-                                ? 'bg-white/15 text-white hover:bg-white/20 font-medium'
-                                : 'text-white/80 hover:bg-white/10 hover:text-white font-medium'
-                        }`}
+                        className={`relative w-full justify-between overflow-hidden border-0 ${isDrawer ? (isActive ? 'h-10 rounded-xl bg-violet-50 text-[13px] font-bold text-violet-700 shadow-sm hover:bg-violet-100' : 'h-10 rounded-xl text-[13px] font-bold text-slate-700 hover:bg-slate-50 hover:text-violet-700') : (isActive ? 'rounded-xl bg-white/15 font-medium text-white hover:bg-white/20' : 'rounded-xl font-medium text-white/80 hover:bg-white/10 hover:text-white')}`}
                         onClick={() => {
                             setIsPhongVanMenuOpen((current) => !current)
                             if (!isActive) {
@@ -500,23 +499,19 @@ export default function DashboardPage() {
                         }}
                     >
                         <span className="flex items-center">
-                            <Icon className="w-4 h-4 mr-3" />
+                            <span className={isDrawer ? 'mr-2.5 grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-500 text-white shadow-sm shadow-violet-200' : 'mr-3'}><Icon className="size-3.5" /></span>
                             {item.label}
                         </span>
                         <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
                     </Button>
                     {isOpen && (
-                        <div className="pl-6 space-y-1 border-l border-white/10 ml-5 animate-in fade-in slide-in-from-top-1 duration-250">
+                        <div className={`ml-6 space-y-0.5 border-l pl-4 animate-in fade-in slide-in-from-top-1 duration-250 ${isDrawer ? 'border-violet-200' : 'border-white/10'}`}>
                             {interviewMenuItems.map((subItem) => {
                                 const SubIcon = subItem.Icon
                                 return (
                                     <button
                                         aria-current={activeMenu === subItem.key ? 'page' : undefined}
-                                        className={`flex min-h-10 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
-                                            activeMenu === subItem.key
-                                                ? 'bg-white/15 text-white shadow-sm'
-                                                : 'text-white/70 hover:bg-white/10 hover:text-white'
-                                        }`}
+                                        className={`flex min-h-9 w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 ${isDrawer ? (activeMenu === subItem.key ? 'bg-violet-50 text-violet-700 shadow-sm ring-violet-600' : 'text-slate-700 hover:bg-violet-50 hover:text-violet-700 ring-violet-600') : (activeMenu === subItem.key ? 'bg-white/15 text-white shadow-sm ring-white' : 'text-white/70 hover:bg-white/10 hover:text-white ring-white')}`}
                                         key={subItem.key}
                                         onClick={() => {
                                             setActiveMenu(subItem.key)
@@ -570,31 +565,67 @@ export default function DashboardPage() {
         const shortDescription = isInterview
             ? 'Luyện 8 phần phỏng vấn thực tế.'
             : 'Luyện đề sát cấu trúc thi thật.'
+        const features = isInterview
+            ? ['8 phần thi chuẩn', 'Gợi ý trả lời chi tiết', 'Thu âm & chấm điểm AI']
+            : ['Câu hỏi bám sát đề thật', 'Mô phỏng cấu trúc thi', 'Phân tích kết quả chi tiết']
+        const cardTone = isInterview
+            ? {
+                icon: 'bg-violet-50 text-violet-700 ring-violet-100',
+                badge: 'border-violet-100 bg-violet-50 text-violet-700',
+                button: 'bg-violet-600 text-white hover:bg-violet-700 focus-visible:ring-violet-600',
+                title: 'text-violet-700',
+                check: 'bg-violet-100 text-violet-700',
+                background: 'from-white via-violet-50/50 to-violet-100/60',
+                image: '/dashboard/interview-learner-v2.webp',
+            }
+            : {
+                icon: 'bg-blue-50 text-blue-700 ring-blue-100',
+                badge: 'border-blue-100 bg-blue-50 text-blue-700',
+                button: 'bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-600',
+                title: 'text-blue-700',
+                check: 'bg-blue-100 text-blue-700',
+                background: 'from-white via-blue-50/50 to-blue-100/60',
+                image: '/dashboard/exam-learner-v2.webp',
+            }
 
         return (
             <Card
                 key={item.key}
-                className={`group relative min-h-44 overflow-hidden border-0 p-0 shadow-lg transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-xl motion-reduce:transform-none sm:min-h-52 ${isInterview ? 'bg-gradient-to-br from-violet-600 via-indigo-600 to-blue-700 text-white' : 'bg-gradient-to-br from-blue-700 via-blue-600 to-cyan-500 text-white'}`}
+                className={`group relative min-h-[310px] overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br p-0 shadow-[0_12px_32px_rgba(15,23,42,0.06)] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_20px_44px_rgba(15,23,42,0.11)] motion-reduce:transform-none ${cardTone.background}`}
             >
-                <div aria-hidden="true" className="absolute -right-12 -top-16 size-44 rounded-full bg-white/10 transition-transform duration-700 group-hover:scale-125 motion-reduce:transform-none" />
-                <div aria-hidden="true" className="absolute -bottom-16 right-16 size-32 rounded-full bg-white/10 blur-xl" />
-                <Icon aria-hidden="true" className="absolute -right-3 top-9 size-24 rotate-6 text-white/[0.08] transition-transform duration-500 group-hover:-rotate-3 group-hover:scale-110 motion-reduce:transform-none" />
-                <CardHeader className="relative px-5 pb-1 pt-4 sm:p-6 sm:pb-2">
-                    <div className="mb-2 flex items-start justify-between gap-3">
-                        <div className="relative flex size-10 items-center justify-center rounded-xl border border-white/25 bg-white/15 shadow-inner backdrop-blur-sm sm:size-12 sm:rounded-2xl">
-                            <Icon aria-hidden="true" className="size-5 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110 motion-reduce:transform-none sm:size-6" />
-                            <Sparkles aria-hidden="true" className="absolute -right-1.5 -top-1.5 size-3.5 animate-pulse text-amber-300 motion-reduce:animate-none" />
+                <div className="absolute inset-0 block sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[58%]">
+                    <Image
+                        alt=""
+                        aria-hidden="true"
+                        className="object-cover object-[66%_center] mix-blend-multiply sm:object-center"
+                        fill
+                        priority
+                        sizes="(min-width: 1280px) 380px, (min-width: 640px) 55vw, 100vw"
+                        src={cardTone.image}
+                    />
+                    <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-white via-white/90 via-45% to-transparent sm:inset-y-0 sm:left-0 sm:right-auto sm:w-32 sm:bg-gradient-to-r sm:from-white sm:via-white/80 sm:to-transparent" />
+                </div>
+                <CardHeader className="relative z-10 max-w-[62%] px-4 pb-2 pt-4 sm:max-w-[54%] sm:px-6 sm:pt-6">
+                    <div className="mb-3 flex items-center gap-2">
+                        <div className={`flex size-8 items-center justify-center rounded-xl ring-1 ${cardTone.icon}`}>
+                            <Icon aria-hidden="true" className="size-4.5" />
                         </div>
-                        <Badge className="border border-white/20 bg-white/15 px-2 py-0.5 text-[10px] text-white hover:bg-white/15 sm:text-xs">
-                            {isInterview ? '8 phần' : 'Thi thật'}
-                        </Badge>
+                        <span className={`text-[10px] font-bold uppercase tracking-[0.14em] ${cardTone.title}`}>Lộ trình luyện thi</span>
                     </div>
-                    <CardTitle className="text-lg font-black tracking-tight text-white sm:text-2xl">{item.label}</CardTitle>
-                    <CardDescription className="text-sm leading-5 text-white/80 sm:min-h-11 sm:leading-6">{shortDescription}</CardDescription>
+                    <CardTitle className={`text-xl font-black tracking-tight sm:text-2xl ${cardTone.title}`}>{item.label}</CardTitle>
+                    <CardDescription className="mt-1 text-sm leading-5 text-slate-600">{shortDescription}</CardDescription>
                 </CardHeader>
-                <CardContent className="relative mt-auto px-5 pb-4 pt-1 sm:px-6 sm:pb-5 sm:pt-0">
+                <CardContent className="relative z-10 max-w-full px-4 pb-4 pt-2 sm:max-w-[54%] sm:px-6 sm:pb-6">
+                    <ul className="mb-4 min-h-24 w-[58%] space-y-2 sm:min-h-0 sm:w-full">
+                        {features.map((feature) => (
+                            <li className="flex items-center gap-2 text-xs font-medium text-slate-600" key={feature}>
+                                <span aria-hidden="true" className={`grid size-4 shrink-0 place-items-center rounded-full text-[10px] font-black ${cardTone.check}`}>✓</span>
+                                {feature}
+                            </li>
+                        ))}
+                    </ul>
                     <Button
-                        className="min-h-10 w-full rounded-xl bg-white font-black text-blue-700 shadow-md hover:bg-blue-50 sm:min-h-11"
+                        className={`min-h-10 w-full rounded-xl font-bold shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 ${cardTone.button}`}
                         onClick={() => setActiveMenu(item.key)}
                     >
                         {item.buttonText}
@@ -629,13 +660,14 @@ export default function DashboardPage() {
     return (
         <div className="app-typography min-h-screen flex bg-[#f4f6f8]">
             {/* Sidebar (Desktop) */}
-            <aside className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 overflow-hidden bg-[#2B64CE] text-white flex-col hidden md:flex h-screen sticky top-0 shrink-0 shadow-lg z-30`}>
+            <aside className={`${isSidebarOpen ? 'w-64' : 'w-0'} overflow-hidden bg-gradient-to-b from-[#164dcc] via-[#315ed8] to-[#654fe5] text-white flex-col hidden md:flex h-screen sticky top-0 shrink-0 shadow-xl z-30 transition-[width] duration-300`}>
                 <div className="h-[72px] flex items-center justify-center border-b border-white/10 shrink-0">
                     <button aria-label="Về dashboard tổng quan" className="relative h-16 w-52 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" onClick={() => setActiveMenu(null)} type="button">
                         <Image src="/logo.png" alt="" fill className="object-contain" priority unoptimized={true} />
                     </button>
                 </div>
-                <nav className="flex-1 overflow-y-auto pt-4 px-3 flex flex-col gap-1 w-64">
+                <nav className="flex-1 overflow-y-auto px-3 pt-4 flex flex-col gap-1 w-64">
+                    <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-100/70">Luyện thi</p>
                     {enabledMenuItems.filter(item => item.key !== 'bang-xep-hang').map((item) => renderMenuButton(item))}
                     
                     <div className="mt-auto mx-auto w-[204px] pb-4">
@@ -643,9 +675,19 @@ export default function DashboardPage() {
                     </div>
                 </nav>
                 <div className="shrink-0 pb-4 w-64 flex flex-col items-center">
+                    <div aria-hidden="true" className="relative -mb-2 h-44 w-[220px] overflow-hidden">
+                        <div className="absolute inset-x-4 bottom-0 h-24 rounded-full bg-blue-400/20 blur-2xl" />
+                        <Image
+                            alt=""
+                            className="object-contain object-bottom drop-shadow-[0_12px_18px_rgba(15,23,42,0.22)]"
+                            fill
+                            sizes="220px"
+                            src="/dashboard/sidebar/sidebar-champion.webp"
+                        />
+                    </div>
                     <a
                         href="tel:0965577882"
-                        className="flex w-[204px] flex-col items-center justify-center gap-3 rounded border border-white/70 bg-transparent px-5 py-6 text-white shadow-sm transition-colors hover:border-white"
+                        className="relative flex w-[204px] flex-col items-center justify-center gap-2 rounded-2xl border border-white/25 bg-white/10 px-5 py-4 text-white shadow-lg shadow-blue-950/10 backdrop-blur-sm transition-[background-color,border-color] hover:border-white/50 hover:bg-white/15"
                         aria-label="Gọi hotline hỗ trợ 0965577882"
                     >
                         <span className="flex items-center gap-1.5 text-sm font-semibold">
@@ -756,12 +798,12 @@ export default function DashboardPage() {
                     aria-label="Menu điều hướng"
                     id="mobile-navigation"
                     inert={!isMobileMenuOpen}
-                    className={`fixed inset-y-0 left-0 z-[60] flex w-[min(88vw,340px)] flex-col overscroll-contain bg-gradient-to-b from-[#2865d5] via-[#225bc4] to-[#17469f] text-white shadow-[20px_0_60px_rgba(15,36,80,0.28)] transition-transform duration-300 ease-out md:hidden ${
+                    className={`fixed inset-y-0 left-0 z-[60] flex w-[min(90vw,360px)] flex-col overflow-hidden overscroll-contain rounded-tr-[30px] border-l-4 border-t-4 border-blue-600 bg-gradient-to-b from-white via-white to-blue-50 text-slate-800 shadow-[20px_0_55px_rgba(15,36,80,0.26)] transition-transform duration-300 ease-out md:hidden ${
                         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
                     }`}
                 >
-                    <div className="flex min-h-[76px] shrink-0 items-center justify-between border-b border-slate-100 bg-white px-4 py-3">
-                        <button aria-label="Về dashboard tổng quan" className="relative h-9 w-32 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600" onClick={() => { setActiveMenu(null); setIsMobileMenuOpen(false) }} type="button">
+                    <div className="flex min-h-[84px] shrink-0 items-center justify-between border-b border-slate-100 bg-white px-5 py-3">
+                        <button aria-label="Về dashboard tổng quan" className="relative h-9 w-28 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600" onClick={() => { setActiveMenu(null); setIsMobileMenuOpen(false) }} type="button">
                             <Image
                                 src="/logomobile.png"
                                 alt="Korea Link"
@@ -773,38 +815,32 @@ export default function DashboardPage() {
                         </button>
                         <button
                             aria-label="Đóng menu"
-                            className="flex size-11 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                            className="flex size-10 items-center justify-center rounded-xl bg-slate-50 text-slate-700 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
                             onClick={() => setIsMobileMenuOpen(false)}
                             type="button"
                         >
-                            <X aria-hidden="true" className="size-7" />
+                            <X aria-hidden="true" className="size-5" />
                         </button>
                     </div>
 
-                    <nav className="relative flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
-                        <div aria-hidden="true" className="pointer-events-none absolute -right-16 top-10 size-44 rounded-full bg-cyan-300/10 blur-2xl" />
-                        <p className="relative px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-100/80">Học và luyện thi</p>
+                    <nav className="relative flex flex-1 flex-col gap-1.5 overflow-y-auto px-4 py-4">
+                        <div aria-hidden="true" className="pointer-events-none absolute -right-16 top-10 size-44 rounded-full bg-violet-200/20 blur-2xl" />
+                        <p className="relative px-3 pb-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Học và luyện thi</p>
                         {enabledMenuItems
                             .filter(item => item.key !== 'bang-xep-hang')
                             .map((item) => renderMenuButton(item, () => setIsMobileMenuOpen(false)))}
 
-                        <div className="relative mt-auto pt-5">
-                            {enabledMenuItems
-                                .filter(item => item.key === 'bang-xep-hang')
-                                .map((item) => renderMenuButton(item, () => setIsMobileMenuOpen(false)))}
-                        </div>
                     </nav>
 
-                    <div className="shrink-0 space-y-2.5 border-t border-white/10 bg-slate-950/10 p-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur-sm">
+                    <div className="relative shrink-0 space-y-2.5 border-t border-blue-100 bg-gradient-to-b from-blue-50/70 to-violet-50 p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
                         <UserNav variant="drawer" onNavigate={() => setIsMobileMenuOpen(false)} />
-                        {isInterviewSection ? (
-                            <div className="grid grid-cols-2 items-center gap-2">
-                                <div className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/10 px-2 text-sm font-bold text-white">
+                        <div className="grid grid-cols-2 items-center gap-3">
+                                <div className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-blue-100 bg-white px-2 text-xs font-black text-blue-800 shadow-sm">
                                     <Coins aria-hidden="true" className="size-4" />
                                     <span>{userCredits} lượt</span>
                                 </div>
                                 <button
-                                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-white px-2 text-sm font-bold text-blue-700 shadow-sm transition hover:bg-blue-50"
+                                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-white px-2 text-xs font-black text-blue-700 shadow-sm ring-1 ring-blue-100 transition-colors hover:bg-blue-50"
                                     onClick={() => {
                                         setIsMobileMenuOpen(false)
                                         setPaymentModalOpen(true)
@@ -814,86 +850,105 @@ export default function DashboardPage() {
                                     <ShoppingCart aria-hidden="true" className="size-4" />
                                     Mua thêm
                                 </button>
-                            </div>
-                        ) : null}
+                        </div>
                         <a
                             href="tel:0965577882"
-                            className="flex min-h-11 items-center justify-between rounded-xl border border-white/20 bg-white/[0.06] px-3 py-2 text-white/95 transition-colors hover:border-white/50 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                            className="flex min-h-14 items-center justify-between rounded-xl border border-blue-100 bg-white px-3 py-2 text-slate-700 shadow-sm transition-[border-color,box-shadow] hover:border-blue-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
                         >
-                            <span className="flex items-center gap-2 text-sm font-semibold">
-                                <Phone aria-hidden="true" className="size-4" />
-                                Hotline hỗ trợ
+                            <span className="flex items-center gap-3 text-sm font-semibold">
+                                <span className="grid size-8 place-items-center rounded-full bg-blue-600 text-white shadow-md shadow-blue-200"><Phone aria-hidden="true" className="size-3.5" /></span>
+                                <span><span className="block text-[10px] font-medium text-slate-500">Hotline hỗ trợ</span><strong className="block text-base font-black tabular-nums text-blue-700">0965 577 882</strong></span>
                             </span>
-                            <span className="text-sm font-bold tabular-nums">0965577882</span>
+                            <span className="grid size-8 place-items-center rounded-full bg-blue-50 text-blue-600"><Phone aria-hidden="true" className="size-3.5" /></span>
                         </a>
+                        <div aria-hidden="true" className="relative -mx-3 -mb-[max(12px,env(safe-area-inset-bottom))] h-20 overflow-hidden">
+                            <Sparkles className="absolute left-[45%] top-6 size-4 text-blue-300" />
+                            <span className="absolute bottom-2 right-9 z-10 block size-20 drop-shadow-[0_10px_15px_rgba(37,99,235,0.24)]">
+                                <Image alt="" className="object-contain" fill sizes="80px" src="/dashboard/mobile-menu/rocket-3d.webp" />
+                            </span>
+                            <svg className="absolute inset-x-0 bottom-0 h-20 w-full" preserveAspectRatio="none" viewBox="0 0 390 80">
+                                <defs><linearGradient id="wave-back" x1="0" x2="390" y1="20" y2="70" gradientUnits="userSpaceOnUse"><stop stopColor="#dbeafe"/><stop offset="1" stopColor="#c4b5fd"/></linearGradient><linearGradient id="wave-mid" x1="20" x2="370" y1="30" y2="76" gradientUnits="userSpaceOnUse"><stop stopColor="#93c5fd"/><stop offset="1" stopColor="#818cf8"/></linearGradient><linearGradient id="wave-front" x1="0" x2="390" y1="48" y2="78" gradientUnits="userSpaceOnUse"><stop stopColor="#2563eb"/><stop offset="1" stopColor="#4f46e5"/></linearGradient></defs>
+                                <path d="M0 35C48 15 91 15 134 34C180 55 218 66 262 58C307 50 343 28 390 33V80H0Z" fill="url(#wave-back)" />
+                                <path d="M0 47C47 27 91 29 136 48C181 67 220 74 263 66C308 58 346 39 390 43V80H0Z" fill="url(#wave-mid)" />
+                                <path d="M0 59C45 41 91 42 137 59C183 76 224 81 267 73C311 65 350 50 390 53V80H0Z" fill="url(#wave-front)" />
+                            </svg>
+                        </div>
                     </div>
                 </aside>
 
                 {/* Content */}
-                <main className={`flex-1 overflow-y-auto bg-[#f4f6f8] md:p-6 ${isInterviewSection ? 'px-3 pb-4 pt-2' : 'p-4'}`}>
-                    <div className={`max-w-6xl mx-auto ${isInterviewSection ? 'space-y-3 md:space-y-6' : 'space-y-6'}`}>
+                <main className={`flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_right,_#eef4ff_0,_#f6f8fb_32rem)] md:p-6 ${isInterviewSection ? 'px-3 pb-4 pt-2' : 'p-4'}`}>
+                    <div className={`mx-auto max-w-7xl ${isInterviewSection ? 'space-y-3 md:space-y-6' : 'space-y-6'}`}>
 
                         {/* Default view - no menu selected */}
                         {!activeMenu && (
-                            <div className="space-y-4 pb-8 sm:space-y-6">
-                                <section className="relative hidden overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-br from-white via-blue-50/60 to-violet-50 px-5 py-5 shadow-sm sm:block sm:px-7 sm:py-7 lg:px-9">
-                                    <div aria-hidden="true" className="absolute -right-20 -top-28 size-72 rounded-full bg-gradient-to-br from-blue-200/70 to-violet-200/70 blur-2xl" />
-                                    <div aria-hidden="true" className="absolute right-5 top-5 hidden size-14 items-center justify-center rounded-2xl border border-white/70 bg-white/50 text-blue-600 shadow-sm backdrop-blur-sm sm:flex">
-                                        <Sparkles className="size-7 animate-pulse motion-reduce:animate-none" />
-                                    </div>
-                                    <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                                        <div className="max-w-2xl">
-                                            <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-white/80 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-blue-700 shadow-sm">
-                                                <Target aria-hidden="true" className="size-3.5" /> Lộ trình hôm nay
-                                            </div>
-                                            <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl lg:text-4xl">Chào mừng trở lại! <span aria-hidden="true">👋</span></h1>
-                                            <p className="mt-1.5 max-w-xl text-sm leading-5 text-slate-600 sm:text-base sm:leading-6">Chọn lộ trình bạn muốn tiếp tục.</p>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2 sm:flex">
-                                            <div className="rounded-xl border border-slate-200 bg-white/85 px-3 py-2.5 shadow-sm backdrop-blur-sm sm:rounded-2xl sm:px-4 sm:py-3">
-                                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">Đã thi</span>
-                                                <strong className="block text-base font-black tabular-nums text-slate-950 sm:text-lg">{dashboardStats?.examsTaken || 0} lượt</strong>
-                                            </div>
-                                            <div className="rounded-xl border border-orange-100 bg-orange-50/90 px-3 py-2.5 shadow-sm sm:rounded-2xl sm:px-4 sm:py-3">
-                                                <span className="block text-[10px] font-bold uppercase tracking-wide text-orange-700">Chuỗi học</span>
-                                                <strong className="block text-base font-black tabular-nums text-orange-600 sm:text-lg">{dashboardStats?.streak || 0} ngày 🔥</strong>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </section>
+                            <div className="space-y-3 pb-8 sm:space-y-7">
 
                                 <section aria-labelledby="learning-path-heading">
-                                    <div className="mb-2 flex items-end justify-between gap-3 sm:mb-3">
-                                        <div>
-                                            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-600 sm:hidden">Học và luyện thi</span>
-                                            <h2 className="text-xl font-black tracking-tight text-slate-950 sm:text-2xl" id="learning-path-heading">Chọn lộ trình</h2>
+                                    <div className="mb-4 hidden flex-col gap-4 md:flex sm:mb-5 lg:flex-row lg:items-end lg:justify-between">
+                                        <div className="min-w-0">
+                                            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">Trung tâm học tập</span>
+                                            <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950 text-balance sm:text-3xl" id="learning-path-heading">Lộ trình học tập</h1>
+                                            <p className="mt-1 text-sm leading-6 text-slate-500">Chọn hình thức luyện tập phù hợp với mục tiêu của bạn.</p>
                                         </div>
                                     </div>
-                                    <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+                                    <div className="mb-5 hidden gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_180px_180px]">
+                                        <div className="relative hidden min-h-28 overflow-hidden rounded-3xl bg-gradient-to-r from-[#102b78] via-[#17175b] to-[#24115f] p-5 text-white shadow-lg shadow-indigo-950/10 lg:flex lg:items-center">
+                                            <div aria-hidden="true" className="absolute -bottom-16 right-10 size-44 rounded-full bg-violet-500/30 blur-2xl" />
+                                            <div aria-hidden="true" className="absolute right-8 top-2 text-5xl">🚀</div>
+                                            <div className="relative flex w-full items-center gap-4 pr-24">
+                                                <div aria-hidden="true" className="grid size-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-amber-300 to-orange-500 text-2xl shadow-lg">🏅</div>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="font-black">Bạn đang tiến bộ rất tốt!</p>
+                                                    <p className="mt-1 text-xs text-blue-100">Hãy tiếp tục duy trì phong độ nhé.</p>
+                                                </div>
+                                                <div className="w-56 shrink-0">
+                                                    <div className="mb-2 flex items-center justify-between text-xs"><span className="font-semibold text-blue-100">Tiến độ tổng thể</span><strong className="tabular-nums">{overallProgress}%</strong></div>
+                                                    <div className="h-2 overflow-hidden rounded-full bg-white/15" role="progressbar" aria-label="Tiến độ tổng thể" aria-valuemax={100} aria-valuemin={0} aria-valuenow={overallProgress}>
+                                                        <div className="h-full rounded-full bg-gradient-to-r from-amber-300 via-pink-400 to-violet-400" style={{ width: `${overallProgress}%` }} />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="hidden rounded-3xl border border-violet-100 bg-gradient-to-br from-white to-violet-50 p-5 shadow-sm lg:flex lg:items-center lg:justify-between">
+                                            <div><span className="text-[10px] font-bold uppercase tracking-wide text-violet-600">Đã thi</span><strong className="mt-1 block text-3xl font-black tabular-nums text-indigo-950">{dashboardStats?.examsTaken || 0}</strong><span className="text-xs text-slate-500">lượt</span></div>
+                                            <div className="grid size-12 place-items-center rounded-full bg-white text-violet-600 shadow-sm"><FileText aria-hidden="true" className="size-6" /></div>
+                                        </div>
+                                        <div className="hidden rounded-3xl border border-orange-100 bg-gradient-to-br from-white to-orange-50 p-5 shadow-sm lg:flex lg:items-center lg:justify-between">
+                                            <div><span className="text-[10px] font-bold uppercase tracking-wide text-orange-600">Chuỗi học</span><strong className="mt-1 block text-3xl font-black tabular-nums text-orange-950">{dashboardStats?.streak || 0}</strong><span className="text-xs text-slate-500">ngày</span></div>
+                                            <div className="grid size-12 place-items-center rounded-full bg-white text-orange-500 shadow-sm"><Award aria-hidden="true" className="size-6" /></div>
+                                        </div>
+                                    </div>
+                                    <div className="grid gap-4 md:grid-cols-2 lg:gap-5">
                                         {enabledMenuItems.map((item) => renderOverviewCard(item))}
                                     </div>
                                 </section>
 
-                                <section aria-labelledby="progress-heading" className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-                                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3.5 sm:px-5 sm:py-4">
+                                <section aria-labelledby="progress-heading" className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
+                                    <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-4 sm:px-6 sm:pb-3 sm:pt-5">
                                         <div className="flex min-w-0 items-center gap-2.5">
-                                            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700"><Target aria-hidden="true" className="size-5" /></div>
-                                            <div className="min-w-0"><h2 className="font-black text-slate-950" id="progress-heading">Tiến độ của bạn</h2><p className="truncate text-xs text-slate-500">Hoạt động học gần đây</p></div>
+                                            <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm"><Target aria-hidden="true" className="size-5" /></div>
+                                            <div className="min-w-0"><h2 className="text-lg font-black tracking-tight text-slate-950" id="progress-heading">Tiến độ của bạn</h2><p className="truncate text-xs text-slate-500">Tổng quan kết quả học gần đây</p></div>
                                         </div>
-                                        {hasDashboardActivity ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">Đang tiến bộ</span> : null}
+                                        {hasDashboardActivity ? (
+                                            <div className="flex items-center gap-2">
+                                                <span className="hidden rounded-full border border-violet-100 bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-700 sm:inline-flex">Mục tiêu tuần: {weeklyGoalDays}/7 ngày</span>
+                                                <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">Đang tiến bộ</span>
+                                            </div>
+                                        ) : null}
                                     </div>
 
                                     {hasDashboardActivity ? (
-                                        <div className="grid grid-cols-2 gap-px bg-slate-100 lg:grid-cols-4">
+                                        <div className="grid grid-cols-2 gap-2 p-3 sm:gap-3 sm:p-5 lg:grid-cols-4 lg:pt-3">
                                             {[
                                                 ['Lượt thi', `${dashboardStats?.examsTaken || 0} đề`, FileText, 'bg-blue-50 text-blue-700'],
                                                 ['Điểm trung bình', `${dashboardStats?.avgScore || 0}/200`, Target, 'bg-emerald-50 text-emerald-700'],
                                                 ['Từ đã thuộc', `${dashboardStats?.vocabLearned || 0} từ`, BookOpen, 'bg-violet-50 text-violet-700'],
                                                 ['Chuỗi học', `${dashboardStats?.streak || 0} ngày`, Award, 'bg-orange-50 text-orange-700'],
                                             ].map(([label, value, Icon, iconClass]) => (
-                                                <div className="flex min-w-0 items-center gap-2.5 bg-white p-3.5 sm:p-4" key={String(label)}>
-                                                    <div className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${String(iconClass)}`}><Icon aria-hidden="true" className="size-4.5" /></div>
-                                                    <div className="min-w-0"><span className="block truncate text-[10px] font-bold uppercase tracking-wide text-slate-500">{String(label)}</span><strong className="block truncate text-base font-black tabular-nums text-slate-950 sm:text-lg">{String(value)}</strong></div>
+                                                <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5 sm:p-4" key={String(label)}>
+                                                    <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-black/[0.03] ${String(iconClass)}`}><Icon aria-hidden="true" className="size-4.5" /></div>
+                                                    <div className="min-w-0"><span className="block truncate text-[10px] font-bold uppercase tracking-wide text-slate-500">{String(label)}</span><strong className="mt-0.5 block truncate text-base font-black tabular-nums text-slate-950 sm:text-lg">{String(value)}</strong></div>
                                                 </div>
                                             ))}
                                         </div>
@@ -917,6 +972,37 @@ export default function DashboardPage() {
                                         </div>
                                     )}
                                 </section>
+
+                                <section aria-labelledby="achievement-heading" className="rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_12px_32px_rgba(15,23,42,0.05)] sm:p-5">
+                                    <div className="mb-4 flex items-center justify-between gap-3">
+                                        <div><h2 className="font-black text-slate-950" id="achievement-heading">Thành tích của bạn</h2><p className="mt-0.5 text-xs text-slate-500">Mở khóa huy hiệu bằng hoạt động học tập thực tế.</p></div>
+                                        <Award aria-hidden="true" className="size-5 text-amber-500" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+                                        {[
+                                            { title: 'Chiến binh', detail: 'Hoàn thành bài thi đầu tiên', unlocked: (dashboardStats?.examsTaken || 0) >= 1, image: '/dashboard/achievements/warrior-medal-3d.png' },
+                                            { title: 'Nhà chinh phục', detail: 'Hoàn thành 10 lượt thi', unlocked: (dashboardStats?.examsTaken || 0) >= 10, image: '/dashboard/achievements/conqueror-shield-3d.png' },
+                                            { title: 'Người kiên trì', detail: 'Duy trì chuỗi học 5 ngày', unlocked: (dashboardStats?.streak || 0) >= 5, image: '/dashboard/achievements/perseverance-emerald-3d.png' },
+                                            { title: 'Ngôi sao', detail: 'Học thuộc 200 từ', unlocked: (dashboardStats?.vocabLearned || 0) >= 200, image: '/dashboard/achievements/vocabulary-star-3d.png' },
+                                        ].map(({ title, detail, unlocked, image: badgeImage }) => (
+                                            <div className={`rounded-2xl border p-3 text-center ${unlocked ? 'border-slate-100 bg-slate-50/70' : 'border-slate-100 bg-slate-50/40'}`} key={title}>
+                                                <div className="relative mx-auto grid size-16 place-items-center">
+                                                    <Image
+                                                        alt=""
+                                                        aria-hidden="true"
+                                                        className={unlocked ? 'object-contain drop-shadow-md' : 'object-contain grayscale opacity-35'}
+                                                        height={64}
+                                                        src={badgeImage}
+                                                        width={64}
+                                                    />
+                                                    {!unlocked ? <span aria-hidden="true" className="absolute bottom-0 right-0 grid size-6 place-items-center rounded-full border-2 border-white bg-slate-600 text-[11px] shadow-sm">🔒</span> : null}
+                                                </div>
+                                                <h3 className="mt-1 truncate text-xs font-black text-slate-800">{title}</h3>
+                                                <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-slate-500">{detail}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
                             </div>
                         )}
 
@@ -928,39 +1014,44 @@ export default function DashboardPage() {
 
                         {/* TỔNG QUAN THI THỬ EPS-TOPIK */}
                         {activeMenu === 'thi-thu' && activeMenuItem && (
-                            <div className="mx-auto w-full max-w-6xl space-y-4 pb-8 sm:space-y-5">
-                                <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-700 via-indigo-700 to-violet-700 p-4 text-white shadow-xl shadow-blue-900/15 sm:p-6 lg:p-7">
-                                    <div aria-hidden="true" className="absolute -right-20 -top-24 size-64 rounded-full bg-white/10 blur-2xl transition-transform duration-700 hover:scale-110 motion-reduce:transform-none" />
-                                    <div aria-hidden="true" className="absolute -bottom-24 left-1/3 size-52 rounded-full bg-fuchsia-400/20 blur-3xl" />
-                                    <Award aria-hidden="true" className="absolute -right-3 top-12 size-28 rotate-12 text-white/[0.07] animate-pulse motion-reduce:animate-none sm:right-8 sm:size-36" />
-                                    <div className="relative grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
-                                        <div className="max-w-2xl">
-                                            <Badge className="border border-white/20 bg-white/15 text-white hover:bg-white/15">
-                                                <Award aria-hidden="true" className="size-3.5 text-amber-300" /> Kỳ thi EPS-TOPIK
-                                            </Badge>
-                                            <h1 className="mt-3 text-balance text-xl font-black tracking-tight sm:text-3xl">Sẵn sàng cho kỳ thi</h1>
-                                            <p className="mt-1.5 text-xs leading-5 text-blue-100 sm:text-base sm:leading-6">Luyện đề chuẩn, theo dõi kết quả và xếp hạng.</p>
-                                            <div className="mt-4 grid max-w-xl grid-cols-3 gap-2 sm:gap-3">
-                                                {[
-                                                    [String(exams.length), 'Đề đang mở'],
-                                                    [String(dashboardStats?.examsTaken || 0), 'Lượt đã thi'],
-                                                    [`${dashboardStats?.avgScore || 0}%`, 'Điểm trung bình'],
-                                                ].map(([value, label]) => (
-                                                    <div className="rounded-xl border border-white/15 bg-white/10 px-1.5 py-2 text-center backdrop-blur-sm sm:rounded-2xl sm:px-4 sm:py-3" key={label}>
-                                                        <strong className="block text-lg font-black tabular-nums sm:text-2xl">{value}</strong>
-                                                        <span className="mt-0.5 block truncate text-[9px] font-semibold text-blue-100 sm:text-xs">{label}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
+                            <div className="mx-auto w-full max-w-7xl space-y-4 pb-8 sm:space-y-5">
+                                <section className="relative min-h-[300px] overflow-hidden rounded-3xl bg-[#10166b] text-white shadow-xl shadow-blue-900/15 sm:min-h-[330px]">
+                                    <Image
+                                        alt=""
+                                        aria-hidden="true"
+                                        className="object-cover object-[68%_center] opacity-70 sm:opacity-100"
+                                        fill
+                                        priority
+                                        sizes="(min-width: 1280px) 1152px, 100vw"
+                                        src="/dashboard/exam-overview-hero-v2.webp"
+                                    />
+                                    <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-[#10166b] via-[#151870]/95 via-55% to-[#151870]/20 sm:via-45% sm:to-transparent" />
+                                    <div className="relative flex min-h-[300px] flex-col justify-center p-5 sm:min-h-[330px] sm:p-7 lg:max-w-[62%] lg:p-9">
+                                        <Badge className="w-fit border border-white/15 bg-white/10 px-3 py-1 text-white shadow-sm backdrop-blur-sm hover:bg-white/10">
+                                            <Award aria-hidden="true" className="size-3.5 text-amber-300" /> Kỳ thi EPS-TOPIK
+                                        </Badge>
+                                        <h1 className="mt-3 text-balance text-3xl font-black tracking-tight sm:text-4xl">Sẵn sàng cho kỳ thi</h1>
+                                        <p className="mt-1.5 text-sm leading-6 text-blue-100 sm:text-base">Luyện đề chuẩn, theo dõi kết quả và xếp hạng.</p>
+                                        <div className="mt-5 grid max-w-2xl grid-cols-3 gap-2 sm:gap-3">
+                                            {[
+                                                [String(exams.length), 'Đề đang mở', FileText],
+                                                [String(dashboardStats?.examsTaken || 0), 'Lượt đã thi', ClipboardCheck],
+                                                [`${overallProgress}%`, 'Điểm trung bình', Target],
+                                            ].map(([value, label, Icon]) => (
+                                                <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-white/15 bg-white/10 p-2.5 backdrop-blur-md sm:gap-3 sm:px-4 sm:py-3" key={String(label)}>
+                                                    <span className="hidden size-10 shrink-0 place-items-center rounded-xl bg-white/10 text-blue-100 sm:grid"><Icon aria-hidden="true" className="size-5" /></span>
+                                                    <span className="min-w-0"><strong className="block text-xl font-black tabular-nums sm:text-2xl">{String(value)}</strong><span className="block truncate text-[9px] font-semibold text-blue-100 sm:text-xs">{String(label)}</span></span>
+                                                </div>
+                                            ))}
                                         </div>
-                                        <Button className="min-h-11 w-full rounded-xl bg-white px-6 font-black text-blue-700 shadow-lg transition-transform hover:scale-[1.02] hover:bg-blue-50 motion-reduce:transform-none lg:w-auto" onClick={() => setActiveMenu('thi-thu-de-thi')}>
+                                        <Button className="mt-5 min-h-11 w-full rounded-xl bg-white px-6 font-black text-blue-700 shadow-lg transition-transform hover:scale-[1.01] hover:bg-blue-50 motion-reduce:transform-none sm:w-fit" onClick={() => setActiveMenu('thi-thu-de-thi')}>
                                             Xem đề thi <ChevronDown aria-hidden="true" className="size-4 -rotate-90" />
                                         </Button>
                                     </div>
                                 </section>
 
                                 <div className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
-                                    <Card className="group relative overflow-hidden border-blue-200 bg-gradient-to-br from-white via-blue-50/40 to-cyan-50/60 p-0 shadow-lg shadow-blue-100/60 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl motion-reduce:transform-none">
+                                    <Card className="group relative overflow-hidden border-blue-200 bg-gradient-to-br from-white via-blue-50/40 to-cyan-50/60 p-0 shadow-lg shadow-blue-100/60 transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-xl motion-reduce:transform-none">
                                         <div aria-hidden="true" className="absolute -right-10 top-10 size-28 rounded-full bg-blue-200/30 blur-2xl transition-transform duration-700 group-hover:scale-125 motion-reduce:transform-none" />
                                         <div className="h-1 bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400" />
                                         <div className="relative flex items-center justify-between border-b border-blue-100/80 px-4 py-3 sm:px-5">
@@ -993,15 +1084,22 @@ export default function DashboardPage() {
                                         )}
                                     </Card>
 
-                                    <Card className="border-slate-200 p-4 shadow-sm sm:p-5">
+                                    <Card className="overflow-hidden border-violet-100 bg-gradient-to-b from-white to-violet-50/60 p-4 shadow-sm sm:p-5">
                                         <div className="flex items-center justify-between gap-3">
-                                            <div className="flex items-center gap-2"><Trophy aria-hidden="true" className="size-5 text-amber-500" /><h2 className="font-black text-slate-950">Xếp hạng</h2></div>
+                                            <div className="flex items-center gap-2.5">
+                                                <span className="relative grid size-9 place-items-center rounded-xl bg-gradient-to-br from-amber-100 to-orange-50 text-orange-500 shadow-sm ring-1 ring-orange-100">
+                                                    <Trophy aria-hidden="true" className="size-5 stroke-[2.25]" />
+                                                    <Sparkles aria-hidden="true" className="absolute -right-1 -top-1 size-3 text-amber-400" />
+                                                </span>
+                                                <h2 className="font-black text-slate-950">Xếp hạng</h2>
+                                            </div>
                                             <button className="text-xs font-bold text-blue-700 hover:text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600" onClick={() => setActiveMenu('thi-thu-bang-xep-hang')} type="button">Xem tất cả</button>
                                         </div>
                                         <div className="mt-3 space-y-2">
-                                            {leaderboard.slice(0, 3).map((entry) => (
-                                                <div className="flex items-center gap-2.5 rounded-xl bg-slate-50 px-3 py-2" key={entry.rank}>
-                                                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-blue-700 shadow-sm">{entry.rank}</span>
+                                            {leaderboard.slice(0, 3).map((entry, index) => (
+                                                <div className="flex items-center gap-2.5 rounded-xl border border-white bg-white/85 px-3 py-2.5 shadow-sm" key={entry.rank}>
+                                                    <span className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-black shadow-sm ${index === 0 ? 'bg-amber-100 text-amber-700' : index === 1 ? 'bg-slate-200 text-slate-700' : 'bg-orange-100 text-orange-700'}`}>{entry.rank}</span>
+                                                    <Award aria-hidden="true" className={`size-4 shrink-0 ${index === 0 ? 'text-amber-500' : index === 1 ? 'text-slate-400' : 'text-orange-500'}`} />
                                                     <span className="min-w-0 flex-1 truncate text-xs font-bold text-slate-800">{entry.name}</span>
                                                     <strong className="text-xs tabular-nums text-blue-700">{entry.score}đ</strong>
                                                 </div>
@@ -1011,19 +1109,34 @@ export default function DashboardPage() {
                                     </Card>
                                 </div>
 
-                                <Card className="border-slate-200 p-4 shadow-sm sm:p-5">
-                                    <h2 className="font-black text-slate-950">Quy trình dự thi</h2>
-                                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                                <Card className="relative overflow-hidden border-blue-100 bg-gradient-to-r from-white via-white to-blue-50/60 p-4 shadow-sm sm:p-5">
+                                    <div aria-hidden="true" className="absolute -bottom-16 -right-12 size-48 rounded-full bg-blue-100/60 blur-3xl" />
+                                    <div className="relative flex items-center gap-2.5">
+                                        <span className="relative grid size-9 place-items-center rounded-xl bg-gradient-to-br from-blue-100 to-indigo-50 text-blue-600 shadow-sm ring-1 ring-blue-100">
+                                            <ListChecks aria-hidden="true" className="size-5 stroke-[2.25]" />
+                                            <Sparkles aria-hidden="true" className="absolute -right-1 -top-1 size-3 text-violet-400" />
+                                        </span>
+                                        <h2 className="font-black text-slate-950">Quy trình dự thi</h2>
+                                    </div>
+                                    <div className="relative mt-4 grid gap-3 sm:grid-cols-3 xl:grid-cols-[repeat(3,minmax(0,1fr))_190px]">
                                         {[
-                                            ['1', 'Chọn đề', 'Xem cấu trúc, thời lượng và số lượt thi.'],
-                                            ['2', 'Xác nhận', 'Kiểm tra thông tin thí sinh trước khi bắt đầu.'],
-                                            ['3', 'Làm bài', 'Hoàn thành đúng thời gian và xem kết quả.'],
-                                        ].map(([step, title, description]) => (
-                                            <div className="flex gap-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100" key={step}>
-                                                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-black text-white">{step}</span>
-                                                <div><h3 className="text-sm font-black text-slate-900">{title}</h3><p className="mt-0.5 text-xs leading-5 text-slate-500">{description}</p></div>
+                                            ['1', 'Chọn đề', 'Xem cấu trúc, thời lượng và số lượt thi.', '/dashboard/exam-process/choose-exam.webp', 'from-blue-500 to-indigo-600'],
+                                            ['2', 'Xác nhận', 'Kiểm tra thông tin thí sinh trước khi bắt đầu.', '/dashboard/exam-process/confirm-identity.webp', 'from-violet-500 to-indigo-600'],
+                                            ['3', 'Làm bài', 'Hoàn thành đúng thời gian và xem kết quả.', '/dashboard/exam-process/take-exam.webp', 'from-cyan-500 to-blue-600'],
+                                        ].map(([step, title, description, stepImage, stepTone], index) => (
+                                            <div className="group relative flex min-h-36 items-center gap-3 rounded-2xl border border-blue-100 bg-white/90 p-4 pr-5 shadow-sm transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transform-none" key={String(step)}>
+                                                <span className="relative grid size-20 shrink-0 place-items-center">
+                                                    <Image alt="" aria-hidden="true" className="object-contain drop-shadow-md transition-transform duration-300 group-hover:scale-105 motion-reduce:transform-none" fill sizes="80px" src={String(stepImage)} />
+                                                    <span className={`absolute -right-1.5 -top-1.5 grid size-6 place-items-center rounded-full bg-gradient-to-br text-[10px] font-black text-white shadow-md ring-2 ring-white ${String(stepTone)}`}>{String(step)}</span>
+                                                </span>
+                                                <div><h3 className="text-sm font-black text-slate-900">{String(title)}</h3><p className="mt-1 text-xs leading-5 text-slate-500">{String(description)}</p></div>
+                                                {index < 2 ? <span aria-hidden="true" className="absolute -right-5 top-1/2 z-10 hidden size-7 -translate-y-1/2 place-items-center rounded-full bg-white text-indigo-500 shadow-sm ring-1 ring-indigo-100 sm:grid"><ChevronDown className="size-4 -rotate-90" /></span> : null}
                                             </div>
                                         ))}
+                                        <div aria-hidden="true" className="relative hidden min-h-36 xl:block">
+                                            <Image alt="" className="object-contain object-right-bottom opacity-90 drop-shadow-sm" fill sizes="190px" src="/dashboard/exam-process/exam-finish.webp" />
+                                            <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-blue-50/70 to-transparent" />
+                                        </div>
                                     </div>
                                 </Card>
                             </div>

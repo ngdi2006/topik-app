@@ -57,7 +57,7 @@ const ADMIN_MENU_GROUPS: Array<{ label: string; keys: AdminPermissionKey[] }> = 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [paymentAttentionCount, setPaymentAttentionCount] = useState(0)
-    const [adminPermissions, setAdminPermissions] = useState<AdminPermissionKey[]>(['dashboard'])
+    const [adminPermissions, setAdminPermissions] = useState<AdminPermissionKey[]>([])
     const lastAttentionCheckRef = useRef(0)
     const pathname = usePathname()
     const { role, setRole } = useUserStore()
@@ -75,7 +75,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             .then((data) => {
                 if (!active || !data) return
                 setRole(data.role)
-                setAdminPermissions(Array.isArray(data.permissions) ? data.permissions : ['dashboard'])
+                setAdminPermissions(Array.isArray(data.permissions) ? data.permissions : [])
             })
             .catch(() => undefined)
         return () => { active = false }

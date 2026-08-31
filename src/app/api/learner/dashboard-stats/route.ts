@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
-export async function GET(request: Request) {
+export async function GET() {
     try {
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
@@ -10,12 +10,19 @@ export async function GET(request: Request) {
 
         const adminClient = createAdminClient();
 
-        // 1. Fetch user stats
-        const { data: userAttempts } = await adminClient
-            .from('exam_attempts')
-            .select('score, started_at, completed_at, status')
-            .eq('user_id', user.id)
-            .eq('status', 'completed');
+        // User statistics and leaderboard source are independent after auth.
+        const [{ data: userAttempts }, { data: allAttempts }] = await Promise.all([
+            adminClient
+                .from('exam_attempts')
+                .select('score, started_at, completed_at')
+                .eq('user_id', user.id)
+                .eq('status', 'completed'),
+            adminClient
+                .from('exam_attempts')
+                .select('user_id, score, started_at, completed_at')
+                .eq('status', 'completed')
+                .order('score', { ascending: false }),
+        ]);
 
         const examsTaken = userAttempts?.length || 0;
         const avgScore = examsTaken > 0 ? Math.round(userAttempts!.reduce((acc, curr) => acc + (curr.score || 0), 0) / examsTaken) : 0;
@@ -23,13 +30,6 @@ export async function GET(request: Request) {
         const vocabLearned = 350; // Mock data
 
         const stats = { examsTaken, avgScore, streak, vocabLearned };
-
-        // 2. Fetch Leaderboard
-        const { data: allAttempts } = await adminClient
-            .from('exam_attempts')
-            .select('user_id, score, started_at, completed_at')
-            .eq('status', 'completed')
-            .order('score', { ascending: false });
 
         const userBestScores = new Map();
         if (allAttempts) {
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
             .sort((a, b) => b.score - a.score);
 
         const top20 = sortedUsers.slice(0, 20);
-        let currentUserRank = sortedUsers.findIndex(u => u.user_id === user.id) + 1;
+        const currentUserRank = sortedUsers.findIndex(u => u.user_id === user.id) + 1;
         const currentUserData = sortedUsers.find(u => u.user_id === user.id);
 
         const userIdsToFetch = top20.map(u => u.user_id);
@@ -60,9 +60,10 @@ export async function GET(request: Request) {
             .select('id, full_name, avatar_url')
             .in('id', userIdsToFetch);
 
+        const profilesById = new Map((profiles || []).map(profile => [profile.id, profile]));
         const leaderboard = top20.map((entry, index) => {
-            const profile = profiles?.find(p => p.id === entry.user_id);
-            let name = profile?.full_name || 'Thí sinh';
+            const profile = profilesById.get(entry.user_id);
+            const name = profile?.full_name || 'Thí sinh';
 
             return {
                 rank: index + 1,
@@ -86,7 +87,8 @@ export async function GET(request: Request) {
             }
         });
 
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unable to load dashboard statistics';
+        return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
 }

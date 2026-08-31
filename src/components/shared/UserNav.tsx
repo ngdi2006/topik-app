@@ -93,19 +93,20 @@ export function UserNav({ variant = "default", onNavigate }: UserNavProps = {}) 
         return (
             <button
                 aria-label={`Mở thông tin tài khoản ${displayName}`}
-                className="group flex min-h-16 w-full items-center gap-2.5 rounded-xl border border-blue-400/20 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 p-2.5 text-left text-white shadow-md shadow-blue-300/25 transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 motion-reduce:transform-none"
+                className="group flex min-h-14 w-full items-center gap-2 rounded-xl border border-blue-400/20 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 p-2 text-left text-white shadow-md shadow-blue-300/25 transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 motion-reduce:transform-none"
                 onClick={() => {
+                    window.sessionStorage.setItem('account:return-path', `${window.location.pathname}${window.location.search}`)
                     onNavigate?.()
                     router.push("/account")
                 }}
                 type="button"
             >
-                {renderAvatar("size-10 text-xs ring-white/30")}
+                {renderAvatar("size-9 text-[10px] ring-white/30")}
                 <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-bold">{displayName}</span>
-                    <span className="block truncate text-[10px] text-blue-100">{user?.email}</span>
+                    <span className="block truncate text-xs font-bold">{displayName}</span>
+                    <span className="block truncate text-[9px] text-blue-100">{user?.email}</span>
                 </span>
-                <span aria-hidden="true" className="grid size-8 place-items-center rounded-full bg-white/15 text-xl transition-transform group-hover:translate-x-0.5">›</span>
+                <span aria-hidden="true" className="grid size-7 place-items-center rounded-full bg-white/15 text-lg transition-transform group-hover:translate-x-0.5">›</span>
             </button>
         )
     }
@@ -146,6 +147,7 @@ export function UserNav({ variant = "default", onNavigate }: UserNavProps = {}) 
                     <DropdownMenuGroup>
                         <DropdownMenuItem className="cursor-pointer" onSelect={(event) => {
                             event.preventDefault()
+                            window.sessionStorage.setItem('account:return-path', `${window.location.pathname}${window.location.search}`)
                             router.push("/account")
                         }}>
                             <UserIcon className="mr-2 size-4" />

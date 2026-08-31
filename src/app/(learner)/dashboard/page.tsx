@@ -109,6 +109,20 @@ type LearnerMenuSetting = {
     sort_order: number
 }
 
+type DashboardCache = {
+    exams: Exam[]
+    menuSettings: LearnerMenuSetting[]
+    stats: DashboardStats | null
+    leaderboard: LeaderboardEntry[]
+    currentUserRank: CurrentUserRank | null
+    credits: number
+    updatedAt: number
+}
+
+// Preserve the last successful paint while navigating within the learner app.
+// The page still revalidates these values in the background after mounting.
+let dashboardCache: DashboardCache | null = null
+
 type LearnerMenuMeta = {
     label: string
     Icon: typeof BookOpen
@@ -183,11 +197,12 @@ export default function DashboardPage() {
     const router = useRouter()
     const supabase = useMemo(() => createClient(), [])
     const { user, setUser, setRole, isLoading, setIsLoading } = useUserStore()
-    const [exams, setExams] = useState<Exam[]>([])
-    const [enabledMenuSettings, setEnabledMenuSettings] = useState<LearnerMenuSetting[]>([])
-    const [isLocalLoading, setIsLocalLoading] = useState(true)
+    const cachedDashboard = dashboardCache
+    const [exams, setExams] = useState<Exam[]>(() => cachedDashboard?.exams || [])
+    const [enabledMenuSettings, setEnabledMenuSettings] = useState<LearnerMenuSetting[]>(() => cachedDashboard?.menuSettings || fallbackMenuSettings)
+    const [isLocalLoading, setIsLocalLoading] = useState(() => !cachedDashboard)
     const [activeMenu, setActiveMenu] = useState<ActiveTab | null>(null)
-    const [userCredits, setUserCredits] = useState<number>(0)
+    const [userCredits, setUserCredits] = useState<number>(() => cachedDashboard?.credits || 0)
     const [paymentModalOpen, setPaymentModalOpen] = useState(false)
     const [checkingAccess, setCheckingAccess] = useState<string | null>(null)
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -198,9 +213,9 @@ export default function DashboardPage() {
     const [isSavingDob, setIsSavingDob] = useState(false)
     const [examAwaitingDob, setExamAwaitingDob] = useState<Exam | null>(null)
     const [profileDob, setProfileDob] = useState<string | null>(null)
-    const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null)
-    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
-    const [currentUserRank, setCurrentUserRank] = useState<CurrentUserRank | null>(null)
+    const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(() => cachedDashboard?.stats || null)
+    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(() => cachedDashboard?.leaderboard || [])
+    const [currentUserRank, setCurrentUserRank] = useState<CurrentUserRank | null>(() => cachedDashboard?.currentUserRank || null)
     const [isPhongVanMenuOpen, setIsPhongVanMenuOpen] = useState(false)
     const [isExamMenuOpen, setIsExamMenuOpen] = useState(false)
     const [hasInterviewMobileBack, setHasInterviewMobileBack] = useState(false)
@@ -277,11 +292,14 @@ export default function DashboardPage() {
     const weeklyGoalDays = Math.min(7, Math.max(0, dashboardStats?.streak || 0))
 
     useEffect(() => {
-        const fetchUserData = async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            setUser(user)
+        let active = true
 
-            if (!user) {
+        const fetchUserData = async () => {
+            const currentUser = useUserStore.getState().user || (await supabase.auth.getUser()).data.user
+            if (!active) return
+            setUser(currentUser)
+
+            if (!currentUser) {
                 window.location.replace('/login?next=/dashboard')
                 return
             }
@@ -289,27 +307,36 @@ export default function DashboardPage() {
             const profilePromise = supabase
                 .from('profiles')
                 .select('role')
-                .eq('id', user.id)
+                .eq('id', currentUser.id)
                 .single()
 
             try {
                 const [{ data: profile }, examsRes, menuRes, statsRes] = await Promise.all([
                     profilePromise,
-                    fetch('/api/exams', { cache: 'no-store' }),
-                    fetch('/api/learner/dashboard-menu', { cache: 'no-store' }),
-                    fetch('/api/learner/dashboard-stats', { cache: 'no-store' }),
+                    fetch('/api/exams'),
+                    fetch('/api/learner/dashboard-menu'),
+                    fetch('/api/learner/dashboard-stats'),
                 ])
+                if (!active) return
+
+                let nextExams = dashboardCache?.exams || []
+                let nextMenuSettings = dashboardCache?.menuSettings || fallbackMenuSettings
+                let nextStats = dashboardCache?.stats || null
+                let nextLeaderboard = dashboardCache?.leaderboard || []
+                let nextCurrentUserRank = dashboardCache?.currentUserRank || null
 
                 if (profile) setRole(profile.role)
 
                 if (examsRes.ok) {
                     const latestExams = await examsRes.json()
+                    nextExams = latestExams
                     setExams(latestExams)
                 }
 
                 if (menuRes.ok) {
                     const menuItems = await menuRes.json()
                     if (Array.isArray(menuItems) && menuItems.length > 0) {
+                        nextMenuSettings = menuItems
                         setEnabledMenuSettings(menuItems)
                     }
                 }
@@ -317,21 +344,38 @@ export default function DashboardPage() {
                 if (statsRes.ok) {
                     const statsData = await statsRes.json()
                     if (statsData.success) {
+                        nextStats = statsData.data.stats
+                        nextLeaderboard = statsData.data.leaderboard
+                        nextCurrentUserRank = statsData.data.currentUser
                         setDashboardStats(statsData.data.stats)
                         setLeaderboard(statsData.data.leaderboard)
                         setCurrentUserRank(statsData.data.currentUser)
                     }
                 }
+
+                if (!active) return
+                dashboardCache = {
+                    exams: nextExams,
+                    menuSettings: nextMenuSettings,
+                    stats: nextStats,
+                    leaderboard: nextLeaderboard,
+                    currentUserRank: nextCurrentUserRank,
+                    credits: dashboardCache?.credits || 0,
+                    updatedAt: Date.now(),
+                }
             } catch (error) {
                 console.error("Lỗi lấy dữ liệu dashboard:", error)
-                setEnabledMenuSettings(fallbackMenuSettings)
+                if (!dashboardCache) setEnabledMenuSettings(fallbackMenuSettings)
             }
 
-            setIsLoading(false)
-            setIsLocalLoading(false)
+            if (active) {
+                setIsLoading(false)
+                setIsLocalLoading(false)
+            }
         }
 
-        fetchUserData()
+        void fetchUserData()
+        return () => { active = false }
     }, [supabase, setUser, setRole, setIsLoading])
 
     useEffect(() => {
@@ -358,7 +402,9 @@ export default function DashboardPage() {
             const res = await fetch('/api/payment/credits')
             if (res.ok) {
                 const data = await res.json()
-                setUserCredits(data.remaining_credits ?? 0)
+                const credits = data.remaining_credits ?? 0
+                setUserCredits(credits)
+                if (dashboardCache) dashboardCache = { ...dashboardCache, credits }
             }
         } catch {
             // ignore
@@ -498,9 +544,9 @@ export default function DashboardPage() {
                             }
                         }}
                     >
-                        <span className="flex items-center">
+                        <span className="flex min-w-0 flex-1 items-center">
                             <span className={isDrawer ? 'mr-2.5 grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-500 text-white shadow-sm shadow-violet-200' : 'mr-3'}><Icon className="size-3.5" /></span>
-                            {item.label}
+                            <span className="truncate">{item.label}</span>
                         </span>
                         <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
                     </Button>
@@ -591,7 +637,7 @@ export default function DashboardPage() {
         return (
             <Card
                 key={item.key}
-                className={`group relative min-h-[310px] overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br p-0 shadow-[0_12px_32px_rgba(15,23,42,0.06)] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_20px_44px_rgba(15,23,42,0.11)] motion-reduce:transform-none ${cardTone.background}`}
+                className={`group relative min-h-[248px] overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br p-0 shadow-[0_10px_26px_rgba(15,23,42,0.06)] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_20px_44px_rgba(15,23,42,0.11)] motion-reduce:transform-none sm:min-h-[310px] sm:rounded-3xl ${cardTone.background}`}
             >
                 <div className="absolute inset-0 block sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[58%]">
                     <Image
@@ -605,27 +651,27 @@ export default function DashboardPage() {
                     />
                     <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-white via-white/90 via-45% to-transparent sm:inset-y-0 sm:left-0 sm:right-auto sm:w-32 sm:bg-gradient-to-r sm:from-white sm:via-white/80 sm:to-transparent" />
                 </div>
-                <CardHeader className="relative z-10 max-w-[62%] px-4 pb-2 pt-4 sm:max-w-[54%] sm:px-6 sm:pt-6">
-                    <div className="mb-3 flex items-center gap-2">
-                        <div className={`flex size-8 items-center justify-center rounded-xl ring-1 ${cardTone.icon}`}>
-                            <Icon aria-hidden="true" className="size-4.5" />
+                <CardHeader className="relative z-10 max-w-[62%] px-4 pb-1 pt-3 sm:max-w-[54%] sm:px-6 sm:pb-2 sm:pt-6">
+                    <div className="mb-2 flex items-center gap-2 sm:mb-3">
+                        <div className={`flex size-7 items-center justify-center rounded-lg ring-1 sm:size-8 sm:rounded-xl ${cardTone.icon}`}>
+                            <Icon aria-hidden="true" className="size-4" />
                         </div>
-                        <span className={`text-[10px] font-bold uppercase tracking-[0.14em] ${cardTone.title}`}>Lộ trình luyện thi</span>
+                        <span className={`text-[9px] font-bold uppercase tracking-[0.12em] sm:text-[10px] sm:tracking-[0.14em] ${cardTone.title}`}>Lộ trình luyện thi</span>
                     </div>
-                    <CardTitle className={`text-xl font-black tracking-tight sm:text-2xl ${cardTone.title}`}>{item.label}</CardTitle>
-                    <CardDescription className="mt-1 text-sm leading-5 text-slate-600">{shortDescription}</CardDescription>
+                    <CardTitle className={`text-lg font-black tracking-tight sm:text-2xl ${cardTone.title}`}>{item.label}</CardTitle>
+                    <CardDescription className="mt-1 text-xs leading-4 text-slate-600 sm:text-sm sm:leading-5">{shortDescription}</CardDescription>
                 </CardHeader>
-                <CardContent className="relative z-10 max-w-full px-4 pb-4 pt-2 sm:max-w-[54%] sm:px-6 sm:pb-6">
-                    <ul className="mb-4 min-h-24 w-[58%] space-y-2 sm:min-h-0 sm:w-full">
+                <CardContent className="relative z-10 max-w-full px-4 pb-3 pt-1 sm:max-w-[54%] sm:px-6 sm:pb-6 sm:pt-2">
+                    <ul className="mb-2.5 min-h-[62px] w-[58%] space-y-1 sm:mb-4 sm:min-h-0 sm:w-full sm:space-y-2">
                         {features.map((feature) => (
-                            <li className="flex items-center gap-2 text-xs font-medium text-slate-600" key={feature}>
-                                <span aria-hidden="true" className={`grid size-4 shrink-0 place-items-center rounded-full text-[10px] font-black ${cardTone.check}`}>✓</span>
+                            <li className="flex items-center gap-1.5 text-[10px] font-medium leading-4 text-slate-600 sm:gap-2 sm:text-xs" key={feature}>
+                                <span aria-hidden="true" className={`grid size-3.5 shrink-0 place-items-center rounded-full text-[9px] font-black sm:size-4 sm:text-[10px] ${cardTone.check}`}>✓</span>
                                 {feature}
                             </li>
                         ))}
                     </ul>
                     <Button
-                        className={`min-h-10 w-full rounded-xl font-bold shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 ${cardTone.button}`}
+                        className={`min-h-9 w-full rounded-xl text-sm font-bold shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 sm:min-h-10 ${cardTone.button}`}
                         onClick={() => setActiveMenu(item.key)}
                     >
                         {item.buttonText}
@@ -668,6 +714,7 @@ export default function DashboardPage() {
                 </div>
                 <nav className="flex-1 overflow-y-auto px-3 pt-4 flex flex-col gap-1 w-64">
                     <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-100/70">Luyện thi</p>
+                    <button className="flex min-h-11 w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-bold text-white transition hover:bg-white/15" onClick={() => router.push('/textbooks')} type="button"><BookOpen className="size-5" />Giáo trình EPS-TOPIK</button>
                     {enabledMenuItems.filter(item => item.key !== 'bang-xep-hang').map((item) => renderMenuButton(item))}
                     
                     <div className="mt-auto mx-auto w-[204px] pb-4">
@@ -798,11 +845,11 @@ export default function DashboardPage() {
                     aria-label="Menu điều hướng"
                     id="mobile-navigation"
                     inert={!isMobileMenuOpen}
-                    className={`fixed inset-y-0 left-0 z-[60] flex w-[min(90vw,360px)] flex-col overflow-hidden overscroll-contain rounded-tr-[30px] border-l-4 border-t-4 border-blue-600 bg-gradient-to-b from-white via-white to-blue-50 text-slate-800 shadow-[20px_0_55px_rgba(15,36,80,0.26)] transition-transform duration-300 ease-out md:hidden ${
+                    className={`fixed inset-y-0 left-0 z-[60] flex w-[min(90vw,360px)] flex-col overflow-hidden overscroll-contain rounded-tr-[30px] border-l-[6px] border-t-4 border-blue-600 bg-blue-600 text-slate-800 shadow-[20px_0_55px_rgba(15,36,80,0.26)] transition-transform duration-300 ease-out md:hidden ${
                         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
                     }`}
                 >
-                    <div className="flex min-h-[84px] shrink-0 items-center justify-between border-b border-slate-100 bg-white px-5 py-3">
+                    <div className="relative z-10 flex min-h-[84px] shrink-0 items-center justify-between rounded-tl-[34px] rounded-tr-[26px] border-b border-slate-100 bg-white px-5 py-3">
                         <button aria-label="Về dashboard tổng quan" className="relative h-9 w-28 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600" onClick={() => { setActiveMenu(null); setIsMobileMenuOpen(false) }} type="button">
                             <Image
                                 src="/logomobile.png"
@@ -823,48 +870,31 @@ export default function DashboardPage() {
                         </button>
                     </div>
 
-                    <nav className="relative flex flex-1 flex-col gap-1.5 overflow-y-auto px-4 py-4">
-                        <div aria-hidden="true" className="pointer-events-none absolute -right-16 top-10 size-44 rounded-full bg-violet-200/20 blur-2xl" />
+                    <nav className="relative flex min-h-0 w-full min-w-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto bg-white px-4 py-4 [scrollbar-gutter:stable]">
                         <p className="relative px-3 pb-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Học và luyện thi</p>
+                        <button className="flex h-10 w-full items-center gap-2.5 rounded-xl bg-emerald-50 px-3 text-left text-[13px] font-bold text-emerald-700 shadow-sm" onClick={() => { setIsMobileMenuOpen(false); router.push('/textbooks') }} type="button"><span className="grid size-8 place-items-center rounded-lg bg-emerald-600 text-white"><BookOpen className="size-3.5" /></span>Giáo trình EPS-TOPIK</button>
                         {enabledMenuItems
                             .filter(item => item.key !== 'bang-xep-hang')
                             .map((item) => renderMenuButton(item, () => setIsMobileMenuOpen(false)))}
 
                     </nav>
 
-                    <div className="relative shrink-0 space-y-2.5 border-t border-blue-100 bg-gradient-to-b from-blue-50/70 to-violet-50 p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+                    <div className="relative mt-auto shrink-0 space-y-2 border-t border-blue-100 bg-white p-2.5 pb-[max(10px,env(safe-area-inset-bottom))]">
                         <UserNav variant="drawer" onNavigate={() => setIsMobileMenuOpen(false)} />
-                        <div className="grid grid-cols-2 items-center gap-3">
-                                <div className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-blue-100 bg-white px-2 text-xs font-black text-blue-800 shadow-sm">
-                                    <Coins aria-hidden="true" className="size-4" />
-                                    <span>{userCredits} lượt</span>
-                                </div>
-                                <button
-                                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-white px-2 text-xs font-black text-blue-700 shadow-sm ring-1 ring-blue-100 transition-colors hover:bg-blue-50"
-                                    onClick={() => {
-                                        setIsMobileMenuOpen(false)
-                                        setPaymentModalOpen(true)
-                                    }}
-                                    type="button"
-                                >
-                                    <ShoppingCart aria-hidden="true" className="size-4" />
-                                    Mua thêm
-                                </button>
-                        </div>
                         <a
                             href="tel:0965577882"
-                            className="flex min-h-14 items-center justify-between rounded-xl border border-blue-100 bg-white px-3 py-2 text-slate-700 shadow-sm transition-[border-color,box-shadow] hover:border-blue-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                            className="mt-2.5 flex min-h-12 items-center justify-between rounded-xl border border-blue-100 bg-white px-3 py-1.5 text-slate-700 shadow-sm transition-[border-color,box-shadow] hover:border-blue-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
                         >
                             <span className="flex items-center gap-3 text-sm font-semibold">
-                                <span className="grid size-8 place-items-center rounded-full bg-blue-600 text-white shadow-md shadow-blue-200"><Phone aria-hidden="true" className="size-3.5" /></span>
-                                <span><span className="block text-[10px] font-medium text-slate-500">Hotline hỗ trợ</span><strong className="block text-base font-black tabular-nums text-blue-700">0965 577 882</strong></span>
+                                <span className="grid size-7 place-items-center rounded-full bg-blue-600 text-white shadow-md shadow-blue-200"><Phone aria-hidden="true" className="size-3" /></span>
+                                <span><span className="block text-[9px] font-medium text-slate-500">Hotline hỗ trợ</span><strong className="block text-sm font-black tabular-nums text-blue-700">0965 577 882</strong></span>
                             </span>
-                            <span className="grid size-8 place-items-center rounded-full bg-blue-50 text-blue-600"><Phone aria-hidden="true" className="size-3.5" /></span>
+                            <span className="grid size-7 place-items-center rounded-full bg-blue-50 text-blue-600"><Phone aria-hidden="true" className="size-3" /></span>
                         </a>
-                        <div aria-hidden="true" className="relative -mx-3 -mb-[max(12px,env(safe-area-inset-bottom))] h-20 overflow-hidden">
+                        <div aria-hidden="true" className="relative -mx-2.5 -mb-[max(10px,env(safe-area-inset-bottom))] h-16 overflow-hidden">
                             <Sparkles className="absolute left-[45%] top-6 size-4 text-blue-300" />
-                            <span className="absolute bottom-2 right-9 z-10 block size-20 drop-shadow-[0_10px_15px_rgba(37,99,235,0.24)]">
-                                <Image alt="" className="object-contain" fill sizes="80px" src="/dashboard/mobile-menu/rocket-3d.webp" />
+                            <span className="absolute bottom-0 right-9 z-10 block size-16 drop-shadow-[0_8px_12px_rgba(37,99,235,0.22)]">
+                                <Image alt="" className="object-contain" fill sizes="64px" src="/dashboard/mobile-menu/rocket-3d.webp" />
                             </span>
                             <svg className="absolute inset-x-0 bottom-0 h-20 w-full" preserveAspectRatio="none" viewBox="0 0 390 80">
                                 <defs><linearGradient id="wave-back" x1="0" x2="390" y1="20" y2="70" gradientUnits="userSpaceOnUse"><stop stopColor="#dbeafe"/><stop offset="1" stopColor="#c4b5fd"/></linearGradient><linearGradient id="wave-mid" x1="20" x2="370" y1="30" y2="76" gradientUnits="userSpaceOnUse"><stop stopColor="#93c5fd"/><stop offset="1" stopColor="#818cf8"/></linearGradient><linearGradient id="wave-front" x1="0" x2="390" y1="48" y2="78" gradientUnits="userSpaceOnUse"><stop stopColor="#2563eb"/><stop offset="1" stopColor="#4f46e5"/></linearGradient></defs>
@@ -920,6 +950,20 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
                                     <div className="grid gap-4 md:grid-cols-2 lg:gap-5">
+                                        <button
+                                            className="group relative min-h-52 overflow-hidden rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-6 text-left shadow-[0_12px_32px_rgba(15,23,42,0.06)] transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                                            onClick={() => router.push('/textbooks')}
+                                            type="button"
+                                        >
+                                            <div aria-hidden="true" className="absolute -right-12 -top-12 size-44 rounded-full bg-emerald-200/40 blur-2xl" />
+                                            <div className="relative flex h-full flex-col">
+                                                <div className="grid size-11 place-items-center rounded-2xl bg-emerald-600 text-white shadow-md shadow-emerald-200"><BookOpen className="size-5" /></div>
+                                                <p className="mt-5 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">Module học tập mới</p>
+                                                <h2 className="mt-1 text-xl font-black text-slate-950">Giáo trình EPS-TOPIK 2025</h2>
+                                                <p className="mt-2 max-w-md text-sm leading-6 text-slate-600">Đọc Quyển 1 và Quyển 2 theo trang, tra cứu nội dung và tiếp tục từ vị trí đã học.</p>
+                                                <span className="mt-auto pt-5 text-sm font-black text-emerald-700">Mở thư viện →</span>
+                                            </div>
+                                        </button>
                                         {enabledMenuItems.map((item) => renderOverviewCard(item))}
                                     </div>
                                 </section>
@@ -1019,32 +1063,32 @@ export default function DashboardPage() {
                                     <Image
                                         alt=""
                                         aria-hidden="true"
-                                        className="object-cover object-[68%_center] opacity-70 sm:opacity-100"
+                                        className="object-cover object-[76%_center] opacity-80 sm:object-[68%_center] sm:opacity-100"
                                         fill
                                         priority
                                         sizes="(min-width: 1280px) 1152px, 100vw"
                                         src="/dashboard/exam-overview-hero-v2.webp"
                                     />
-                                    <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-[#10166b] via-[#151870]/95 via-55% to-[#151870]/20 sm:via-45% sm:to-transparent" />
-                                    <div className="relative flex min-h-[300px] flex-col justify-center p-5 sm:min-h-[330px] sm:p-7 lg:max-w-[62%] lg:p-9">
-                                        <Badge className="w-fit border border-white/15 bg-white/10 px-3 py-1 text-white shadow-sm backdrop-blur-sm hover:bg-white/10">
-                                            <Award aria-hidden="true" className="size-3.5 text-amber-300" /> Kỳ thi EPS-TOPIK
+                                    <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-[#10166b] via-[#151870]/95 via-48% to-[#151870]/5 sm:via-45% sm:to-transparent" />
+                                    <div className="relative flex min-h-[258px] flex-col justify-center p-4 sm:min-h-[330px] sm:p-7 lg:max-w-[62%] lg:p-9">
+                                        <Badge className="w-fit border border-white/15 bg-white/10 px-2 py-0.5 text-[10px] text-white shadow-sm backdrop-blur-sm hover:bg-white/10 sm:px-3 sm:py-1 sm:text-xs">
+                                            <Award aria-hidden="true" className="size-3 text-amber-300 sm:size-3.5" /> Kỳ thi EPS-TOPIK
                                         </Badge>
-                                        <h1 className="mt-3 text-balance text-3xl font-black tracking-tight sm:text-4xl">Sẵn sàng cho kỳ thi</h1>
-                                        <p className="mt-1.5 text-sm leading-6 text-blue-100 sm:text-base">Luyện đề chuẩn, theo dõi kết quả và xếp hạng.</p>
-                                        <div className="mt-5 grid max-w-2xl grid-cols-3 gap-2 sm:gap-3">
+                                        <h1 className="mt-2 max-w-[62%] text-balance text-[22px] font-black leading-[1.12] tracking-tight sm:mt-3 sm:max-w-none sm:text-4xl">Sẵn sàng cho kỳ thi</h1>
+                                        <p className="mt-1 max-w-[58%] text-[11px] leading-4 text-blue-100 sm:mt-1.5 sm:max-w-none sm:text-base sm:leading-6">Luyện đề chuẩn, theo dõi kết quả và xếp hạng.</p>
+                                        <div className="mt-3 grid max-w-2xl grid-cols-3 gap-1.5 sm:mt-5 sm:gap-3">
                                             {[
                                                 [String(exams.length), 'Đề đang mở', FileText],
                                                 [String(dashboardStats?.examsTaken || 0), 'Lượt đã thi', ClipboardCheck],
                                                 [`${overallProgress}%`, 'Điểm trung bình', Target],
                                             ].map(([value, label, Icon]) => (
-                                                <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-white/15 bg-white/10 p-2.5 backdrop-blur-md sm:gap-3 sm:px-4 sm:py-3" key={String(label)}>
+                                                <div className="flex min-w-0 items-center gap-2 rounded-xl border border-white/15 bg-[#252b82]/85 px-2 py-1.5 backdrop-blur-md sm:gap-3 sm:rounded-2xl sm:bg-white/10 sm:px-4 sm:py-3" key={String(label)}>
                                                     <span className="hidden size-10 shrink-0 place-items-center rounded-xl bg-white/10 text-blue-100 sm:grid"><Icon aria-hidden="true" className="size-5" /></span>
-                                                    <span className="min-w-0"><strong className="block text-xl font-black tabular-nums sm:text-2xl">{String(value)}</strong><span className="block truncate text-[9px] font-semibold text-blue-100 sm:text-xs">{String(label)}</span></span>
+                                                    <span className="min-w-0"><strong className="block text-base font-black leading-5 tabular-nums sm:text-2xl">{String(value)}</strong><span className="block truncate text-[8px] font-semibold leading-3 text-blue-100 sm:text-xs">{String(label)}</span></span>
                                                 </div>
                                             ))}
                                         </div>
-                                        <Button className="mt-5 min-h-11 w-full rounded-xl bg-white px-6 font-black text-blue-700 shadow-lg transition-transform hover:scale-[1.01] hover:bg-blue-50 motion-reduce:transform-none sm:w-fit" onClick={() => setActiveMenu('thi-thu-de-thi')}>
+                                        <Button className="mt-3 min-h-9 w-full rounded-xl bg-white px-5 text-sm font-black text-blue-700 shadow-lg transition-transform hover:scale-[1.01] hover:bg-blue-50 motion-reduce:transform-none sm:mt-5 sm:min-h-11 sm:w-fit sm:px-6" onClick={() => setActiveMenu('thi-thu-de-thi')}>
                                             Xem đề thi <ChevronDown aria-hidden="true" className="size-4 -rotate-90" />
                                         </Button>
                                     </div>

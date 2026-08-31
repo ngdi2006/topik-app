@@ -1,12 +1,14 @@
 import type { LucideIcon } from "lucide-react"
-import { Activity, Award, Banknote, BrainCircuit, CheckCircle2, FileText, Gauge, GraduationCap, Lightbulb, ShieldCheck, TrendingUp, UserCheck, Users } from "lucide-react"
+import Link from "next/link"
+import { Activity, AlertTriangle, Award, Banknote, BrainCircuit, CheckCircle2, FileText, Gauge, GraduationCap, Lightbulb, ShieldCheck, TrendingUp, UserCheck, Users } from "lucide-react"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { OnlineUsersCounter } from "@/components/admin/OnlineUsersCounter"
 
 export const dynamic = 'force-dynamic'
 
 type AttemptRow = { user_id: string; status: string | null; score: number | null; total_points: number | null; started_at: string | null; completed_at: string | null; created_at: string | null }
-type PaymentRow = { user_id: string; amount_vnd: number | null; payment_status: string | null; created_at: string | null }
+type PaymentRow = { user_id: string; amount_vnd: number | null; payment_status: string | null; created_at: string | null; verified_at: string | null }
+type SepayWebhookRow = { id: string; sepay_id: string | null; amount_in: number | null; status: string; transaction_date: string | null; created_at: string; matched_transaction_id: string | null }
 type EntitlementRow = { user_id: string; status: string; expires_at: string }
 type UsageRow = { feature: string; status: string; latency_ms: number | null; estimated_cost_usd: number | null; created_at: string }
 type ProgressRow = { user_id: string; progress_percent: number | null; is_completed: boolean | null; last_accessed_at: string | null; created_at: string | null }
@@ -69,11 +71,12 @@ export default async function AdminDashboardPage() {
     const since14 = new Date(now - 13 * DAY)
     since14.setHours(0, 0, 0, 0)
 
-    const [studentResult, examResult, attemptResult, paymentResult, entitlementResult, usageResult, progressResult, learningEventResult, authResult] = await Promise.all([
+    const [studentResult, examResult, attemptResult, paymentResult, sepayResult, entitlementResult, usageResult, progressResult, learningEventResult, authResult] = await Promise.all([
         admin.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'learner'),
         admin.from('exams').select('*', { count: 'exact', head: true }),
         admin.from('exam_attempts').select('user_id, status, score, total_points, started_at, completed_at, created_at').gte('created_at', since30),
-        admin.from('payment_transactions').select('user_id, amount_vnd, payment_status, created_at').gte('created_at', since30),
+        admin.from('payment_transactions').select('user_id, amount_vnd, payment_status, created_at, verified_at').eq('payment_status', 'completed').order('verified_at', { ascending: false, nullsFirst: false }).limit(5000),
+        admin.from('sepay_webhook_logs').select('id, sepay_id, amount_in, status, transaction_date, created_at, matched_transaction_id').gt('amount_in', 0).gte('created_at', since30),
         admin.from('user_interview_entitlements').select('user_id, status, expires_at'),
         admin.from('interview_api_usage_logs').select('feature, status, latency_ms, estimated_cost_usd, created_at').gte('created_at', since30),
         admin.from('user_progress').select('user_id, progress_percent, is_completed, last_accessed_at, created_at').gte('last_accessed_at', since30),
@@ -83,6 +86,7 @@ export default async function AdminDashboardPage() {
 
     const attempts = (attemptResult.data || []) as AttemptRow[]
     const payments = (paymentResult.data || []) as PaymentRow[]
+    const sepayRows = (sepayResult.data || []) as SepayWebhookRow[]
     const entitlements = (entitlementResult.data || []) as EntitlementRow[]
     const usage = (usageResult.data || []) as UsageRow[]
     const progressRows = (progressResult.data || []) as ProgressRow[]
@@ -97,9 +101,23 @@ export default async function AdminDashboardPage() {
     const newUsers7 = authUsers.filter((user) => new Date(user.created_at).getTime() >= new Date(since7).getTime()).length
     const activeUsers7 = authUsers.filter((user) => user.last_sign_in_at && new Date(user.last_sign_in_at).getTime() >= new Date(since7).getTime()).length
     const activeInterviewUsers = new Set(entitlements.filter((row) => row.status === 'active' && new Date(row.expires_at).getTime() > now).map((row) => row.user_id)).size
-    const completedPayments = payments.filter((row) => row.payment_status === 'completed')
+    const completedPayments = payments.filter((row) => {
+        const recognizedAt = row.verified_at || row.created_at
+        return row.payment_status === 'completed' && Boolean(recognizedAt) && new Date(recognizedAt!).getTime() >= new Date(since30).getTime()
+    })
     const revenue30 = completedPayments.reduce((sum, row) => sum + Number(row.amount_vnd || 0), 0)
     const payingUsers30 = new Set(completedPayments.map((row) => row.user_id)).size
+    const distinctTransfers = Array.from(sepayRows.reduce<Map<string, SepayWebhookRow>>((map, row) => {
+        const key = row.sepay_id || row.id
+        const existing = map.get(key)
+        if (!existing || (existing.status !== 'completed' && row.status === 'completed')) map.set(key, row)
+        return map
+    }, new Map()).values())
+    const matchedTransfers = distinctTransfers.filter((row) => row.status === 'completed')
+    const transfersNeedingReview = distinctTransfers.filter((row) => row.status !== 'completed')
+    const bankIncome30 = distinctTransfers.reduce((sum, row) => sum + Number(row.amount_in || 0), 0)
+    const reviewAmount30 = transfersNeedingReview.reduce((sum, row) => sum + Number(row.amount_in || 0), 0)
+    const hasSepayDataSource = !sepayResult.error
     const successfulUsage = usage.filter((row) => row.status === 'success')
     const avgLatency = successfulUsage.length ? Math.round(successfulUsage.reduce((sum, row) => sum + Number(row.latency_ms || 0), 0) / successfulUsage.length) : 0
     const aiCost = successfulUsage.reduce((sum, row) => sum + Number(row.estimated_cost_usd || 0), 0)
@@ -183,7 +201,18 @@ export default async function AdminDashboardPage() {
 
         <section className="grid gap-5 xl:grid-cols-[1.6fr_0.8fr]">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="mb-5"><h3 className="font-bold text-slate-950">Xu hướng hoạt động 14 ngày</h3><p className="text-sm text-slate-500">So sánh đăng ký mới và bài thi hoàn thành mỗi ngày.</p></div><TrendChart rows={trend} /></div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h3 className="font-bold text-slate-950">Kinh doanh 30 ngày</h3><div className="mt-5 space-y-4"><div className="rounded-xl bg-emerald-50 p-4"><Banknote className="size-5 text-emerald-700" /><p className="mt-2 text-xs font-medium text-emerald-700">Doanh thu đã hoàn tất</p><p className="mt-1 text-2xl font-black text-emerald-950">{formatMoney(revenue30)}</p></div><div className="grid grid-cols-2 gap-3"><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Giao dịch</p><p className="mt-1 text-xl font-black">{completedPayments.length}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Người mua</p><p className="mt-1 text-xl font-black">{payingUsers30}</p></div></div></div></div>
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-100 px-5 py-4"><div className="flex items-start justify-between gap-3"><div><h3 className="font-bold text-slate-950">Đối soát kinh doanh 30 ngày</h3><p className="mt-1 text-xs leading-5 text-slate-500">Tách tiền ngân hàng nhận được và doanh thu đã kích hoạt.</p></div><Banknote className="size-5 shrink-0 text-emerald-600" /></div></div>
+                <div className="space-y-3 p-5">
+                    <div className="rounded-xl border border-blue-100 bg-blue-50 p-3.5"><p className="text-xs font-semibold text-blue-700">Tiền ngân hàng ghi nhận</p><p className="mt-1 text-2xl font-black text-blue-950">{hasSepayDataSource ? formatMoney(bankIncome30) : 'Chưa có dữ liệu'}</p><p className="mt-1 text-[11px] text-blue-600">{hasSepayDataSource ? `${distinctTransfers.length} chuyển khoản đến từ SePay` : 'Chưa đọc được bảng nhật ký SePay'}</p></div>
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3.5"><div className="flex items-center justify-between gap-2"><p className="text-xs font-semibold text-emerald-700">Doanh thu đã khớp và kích hoạt</p><CheckCircle2 className="size-4 text-emerald-600" /></div><p className="mt-1 text-2xl font-black text-emerald-950">{formatMoney(revenue30)}</p><p className="mt-1 text-[11px] text-emerald-700">{completedPayments.length} đơn · {payingUsers30} người mua · theo ngày xác minh</p></div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-xl bg-slate-50 p-3"><p className="text-[11px] text-slate-500">SePay đã khớp</p><p className="mt-1 text-lg font-black text-slate-950">{hasSepayDataSource ? matchedTransfers.length : '—'}</p></div>
+                        <div className="rounded-xl bg-amber-50 p-3"><p className="text-[11px] text-amber-700">Cần đối soát</p><p className="mt-1 text-lg font-black text-amber-950">{hasSepayDataSource ? transfersNeedingReview.length : '—'}</p><p className="text-[10px] text-amber-700">{hasSepayDataSource ? formatMoney(reviewAmount30) : ''}</p></div>
+                    </div>
+                    {transfersNeedingReview.length > 0 ? <Link className="flex items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 transition hover:bg-amber-100" href="/admin/sepay-logs"><AlertTriangle className="size-4" />Xem giao dịch cần đối soát</Link> : null}
+                </div>
+            </div>
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">

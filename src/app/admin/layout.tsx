@@ -27,6 +27,7 @@ import { useUserStore } from "@/store/userStore"
 const AdminUserNav = dynamic(() => import("@/components/admin/AdminUserNav").then((mod) => mod.AdminUserNav), { ssr: false })
 
 const ADMIN_MENU_ICONS: Record<AdminPermissionKey, typeof LayoutDashboard> = {
+    textbooks: BookOpen,
     dashboard: LayoutDashboard,
     lessons: GraduationCap,
     practice: Target,
@@ -47,7 +48,7 @@ const ADMIN_MENU_ICONS: Record<AdminPermissionKey, typeof LayoutDashboard> = {
 
 const ADMIN_MENU_GROUPS: Array<{ label: string; keys: AdminPermissionKey[] }> = [
     { label: 'Tổng quan', keys: ['dashboard'] },
-    { label: 'Đào tạo', keys: ['lessons', 'milestones', 'practice', 'interview', 'vocabulary_vong2'] },
+    { label: 'Đào tạo', keys: ['lessons', 'textbooks', 'milestones', 'practice', 'interview', 'vocabulary_vong2'] },
     { label: 'Nội dung & kỳ thi', keys: ['categories', 'question_bank', 'exams', 'ai_sync'] },
     { label: 'Người dùng', keys: ['users', 'interview_access'] },
     { label: 'Tài chính', keys: ['payments', 'payment_packages', 'sepay_logs'] },

@@ -1,4 +1,5 @@
 export const ADMIN_MENU_ITEMS = [
+    { key: 'textbooks', label: 'Giáo trình số', path: '/admin/textbooks', description: 'Kiểm duyệt và xuất bản giáo trình EPS-TOPIK.' },
     { key: 'dashboard', label: 'Dashboard', path: '/admin', description: 'Xem tổng quan hệ thống.' },
     { key: 'lessons', label: 'Bài học', path: '/admin/lessons', description: 'Quản lý nội dung bài học.' },
     { key: 'practice', label: 'Luyện tập AI', path: '/admin/practice', description: 'Quản lý nội dung luyện tập AI.' },
@@ -47,6 +48,7 @@ export function permissionForPath(pathname: string): AdminPermissionKey | null {
 
     if (normalizedPathname.startsWith('/api/admin/')) {
         const apiMappings: Array<[string, AdminPermissionKey]> = [
+            ['/api/admin/textbooks', 'textbooks'],
             ['/api/admin/me', 'dashboard'],
             ['/api/admin/users', 'users'],
             ['/api/admin/lessons', 'lessons'],

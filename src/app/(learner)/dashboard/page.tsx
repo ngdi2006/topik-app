@@ -950,21 +950,23 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
                                     <div className="grid gap-4 md:grid-cols-2 lg:gap-5">
+                                        {enabledMenuItems.map((item) => renderOverviewCard(item))}
                                         <button
-                                            className="group relative min-h-52 overflow-hidden rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-6 text-left shadow-[0_12px_32px_rgba(15,23,42,0.06)] transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                                            className="group relative min-h-44 overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-blue-50 p-5 text-left shadow-[0_12px_32px_rgba(15,23,42,0.06)] transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 md:col-span-2 md:min-h-40 md:rounded-3xl md:p-6"
                                             onClick={() => router.push('/textbooks')}
                                             type="button"
                                         >
                                             <div aria-hidden="true" className="absolute -right-12 -top-12 size-44 rounded-full bg-emerald-200/40 blur-2xl" />
-                                            <div className="relative flex h-full flex-col">
-                                                <div className="grid size-11 place-items-center rounded-2xl bg-emerald-600 text-white shadow-md shadow-emerald-200"><BookOpen className="size-5" /></div>
-                                                <p className="mt-5 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">Module học tập mới</p>
-                                                <h2 className="mt-1 text-xl font-black text-slate-950">Giáo trình EPS-TOPIK 2025</h2>
-                                                <p className="mt-2 max-w-md text-sm leading-6 text-slate-600">Đọc Quyển 1 và Quyển 2 theo trang, tra cứu nội dung và tiếp tục từ vị trí đã học.</p>
-                                                <span className="mt-auto pt-5 text-sm font-black text-emerald-700">Mở thư viện →</span>
+                                            <div className="relative flex h-full flex-col gap-3 md:flex-row md:items-center md:gap-5">
+                                                <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-200 md:size-12 md:rounded-2xl"><BookOpen className="size-5" /></div>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-[9px] font-black uppercase tracking-[0.16em] text-emerald-700 md:text-[10px] md:tracking-[0.18em]">Module học tập mới</p>
+                                                    <h2 className="mt-1 text-lg font-black text-slate-950 md:text-xl">Giáo trình EPS-TOPIK 2025</h2>
+                                                    <p className="mt-1.5 max-w-2xl text-xs leading-5 text-slate-600 md:text-sm md:leading-6">Đọc Quyển 1 và Quyển 2 theo trang, tra cứu nội dung và tiếp tục từ vị trí đã học.</p>
+                                                </div>
+                                                <span className="mt-auto shrink-0 text-sm font-black text-emerald-700 md:mt-0 md:rounded-xl md:bg-emerald-600 md:px-5 md:py-3 md:text-white">Mở thư viện →</span>
                                             </div>
                                         </button>
-                                        {enabledMenuItems.map((item) => renderOverviewCard(item))}
                                     </div>
                                 </section>
 

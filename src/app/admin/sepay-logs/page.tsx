@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, CheckCircle, Clock, RefreshCw, SearchX } from 'lucide-react'
+import { AlertTriangle, CheckCircle, CheckCircle2, Clock, RefreshCw, SearchX } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -43,7 +43,15 @@ function formatDate(dateString: string | null) {
     return new Date(dateString).toLocaleString('vi-VN')
 }
 
-function getStatusBadge(status: string) {
+function isManualReconciliation(log: Pick<SepayLog, 'status' | 'message'>) {
+    return log.status === 'completed' && log.message?.startsWith('[MANUAL_RECONCILED]')
+}
+
+function getStatusBadge(log: Pick<SepayLog, 'status' | 'message'>) {
+    if (isManualReconciliation(log)) {
+        return <Badge className="bg-blue-600 gap-1"><CheckCircle2 className="w-3 h-3" />Đã đối soát thủ công</Badge>
+    }
+    const status = log.status
     switch (status) {
         case 'completed':
             return <Badge className="bg-emerald-500 gap-1"><CheckCircle className="w-3 h-3" />Da kich hoat</Badge>
@@ -66,6 +74,7 @@ export default function SepayLogsPage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
     const [notice, setNotice] = useState('')
+    const [reconcilingId, setReconcilingId] = useState<string | null>(null)
 
     const fetchLogs = useCallback(async (nextStatus = status) => {
         try {
@@ -93,6 +102,31 @@ export default function SepayLogsPage() {
     useEffect(() => {
         fetchLogs(status)
     }, [fetchLogs, status])
+
+    const reconcileLog = async (log: SepayLog) => {
+        const confirmed = window.confirm(
+            `Xác nhận giao dịch ${formatPrice(log.amount_in)} đã được kiểm tra và xử lý thủ công?\n\nThao tác này chỉ đóng cảnh báo, không kích hoạt gói hoặc cộng lượt lần nữa.`
+        )
+        if (!confirmed) return
+
+        try {
+            setReconcilingId(log.id)
+            setError('')
+            const response = await fetch('/api/admin/sepay-logs', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: log.id, note: 'Đã kiểm tra quyền lợi người dùng được kích hoạt trước đó' }),
+            })
+            const data = await response.json().catch(() => null)
+            if (!response.ok || !data?.success) throw new Error(data?.error || 'Không thể cập nhật giao dịch')
+            setNotice('Đã đóng cảnh báo đối soát. Hệ thống không cộng lượt hoặc kích hoạt gói thêm.')
+            await fetchLogs(status)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Không thể đánh dấu đã đối soát')
+        } finally {
+            setReconcilingId(null)
+        }
+    }
 
     return (
         <div className="space-y-6">
@@ -149,7 +183,7 @@ export default function SepayLogsPage() {
                                 <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                                     <div>
                                         <CardTitle className="text-base flex flex-wrap items-center gap-2">
-                                            {getStatusBadge(log.status)}
+                                            {getStatusBadge(log)}
                                             <span>{formatPrice(log.amount_in)}</span>
                                         </CardTitle>
                                         <p className="text-xs text-muted-foreground mt-1">
@@ -175,6 +209,20 @@ export default function SepayLogsPage() {
                                 {log.message && (
                                     <p className="text-sm font-medium text-amber-700">{log.message}</p>
                                 )}
+                                {log.status !== 'completed' && log.amount_in > 0 ? (
+                                    <div className="flex justify-end border-t pt-3">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            className="gap-2 bg-blue-600 hover:bg-blue-700"
+                                            disabled={reconcilingId === log.id}
+                                            onClick={() => reconcileLog(log)}
+                                        >
+                                            {reconcilingId === log.id ? <RefreshCw className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                                            Đánh dấu đã đối soát
+                                        </Button>
+                                    </div>
+                                ) : null}
                             </CardContent>
                         </Card>
                     ))}

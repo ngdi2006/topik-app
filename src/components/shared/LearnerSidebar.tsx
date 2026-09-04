@@ -9,7 +9,9 @@ import { UserNav } from "@/components/shared/UserNav"
 type SidebarTextbook = { id: string; volume: number; title_vi: string; progress: { last_page: number } | null }
 
 function SidebarContent({ books, onNavigate }: { books: SidebarTextbook[]; onNavigate?: () => void }) {
-    const [booksOpen, setBooksOpen] = useState(false)
+    const [booksOpen, setBooksOpen] = useState(true)
+    const [examOpen, setExamOpen] = useState(true)
+    const [interviewOpen, setInterviewOpen] = useState(true)
     return (
         <>
             <div className="flex h-[72px] shrink-0 items-center justify-center border-b border-white/10">
@@ -19,10 +21,12 @@ function SidebarContent({ books, onNavigate }: { books: SidebarTextbook[]; onNav
             </div>
             <nav aria-label="Menu học viên" className="flex w-64 flex-1 flex-col gap-1 overflow-y-auto px-3 pt-4">
                 <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-100/70">Luyện thi</p>
-                <button aria-expanded={booksOpen} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-bold text-white transition hover:bg-white/15" onClick={() => setBooksOpen((open) => !open)} type="button"><BookOpen className="size-5 shrink-0" /><span className="min-w-0 flex-1">Giáo trình EPS-TOPIK</span><ChevronDown className={`size-3.5 transition-transform ${booksOpen ? "rotate-180" : ""}`} /></button>
-                {booksOpen ? <div className="ml-6 space-y-1 border-l border-white/20 py-1 pl-3">{books.map((book) => <Link className="flex min-h-10 items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-blue-50 transition hover:bg-white/15 hover:text-white" href={`/textbooks/${book.id}/read?page=${book.progress?.last_page || 1}`} key={book.id} onClick={onNavigate}><span className="grid size-6 place-items-center rounded-md bg-white/15 text-[10px] font-black">Q{book.volume}</span><span className="truncate">Quyển {book.volume} · 2025</span></Link>)}<Link className="block rounded-lg px-3 py-2 text-[10px] font-bold text-blue-100 hover:bg-white/10" href="/textbooks" onClick={onNavigate}>Xem thư viện →</Link></div> : null}
-                <Link className="flex min-h-11 items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-blue-50 transition hover:bg-white/15 hover:text-white" href="/dashboard?section=thi-thu" onClick={onNavigate}><FileText className="size-5" />Thi Thử EPS-TOPIK</Link>
-                <Link className="flex min-h-11 items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-blue-50 transition hover:bg-white/15 hover:text-white" href="/dashboard?section=phong-van-tong-quan" onClick={onNavigate}><Mic className="size-5" />Phỏng vấn Vòng 2</Link>
+                <button aria-expanded={examOpen} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-bold text-white transition hover:bg-white/15" onClick={() => setExamOpen((open) => !open)} type="button"><FileText className="size-5 shrink-0" /><span className="min-w-0 flex-1">Thi Thử EPS-TOPIK</span><ChevronDown className={`size-3.5 transition-transform ${examOpen ? "rotate-180" : ""}`} /></button>
+                {examOpen ? <div className="ml-6 space-y-0.5 border-l border-white/20 pb-1 pl-3">{[["Tổng quan kỳ thi", "/dashboard?section=thi-thu", LayoutDashboard], ["Danh sách đề thi", "/dashboard?section=thi-thu-de-thi", FileText], ["Bảng xếp hạng", "/dashboard?section=thi-thu-bang-xep-hang", Trophy]].map(([label, href, Icon]) => <Link className="flex min-h-9 items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-blue-50 transition hover:bg-white/15 hover:text-white" href={String(href)} key={String(label)} onClick={onNavigate}><Icon className="size-3.5" />{String(label)}</Link>)}</div> : null}
+                <button aria-expanded={interviewOpen} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-bold text-white transition hover:bg-white/15" onClick={() => setInterviewOpen((open) => !open)} type="button"><Mic className="size-5 shrink-0" /><span className="min-w-0 flex-1">Phỏng vấn Vòng 2</span><ChevronDown className={`size-3.5 transition-transform ${interviewOpen ? "rotate-180" : ""}`} /></button>
+                {interviewOpen ? <div className="ml-6 space-y-0.5 border-l border-white/20 pb-1 pl-3">{[["Tổng quan", "/dashboard?section=phong-van-tong-quan", LayoutDashboard], ["Luyện tập", "/dashboard?section=phong-van-luyen-tap", Target], ["Thi thử", "/dashboard?section=phong-van-thi-thu", UserRound], ["Củng cố", "/dashboard?section=phong-van-cung-co", RotateCcw], ["Báo cáo", "/dashboard?section=phong-van-bao-cao", BarChart3]].map(([label, href, Icon]) => <Link className="flex min-h-9 items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-blue-50 transition hover:bg-white/15 hover:text-white" href={String(href)} key={String(label)} onClick={onNavigate}><Icon className="size-3.5" />{String(label)}</Link>)}</div> : null}
+                <button aria-expanded={booksOpen} className="flex min-h-11 w-full items-center gap-3 rounded-xl bg-white/15 px-4 py-3 text-left text-sm font-bold text-white transition hover:bg-white/20" onClick={() => setBooksOpen((open) => !open)} type="button"><BookOpen className="size-5 shrink-0" /><span className="min-w-0 flex-1">Giáo trình EPS-TOPIK</span><ChevronDown className={`size-3.5 transition-transform ${booksOpen ? "rotate-180" : ""}`} /></button>
+                {booksOpen ? <div className="ml-6 space-y-1 border-l border-white/20 py-1 pl-3">{books.map((book) => <Link className="flex min-h-9 items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold text-blue-50 transition hover:bg-white/15 hover:text-white" href={`/textbooks/${book.id}/read?page=${book.progress?.last_page || 1}`} key={book.id} onClick={onNavigate}><span className="grid size-6 place-items-center rounded-md bg-white/15 text-[10px] font-black">Q{book.volume}</span><span className="truncate">Quyển {book.volume} · 2025</span></Link>)}<Link className="block rounded-lg px-3 py-2 text-[10px] font-bold text-white hover:bg-white/10" href="/textbooks" onClick={onNavigate}>Xem thư viện →</Link></div> : null}
                 <div className="mt-auto" />
             </nav>
             <div className="flex w-64 shrink-0 flex-col items-center pb-4">
@@ -76,7 +80,7 @@ export function LearnerSidebar({ mobileOpen, onMobileOpenChange }: { mobileOpen:
 
                 <nav className="relative flex min-h-0 w-full min-w-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto bg-white px-4 py-4 [scrollbar-gutter:stable]">
                     <p className="px-3 pb-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Học và luyện thi</p>
-                    <div className="space-y-1">
+                    <div className="order-3 space-y-1">
                         <button aria-expanded={textbookOpen} className="flex h-10 w-full items-center rounded-xl bg-emerald-50 px-3 text-[13px] font-bold text-emerald-700 shadow-sm" onClick={() => setTextbookOpen((open) => !open)} type="button">
                             <span className="mr-2.5 grid size-8 place-items-center rounded-lg bg-emerald-600 text-white shadow-sm"><BookOpen className="size-3.5" /></span><span className="min-w-0 flex-1 truncate text-left">Giáo trình EPS-TOPIK</span><ChevronDown className={`size-3.5 transition-transform ${textbookOpen ? "rotate-180" : ""}`} />
                         </button>
@@ -85,7 +89,7 @@ export function LearnerSidebar({ mobileOpen, onMobileOpenChange }: { mobileOpen:
                             <Link className="flex min-h-8 items-center rounded-lg px-2.5 py-1 text-[10px] font-bold text-emerald-700 hover:bg-emerald-50" href="/textbooks" onClick={() => onMobileOpenChange(false)}>Xem thư viện →</Link>
                         </div> : null}
                     </div>
-                    <div className="space-y-1">
+                    <div className="order-1 space-y-1">
                         <button aria-expanded={examOpen} className="flex h-10 w-full items-center rounded-xl bg-blue-50 px-3 text-[13px] font-bold text-blue-700 shadow-sm" onClick={() => setExamOpen((open) => !open)} type="button">
                             <span className="mr-2.5 grid size-8 place-items-center rounded-lg bg-blue-600 text-white shadow-sm"><FileText className="size-3.5" /></span><span className="min-w-0 flex-1 truncate text-left">Thi Thử EPS-TOPIK</span><ChevronDown className={`size-3.5 transition-transform ${examOpen ? "rotate-180" : ""}`} />
                         </button>
@@ -98,7 +102,7 @@ export function LearnerSidebar({ mobileOpen, onMobileOpenChange }: { mobileOpen:
                         </div> : null}
                     </div>
 
-                    <div className="space-y-1">
+                    <div className="order-2 space-y-1">
                         <button aria-expanded={interviewOpen} className="flex h-10 w-full items-center rounded-xl bg-violet-50 px-3 text-[13px] font-bold text-violet-700 shadow-sm" onClick={() => setInterviewOpen((open) => !open)} type="button">
                             <span className="mr-2.5 grid size-8 place-items-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-500 text-white shadow-sm"><Mic className="size-3.5" /></span><span className="min-w-0 flex-1 truncate text-left">Phỏng vấn Vòng 2</span><ChevronDown className={`size-3.5 transition-transform ${interviewOpen ? "rotate-180" : ""}`} />
                         </button>

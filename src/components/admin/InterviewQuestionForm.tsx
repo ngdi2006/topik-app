@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MediaUploader } from '@/components/admin/MediaUploader'
 import { ArrowLeft, Save, Plus, Trash2, ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
-import { analyzeToolQuestionText, resolveToolQuestionConfig, getRequiredTargetForAction, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type VocabularyItem } from '@/components/interview/toolQuestionAnalysis'
+import { analyzeToolQuestionText, resolveToolQuestionConfig, resolveDeskTools, getRequiredTargetForAction, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type VocabularyItem } from '@/components/interview/toolQuestionAnalysis'
 import { legacyToolConfigToWorkshopGame, type WorkshopGameConfig } from '@/features/workshop'
 import { WorkshopGamePreview } from '@/features/workshop/components'
 import { getWorkshopDetailImage, getWorkshopToolImage } from '@/components/interview/workshopVisualAssets'
@@ -24,6 +24,7 @@ type ToolAnswerStep = {
 
 type ToolConfig = {
     schema_version?: number
+    manual_override?: boolean
     tools_on_desk: string[]
     correct_tool: string
     target_object: string
@@ -156,7 +157,7 @@ const DEFAULT_TOOL_CONFIG: ToolConfig = {
     }
 }
 
-function buildToolConfig(config: ToolConfig, vietnameseInstruction: string, questionText = ''): ToolConfig {
+function buildToolConfig(config: ToolConfig, vietnameseInstruction: string): ToolConfig {
     const answerSteps: ToolAnswerStep[] = [{ step: 1, kind: 'tool', expected: config.correct_tool }]
 
     if (config.requires_target !== false) {
@@ -181,8 +182,11 @@ function buildToolConfig(config: ToolConfig, vietnameseInstruction: string, ques
             : { term: '정해진 곳에 넣다', meaning: 'Đặt/cất đúng vị trí', role: 'action' }
     ]
 
-    return {
+    const toolsOnDesk = resolveDeskTools(config.correct_tool)
+    const savedConfig = {
         ...config,
+        manual_override: true,
+        tools_on_desk: toolsOnDesk,
         vocabulary_analysis: updatedVocabulary,
         vietnamese_instruction: vietnameseInstruction,
         answer_steps: answerSteps,
@@ -192,6 +196,11 @@ function buildToolConfig(config: ToolConfig, vietnameseInstruction: string, ques
             action: config.requires_action ? 1 : 0,
             pass_all_required: true
         }
+    }
+
+    return {
+        ...savedConfig,
+        game_config: legacyToolConfigToWorkshopGame({ ...savedConfig, game_config: null })
     }
 }
 

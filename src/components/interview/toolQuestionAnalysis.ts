@@ -12,6 +12,8 @@ export type ToolAnswerStep = {
 
 export type ToolQuestionConfig = {
     schema_version?: number
+    /** When true, the saved grading answer takes precedence over text inference. */
+    manual_override?: boolean
     tools_on_desk: string[]
     correct_tool: string
     target_object: string
@@ -265,7 +267,7 @@ function refineAction(action: Definition, tool: Definition, text: string) {
     return action
 }
 
-function resolveDeskTools(correctTool: string) {
+export function resolveDeskTools(correctTool: string) {
     const distractorsByFamily: Record<string, string[]> = {
         phillips_screwdriver: ['flat_screwdriver', 'screwdriver', 'wrench', 'pliers'],
         flat_screwdriver: ['phillips_screwdriver', 'screwdriver', 'wrench', 'pliers'],
@@ -443,6 +445,18 @@ export function resolveToolQuestionConfig(
 ): ToolQuestionConfig {
     const analyzedConfig = analyzeToolQuestionText(questionText, vietnameseMeaning)
     if (!storedConfig) return analyzedConfig
+
+    // Text analysis is a fallback/migration aid. Once an editor explicitly saves
+    // an answer, do not replace it with a newly inferred tool, target, or action.
+    if (storedConfig.manual_override) {
+        const manualConfig = {
+            ...analyzedConfig,
+            ...storedConfig,
+            schema_version: 3,
+            tools_on_desk: resolveDeskTools(storedConfig.correct_tool || analyzedConfig.correct_tool),
+        } as ToolQuestionConfig
+        return completeToolConfig(manualConfig)
+    }
 
     const text = `${questionText} ${vietnameseMeaning}`
     const isStorage = /공구함|전용함|함에\s*넣|선반에\s*넣|선반에\s*놓|함에\s*보관|공구함에\s*보관|bỏ.*hộp|cất.*hộp|bỏ.*kệ|cất.*kệ/i.test(text)

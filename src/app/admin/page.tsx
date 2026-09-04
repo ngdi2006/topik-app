@@ -113,7 +113,7 @@ export default async function AdminDashboardPage() {
         if (!existing || (existing.status !== 'completed' && row.status === 'completed')) map.set(key, row)
         return map
     }, new Map()).values())
-    const matchedTransfers = distinctTransfers.filter((row) => row.status === 'completed')
+    const matchedTransfers = distinctTransfers.filter((row) => row.status === 'completed' && Boolean(row.matched_transaction_id))
     const transfersNeedingReview = distinctTransfers.filter((row) => row.status !== 'completed')
     const bankIncome30 = distinctTransfers.reduce((sum, row) => sum + Number(row.amount_in || 0), 0)
     const reviewAmount30 = transfersNeedingReview.reduce((sum, row) => sum + Number(row.amount_in || 0), 0)

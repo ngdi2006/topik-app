@@ -714,8 +714,8 @@ export default function DashboardPage() {
                 </div>
                 <nav className="flex-1 overflow-y-auto px-3 pt-4 flex flex-col gap-1 w-64">
                     <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-100/70">Luyện thi</p>
-                    <button className="flex min-h-11 w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-bold text-white transition hover:bg-white/15" onClick={() => router.push('/textbooks')} type="button"><BookOpen className="size-5" />Giáo trình EPS-TOPIK</button>
                     {enabledMenuItems.filter(item => item.key !== 'bang-xep-hang').map((item) => renderMenuButton(item))}
+                    <button className="flex min-h-11 w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-bold text-white transition hover:bg-white/15" onClick={() => router.push('/textbooks')} type="button"><BookOpen className="size-5" />Giáo trình EPS-TOPIK</button>
                     
                     <div className="mt-auto mx-auto w-[204px] pb-4">
                         {enabledMenuItems.filter(item => item.key === 'bang-xep-hang').map((item) => renderMenuButton(item))}
@@ -872,10 +872,10 @@ export default function DashboardPage() {
 
                     <nav className="relative flex min-h-0 w-full min-w-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto bg-white px-4 py-4 [scrollbar-gutter:stable]">
                         <p className="relative px-3 pb-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Học và luyện thi</p>
-                        <button className="flex h-10 w-full items-center gap-2.5 rounded-xl bg-emerald-50 px-3 text-left text-[13px] font-bold text-emerald-700 shadow-sm" onClick={() => { setIsMobileMenuOpen(false); router.push('/textbooks') }} type="button"><span className="grid size-8 place-items-center rounded-lg bg-emerald-600 text-white"><BookOpen className="size-3.5" /></span>Giáo trình EPS-TOPIK</button>
                         {enabledMenuItems
                             .filter(item => item.key !== 'bang-xep-hang')
                             .map((item) => renderMenuButton(item, () => setIsMobileMenuOpen(false)))}
+                        <button className="flex h-10 w-full items-center gap-2.5 rounded-xl bg-emerald-50 px-3 text-left text-[13px] font-bold text-emerald-700 shadow-sm" onClick={() => { setIsMobileMenuOpen(false); router.push('/textbooks') }} type="button"><span className="grid size-8 place-items-center rounded-lg bg-emerald-600 text-white"><BookOpen className="size-3.5" /></span>Giáo trình EPS-TOPIK</button>
 
                     </nav>
 

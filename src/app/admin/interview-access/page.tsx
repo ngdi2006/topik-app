@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Activity, CalendarClock, KeyRound, Loader2, Search, ShieldCheck, Sparkles, Users } from "lucide-react"
+import { Activity, CalendarClock, KeyRound, Loader2, RotateCcw, Search, ShieldCheck, Sparkles, Users } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -30,6 +30,9 @@ export default function InterviewAccessAdminPage() {
   const [stats, setStats] = useState<Stats>(EMPTY_STATS)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [groupFilter, setGroupFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'expired'>('all')
+  const [sourceFilter, setSourceFilter] = useState<'all' | Access['source'] | 'none'>('all')
   const [selected, setSelected] = useState<ManagedUser | null>(null)
   const [days, setDays] = useState(30)
   const [action, setAction] = useState<'extend' | 'set_expiry' | 'revoke'>('extend')
@@ -53,11 +56,31 @@ export default function InterviewAccessAdminPage() {
 
   useEffect(() => { void loadData() }, [loadData])
 
+  const groupOptions = useMemo(() => Array.from(new Set(users.map((user) => user.groupName.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'vi')), [users])
+
   const filteredUsers = useMemo(() => {
     const keyword = search.trim().toLocaleLowerCase('vi')
-    if (!keyword) return users
-    return users.filter((user) => `${user.name} ${user.email} ${user.groupName}`.toLocaleLowerCase('vi').includes(keyword))
-  }, [search, users])
+    return users.filter((user) => {
+      const matchesKeyword = !keyword || `${user.name} ${user.email} ${user.groupName}`.toLocaleLowerCase('vi').includes(keyword)
+      const matchesGroup = groupFilter === 'all' || (groupFilter === 'none' ? !user.groupName.trim() : user.groupName === groupFilter)
+      const matchesStatus = statusFilter === 'all'
+        || (statusFilter === 'active' && Boolean(user.access?.active))
+        || (statusFilter === 'inactive' && !user.access)
+        || (statusFilter === 'expired' && Boolean(user.access) && !user.access?.active)
+      const matchesSource = sourceFilter === 'all'
+        || (sourceFilter === 'none' ? !user.access?.source : user.access?.source === sourceFilter)
+      return matchesKeyword && matchesGroup && matchesStatus && matchesSource
+    })
+  }, [groupFilter, search, sourceFilter, statusFilter, users])
+
+  const hasFilters = Boolean(search.trim()) || groupFilter !== 'all' || statusFilter !== 'all' || sourceFilter !== 'all'
+
+  function resetFilters() {
+    setSearch('')
+    setGroupFilter('all')
+    setStatusFilter('all')
+    setSourceFilter('all')
+  }
 
   async function activate() {
     if (!selected) return
@@ -129,9 +152,33 @@ export default function InterviewAccessAdminPage() {
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div><h2 className="font-black text-slate-950">Danh sách học viên</h2><p className="text-xs text-slate-500">Gói nội bộ được cộng theo tháng, mỗi tháng 30 ngày.</p></div>
-          <div className="relative w-full sm:max-w-sm"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" /><Input className="pl-9" onChange={(event) => setSearch(event.target.value)} placeholder="Tìm tên, email hoặc nhóm..." value={search} /></div>
+        <div className="border-b border-slate-100 p-4">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div><h2 className="font-black text-slate-950">Danh sách học viên</h2><p className="text-xs text-slate-500">Gói nội bộ được cộng theo tháng, mỗi tháng 30 ngày.</p></div>
+            <p className="text-xs font-semibold tabular-nums text-slate-500">Hiển thị <strong className="text-slate-800">{filteredUsers.length}</strong>/{users.length} học viên</p>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_190px_170px_160px_auto]">
+            <div className="relative"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" /><Input className="pl-9" onChange={(event) => setSearch(event.target.value)} placeholder="Tìm tên, email hoặc nhóm..." value={search} /></div>
+            <select aria-label="Lọc theo nhóm" className="h-10 rounded-md border border-input bg-background px-3 text-sm text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-violet-500" onChange={(event) => setGroupFilter(event.target.value)} value={groupFilter}>
+              <option value="all">Tất cả nhóm</option>
+              <option value="none">Chưa phân nhóm</option>
+              {groupOptions.map((group) => <option key={group} value={group}>{group}</option>)}
+            </select>
+            <select aria-label="Lọc theo trạng thái" className="h-10 rounded-md border border-input bg-background px-3 text-sm text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-violet-500" onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} value={statusFilter}>
+              <option value="all">Tất cả trạng thái</option>
+              <option value="active">Đang hoạt động</option>
+              <option value="inactive">Chưa kích hoạt</option>
+              <option value="expired">Đã hết hạn</option>
+            </select>
+            <select aria-label="Lọc theo nguồn" className="h-10 rounded-md border border-input bg-background px-3 text-sm text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-violet-500" onChange={(event) => setSourceFilter(event.target.value as typeof sourceFilter)} value={sourceFilter}>
+              <option value="all">Tất cả nguồn</option>
+              <option value="admin_internal">Nội bộ</option>
+              <option value="sepay">SePay</option>
+              <option value="promotion">Khuyến mãi</option>
+              <option value="none">Chưa có nguồn</option>
+            </select>
+            <Button className="gap-2" disabled={!hasFilters} onClick={resetFilters} type="button" variant="outline"><RotateCcw className="size-3.5" />Đặt lại</Button>
+          </div>
         </div>
 
         {loading ? <div className="flex items-center justify-center py-16"><Loader2 className="size-7 animate-spin text-violet-600" /></div> : (

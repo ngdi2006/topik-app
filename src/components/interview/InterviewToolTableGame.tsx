@@ -128,8 +128,6 @@ const TOOL_ASSET_ALIASES: Record<string, string> = {
     electric_drill: 'drill',
     metal_file: 'hand_file',
     hacksaw: 'saw',
-    paint_brush: 'brush',
-    sprayer: 'spray_bottle',
 }
 
 export function getGameV2ToolAsset(toolId: string): ToolAsset | undefined {

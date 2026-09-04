@@ -14,7 +14,7 @@ import { Plus, Edit, Trash2, Search, Filter, Upload, Download, FileSpreadsheet, 
 import { BulkImportModal } from '@/components/admin/BulkImportModal'
 import { QuestionHistoryModal } from '@/components/admin/QuestionHistoryModal'
 import { TeacherAssignmentManagerModal } from '@/components/admin/TeacherAssignmentManagerModal'
-import { resolveToolQuestionConfig, getRequiredTargetForAction, definitionLabel, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type ToolQuestionConfig, type VocabularyItem } from '@/components/interview/toolQuestionAnalysis'
+import { resolveToolQuestionConfig, resolveDeskTools, getRequiredTargetForAction, definitionLabel, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type ToolQuestionConfig, type VocabularyItem } from '@/components/interview/toolQuestionAnalysis'
 import { legacyToolConfigToWorkshopGame } from '@/features/workshop'
 import { getWorkshopDetailImage, getWorkshopToolImage } from '@/components/interview/workshopVisualAssets'
 import { Badge } from '@/components/ui/badge'
@@ -476,6 +476,8 @@ export default function InterviewModuleAdminPage() {
 
             const updatedConfig: ToolQuestionConfig = {
                 ...inlineDraft,
+                manual_override: true,
+                tools_on_desk: resolveDeskTools(inlineDraft.correct_tool),
                 vocabulary_analysis: updatedVocabulary,
                 answer_steps: answerSteps,
                 scoring: {

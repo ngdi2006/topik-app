@@ -3,15 +3,16 @@
 import Image from "next/image"
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { BookOpen, ChevronRight, LoaderCircle, Menu } from "lucide-react"
+import { BookOpen, ChevronRight, LoaderCircle } from "lucide-react"
 import { LearnerSidebar } from "@/components/shared/LearnerSidebar"
-import { UserNav } from "@/components/shared/UserNav"
+import { LearnerTopbar } from "@/components/shared/LearnerTopbar"
 import type { TextbookSummary } from "@/lib/textbooks/types"
 
 export default function TextbookLibraryPage() {
   const [books, setBooks] = useState<TextbookSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [desktopMenuOpen, setDesktopMenuOpen] = useState(true)
 
   useEffect(() => {
     fetch("/api/textbooks").then((response) => response.ok ? response.json() : Promise.reject())
@@ -20,9 +21,9 @@ export default function TextbookLibraryPage() {
   }, [])
 
   return <div className="flex min-h-screen bg-[radial-gradient(circle_at_top_right,_#e8efff_0,_#f6f8fb_34rem)]">
-    <LearnerSidebar mobileOpen={mobileMenuOpen} onMobileOpenChange={setMobileMenuOpen} />
+    <LearnerSidebar desktopOpen={desktopMenuOpen} mobileOpen={mobileMenuOpen} onMobileOpenChange={setMobileMenuOpen} />
     <div className="min-w-0 flex-1">
-      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl"><div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8"><button aria-label="Mở menu" className="grid size-10 place-items-center rounded-xl text-slate-700 hover:bg-slate-100 md:hidden" onClick={() => setMobileMenuOpen(true)} type="button"><Menu className="size-6" /></button><span className="hidden md:block" /><UserNav /></div></header>
+      <LearnerTopbar onOpenMobileMenu={() => setMobileMenuOpen(true)} onToggleDesktopMenu={() => setDesktopMenuOpen((open) => !open)} title="Giáo trình 2025" />
       <main className="px-3 py-4 sm:px-6 sm:py-8 lg:px-8">
     <section className="mx-auto max-w-7xl">
       {loading ? <div className="grid min-h-64 place-items-center"><LoaderCircle className="size-8 animate-spin text-blue-600" /></div> : null}

@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, PlayCircle, BookOpen, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles, Mic, ArrowLeft, User, Trophy, ChevronDown, Award, LayoutDashboard, RotateCcw, BarChart3, ListChecks } from "lucide-react"
+import { Clock, PlayCircle, BookOpen, BookText, Languages, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles, Mic, ArrowLeft, User, Trophy, ChevronDown, Award, LayoutDashboard, RotateCcw, BarChart3, ListChecks } from "lucide-react"
 
 const LessonList = dynamic(() => import("@/components/lessons/LessonList").then((module) => module.LessonList))
 const PracticeHub = dynamic(() => import("@/components/practice/PracticeHub").then((module) => module.PracticeHub))
@@ -329,8 +329,10 @@ export default function DashboardPage() {
 
                 if (examsRes.ok) {
                     const latestExams = await examsRes.json()
-                    nextExams = latestExams
-                    setExams(latestExams)
+                    if (Array.isArray(latestExams)) {
+                        nextExams = latestExams
+                        setExams(latestExams)
+                    }
                 }
 
                 if (menuRes.ok) {
@@ -343,12 +345,12 @@ export default function DashboardPage() {
 
                 if (statsRes.ok) {
                     const statsData = await statsRes.json()
-                    if (statsData.success) {
+                    if (statsData.success && statsData.data) {
                         nextStats = statsData.data.stats
-                        nextLeaderboard = statsData.data.leaderboard
+                        nextLeaderboard = Array.isArray(statsData.data.leaderboard) ? statsData.data.leaderboard : []
                         nextCurrentUserRank = statsData.data.currentUser
                         setDashboardStats(statsData.data.stats)
-                        setLeaderboard(statsData.data.leaderboard)
+                        setLeaderboard(nextLeaderboard)
                         setCurrentUserRank(statsData.data.currentUser)
                     }
                 }
@@ -715,7 +717,8 @@ export default function DashboardPage() {
                 <nav className="flex-1 overflow-y-auto px-3 pt-4 flex flex-col gap-1 w-64">
                     <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-100/70">Luyện thi</p>
                     {enabledMenuItems.filter(item => item.key !== 'bang-xep-hang').map((item) => renderMenuButton(item))}
-                    <button className="flex min-h-11 w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-bold text-white transition hover:bg-white/15" onClick={() => router.push('/textbooks')} type="button"><BookOpen className="size-5" />Giáo trình EPS-TOPIK</button>
+                    <p className="mt-4 px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-100/70">Học tập</p>
+                    {[["Giáo trình 2025", "/textbooks", BookOpen], ["Học từ vựng", "/textbooks/learning/vocabulary", Languages], ["Ngữ pháp", "/textbooks/learning/grammar", BookText]].map(([label, href, Icon]) => <button className="flex min-h-10 w-full items-center gap-3 rounded-xl px-4 py-2 text-left text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white" key={String(href)} onClick={() => router.push(String(href))} type="button"><Icon className="size-4" />{String(label)}</button>)}
                     
                     <div className="mt-auto mx-auto w-[204px] pb-4">
                         {enabledMenuItems.filter(item => item.key === 'bang-xep-hang').map((item) => renderMenuButton(item))}
@@ -875,7 +878,10 @@ export default function DashboardPage() {
                         {enabledMenuItems
                             .filter(item => item.key !== 'bang-xep-hang')
                             .map((item) => renderMenuButton(item, () => setIsMobileMenuOpen(false)))}
-                        <button className="flex h-10 w-full items-center gap-2.5 rounded-xl bg-emerald-50 px-3 text-left text-[13px] font-bold text-emerald-700 shadow-sm" onClick={() => { setIsMobileMenuOpen(false); router.push('/textbooks') }} type="button"><span className="grid size-8 place-items-center rounded-lg bg-emerald-600 text-white"><BookOpen className="size-3.5" /></span>Giáo trình EPS-TOPIK</button>
+                        <div className="mt-3 space-y-1 border-t border-slate-100 pt-3">
+                            <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Học tập</p>
+                            {[["Giáo trình 2025", "/textbooks", BookOpen], ["Học từ vựng", "/textbooks/learning/vocabulary", Languages], ["Ngữ pháp", "/textbooks/learning/grammar", BookText]].map(([label, href, Icon]) => <button className="flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-[13px] font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-700" key={String(href)} onClick={() => { setIsMobileMenuOpen(false); router.push(String(href)) }} type="button"><span className="grid size-8 place-items-center rounded-lg bg-slate-100 text-slate-600"><Icon className="size-3.5" /></span>{String(label)}</button>)}
+                        </div>
 
                     </nav>
 

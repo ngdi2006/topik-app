@@ -8,15 +8,34 @@ import { Clock, BookOpen, Headphones, AlertCircle, Coins, ShoppingCart } from 'l
 import { toast } from 'sonner'
 import { PaymentModal } from '@/components/payment/PaymentModal'
 
+type ExamSummary = {
+    id: string
+    title: string
+    duration: number
+    reading_duration?: number
+    listening_duration?: number
+    is_free: boolean
+    free_attempts: number
+}
+
+type AccessInfo = {
+    can_access: boolean
+    user_credits: number
+    previous_attempts: unknown[]
+    message: string
+    debug?: { totalAttempts?: number }
+    exam?: { id: string; title: string; is_free: boolean }
+}
+
 export default function ExamStartPage() {
     const params = useParams()
     const router = useRouter()
     const examId = params.id as string
 
-    const [exam, setExam] = useState<any>(null)
+    const [exam, setExam] = useState<ExamSummary | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isStarting, setIsStarting] = useState(false)
-    const [accessInfo, setAccessInfo] = useState<any>(null)
+    const [accessInfo, setAccessInfo] = useState<AccessInfo | null>(null)
     const [accessLoaded, setAccessLoaded] = useState(false)
     const [paymentModalOpen, setPaymentModalOpen] = useState(false)
     const [progressMessage, setProgressMessage] = useState('')
@@ -24,11 +43,13 @@ export default function ExamStartPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // Fetch exam details
-                const examRes = await fetch(`/api/admin/exams/${examId}`)
-                const examData = await examRes.json()
-                if (examData.success) {
-                    setExam(examData.data)
+                // Learners must use the learner endpoint. Admin APIs are
+                // correctly rejected with 403 by production middleware.
+                const examRes = await fetch(`/api/exams/${examId}?summary=true`)
+                const examPayload = await examRes.json()
+                const examData = examPayload.exam
+                if (examRes.ok && examData) {
+                    setExam(examData)
                 } else {
                     toast.error('Không tìm thấy đề thi')
                     router.push('/dashboard')
@@ -36,10 +57,10 @@ export default function ExamStartPage() {
                 }
 
                 // Check access
-                if (examData.data.is_free) {
+                if (examData.is_free) {
                     setAccessInfo({
                         can_access: true,
-                        exam: { id: examData.data.id, title: examData.data.title, is_free: true },
+                        exam: { id: examData.id, title: examData.title, is_free: true },
                         user_credits: 0,
                         previous_attempts: [],
                         message: 'Đề thi miễn phí - không giới hạn lượt'
@@ -52,7 +73,7 @@ export default function ExamStartPage() {
                             const errData = await accessRes.json()
                             errorMsg = `Lỗi: ${errData.error || errData.message || accessRes.status}`
                             if (errData.details) errorMsg += ` - ${JSON.stringify(errData.details)}`
-                        } catch (e) {}
+                        } catch {}
 
                         setAccessInfo({ 
                             can_access: false, 
@@ -66,7 +87,7 @@ export default function ExamStartPage() {
                     }
                 }
                 setAccessLoaded(true)
-            } catch (error) {
+            } catch {
                 toast.error('Lỗi tải đề thi')
             } finally {
                 setIsLoading(false)
@@ -77,6 +98,7 @@ export default function ExamStartPage() {
     }, [examId, router])
 
     const handleStartExam = async () => {
+        if (!exam) return
         // Free exams: skip credit check
         const canStart = exam.is_free || accessInfo?.can_access
 
@@ -124,9 +146,9 @@ export default function ExamStartPage() {
 
             // Redirect to reading section
             router.push(`/exam/${examId}/reading?attemptId=${data.attempt.id}`)
-        } catch (error: any) {
+        } catch (error: unknown) {
             clearInterval(progressInterval)
-            toast.error(error.message || 'Lỗi bắt đầu thi', { id: toastId })
+            toast.error(error instanceof Error ? error.message : 'Lỗi bắt đầu thi', { id: toastId })
             setIsStarting(false)
             setProgressMessage('')
         }
@@ -167,7 +189,7 @@ export default function ExamStartPage() {
                             {exam.is_free && (
                                 <Badge className="bg-emerald-500">Miễn phí</Badge>
                             )}
-                            {accessLoaded && !exam.is_free && accessInfo?.can_access && accessInfo?.debug?.totalAttempts < exam.free_attempts && (
+                            {accessLoaded && !exam.is_free && accessInfo?.can_access && (accessInfo?.debug?.totalAttempts ?? 0) < exam.free_attempts && (
                                 <Badge className="bg-emerald-500 gap-1">
                                     Lượt miễn phí
                                 </Badge>
@@ -182,12 +204,12 @@ export default function ExamStartPage() {
                         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
                             {exam.title}
                         </h1>
-                        {accessLoaded && !exam.is_free && accessInfo?.can_access && accessInfo?.debug?.totalAttempts < exam.free_attempts && (
+                        {accessLoaded && !exam.is_free && accessInfo?.can_access && (accessInfo?.debug?.totalAttempts ?? 0) < exam.free_attempts && (
                             <p className="text-sm text-emerald-600 font-medium">
                                 Bạn còn {exam.free_attempts - (accessInfo?.debug?.totalAttempts || 0)} lượt miễn phí
                             </p>
                         )}
-                        {accessLoaded && !exam.is_free && !(accessInfo?.debug?.totalAttempts < exam.free_attempts) && (
+                        {accessLoaded && !exam.is_free && !((accessInfo?.debug?.totalAttempts ?? 0) < exam.free_attempts) && (
                             <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
                                 <Coins className="w-4 h-4" />
                                 Bạn còn {accessInfo?.user_credits || 0} lượt làm bài

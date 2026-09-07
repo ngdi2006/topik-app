@@ -11,6 +11,7 @@
     "import:textbooks": "node scripts/import_textbooks.mjs",
     "optimize:textbooks": "node scripts/optimize_textbook_images.mjs",
     "generate:textbook-grammar": "node scripts/generate_textbook_grammar_summaries.mjs",
+    "import:textbook-vocabulary": "node scripts/import_textbook_vocabulary.mjs",
     "tts:setup": "node scripts/generate_tts_cache.mjs --setup",
     "tts:generate": "node scripts/generate_tts_cache.mjs",
     "tts:vocab-fixes": "node scripts/generate_vocabulary_pronunciation_fixes.mjs",

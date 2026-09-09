@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { normalizeImportDate } from '@/lib/import-date'
 
 export async function POST(request: Request) {
     try {
@@ -22,18 +23,19 @@ export async function POST(request: Request) {
 
         const adminAuthClient = createAdminClient()
         let successCount = 0
+        let updatedCount = 0
         const errors: Array<{ email: string; error: string }> = []
         const skipped: Array<{ email: string; reason: string }> = []
 
         // Load the existing Auth directory once. This avoids sending one failed
         // create request per duplicate email during repeated Excel imports.
-        const existingEmails = new Set<string>()
+        const existingEmails = new Map<string, string>()
         const perPage = 1000
         for (let page = 1; ; page += 1) {
             const { data, error } = await adminAuthClient.auth.admin.listUsers({ page, perPage })
             if (error) throw error
             for (const existingUser of data.users) {
-                if (existingUser.email) existingEmails.add(existingUser.email.trim().toLowerCase())
+                if (existingUser.email) existingEmails.set(existingUser.email.trim().toLowerCase(), existingUser.id)
             }
             if (data.users.length < perPage) break
         }
@@ -44,14 +46,35 @@ export async function POST(request: Request) {
 
             email = String(email || '').trim().toLowerCase()
             name = String(name || '').trim()
+            const normalizedDate = normalizeImportDate(dateOfBirth)
 
             if (!email || !password) {
                 errors.push({ email: email || '(trống)', error: 'Thiếu email hoặc mật khẩu' })
                 continue
             }
 
-            if (existingEmails.has(email)) {
-                skipped.push({ email, reason: 'Tài khoản đã tồn tại' })
+            if (normalizedDate.error) {
+                errors.push({ email: email || '(trống)', error: normalizedDate.error })
+                continue
+            }
+
+            const existingUserId = existingEmails.get(email)
+            if (existingUserId) {
+                const profileUpdates: { group_name?: string; date_of_birth?: string; full_name?: string } = {}
+                if (String(groupName || '').trim()) profileUpdates.group_name = String(groupName).trim()
+                if (normalizedDate.value) profileUpdates.date_of_birth = normalizedDate.value
+                if (name) profileUpdates.full_name = name
+
+                if (Object.keys(profileUpdates).length > 0) {
+                    const { error: updateError } = await adminAuthClient.from('profiles').update(profileUpdates).eq('id', existingUserId)
+                    if (updateError) {
+                        errors.push({ email, error: 'Không thể cập nhật lớp: ' + updateError.message })
+                        continue
+                    }
+                    updatedCount++
+                } else {
+                    skipped.push({ email, reason: 'Tài khoản đã tồn tại và không có dữ liệu mới' })
+                }
                 continue
             }
 
@@ -73,7 +96,7 @@ export async function POST(request: Request) {
 
             if (createError) {
                 if (createError.message.toLowerCase().includes('already been registered')) {
-                    existingEmails.add(email)
+                    existingEmails.set(email, '')
                     skipped.push({ email, reason: 'Tài khoản đã tồn tại' })
                     continue
                 }
@@ -88,7 +111,7 @@ export async function POST(request: Request) {
                 full_name: name,
                 role: role || 'learner',
                 group_name: groupName || '',
-                date_of_birth: dateOfBirth || null
+                date_of_birth: normalizedDate.value
             })
 
             if (profileError) {
@@ -98,12 +121,13 @@ export async function POST(request: Request) {
             }
             
             successCount++
-            existingEmails.add(email)
+            existingEmails.set(email, newUserId)
         }
 
         return NextResponse.json({
             success: true,
             successCount,
+            updatedCount,
             skippedCount: skipped.length,
             skipped,
             errors,

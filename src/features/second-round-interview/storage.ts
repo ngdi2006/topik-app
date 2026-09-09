@@ -5,6 +5,9 @@ const RECENT_ACTIVITY_KEY = "second_round_interview_recent_activity_v1"
 const EXAM_HISTORY_KEY = "second_round_interview_exam_history_v1"
 const SELF_INTRODUCTION_DRAFT_KEY = "second_round_interview_self_introduction_v1"
 const LEGACY_MASTERY_KEY = "interview_mastery_v1"
+const TOPIC_IDS: TopicId[] = ["introduction", "command", "vocabulary", "math", "tools", "communication", "situation", "safety"]
+let lastSyncedBody = ''
+let syncInFlight = false
 
 interface StoredPreference {
   version: 1
@@ -91,6 +94,51 @@ function safeParse<T>(value: string | null, fallback: T): T {
   }
 }
 
+export function syncInterviewProgressToServer(): void {
+  if (typeof window === 'undefined') return
+  const mastery = readMasteredQuestionIds()
+  const topics = TOPIC_IDS.map(topicId => {
+    const details = Object.values(readTopicDetails(topicId))
+    const masteredIds = new Set(mastery[topicId] || [])
+    return {
+      topicId,
+      attempted: new Set([...details.map(item => item.id), ...masteredIds]).size,
+      mastered: masteredIds.size,
+      incorrect: details.filter(needsReinforcement).length,
+      lastSeenAt: details.length ? new Date(Math.max(...details.map(item => item.lastSeen || 0))).toISOString() : null,
+    }
+  })
+  const exams = readExamHistory().map(({ id, industry, score, totalScore, passed, correctCount, incorrectCount, completedAt }) => ({ id, industry, score, totalScore, passed, correctCount, incorrectCount, completedAt }))
+  const payload = { version: 1, topics, exams, recentActivity: readRecentLearningActivity() }
+  const body = JSON.stringify(payload)
+  if (syncInFlight || body === lastSyncedBody) return
+  syncInFlight = true
+  void fetch('/api/interview/progress', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true })
+    .then(response => { if (response.ok) lastSyncedBody = body })
+    .catch(() => undefined)
+    .finally(() => { syncInFlight = false })
+}
+
+/** Keep device-only progress mirrored while the learner is inside Interview V2. */
+export function startInterviewProgressSync(): () => void {
+  if (typeof window === 'undefined') return () => undefined
+  syncInterviewProgressToServer()
+  const retryAfterSessionReady = window.setTimeout(syncInterviewProgressToServer, 2_000)
+  const interval = window.setInterval(syncInterviewProgressToServer, 10_000)
+  const syncWhenHidden = () => { if (document.visibilityState === 'hidden') syncInterviewProgressToServer() }
+  window.addEventListener('pagehide', syncInterviewProgressToServer)
+  document.addEventListener('visibilitychange', syncWhenHidden)
+  return () => {
+    window.clearTimeout(retryAfterSessionReady)
+    window.clearInterval(interval)
+    window.removeEventListener('pagehide', syncInterviewProgressToServer)
+    document.removeEventListener('visibilitychange', syncWhenHidden)
+    syncInterviewProgressToServer()
+  }
+}
+
+const scheduleProgressSync = () => queueMicrotask(syncInterviewProgressToServer)
+
 export function readPreferredIndustry(): IndustryId | null {
   const stored = safeParse<StoredPreference | null>(
     localStorage.getItem(PREFERENCE_KEY),
@@ -173,6 +221,7 @@ export function saveReinforcementResult(result: ReinforcementResult): void {
     `interview_mastery_detail_${result.topicId}`,
     JSON.stringify(details),
   )
+  scheduleProgressSync()
 }
 
 export function readRecentLearningActivity(): RecentLearningActivity | null {
@@ -192,6 +241,7 @@ export function saveRecentLearningActivity(
     updatedAt: new Date().toISOString(),
   }
   localStorage.setItem(RECENT_ACTIVITY_KEY, JSON.stringify(value))
+  scheduleProgressSync()
 }
 
 export function saveSelfIntroductionCompletion(): void {
@@ -214,6 +264,7 @@ export function saveSelfIntroductionCompletion(): void {
     `interview_mastery_detail_${topicId}`,
     JSON.stringify(details),
   )
+  scheduleProgressSync()
 }
 
 export function readSelfIntroductionDraft(): StoredSelfIntroductionDraft | null {
@@ -259,4 +310,5 @@ export function saveExamResult(
     EXAM_HISTORY_KEY,
     JSON.stringify([value, ...history].slice(0, 20)),
   )
+  scheduleProgressSync()
 }

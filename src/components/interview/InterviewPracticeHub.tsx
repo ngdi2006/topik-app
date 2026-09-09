@@ -17,7 +17,7 @@ import { SelfIntroductionPractice } from '@/components/interview/SelfIntroductio
 import { InterviewFreePreviewBanner } from '@/components/interview/InterviewFreePreviewBanner'
 import { CommandListMode } from '@/components/interview/CommandListMode'
 import { MicrophoneCheck } from '@/components/interview/MicrophoneCheck'
-import { saveSelfIntroductionCompletion } from '@/features/second-round-interview/storage'
+import { saveSelfIntroductionCompletion, startInterviewProgressSync } from '@/features/second-round-interview/storage'
 import PodcastMode from '@/components/vocabulary-vong2/PodcastMode'
 import { toast } from 'sonner'
 import { Headphones, Bot, ArrowLeft, Wrench, Mic, CheckCircle, Calculator, MessageSquare, Presentation, Factory, Fish, Trees, Tractor, Home, Coffee, Layers, RefreshCw, Play, MousePointer2, Zap, ShieldAlert, BookOpen, Target, Award, ChevronRight, FileText, UserRound, ListChecks } from 'lucide-react'
@@ -352,6 +352,12 @@ export function InterviewPracticeHub({
     const [sessionQuestions, setSessionQuestions] = useState<any[]>([])
     const [completedPracticeStep, setCompletedPracticeStep] = useState<'practice' | 'math_practice' | 'speed_quiz' | 'tool_drop_game'>('practice')
     const [isMockMicReady, setIsMockMicReady] = useState(false)
+
+    // Upload previously local-only P1-P8 progress whenever the learner opens
+    // Interview V2, including data created before server sync was introduced.
+    useEffect(() => {
+        return startInterviewProgressSync()
+    }, [])
 
     // Dùng một pool duy nhất cho nhóm đang chọn để số câu ở màn danh sách
     // luôn khớp với lật thẻ, trắc nghiệm, siêu tốc và nghe thụ động.

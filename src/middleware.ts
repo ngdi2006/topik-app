@@ -1,7 +1,22 @@
-import { type NextRequest } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from './lib/supabase/middleware'
+import { isLockedLearningPath } from './lib/learner-feature-flags'
 
 export async function middleware(request: NextRequest) {
+    if (isLockedLearningPath(request.nextUrl.pathname)) {
+        if (request.nextUrl.pathname.startsWith('/api/')) {
+            return NextResponse.json(
+                { error: 'Cụm học tập đang được phát triển và tạm khóa.' },
+                { status: 503 },
+            )
+        }
+
+        const dashboardUrl = request.nextUrl.clone()
+        dashboardUrl.pathname = '/dashboard'
+        dashboardUrl.search = '?notice=learning-in-development'
+        return NextResponse.redirect(dashboardUrl)
+    }
+
     return await updateSession(request)
 }
 

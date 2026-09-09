@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import * as XLSX from "xlsx"
 import { useUserStore } from "@/store/userStore"
 import { UserBulkImportModal } from "@/components/admin/UserBulkImportModal"
+import { UserLearningReport, type UserLearningReportData } from "@/components/admin/UserLearningReport"
 import {
     Dialog,
     DialogContent,
@@ -52,6 +53,7 @@ type HistoryRecord = {
     total_points?: number
     total_correct: number
     created_at: string
+    status?: string
     exams?: {
         level?: string
         title?: string
@@ -78,6 +80,40 @@ const getInterviewPackageStatus = (user: UserProfile, now: number): Exclude<Inte
     const expiresAt = Date.parse(user.interviewAccess.expiresAt)
     if (Number.isNaN(expiresAt) || expiresAt <= now) return 'expired'
     return expiresAt - now <= EXPIRING_SOON_DAYS * DAY_IN_MS ? 'expiring' : 'active'
+}
+
+type LearningReport = UserLearningReportData & {
+    summary: {
+        totalLessons: number
+        completedLessons: number
+        inProgressLessons: number
+        notStartedLessons: number
+        completedExams: number
+        inProgressExams: number
+        interactionCount: number
+        latestActivityAt: string | null
+    }
+    lessons: Array<{
+        id: string
+        lessonNumber: number
+        title: string
+        chapter: number
+        progressPercent: number
+        status: 'completed' | 'in_progress' | 'not_started'
+        completedSections: string[]
+        lastAccessedAt: string | null
+    }>
+    attempts: HistoryRecord[]
+    events: Array<{
+        id: string
+        event_name: string
+        content_type: string | null
+        content_id: string | null
+        duration_ms: number | null
+        is_correct: boolean | null
+        occurred_at: string
+        metadata?: Record<string, unknown>
+    }>
 }
 
 type AdminUserAuditEntry = {
@@ -206,6 +242,7 @@ export default function AdminUsersPage() {
 
     const [isHistoryOpen, setIsHistoryOpen] = useState(false)
     const [selectedUserHistory, setSelectedUserHistory] = useState<HistoryRecord[]>([])
+    const [learningReport, setLearningReport] = useState<LearningReport | null>(null)
     const [isFetchingHistory, setIsFetchingHistory] = useState(false)
     const [selectedUserName, setSelectedUserName] = useState("")
     const [selectedAuditUser, setSelectedAuditUser] = useState<UserProfile | null>(null)
@@ -403,6 +440,7 @@ export default function AdminUsersPage() {
         setSelectedUserName(userName)
         setIsFetchingHistory(true)
         setSelectedUserHistory([])
+        setLearningReport(null)
 
         try {
             const res = await fetch(`/api/admin/users/${userId}/history`)
@@ -410,6 +448,7 @@ export default function AdminUsersPage() {
             if (!res.ok) throw new Error(data.error)
 
             setSelectedUserHistory(Array.isArray(data.history) ? data.history : [])
+            setLearningReport(data)
         } catch (error) {
             toast.error(getErrorMessage(error, "Lỗi tải lịch sử thi"))
         } finally {
@@ -1764,14 +1803,16 @@ export default function AdminUsersPage() {
             </Dialog>
 
             <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
-                <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto">
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[1000px]">
                     <DialogHeader>
-                        <DialogTitle>Lịch sử làm bài - {selectedUserName}</DialogTitle>
+                        <DialogTitle>Hoạt động và tiến độ - {selectedUserName}</DialogTitle>
                     </DialogHeader>
 
                     <div className="py-4 space-y-4">
                         {isFetchingHistory ? (
                             <div className="text-center py-10 text-muted-foreground animate-pulse">Đang tải dữ liệu báo cáo...</div>
+                        ) : learningReport ? (
+                            <UserLearningReport report={learningReport} />
                         ) : selectedUserHistory.length === 0 ? (
                             <div className="text-center py-12 border border-dashed rounded-lg bg-gray-50 text-gray-500">
                                 Học viên này chưa có lịch sử làm bài thi nào.

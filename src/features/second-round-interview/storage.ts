@@ -5,6 +5,9 @@ const RECENT_ACTIVITY_KEY = "second_round_interview_recent_activity_v1"
 const EXAM_HISTORY_KEY = "second_round_interview_exam_history_v1"
 const SELF_INTRODUCTION_DRAFT_KEY = "second_round_interview_self_introduction_v1"
 const LEGACY_MASTERY_KEY = "interview_mastery_v1"
+const TOPIC_IDS: TopicId[] = ["introduction", "command", "vocabulary", "math", "tools", "communication", "situation", "safety"]
+let lastSyncedBody = ""
+let syncInFlight = false
 
 interface StoredPreference {
   version: 1
@@ -120,6 +123,61 @@ function asFiniteNumber(value: unknown, fallback = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback
 }
 
+export function syncInterviewProgressToServer(): void {
+  if (typeof window === "undefined") return
+  const mastery = readMasteredQuestionIds()
+  const topics = TOPIC_IDS.map((topicId) => {
+    const details = Object.values(readTopicDetails(topicId))
+    const masteredIds = new Set(mastery[topicId] ?? [])
+    return {
+      topicId,
+      attempted: new Set([...details.map((item) => item.id), ...masteredIds]).size,
+      mastered: masteredIds.size,
+      incorrect: details.filter(needsReinforcement).length,
+      lastSeenAt: details.length
+        ? new Date(Math.max(...details.map((item) => item.lastSeen || 0))).toISOString()
+        : null,
+    }
+  })
+  const exams = readExamHistory().map(({
+    id, industry, score, totalScore, passed, correctCount, incorrectCount, completedAt,
+  }) => ({ id, industry, score, totalScore, passed, correctCount, incorrectCount, completedAt }))
+  const body = JSON.stringify({ version: 1, topics, exams, recentActivity: readRecentLearningActivity() })
+  if (syncInFlight || body === lastSyncedBody) return
+
+  syncInFlight = true
+  void fetch("/api/interview/progress", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    keepalive: true,
+  })
+    .then((response) => { if (response.ok) lastSyncedBody = body })
+    .catch(() => undefined)
+    .finally(() => { syncInFlight = false })
+}
+
+export function startInterviewProgressSync(): () => void {
+  if (typeof window === "undefined") return () => undefined
+  syncInterviewProgressToServer()
+  const retryAfterSessionReady = window.setTimeout(syncInterviewProgressToServer, 2_000)
+  const interval = window.setInterval(syncInterviewProgressToServer, 10_000)
+  const syncWhenHidden = () => {
+    if (document.visibilityState === "hidden") syncInterviewProgressToServer()
+  }
+  window.addEventListener("pagehide", syncInterviewProgressToServer)
+  document.addEventListener("visibilitychange", syncWhenHidden)
+  return () => {
+    window.clearTimeout(retryAfterSessionReady)
+    window.clearInterval(interval)
+    window.removeEventListener("pagehide", syncInterviewProgressToServer)
+    document.removeEventListener("visibilitychange", syncWhenHidden)
+    syncInterviewProgressToServer()
+  }
+}
+
+const scheduleProgressSync = () => queueMicrotask(syncInterviewProgressToServer)
+
 export function readPreferredIndustry(): IndustryId | null {
   const stored = safeParse<unknown>(
     readStorage(PREFERENCE_KEY),
@@ -221,6 +279,7 @@ export function saveReinforcementResult(result: ReinforcementResult): void {
   }
 
   writeStorage(`interview_mastery_detail_${result.topicId}`, details)
+  scheduleProgressSync()
 }
 
 export function readRecentLearningActivity(): RecentLearningActivity | null {
@@ -246,6 +305,7 @@ export function saveRecentLearningActivity(
     updatedAt: new Date().toISOString(),
   }
   writeStorage(RECENT_ACTIVITY_KEY, value)
+  scheduleProgressSync()
 }
 
 export function saveSelfIntroductionCompletion(): void {
@@ -265,6 +325,7 @@ export function saveSelfIntroductionCompletion(): void {
     incorrectCount: previous?.incorrectCount ?? 0,
   }
   writeStorage(`interview_mastery_detail_${topicId}`, details)
+  scheduleProgressSync()
 }
 
 export function readSelfIntroductionDraft(): StoredSelfIntroductionDraft | null {
@@ -326,4 +387,5 @@ export function saveExamResult(
     completedAt: new Date().toISOString(),
   }
   writeStorage(EXAM_HISTORY_KEY, [value, ...history].slice(0, 20))
+  scheduleProgressSync()
 }

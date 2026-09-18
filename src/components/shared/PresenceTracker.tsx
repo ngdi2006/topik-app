@@ -25,12 +25,38 @@ const AUTH_PATHS = ['/login', '/register', '/forgot-password', '/reset-password'
 const LEADER_RETRY_DELAY_MS = 5_000
 const ROUTE_UPDATE_DELAY_MS = 1_000
 const CONTEXT_TIMEOUT_MS = 1_500
+const CONTEXT_CACHE_KEY = 'topik-presence-context-v1'
+const CONTEXT_CACHE_TTL = 30 * 60 * 1000
+
+function cachedPresenceContext(): PresenceContext | null {
+    try {
+        const cached = JSON.parse(sessionStorage.getItem(CONTEXT_CACHE_KEY) || 'null') as {
+            value?: PresenceContext
+            expiresAt?: number
+        } | null
+        return cached?.value && Number(cached.expiresAt) > Date.now() ? cached.value : null
+    } catch {
+        return null
+    }
+}
 
 async function getPresenceContext(signal: AbortSignal): Promise<PresenceContext> {
+    const cached = cachedPresenceContext()
+    if (cached) return cached
+
     try {
         const response = await fetch('/api/presence/context', { signal })
         if (!response.ok) return EMPTY_CONTEXT
-        return await response.json() as PresenceContext
+        const value = await response.json() as PresenceContext
+        try {
+            sessionStorage.setItem(CONTEXT_CACHE_KEY, JSON.stringify({
+                value,
+                expiresAt: Date.now() + CONTEXT_CACHE_TTL,
+            }))
+        } catch {
+            // Presence vẫn hoạt động nếu trình duyệt chặn sessionStorage.
+        }
+        return value
     } catch {
         return EMPTY_CONTEXT
     }

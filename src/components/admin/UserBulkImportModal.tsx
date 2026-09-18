@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { FileSpreadsheet, CheckCircle2, AlertTriangle, ArrowLeft, Download } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { toast } from 'sonner'
+import { normalizeImportDate } from '@/lib/import-date'
 
 interface UserBulkImportModalProps {
     isOpen: boolean
@@ -27,6 +28,13 @@ type PreviewRow = {
 }
 
 type SpreadsheetRow = Record<string, unknown>
+
+const normalizeHeader = (header: string) => header
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
 
 export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImportModalProps) {
     const [step, setStep] = useState<1 | 2>(1)
@@ -58,7 +66,7 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
             })
 
             setProgressPercent(50)
-            const wb = XLSX.read(arrayBuffer, { type: 'array' })
+            const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: true })
             const ws = wb.Sheets[wb.SheetNames[0]]
             const rawData = XLSX.utils.sheet_to_json<SpreadsheetRow>(ws)
 
@@ -75,7 +83,7 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                 const normalizedRow: SpreadsheetRow = {}
                 for (const key in row) {
                     if (key && typeof key === 'string') {
-                        const cleanKey = key.normalize('NFC').toLowerCase().replace(/[\s_]+/g, '')
+                        const cleanKey = normalizeHeader(key)
                         normalizedRow[cleanKey] = row[key]
                     }
                 }
@@ -85,7 +93,7 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                 if (!hasAnyValue) return
                 
                 // Read properties using the highly normalized keys
-                const name = normalizedRow['họtên'] || normalizedRow['name'] || normalizedRow['họvàtên'] || ''
+                const name = normalizedRow['hoten'] || normalizedRow['name'] || normalizedRow['hovaten'] || ''
                 if (!name) {
                     errors.push('Thiếu họ tên')
                     isValid = false
@@ -105,7 +113,7 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                     emailSet.add(String(email))
                 }
 
-                const password = normalizedRow['mậtkhẩu'] || normalizedRow['password'] || ''
+                const password = normalizedRow['matkhau'] || normalizedRow['password'] || ''
                 if (!password) {
                     errors.push('Thiếu mật khẩu')
                     isValid = false
@@ -114,28 +122,21 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
                     isValid = false
                 }
 
-                const rawRole = normalizedRow['vaitrò'] || normalizedRow['role'] || ''
+                const rawRole = normalizedRow['vaitro'] || normalizedRow['role'] || ''
                 let role = String(rawRole).toLowerCase().trim()
                 const validRoles = ['learner', 'supporter', 'teacher', 'admin']
                 if (!validRoles.includes(role)) {
                     role = 'learner' // default
                 }
 
-                const groupName = normalizedRow['nhóm/lớp'] || normalizedRow['lớp'] || normalizedRow['nhóm'] || normalizedRow['groupname'] || ''
+                const groupName = normalizedRow['nhomlop'] || normalizedRow['tenlop'] || normalizedRow['lophoc'] || normalizedRow['lop'] || normalizedRow['nhom'] || normalizedRow['groupname'] || normalizedRow['classname'] || ''
                 
-                const rawDateOfBirth = normalizedRow['ngàysinh'] || normalizedRow['dob'] || normalizedRow['dateofbirth'] || ''
-                let dateOfBirth = ''
-                if (rawDateOfBirth) {
-                    if (rawDateOfBirth instanceof Date) {
-                        dateOfBirth = rawDateOfBirth.toISOString().split('T')[0]
-                    } else if (typeof rawDateOfBirth === 'number') {
-                        // Convert Excel serial date to JS Date
-                        const date = new Date(Math.round((rawDateOfBirth - 25569) * 86400 * 1000))
-                        dateOfBirth = date.toISOString().split('T')[0]
-                    } else {
-                        // Assuming string format
-                        dateOfBirth = String(rawDateOfBirth).trim()
-                    }
+                const rawDateOfBirth = normalizedRow['ngaysinh'] || normalizedRow['dob'] || normalizedRow['dateofbirth'] || ''
+                const normalizedDate = normalizeImportDate(rawDateOfBirth)
+                const dateOfBirth = normalizedDate.value || ''
+                if (normalizedDate.error) {
+                    errors.push(normalizedDate.error)
+                    isValid = false
                 }
 
                 parsedRows.push({
@@ -197,13 +198,14 @@ export function UserBulkImportModal({ isOpen, onClose, onSuccess }: UserBulkImpo
             setProgressStatus('Hoàn thành!')
 
             const skippedCount = Number(resData.skippedCount || 0)
+            const updatedCount = Number(resData.updatedCount || 0)
             if (resData.errors && resData.errors.length > 0) {
                 const firstError = resData.errors[0]?.error || 'Lỗi không xác định';
-                toast.warning(`Tạo mới ${resData.successCount}. Đã tồn tại ${skippedCount}. Lỗi ${resData.errors.length}. Lỗi mẫu: ${firstError}`)
+                toast.warning(`Tạo mới ${resData.successCount}. Cập nhật lớp ${updatedCount}. Đã tồn tại ${skippedCount}. Lỗi ${resData.errors.length}. Lỗi mẫu: ${firstError}`)
             } else if (resData.successCount === 0 && skippedCount > 0) {
-                toast.info(`Không có tài khoản mới. Đã bỏ qua ${skippedCount} email tồn tại.`)
+                toast.info(`Không có tài khoản mới. Đã cập nhật lớp ${updatedCount}, bỏ qua ${skippedCount} email không thay đổi.`)
             } else {
-                toast.success(`Tạo mới ${resData.successCount} tài khoản. Bỏ qua ${skippedCount} tài khoản đã tồn tại.`)
+                toast.success(`Tạo mới ${resData.successCount} tài khoản. Cập nhật lớp ${updatedCount}. Bỏ qua ${skippedCount} tài khoản không thay đổi.`)
             }
             
             setTimeout(() => {

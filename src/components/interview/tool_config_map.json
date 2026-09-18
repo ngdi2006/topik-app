@@ -1630,12 +1630,27 @@
       "screwdriver",
       "hammer",
       "pliers",
-      "wrench"
+      "torque_wrench"
     ],
-    "correct_tool": "wrench",
+    "correct_tool": "torque_wrench",
     "target_object": "hex_bolt",
+    "requires_target": true,
     "correct_action": "clockwise",
-    "vietnamese_instruction": "Sử dụng cờ lê lực rồi thực hiện hành động siết theo giá trị mô-men xoắn đã được định sẵn."
+    "vietnamese_instruction": "Sử dụng cờ lê lực để siết bu lông theo giá trị mô-men xoắn đã được định sẵn."
+  },
+  "토크 렌치를 이용하여 볼트를 정해진 토크값으로 조입니다.": {
+    "tools_on_desk": [
+      "allen_wrench",
+      "screwdriver",
+      "hammer",
+      "pliers",
+      "torque_wrench"
+    ],
+    "correct_tool": "torque_wrench",
+    "target_object": "hex_bolt",
+    "requires_target": true,
+    "correct_action": "clockwise",
+    "vietnamese_instruction": "Sử dụng cờ lê lực để siết bu lông theo giá trị mô-men xoắn đã được định sẵn."
   },
   "토크 렌치를 이용하여 정해진 회전력으로 죄는 행동을 합니다.": {
     "tools_on_desk": [
@@ -1643,12 +1658,25 @@
       "screwdriver",
       "hammer",
       "pliers",
-      "wrench"
+      "torque_wrench"
     ],
-    "correct_tool": "wrench",
+    "correct_tool": "torque_wrench",
     "target_object": "hex_bolt",
     "correct_action": "clockwise",
-    "vietnamese_instruction": "Sử dụng cờ lê lực rồi thực hiện hành động siết theo lực xoay đã được định sẵn."
+    "vietnamese_instruction": "Sử dụng cờ lê lực để siết với mô-men xoắn đã được định sẵn."
+  },
+  "토크 렌치를 이용하여 정해진 토크값으로 조입니다.": {
+    "tools_on_desk": [
+      "allen_wrench",
+      "screwdriver",
+      "hammer",
+      "pliers",
+      "torque_wrench"
+    ],
+    "correct_tool": "torque_wrench",
+    "target_object": "hex_bolt",
+    "correct_action": "clockwise",
+    "vietnamese_instruction": "Sử dụng cờ lê lực để siết với mô-men xoắn đã được định sẵn."
   },
   "육각형 볼트를 조이는 도구를 이용하여 육각형 볼트를 조이는 행동을 합니다.": {
     "tools_on_desk": [

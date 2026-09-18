@@ -13,7 +13,18 @@ type PresenceContext = {
     browser: string
 }
 
-const EMPTY_CONTEXT: PresenceContext = { country: null, region: null, city: null, device: 'desktop', browser: 'Khác' }
+const EMPTY_CONTEXT: PresenceContext = {
+    country: null,
+    region: null,
+    city: null,
+    device: 'desktop',
+    browser: 'Khác',
+}
+
+const AUTH_PATHS = ['/login', '/register', '/forgot-password', '/reset-password', '/check-email']
+const LEADER_RETRY_DELAY_MS = 5_000
+const ROUTE_UPDATE_DELAY_MS = 1_000
+const CONTEXT_TIMEOUT_MS = 1_500
 
 async function getPresenceContext(signal: AbortSignal): Promise<PresenceContext> {
     try {
@@ -28,76 +39,182 @@ async function getPresenceContext(signal: AbortSignal): Promise<PresenceContext>
 export function PresenceTracker() {
     const channelRef = useRef<RealtimeChannel | null>(null)
     const presenceRef = useRef<Record<string, unknown> | null>(null)
+    const routeUpdateTimerRef = useRef<number | null>(null)
     const pathname = usePathname()
+    const isAuthPage = AUTH_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))
 
     useEffect(() => {
+        // Không theo dõi khách và không tranh khóa Auth tại các trang xác thực.
+        if (isAuthPage) return
+
         const supabase = createClient()
         let disposed = false
-        let controller: AbortController | null = null
-        let timeout: number | null = null
+        let starting = false
+        let retryTimer: number | null = null
+        let contextTimer: number | null = null
+        let contextController: AbortController | null = null
+        let releaseLeader: (() => void) | null = null
 
-        const disconnect = () => {
-            if (timeout !== null) window.clearTimeout(timeout)
-            controller?.abort()
-            controller = null
+        const clearTimers = () => {
+            if (retryTimer !== null) window.clearTimeout(retryTimer)
+            if (contextTimer !== null) window.clearTimeout(contextTimer)
+            retryTimer = null
+            contextTimer = null
+        }
+
+        const disconnectChannel = () => {
+            contextController?.abort()
+            contextController = null
+
             const channel = channelRef.current
             channelRef.current = null
             presenceRef.current = null
             if (channel) void supabase.removeChannel(channel)
-            // WebSocket đang mở khiến trình duyệt không thể khôi phục trang sạch từ BFCache.
-            supabase.realtime.disconnect()
+
+            // Không gọi supabase.realtime.disconnect(): thao tác đó sẽ ngắt cả
+            // những kênh Realtime không thuộc Presence trong cùng trình duyệt.
         }
 
-        const initPresence = async () => {
-            disconnect()
-            if (disposed || document.hidden) return
-            controller = new AbortController()
-            timeout = window.setTimeout(() => controller?.abort(), 1500)
-            const [{ data: { session } }, context] = await Promise.all([
-                supabase.auth.getSession(),
-                getPresenceContext(controller.signal),
-            ])
-            if (timeout !== null) window.clearTimeout(timeout)
-            timeout = null
-            if (disposed || document.hidden) return
-            const userId = session?.user?.id || `guest-${Math.random().toString(36).substring(7)}`
-            const channel = supabase.channel('global-presence', { config: { presence: { key: userId } } })
+        const stopPresence = () => {
+            clearTimers()
+            disconnectChannel()
+            releaseLeader?.()
+            releaseLeader = null
+        }
+
+        const connectPresence = async (userId: string) => {
+            if (disposed || document.hidden || channelRef.current) return
+
+            contextController = new AbortController()
+            contextTimer = window.setTimeout(() => contextController?.abort(), CONTEXT_TIMEOUT_MS)
+            const context = await getPresenceContext(contextController.signal)
+
+            if (contextTimer !== null) window.clearTimeout(contextTimer)
+            contextTimer = null
+            contextController = null
+            if (disposed || document.hidden || channelRef.current) return
+
+            const channel = supabase.channel('global-presence', {
+                config: { presence: { key: userId } },
+            })
             channelRef.current = channel
 
-            channel.subscribe(async (status) => {
-                if (status !== 'SUBSCRIBED') return
+            channel.subscribe((status) => {
+                if (status !== 'SUBSCRIBED' || disposed || document.hidden) return
+
                 const presence = {
                     online_at: new Date().toISOString(),
-                    is_guest: !session?.user,
+                    is_guest: false,
                     current_page: window.location.pathname,
                     ...context,
                 }
                 presenceRef.current = presence
-                await channel.track(presence)
+                void channel.track(presence).catch(() => undefined)
             })
         }
 
-        const handlePageHide = () => disconnect()
-        const handlePageShow = (event: PageTransitionEvent) => {
-            if (event.persisted || !channelRef.current) void initPresence()
+        const scheduleRetry = (start: () => void) => {
+            if (disposed || document.hidden || retryTimer !== null) return
+            retryTimer = window.setTimeout(() => {
+                retryTimer = null
+                start()
+            }, LEADER_RETRY_DELAY_MS)
         }
 
+        const startPresence = async () => {
+            if (disposed || document.hidden || starting || channelRef.current || releaseLeader) return
+            starting = true
+
+            try {
+                const { data: { session } } = await supabase.auth.getSession()
+                const userId = session?.user?.id
+                if (!userId || disposed || document.hidden) return
+
+                // Web Locks bảo đảm mỗi tài khoản chỉ có một tab giữ kết nối Presence.
+                // Trình duyệt cũ không hỗ trợ Web Locks vẫn được dùng theo cơ chế dự phòng.
+                if (!('locks' in navigator)) {
+                    await connectPresence(userId)
+                    return
+                }
+
+                void navigator.locks.request(
+                    `topik-presence:${userId}`,
+                    { ifAvailable: true },
+                    async (lock) => {
+                        if (!lock || disposed || document.hidden) {
+                            scheduleRetry(() => void startPresence())
+                            return
+                        }
+
+                        await connectPresence(userId)
+                        if (disposed || document.hidden) {
+                            disconnectChannel()
+                            return
+                        }
+                        await new Promise<void>((resolve) => {
+                            releaseLeader = resolve
+                        })
+                        releaseLeader = null
+                        disconnectChannel()
+                    },
+                ).catch(() => scheduleRetry(() => void startPresence()))
+            } catch {
+                // Presence là tính năng phụ, lỗi Auth/Realtime không được chặn trang.
+                scheduleRetry(() => void startPresence())
+            } finally {
+                starting = false
+            }
+        }
+
+        const handleVisibilityChange = () => {
+            if (document.hidden) stopPresence()
+            else void startPresence()
+        }
+        const handlePageHide = () => stopPresence()
+        const handlePageShow = () => {
+            if (!document.hidden) void startPresence()
+        }
+
+        document.addEventListener('visibilitychange', handleVisibilityChange)
         window.addEventListener('pagehide', handlePageHide)
         window.addEventListener('pageshow', handlePageShow)
-        void initPresence()
+        void startPresence()
+
         return () => {
             disposed = true
+            document.removeEventListener('visibilitychange', handleVisibilityChange)
             window.removeEventListener('pagehide', handlePageHide)
             window.removeEventListener('pageshow', handlePageShow)
-            disconnect()
+            stopPresence()
         }
-    }, [])
+    }, [isAuthPage])
 
     useEffect(() => {
-        if (!channelRef.current || !presenceRef.current) return
-        const presence = { ...presenceRef.current, current_page: pathname, online_at: new Date().toISOString() }
-        presenceRef.current = presence
-        void channelRef.current.track(presence)
+        if (routeUpdateTimerRef.current !== null) {
+            window.clearTimeout(routeUpdateTimerRef.current)
+        }
+
+        routeUpdateTimerRef.current = window.setTimeout(() => {
+            routeUpdateTimerRef.current = null
+            const channel = channelRef.current
+            const currentPresence = presenceRef.current
+            if (!channel || !currentPresence || document.hidden) return
+
+            const presence = {
+                ...currentPresence,
+                current_page: pathname,
+                online_at: new Date().toISOString(),
+            }
+            presenceRef.current = presence
+            void channel.track(presence).catch(() => undefined)
+        }, ROUTE_UPDATE_DELAY_MS)
+
+        return () => {
+            if (routeUpdateTimerRef.current !== null) {
+                window.clearTimeout(routeUpdateTimerRef.current)
+                routeUpdateTimerRef.current = null
+            }
+        }
     }, [pathname])
 
     return null

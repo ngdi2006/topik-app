@@ -91,12 +91,43 @@ function safeParse<T>(value: string | null, fallback: T): T {
   }
 }
 
+function readStorage(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key)
+  } catch {
+    // Safari may deny access to storage (private mode, quota/privacy settings,
+    // or a temporarily corrupted website-data store). Learning must still work.
+    return null
+  }
+}
+
+function writeStorage(key: string, value: unknown): boolean {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value))
+    return true
+  } catch {
+    // Progress persistence is best-effort. Never crash the learning UI because
+    // Safari cannot write website data.
+    return false
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function asFiniteNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback
+}
+
 export function readPreferredIndustry(): IndustryId | null {
-  const stored = safeParse<StoredPreference | null>(
-    localStorage.getItem(PREFERENCE_KEY),
+  const stored = safeParse<unknown>(
+    readStorage(PREFERENCE_KEY),
     null,
   )
-  return stored?.version === 1 ? stored.industry : null
+  return isRecord(stored) && stored.version === 1 && typeof stored.industry === "string"
+    ? stored.industry as IndustryId
+    : null
 }
 
 export function savePreferredIndustry(industry: IndustryId): void {
@@ -105,22 +136,42 @@ export function savePreferredIndustry(industry: IndustryId): void {
     industry,
     updatedAt: new Date().toISOString(),
   }
-  localStorage.setItem(PREFERENCE_KEY, JSON.stringify(value))
+  writeStorage(PREFERENCE_KEY, value)
 }
 
 export function readMasteredQuestionIds(): Partial<Record<TopicId, string[]>> {
-  return safeParse<Partial<Record<TopicId, string[]>>>(
-    localStorage.getItem(LEGACY_MASTERY_KEY),
-    {},
-  )
+  const parsed = safeParse<unknown>(readStorage(LEGACY_MASTERY_KEY), {})
+  if (!isRecord(parsed)) return {}
+
+  return Object.fromEntries(
+    Object.entries(parsed).flatMap(([topicId, questionIds]) =>
+      Array.isArray(questionIds)
+        ? [[topicId, questionIds.filter((id): id is string => typeof id === "string")]]
+        : [],
+    ),
+  ) as Partial<Record<TopicId, string[]>>
 }
 
 export function readTopicDetails(
   topicId: TopicId,
 ): Record<string, QuestionPracticeDetail> {
-  return safeParse<Record<string, QuestionPracticeDetail>>(
-    localStorage.getItem(`interview_mastery_detail_${topicId}`),
+  const parsed = safeParse<unknown>(
+    readStorage(`interview_mastery_detail_${topicId}`),
     {},
+  )
+  if (!isRecord(parsed)) return {}
+
+  return Object.fromEntries(
+    Object.entries(parsed).flatMap(([key, value]) => {
+      if (!isRecord(value) || typeof value.id !== "string") return []
+      return [[key, {
+        ...value,
+        id: value.id,
+        lastSeen: asFiniteNumber(value.lastSeen),
+        correctCount: asFiniteNumber(value.correctCount),
+        incorrectCount: asFiniteNumber(value.incorrectCount),
+      } as QuestionPracticeDetail]]
+    }),
   )
 }
 
@@ -169,18 +220,21 @@ export function saveReinforcementResult(result: ReinforcementResult): void {
     resolvedAt: result.isCorrect && consecutiveCorrect >= 2 ? now : null,
   }
 
-  localStorage.setItem(
-    `interview_mastery_detail_${result.topicId}`,
-    JSON.stringify(details),
-  )
+  writeStorage(`interview_mastery_detail_${result.topicId}`, details)
 }
 
 export function readRecentLearningActivity(): RecentLearningActivity | null {
-  const stored = safeParse<RecentLearningActivity | null>(
-    localStorage.getItem(RECENT_ACTIVITY_KEY),
+  const stored = safeParse<unknown>(
+    readStorage(RECENT_ACTIVITY_KEY),
     null,
   )
-  return stored?.version === 1 ? stored : null
+  return isRecord(stored)
+    && stored.version === 1
+    && typeof stored.industry === "string"
+    && typeof stored.topicId === "string"
+    && typeof stored.updatedAt === "string"
+    ? stored as unknown as RecentLearningActivity
+    : null
 }
 
 export function saveRecentLearningActivity(
@@ -191,7 +245,7 @@ export function saveRecentLearningActivity(
     ...activity,
     updatedAt: new Date().toISOString(),
   }
-  localStorage.setItem(RECENT_ACTIVITY_KEY, JSON.stringify(value))
+  writeStorage(RECENT_ACTIVITY_KEY, value)
 }
 
 export function saveSelfIntroductionCompletion(): void {
@@ -200,7 +254,7 @@ export function saveSelfIntroductionCompletion(): void {
   const now = Date.now()
   const mastery = readMasteredQuestionIds()
   mastery[topicId] = Array.from(new Set([...(mastery[topicId] ?? []), questionId]))
-  localStorage.setItem(LEGACY_MASTERY_KEY, JSON.stringify(mastery))
+  writeStorage(LEGACY_MASTERY_KEY, mastery)
 
   const details = readTopicDetails(topicId)
   const previous = details[questionId]
@@ -210,18 +264,22 @@ export function saveSelfIntroductionCompletion(): void {
     correctCount: (previous?.correctCount ?? 0) + 1,
     incorrectCount: previous?.incorrectCount ?? 0,
   }
-  localStorage.setItem(
-    `interview_mastery_detail_${topicId}`,
-    JSON.stringify(details),
-  )
+  writeStorage(`interview_mastery_detail_${topicId}`, details)
 }
 
 export function readSelfIntroductionDraft(): StoredSelfIntroductionDraft | null {
-  const stored = safeParse<StoredSelfIntroductionDraft | null>(
-    localStorage.getItem(SELF_INTRODUCTION_DRAFT_KEY),
+  const stored = safeParse<unknown>(
+    readStorage(SELF_INTRODUCTION_DRAFT_KEY),
     null,
   )
-  return stored?.version === 1 ? stored : null
+  return isRecord(stored)
+    && stored.version === 1
+    && (stored.mode === "experienced" || stored.mode === "beginner")
+    && isRecord(stored.profile)
+    && typeof stored.text === "string"
+    && typeof stored.updatedAt === "string"
+    ? stored as unknown as StoredSelfIntroductionDraft
+    : null
 }
 
 export function saveSelfIntroductionDraft(
@@ -232,15 +290,25 @@ export function saveSelfIntroductionDraft(
     ...draft,
     updatedAt: new Date().toISOString(),
   }
-  localStorage.setItem(SELF_INTRODUCTION_DRAFT_KEY, JSON.stringify(value))
+  writeStorage(SELF_INTRODUCTION_DRAFT_KEY, value)
   return value
 }
 
 export function readExamHistory(industry?: string): StoredExamResult[] {
-  const history = safeParse<StoredExamResult[]>(
-    localStorage.getItem(EXAM_HISTORY_KEY),
+  const parsed = safeParse<unknown>(
+    readStorage(EXAM_HISTORY_KEY),
     [],
   )
+  const history = Array.isArray(parsed)
+    ? parsed.filter((item): item is StoredExamResult =>
+      isRecord(item)
+      && typeof item.id === "string"
+      && typeof item.industry === "string"
+      && typeof item.score === "number"
+      && typeof item.totalScore === "number"
+      && typeof item.completedAt === "string",
+    )
+    : []
   return industry
     ? history.filter((result) => result.industry === industry)
     : history
@@ -252,11 +320,10 @@ export function saveExamResult(
   const history = readExamHistory()
   const value: StoredExamResult = {
     ...result,
-    id: crypto.randomUUID(),
+    id: typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     completedAt: new Date().toISOString(),
   }
-  localStorage.setItem(
-    EXAM_HISTORY_KEY,
-    JSON.stringify([value, ...history].slice(0, 20)),
-  )
+  writeStorage(EXAM_HISTORY_KEY, [value, ...history].slice(0, 20))
 }

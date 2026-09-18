@@ -650,18 +650,20 @@ export function InterviewPracticeHub({
         setStep('evaluating')
 
         try {
-            const results = await Promise.all(
-                Object.entries(submittedAnswers).map(async ([qId, transcript]) => {
-                    const res = await fetch('/api/interview/evaluate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ question_id: qId, transcript })
-                    })
-                    const data = await res.json()
-                    const qInfo = questions.find(q => q.id === qId)
-                    return { question_id: qId, transcript, question: qInfo, ...data.data }
+            // Chấm tuần tự để một học viên không tạo nhiều request AI đồng thời.
+            // Điều này làm phẳng đỉnh tải khi cả lớp nộp bài cùng lúc.
+            const results = []
+            for (const [qId, transcript] of Object.entries(submittedAnswers)) {
+                const res = await fetch('/api/interview/evaluate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question_id: qId, transcript })
                 })
-            )
+                const data = await res.json()
+                if (!res.ok || !data.success) throw new Error(data.error || 'Không thể chấm câu trả lời')
+                const qInfo = questions.find(q => q.id === qId)
+                results.push({ question_id: qId, transcript, question: qInfo, ...data.data })
+            }
             setEvaluationResults(results)
 
             // Lưu các câu trả lời có điểm >= 80 vào danh sách đã thuộc, xóa nếu điểm < 80

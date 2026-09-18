@@ -1,21 +1,42 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ArrowLeft, Mic, CheckCircle, XCircle, Loader2, Volume2 } from 'lucide-react'
-import { speakText, stopTTS } from '@/lib/tts'
+import { speakText } from '@/lib/tts'
 
 // Simple normalize for comparison
 const normalizeKorean = (text: string) => {
     return text.replace(/\s+/g, '').replace(/입니다$/, '').replace(/입니까$/, '').replace(/요$/, '').replace(/이에요$/, '').replace(/예요$/, '').replace(/[.?!]/g, '')
 }
 
+function playQuestion() {
+    speakText("이것이 무엇입니까?", 1.0)
+}
+
 export default function VoiceAiMode({ vocabList, onBack }: { vocabList: any[], onBack: () => void }) {
     const [currentIndex, setCurrentIndex] = useState(0)
-    const [isFinished, setIsFinished] = useState(false)
     const [isRecording, setIsRecording] = useState(false)
     const [transcript, setTranscript] = useState('')
     const [result, setResult] = useState<'correct' | 'incorrect' | null>(null)
     const recognitionRef = useRef<any>(null)
+
+    const checkAnswer = useCallback((spokenText: string) => {
+        const correctWord = vocabList[currentIndex]?.word_kr
+        if (!correctWord) return
+        const normalizedSpoken = normalizeKorean(spokenText)
+        const normalizedCorrect = normalizeKorean(correctWord)
+
+        if (normalizedSpoken.includes(normalizedCorrect)) {
+            setResult('correct')
+            setTimeout(() => {
+                setTranscript('')
+                setResult(null)
+                setCurrentIndex(prev => prev + 1)
+            }, 2000)
+        } else {
+            setResult('incorrect')
+        }
+    }, [currentIndex, vocabList])
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -45,23 +66,15 @@ export default function VoiceAiMode({ vocabList, onBack }: { vocabList: any[], o
                 recognitionRef.current = recognition
             }
         }
-    }, [currentIndex])
+    }, [checkAnswer])
 
     useEffect(() => {
         if (currentIndex < vocabList.length) {
-            setTranscript('')
-            setResult(null)
             // Play question "이것이 무엇입니까?" (simulated with TTS for now or just generic if no audio)
             // Ideally we'd have a static audio file, but we can use browser TTS
             playQuestion()
-        } else if (vocabList.length > 0) {
-            setIsFinished(true)
         }
     }, [currentIndex, vocabList])
-
-    const playQuestion = () => {
-        speakText("이것이 무엇입니까?", 1.0)
-    }
 
     const startRecording = () => {
         if (recognitionRef.current) {
@@ -84,22 +97,7 @@ export default function VoiceAiMode({ vocabList, onBack }: { vocabList: any[], o
         }
     }
 
-    const checkAnswer = (spokenText: string) => {
-        const correctWord = vocabList[currentIndex].word_kr
-        const normalizedSpoken = normalizeKorean(spokenText)
-        const normalizedCorrect = normalizeKorean(correctWord)
-
-        if (normalizedSpoken.includes(normalizedCorrect)) {
-            setResult('correct')
-            setTimeout(() => {
-                setCurrentIndex(prev => prev + 1)
-            }, 2000)
-        } else {
-            setResult('incorrect')
-        }
-    }
-
-    if (isFinished) {
+    if (vocabList.length > 0 && currentIndex >= vocabList.length) {
         return (
             <div className="min-h-screen p-4 md:p-8 flex items-center justify-center">
                 <Card className="max-w-md w-full p-8 text-center space-y-6 rounded-3xl shadow-xl">

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAdminApiPermission } from '@/lib/admin-api-auth'
 
 function getErrorMessage(error: unknown) {
     return error instanceof Error ? error.message : 'Unknown error'
@@ -7,6 +8,8 @@ function getErrorMessage(error: unknown) {
 
 export async function GET() {
     try {
+        const auth = await requireAdminApiPermission('interview')
+        if (auth.error) return auth.error
         const adminClient = createAdminClient()
 
         // 1. Fetch auth users

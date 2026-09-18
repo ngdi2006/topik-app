@@ -24,6 +24,8 @@ const TOOL_IMAGE_BY_ID = new Map<string, string>(
 // The game uses annotated screwdriver images so their tips remain clear on mobile.
 TOOL_IMAGE_BY_ID.set('flat_screwdriver', '/assets/workshop/tools/game-v2/02_tuavitdet_iljadriver_marked.png')
 TOOL_IMAGE_BY_ID.set('phillips_screwdriver', '/assets/workshop/tools/game-v2/03_tuavitchuthap_sipjadriver_marked.png')
+// Keep the dial gauge and tightening direction legible in small admin/game thumbnails.
+TOOL_IMAGE_BY_ID.set('torque_wrench', '/assets/workshop/tools/game-v2/12_coleluc_torquewrench-dial.png')
 TOOL_IMAGE_BY_ID.set('control_panel', '/assets/workshop/tools/game-v2/control_panel.png')
 TOOL_IMAGE_BY_ID.set('lathe_machine', '/assets/workshop/tools/game-v2/lathe_machine.png')
 TOOL_IMAGE_BY_ID.set('milling_machine', '/assets/workshop/tools/game-v2/milling_machine.png')

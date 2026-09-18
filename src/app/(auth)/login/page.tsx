@@ -35,22 +35,33 @@ function LoginForm() {
         setErrorMessage(null)
         setIsLoading(true)
 
-        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-
-        if (error) {
-            setErrorMessage(getVietnameseAuthError(error.message))
-            setIsLoading(false)
-            return
-        }
-
+        let timeout: ReturnType<typeof setTimeout> | null = null
         try {
+            const result = await Promise.race([
+                supabase.auth.signInWithPassword({ email: email.trim(), password }),
+                new Promise<never>((_, reject) => {
+                    timeout = setTimeout(() => reject(new Error('AUTH_TIMEOUT')), 15000)
+                }),
+            ])
+            if (timeout) clearTimeout(timeout)
+            timeout = null
+            if (result.error) {
+                setErrorMessage(getVietnameseAuthError(result.error.message))
+                return
+            }
+
             const response = await fetch(`/api/auth/destination?next=${encodeURIComponent(nextPath)}`, {
                 cache: 'no-store',
             })
-            const result = response.ok ? await response.json() : null
-            window.location.assign(result?.destination || nextPath)
-        } catch {
-            window.location.assign(nextPath)
+            const destinationResult = response.ok ? await response.json() : null
+            window.location.assign(destinationResult?.destination || nextPath)
+        } catch (error) {
+            setErrorMessage(error instanceof Error && error.message === 'AUTH_TIMEOUT'
+                ? 'Máy chủ đăng nhập phản hồi quá lâu. Vui lòng thử lại sau ít phút.'
+                : getVietnameseAuthError(error instanceof Error ? error.message : 'Không thể kết nối máy chủ đăng nhập.'))
+        } finally {
+            if (timeout) clearTimeout(timeout)
+            setIsLoading(false)
         }
     }
 

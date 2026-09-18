@@ -1,10 +1,24 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { GoogleGenAI } from '@google/genai'
-import { consumeInterviewAiQuota, getInterviewAccess } from '@/features/interview-access/server'
+import { consumeInterviewAiQuota, getInterviewAccess, refundInterviewAiQuota } from '@/features/interview-access/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || "placeholder-api-key" });
+
+const AI_TIMEOUT_MS = 30_000
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+    let timeout: ReturnType<typeof setTimeout> | null = null
+    return Promise.race([
+        promise,
+        new Promise<never>((_, reject) => {
+            timeout = setTimeout(() => reject(new Error('AI_TIMEOUT')), timeoutMs)
+        }),
+    ]).finally(() => {
+        if (timeout) clearTimeout(timeout)
+    })
+}
 
 const UNKNOWN_ANSWER_PATTERN = /^(모릅니다|모르겠습니다|잘모릅니다|잘모르겠습니다|몰라요|모르겠어요)$/
 
@@ -56,7 +70,7 @@ export async function POST(request: Request) {
         // Fetch question details for context
         const { data: question } = await supabase
             .from('interview_questions')
-            .select('*')
+            .select('id, question_text, vietnamese_meaning, suggested_answers')
             .eq('id', question_id)
             .single()
 
@@ -120,19 +134,24 @@ Trả về kết quả chấm điểm dưới dạng JSON duy nhất với cấu
 Chỉ trả về chuỗi JSON thô, không nằm trong khối markdown \`\`\`json, không giải thích gì thêm ngoài JSON.
 `;
 
-            const response = await ai.models.generateContent({
+            const response = await withTimeout(ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
                 config: {
                     temperature: 0.1,
                 }
-            });
+            }), AI_TIMEOUT_MS);
 
             const textResponse = response.text || "{}";
             const cleanedJsonText = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
             evaluation = JSON.parse(cleanedJsonText);
         } catch (err) {
             console.error('Gemini evaluation error:', err)
+            try {
+                await refundInterviewAiQuota(supabase, user.id)
+            } catch (refundError) {
+                console.error('Failed to refund Interview AI quota:', refundError)
+            }
             return NextResponse.json({
                 success: false,
                 code: 'EVALUATION_UNAVAILABLE',

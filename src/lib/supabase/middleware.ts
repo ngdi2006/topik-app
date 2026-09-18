@@ -46,9 +46,15 @@ export async function updateSession(request: NextRequest) {
         const { data } = await Promise.race([userPromise, timeoutPromise]) as Awaited<ReturnType<typeof supabase.auth.getUser>>
         user = data?.user ?? null
     } catch (error) {
-        // If auth check times out or fails, let the request through
-        // The page-level auth checks will handle it
+        // Administrative APIs must fail closed because many of them use the
+        // service-role client after this authorization boundary.
         console.warn('Middleware auth check failed or timed out:', error)
+        if (request.nextUrl.pathname.startsWith('/api/admin/')) {
+            return NextResponse.json(
+                { error: 'Dịch vụ xác thực tạm thời chưa sẵn sàng.' },
+                { status: 503 },
+            )
+        }
         return supabaseResponse
     }
 

@@ -347,6 +347,7 @@ export function completeToolConfig(config: ToolQuestionConfig): ToolQuestionConf
 export function analyzeToolQuestionText(questionText: string, vietnameseMeaning = ''): ToolQuestionConfig {
     const text = `${questionText} ${vietnameseMeaning}`
     const isStorageCommand = /공구함|전용함|함에\s*넣|선반에\s*넣|선반에\s*놓|함에\s*보관|공구함에\s*보관|bỏ.*hộp|cất.*hộp|bỏ.*kệ|cất.*kệ|đặt.*kệ|cho.*vào.*hộp|cho.*vào.*kệ/i.test(text)
+    const isTorqueBoltTightening = /토크\s*렌치.*(?:죄|조이)|cờ lê lực.*siết/i.test(text)
     const rawTarget = isStorageCommand
         ? (/선반|kệ/i.test(text)
             ? TARGET_DEFINITIONS.find((item) => item.id === 'shelf')
@@ -355,7 +356,9 @@ export function analyzeToolQuestionText(questionText: string, vietnameseMeaning 
             : /공구함|hộp công cụ/i.test(text)
             ? TARGET_DEFINITIONS.find((item) => item.id === 'toolbox_center')
             : TARGET_DEFINITIONS.find((item) => item.id === 'box'))
-        : firstMatch(TARGET_DEFINITIONS, questionText) || firstMatch(TARGET_DEFINITIONS, vietnameseMeaning)
+        : isTorqueBoltTightening
+          ? TARGET_DEFINITIONS.find((item) => item.id === 'hex_bolt')
+          : firstMatch(TARGET_DEFINITIONS, questionText) || firstMatch(TARGET_DEFINITIONS, vietnameseMeaning)
     const target = refineTarget(rawTarget, text) || TARGET_DEFINITIONS[TARGET_DEFINITIONS.length - 1]
     const rawAction = isStorageCommand
         ? ACTION_DEFINITIONS.find((item) => item.id === 'store') || ACTION_DEFINITIONS[0]

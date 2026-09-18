@@ -72,3 +72,11 @@ export async function consumeInterviewAiQuota(supabase: SupabaseClient, userId: 
         limit: Number(result?.daily_limit || 0),
     }
 }
+
+export async function refundInterviewAiQuota(supabase: SupabaseClient, userId: string) {
+    const { error } = await supabase.rpc('refund_interview_ai_quota', {
+        p_user_id: userId,
+        p_amount: 1,
+    })
+    if (error) throw error
+}

@@ -27,8 +27,17 @@ export function InterviewSubscriptionDialog({ open, onOpenChange }: { open: bool
     if (!open || !payment?.transaction.transaction_code || paymentCompleted) return
     let stopped = false
     let checking = false
+    let timerId: number | null = null
+    let attempt = 0
+
+    const scheduleNextCheck = () => {
+      if (stopped || document.hidden) return
+      const delay = attempt < 6 ? 8_000 : attempt < 12 ? 15_000 : 30_000
+      timerId = window.setTimeout(() => void verify(), delay)
+    }
+
     const verify = async () => {
-      if (checking || stopped) return
+      if (checking || stopped || document.hidden) return
       checking = true
       try {
         const response = await fetch('/api/payment/verify', {
@@ -41,16 +50,30 @@ export function InterviewSubscriptionDialog({ open, onOpenChange }: { open: bool
           stopped = true
           setPaymentCompleted(true)
           window.setTimeout(() => window.location.reload(), 1200)
+          return
         }
+        attempt += 1
       } finally {
         checking = false
+        scheduleNextCheck()
       }
     }
-    const intervalId = window.setInterval(() => void verify(), 3000)
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (timerId !== null) window.clearTimeout(timerId)
+        timerId = null
+      } else if (!checking && !stopped) {
+        void verify()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
     void verify()
     return () => {
       stopped = true
-      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      if (timerId !== null) window.clearTimeout(timerId)
     }
   }, [open, payment?.transaction.transaction_code, paymentCompleted])
 

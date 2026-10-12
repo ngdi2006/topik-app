@@ -1348,6 +1348,7 @@ export function InterviewPracticeHub({
                 {selectedTopicObj?.mode === 'tools' && selectedListenMode === 'ai_mock' ? (
                     <ToolDragPracticeScreen
                         questions={questions}
+                        inventoryQuestions={allQuestions}
                         onFinish={handleFinishPractice}
                         onBack={handleExitActivePractice}
                     />

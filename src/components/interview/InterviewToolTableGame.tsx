@@ -4,8 +4,9 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerE
 import Image from 'next/image'
 import { GripVertical, RotateCcw, Trash2 } from 'lucide-react'
 import toolMetadata from '../../../DATA-EPS/img/metadata_tools.json'
+import { FISHERY_TOOL_GROUP_BY_ID, FISHERY_TOOL_GROUP_ORDER, type FisheryToolGroup } from './fisheryVisualCatalog'
 
-type ToolGroup = 'Tháo lắp' | 'Kìm & cắt' | 'Đo kiểm' | 'Gia công' | 'Sơn & hoàn thiện'
+type ToolGroup = 'Tháo lắp' | 'Kìm & cắt' | 'Đo kiểm' | 'Gia công' | 'Sơn & hoàn thiện' | FisheryToolGroup | 'Nông nghiệp' | 'Lâm nghiệp' | 'Xây dựng' | 'Dịch vụ'
 
 type ToolAsset = {
     src: string
@@ -13,7 +14,7 @@ type ToolAsset = {
     scale?: number
 }
 
-const TOOL_GROUP_ORDER: ToolGroup[] = ['Tháo lắp', 'Kìm & cắt', 'Đo kiểm', 'Gia công', 'Sơn & hoàn thiện']
+const TOOL_GROUP_ORDER: ToolGroup[] = [...FISHERY_TOOL_GROUP_ORDER, 'Nông nghiệp', 'Lâm nghiệp', 'Xây dựng', 'Dịch vụ', 'Tháo lắp', 'Kìm & cắt', 'Đo kiểm', 'Gia công', 'Sơn & hoàn thiện']
 const SCREWDRIVER_TIP_TOOLS = new Set(['flat_screwdriver', 'phillips_screwdriver'])
 
 const TOOL_IDS_BY_NUMBER = [
@@ -140,6 +141,7 @@ type Props = {
     targets: string[]
     placedTarget: string | null
     toolNames: Record<string, { ko: string; vi: string }>
+    toolImageUrls?: Record<string, string>
     targetNames: Record<string, string>
     stage: 1 | 2 | 3
     requiresTarget?: boolean
@@ -184,6 +186,7 @@ export function InterviewToolTableGame({
     targets,
     placedTarget,
     toolNames,
+    toolImageUrls = {},
     targetNames,
     stage,
     requiresTarget = true,
@@ -220,7 +223,17 @@ export function InterviewToolTableGame({
     const groupedTools = useMemo(() => {
         const groups = new Map<ToolGroup, string[]>()
         for (const tool of availableTools) {
-            const group = TOOL_ASSETS[tool]?.group || 'Gia công'
+            const group = tool.startsWith('fishery_')
+                ? FISHERY_TOOL_GROUP_BY_ID[tool] || 'Đánh bắt'
+                : tool.startsWith('agriculture_')
+                    ? 'Nông nghiệp'
+                    : tool.startsWith('forestry_')
+                        ? 'Lâm nghiệp'
+                        : tool.startsWith('construction_')
+                            ? 'Xây dựng'
+                            : tool.startsWith('service_')
+                                ? 'Dịch vụ'
+                                : TOOL_ASSETS[tool]?.group || 'Gia công'
             groups.set(group, [...(groups.get(group) || []), tool])
         }
         return TOOL_GROUP_ORDER
@@ -453,7 +466,8 @@ export function InterviewToolTableGame({
 
                 <div className="pointer-events-none absolute inset-0 z-20">
                     {placedTools.map((tool, index) => {
-                        const asset = TOOL_ASSETS[tool]
+                            const asset = TOOL_ASSETS[tool]
+                            const imageSrc = toolImageUrls[tool] || asset?.src
                         const slot = SLOT_POSITIONS[index % SLOT_POSITIONS.length]
                         return (
                             <button
@@ -470,15 +484,15 @@ export function InterviewToolTableGame({
                                 style={{ left: slot.left, rotate: slot.rotate, '--mobile-top': `calc(${slot.top} - 10%)`, '--desktop-top': slot.top } as CSSProperties}
                             >
                                 <span className="absolute bottom-[8%] left-[12%] right-[12%] h-[15%] rounded-full bg-slate-950/30 blur-[5px] sm:blur-[7px]" />
-                                {asset ? (
+                                {imageSrc ? (
                                     <Image
-                                        src={asset.src}
+                                        src={imageSrc}
                                         alt=""
                                         width={102}
                                         height={92}
                                         draggable={false}
                                         className="relative z-10 h-full w-full object-contain drop-shadow-[0_5px_4px_rgba(15,23,42,0.28)]"
-                                        style={{ transform: asset.scale ? `scale(${Math.min(asset.scale, 1.08)})` : undefined }}
+                                        style={{ transform: asset?.scale ? `scale(${Math.min(asset.scale, 1.08)})` : undefined }}
                                     />
                                 ) : <span className="relative z-10">{renderFallback(tool, 'h-16 w-16 sm:h-20 sm:w-20 drop-shadow-[0_5px_4px_rgba(15,23,42,0.28)]')}</span>}
                                 <span className="absolute left-[4%] top-[2%] z-20 grid h-[18px] min-w-[18px] place-items-center rounded-full border border-white/80 bg-blue-600 px-1 text-[9px] font-bold text-white shadow-sm">
@@ -570,6 +584,7 @@ export function InterviewToolTableGame({
                         {visibleInventoryKind === 'tool' && activeGroupTools.length > 0 ? (
                             activeGroupTools.map((tool) => {
                                     const asset = TOOL_ASSETS[tool]
+                                    const imageSrc = toolImageUrls[tool] || asset?.src
                                     const isTapSelected = tapSelected?.kind === 'tool' && tapSelected.id === tool
                                     const label = toolNames[tool]?.vi || tool
                                     return (
@@ -586,14 +601,14 @@ export function InterviewToolTableGame({
                                             onClick={() => handleItemClick(tool, 'tool')}
                                             className={`relative grid h-full min-w-0 touch-none place-items-center rounded-md bg-white/45 p-1 transition-[transform,background-color,box-shadow] hover:bg-white/80 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 lg:h-auto lg:min-h-[96px] lg:grid-cols-[68px_1fr] lg:justify-items-start lg:gap-1 lg:px-2 ${isTapSelected ? 'bg-blue-50 shadow-[inset_0_0_0_2px_rgb(59_130_246)]' : ''}`}
                                         >
-                                            {asset ? (
+                                            {imageSrc ? (
                                                 <Image
-                                                    src={asset.src}
+                                                    src={imageSrc}
                                                     alt=""
                                                     width={72}
                                                     height={72}
                                                     draggable={false}
-                                                    style={{ transform: `scale(${asset.scale ?? 1})` }}
+                                                    style={{ transform: `scale(${asset?.scale ?? 1})` }}
                                                     className="pointer-events-none h-full w-full object-contain lg:p-0"
                                                 />
                                             ) : renderFallback(tool, 'h-9 w-9 pointer-events-none lg:h-14 lg:w-14')}

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import type { User } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -6,6 +7,28 @@ import { createClient } from '@/lib/supabase/server'
 const bodySchema = z.object({
     userIds: z.array(z.string().uuid()).max(50),
 })
+
+async function listRequestedAuthUsers(userIds: string[]) {
+    const admin = createAdminClient()
+    const requestedIds = new Set(userIds)
+    const users: User[] = []
+    let page = 1
+
+    while (requestedIds.size) {
+        const result = await admin.auth.admin.listUsers({ page, perPage: 1000 })
+        if (result.error) break
+
+        for (const user of result.data.users) {
+            if (!requestedIds.delete(user.id)) continue
+            users.push(user)
+        }
+
+        if (!result.data.nextPage) break
+        page = result.data.nextPage
+    }
+
+    return users
+}
 
 export async function POST(request: Request) {
     const supabase = await createClient()
@@ -22,23 +45,22 @@ export async function POST(request: Request) {
     if (!userIds.length) return NextResponse.json({ users: [] })
 
     const admin = createAdminClient()
-    const [{ data: profiles }, authResults] = await Promise.all([
+    const [{ data: profiles }, authUsers] = await Promise.all([
         admin.from('profiles').select('id,full_name,role,group_name').in('id', userIds),
-        Promise.all(userIds.map((id) => admin.auth.admin.getUserById(id))),
+        listRequestedAuthUsers(userIds),
     ])
     const profilesById = new Map((profiles || []).map((profile) => [profile.id, profile]))
 
     return NextResponse.json({
-        users: authResults.flatMap(({ data }) => {
-            if (!data.user) return []
-            const profile = profilesById.get(data.user.id)
-            return [{
-                id: data.user.id,
-                name: profile?.full_name || data.user.user_metadata?.full_name || data.user.email || 'Học viên',
-                email: data.user.email || null,
+        users: authUsers.map((user) => {
+            const profile = profilesById.get(user.id)
+            return {
+                id: user.id,
+                name: profile?.full_name || user.user_metadata?.full_name || user.email || 'Học viên',
+                email: user.email || null,
                 role: profile?.role || 'learner',
                 groupName: profile?.group_name || null,
-            }]
+            }
         }),
     })
 }

@@ -20,6 +20,13 @@ type ToolQuestion = {
     tool_config?: unknown
 }
 
+type QuestionToolOption = {
+    id: string
+    name_ko?: string
+    name_vi: string
+    image_url?: string | null
+}
+
 type ToolDropGameProps = {
     questions: ToolQuestion[]
     onBack: () => void
@@ -58,6 +65,27 @@ function labelFor(tool: string) {
     return getWorkshopAsset(tool)?.nameVi || TOOL_NAMES[tool] || tool.replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
+function parseQuestionToolOptions(value: unknown): Record<string, QuestionToolOption> {
+    if (!Array.isArray(value)) return {}
+    return Object.fromEntries(value.flatMap((item) => {
+        if (!item || typeof item !== 'object') return []
+        const candidate = item as Record<string, unknown>
+        const id = typeof candidate.id === 'string' ? candidate.id : ''
+        const nameVi = typeof candidate.name_vi === 'string' ? candidate.name_vi : ''
+        if (!id || !nameVi) return []
+        return [[id, {
+            id,
+            name_vi: nameVi,
+            name_ko: typeof candidate.name_ko === 'string' ? candidate.name_ko : undefined,
+            image_url: typeof candidate.image_url === 'string' ? candidate.image_url : null,
+        } satisfies QuestionToolOption]]
+    }))
+}
+
+function questionToolLabel(tool: string, options: Record<string, QuestionToolOption>) {
+    return options[tool]?.name_vi || labelFor(tool)
+}
+
 function iconIdFor(tool: string) {
     return getWorkshopAsset(tool)?.fallbackIconId || tool
 }
@@ -65,6 +93,7 @@ function iconIdFor(tool: string) {
 export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps) {
     const rounds = useMemo(() => questions.map((question) => {
         const rawConfig = parseConfig(question.tool_config)
+        const toolOptions = parseQuestionToolOptions(rawConfig.tool_options)
         const config = resolveToolQuestionConfig(
             question.question_text,
             question.vietnamese_meaning || '',
@@ -80,7 +109,7 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
             .filter((tool) => Boolean(tool) && tool !== correct)
             .slice(0, 4)
         const choices = shuffleChoices([correct, ...distractors])
-        return { question, correct, choices }
+        return { question, correct, choices, toolOptions }
     }).filter((round) => round.correct && round.choices.length > 1).slice(0, 10), [questions])
 
     const [index, setIndex] = useState(0)
@@ -306,15 +335,15 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
                 <section
                     ref={dropZoneRef}
                     onClick={() => selected && !result && submit(selected)}
-                    aria-label={selected ? `Đưa ${labelFor(selected)} vào bàn làm việc` : 'Bàn làm việc, hãy thả dụng cụ vào đây'}
+                    aria-label={selected ? `Đưa ${questionToolLabel(selected, round.toolOptions)} vào bàn làm việc` : 'Bàn làm việc, hãy thả dụng cụ vào đây'}
                     className={`grid min-h-28 place-items-center rounded-xl border border-dashed p-4 text-center transition-[border-color,background-color,transform,box-shadow] ${result === 'correct' ? 'border-emerald-400 bg-emerald-50' : result === 'wrong' ? 'border-rose-300 bg-rose-50' : isDraggingOver ? 'scale-[1.01] border-orange-500 bg-orange-100 shadow-md motion-reduce:transform-none' : selected ? 'cursor-pointer border-orange-400 bg-orange-50' : 'border-orange-300/80 bg-orange-50/45'}`}
                 >
                     {result ? <div>
                         {result === 'correct' ? <CheckCircle2 className="mx-auto size-8 text-emerald-500" /> : <RotateCcw className="mx-auto size-8 text-rose-500" />}
-                        <p className="mt-2 font-bold text-slate-900">{result === 'correct' ? 'Chính xác!' : `Đáp án: ${labelFor(round.correct)}`}</p>
+                        <p className="mt-2 font-bold text-slate-900">{result === 'correct' ? 'Chính xác!' : `Đáp án: ${questionToolLabel(round.correct, round.toolOptions)}`}</p>
                     </div> : <div>
                         <PackageOpen className="mx-auto size-8 text-orange-500" />
-                        <p className="mt-2 text-sm font-bold text-slate-800">{selected ? `Đưa ${labelFor(selected)} vào bàn` : 'Thả dụng cụ vào bàn làm việc'}</p>
+                        <p className="mt-2 text-sm font-bold text-slate-800">{selected ? `Đưa ${questionToolLabel(selected, round.toolOptions)} vào bàn` : 'Thả dụng cụ vào bàn làm việc'}</p>
                         <p className="text-xs text-slate-500">{selected ? 'Kéo và thả, hoặc chạm vào vùng này để xác nhận' : 'Nhấn giữ dụng cụ rồi kéo vào đây'}</p>
                     </div>}
                 </section>
@@ -322,6 +351,7 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
                 <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2">
                     {round.choices.map((tool) => {
                         const asset = getGameV2ToolAsset(tool)
+                        const imageSrc = round.toolOptions[tool]?.image_url || asset?.src || getWorkshopAsset(tool)?.image
                         return <button
                             key={tool}
                             type="button"
@@ -335,9 +365,9 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
                             className={`flex min-h-20 touch-none select-none items-center gap-2 rounded-xl border p-2 text-left transition-[border-color,background-color,transform,box-shadow,opacity] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 motion-reduce:transform-none ${selected === tool ? 'border-orange-400 bg-orange-50 shadow-sm ring-1 ring-orange-200' : 'border-transparent bg-slate-50/80 hover:bg-white hover:shadow-sm'} ${draggingTool === tool ? 'opacity-40' : ''} disabled:hover:translate-y-0`}
                         >
                             <span className="grid size-14 shrink-0 place-items-center text-slate-600">
-                                {asset ? <Image src={asset.src} alt="" width={88} height={88} draggable={false} style={{ transform: `scale(${asset.scale ?? 1})` }} className="pointer-events-none size-14 object-contain" /> : <WorkshopToolIcon type={iconIdFor(tool)} className="size-11" />}
+                                {imageSrc ? <Image src={imageSrc} alt="" width={88} height={88} draggable={false} style={{ transform: `scale(${asset?.scale ?? 1})` }} className="pointer-events-none size-14 object-contain" /> : <WorkshopToolIcon type={iconIdFor(tool)} className="size-11" />}
                             </span>
-                            <span className="min-w-0 flex-1 text-xs font-bold text-slate-800 md:text-sm">{labelFor(tool)}</span>
+                            <span className="min-w-0 flex-1 text-xs font-bold text-slate-800 md:text-sm">{questionToolLabel(tool, round.toolOptions)}</span>
                             <GripVertical className="size-4 shrink-0 text-slate-300" />
                         </button>
                     })}
@@ -349,8 +379,8 @@ export function ToolDropGame({ questions, onBack, onFinish }: ToolDropGameProps)
                         className="pointer-events-none fixed z-[100] grid size-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-xl bg-white/95 shadow-2xl ring-1 ring-orange-300 will-change-transform"
                         style={{ left: dragPosition.x, top: dragPosition.y }}
                     >
-                        {getGameV2ToolAsset(draggingTool) ? (
-                            <Image src={getGameV2ToolAsset(draggingTool)!.src} alt="" width={96} height={96} draggable={false} className="size-14 object-contain" />
+                        {round.toolOptions[draggingTool]?.image_url || getGameV2ToolAsset(draggingTool)?.src || getWorkshopAsset(draggingTool)?.image ? (
+                            <Image src={round.toolOptions[draggingTool]?.image_url || getGameV2ToolAsset(draggingTool)?.src || getWorkshopAsset(draggingTool)!.image} alt="" width={96} height={96} draggable={false} className="size-14 object-contain" />
                         ) : (
                             <WorkshopToolIcon type={iconIdFor(draggingTool)} className="size-12" />
                         )}

@@ -8,6 +8,9 @@ const LEGACY_MASTERY_KEY = "interview_mastery_v1"
 const TOPIC_IDS: TopicId[] = ["introduction", "command", "vocabulary", "math", "tools", "communication", "situation", "safety"]
 let lastSyncedBody = ""
 let syncInFlight = false
+let syncPending = false
+let syncTimer: number | null = null
+const PROGRESS_SYNC_DEBOUNCE_MS = 750
 
 interface StoredPreference {
   version: 1
@@ -143,7 +146,11 @@ export function syncInterviewProgressToServer(): void {
     id, industry, score, totalScore, passed, correctCount, incorrectCount, completedAt,
   }) => ({ id, industry, score, totalScore, passed, correctCount, incorrectCount, completedAt }))
   const body = JSON.stringify({ version: 1, topics, exams, recentActivity: readRecentLearningActivity() })
-  if (syncInFlight || body === lastSyncedBody) return
+  if (body === lastSyncedBody) return
+  if (syncInFlight) {
+    syncPending = true
+    return
+  }
 
   syncInFlight = true
   void fetch("/api/interview/progress", {
@@ -154,14 +161,19 @@ export function syncInterviewProgressToServer(): void {
   })
     .then((response) => { if (response.ok) lastSyncedBody = body })
     .catch(() => undefined)
-    .finally(() => { syncInFlight = false })
+    .finally(() => {
+      syncInFlight = false
+      if (syncPending) {
+        syncPending = false
+        scheduleProgressSync()
+      }
+    })
 }
 
 export function startInterviewProgressSync(): () => void {
   if (typeof window === "undefined") return () => undefined
   syncInterviewProgressToServer()
   const retryAfterSessionReady = window.setTimeout(syncInterviewProgressToServer, 2_000)
-  const interval = window.setInterval(syncInterviewProgressToServer, 10_000)
   const syncWhenHidden = () => {
     if (document.visibilityState === "hidden") syncInterviewProgressToServer()
   }
@@ -169,14 +181,24 @@ export function startInterviewProgressSync(): () => void {
   document.addEventListener("visibilitychange", syncWhenHidden)
   return () => {
     window.clearTimeout(retryAfterSessionReady)
-    window.clearInterval(interval)
     window.removeEventListener("pagehide", syncInterviewProgressToServer)
     document.removeEventListener("visibilitychange", syncWhenHidden)
+    if (syncTimer !== null) {
+      window.clearTimeout(syncTimer)
+      syncTimer = null
+    }
     syncInterviewProgressToServer()
   }
 }
 
-const scheduleProgressSync = () => queueMicrotask(syncInterviewProgressToServer)
+function scheduleProgressSync(): void {
+  if (typeof window === "undefined") return
+  if (syncTimer !== null) window.clearTimeout(syncTimer)
+  syncTimer = window.setTimeout(() => {
+    syncTimer = null
+    syncInterviewProgressToServer()
+  }, PROGRESS_SYNC_DEBOUNCE_MS)
+}
 
 export function readPreferredIndustry(): IndustryId | null {
   const stored = safeParse<unknown>(

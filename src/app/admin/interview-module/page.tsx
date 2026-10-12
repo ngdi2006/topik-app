@@ -10,11 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { Plus, Edit, Trash2, Search, Filter, Upload, Download, FileSpreadsheet, Save, X, Users, History, CheckCircle2, Clock, CheckCircle } from 'lucide-react'
+import { Plus, Edit, Trash2, Search, Filter, Upload, Download, FileSpreadsheet, Save, X, Users, History, CheckCircle2, Clock, CheckCircle, Wrench } from 'lucide-react'
 import { BulkImportModal } from '@/components/admin/BulkImportModal'
 import { QuestionHistoryModal } from '@/components/admin/QuestionHistoryModal'
 import { TeacherAssignmentManagerModal } from '@/components/admin/TeacherAssignmentManagerModal'
-import { resolveToolQuestionConfig, resolveDeskTools, getRequiredTargetForAction, definitionLabel, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type ToolQuestionConfig, type VocabularyItem } from '@/components/interview/toolQuestionAnalysis'
+import { resolveToolQuestionConfig, resolveDeskTools, getRequiredTargetForAction, definitionLabel, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type ToolOption, type ToolQuestionConfig, type VocabularyItem } from '@/components/interview/toolQuestionAnalysis'
+import { FISHERY_ACTION_DEFINITIONS, FISHERY_TARGET_DEFINITIONS, FisheryEntityIcon, findFisheryAction, findFisheryTarget, getFisheryTargetImage } from '@/components/interview/fisheryVisualCatalog'
 import { legacyToolConfigToWorkshopGame } from '@/features/workshop'
 import { getWorkshopDetailImage, getWorkshopToolImage } from '@/components/interview/workshopVisualAssets'
 import { Badge } from '@/components/ui/badge'
@@ -57,28 +58,74 @@ type ApiResponse<T> = {
 
 const LIST_STATE_KEY = 'admin_interview_module_list_state_v1'
 
+const INDUSTRY_FILTER_OPTIONS = [
+    'Sản xuất chế tạo',
+    'Ngư nghiệp',
+    'Nông nghiệp',
+    'Lâm nghiệp',
+    'Xây dựng',
+    'Dịch vụ',
+    'COMMON',
+] as const
+
 type InterviewListState = {
     searchQuery: string
     filterCategory: string
+    filterIndustry: string
     scrollY: number
 }
 
 function readListState(): InterviewListState {
-    if (typeof window === 'undefined') return { searchQuery: '', filterCategory: 'Tất cả', scrollY: 0 }
+    if (typeof window === 'undefined') return { searchQuery: '', filterCategory: 'Tất cả', filterIndustry: 'all', scrollY: 0 }
     try {
         const stored = JSON.parse(sessionStorage.getItem(LIST_STATE_KEY) || '{}') as Partial<InterviewListState>
         return {
             searchQuery: typeof stored.searchQuery === 'string' ? stored.searchQuery : '',
             filterCategory: typeof stored.filterCategory === 'string' ? stored.filterCategory : 'Tất cả',
+            filterIndustry: typeof stored.filterIndustry === 'string' ? stored.filterIndustry : 'all',
             scrollY: typeof stored.scrollY === 'number' ? stored.scrollY : 0,
         }
     } catch {
-        return { searchQuery: '', filterCategory: 'Tất cả', scrollY: 0 }
+        return { searchQuery: '', filterCategory: 'Tất cả', filterIndustry: 'all', scrollY: 0 }
     }
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
     return error instanceof Error ? error.message : fallback
+}
+
+function isFisheryConfig(config: ToolQuestionConfig | null | undefined) {
+    return config?.source_document === 'SDCC-NGU NGHIEP.pdf'
+        || config?.correct_tool?.startsWith('fishery_')
+}
+
+function findConfiguredTool(config: ToolQuestionConfig | null | undefined, toolId: string | null | undefined) {
+    return config?.tool_options?.find((item) => item.id === toolId)
+}
+
+function toolDisplay(config: ToolQuestionConfig | null | undefined, toolId: string) {
+    const configured = findConfiguredTool(config, toolId)
+    if (configured) return { label: configured.name_vi, ko: configured.name_ko, imageUrl: configured.image_url || null }
+    const definition = TOOL_DEFINITIONS.find((item) => item.id === toolId)
+    return { label: definition?.label || toolId, ko: definition?.ko || toolId, imageUrl: getWorkshopToolImage(toolId) }
+}
+
+function targetDisplay(config: ToolQuestionConfig | null | undefined, targetId: string) {
+    if (isFisheryConfig(config)) {
+        const definition = findFisheryTarget(targetId)
+        if (definition) return { label: definition.label, ko: definition.ko }
+    }
+    const definition = TARGET_DEFINITIONS.find((item) => item.id === targetId)
+    return { label: definition?.label || targetId, ko: definition?.ko || targetId }
+}
+
+function actionDisplay(config: ToolQuestionConfig | null | undefined, actionId: string) {
+    if (isFisheryConfig(config)) {
+        const definition = findFisheryAction(actionId)
+        if (definition) return { label: definition.label, ko: definition.ko }
+    }
+    const definition = ACTION_DEFINITIONS.find((item) => item.id === actionId)
+    return { label: definition?.label || actionId, ko: definition?.ko || actionId }
 }
 
 export default function InterviewModuleAdminPage() {
@@ -93,6 +140,7 @@ export default function InterviewModuleAdminPage() {
     // Filters
     const [searchQuery, setSearchQuery] = useState('')
     const [filterCategory, setFilterCategory] = useState('Tất cả')
+    const [filterIndustry, setFilterIndustry] = useState('all')
     const [filterReviewStatus, setFilterReviewStatus] = useState<string>('all')
     const [filterMyAssignedOnly, setFilterMyAssignedOnly] = useState(false)
     const [myAssignments, setMyAssignments] = useState<any[]>([])
@@ -132,6 +180,14 @@ export default function InterviewModuleAdminPage() {
             if (q.category) set.add(q.category)
         })
         return Array.from(set)
+    }, [questions])
+
+    const fisheryToolOptions = useMemo(() => {
+        const byId = new Map<string, ToolOption>()
+        questions.forEach((question) => {
+            question.tool_config?.tool_options?.forEach((option) => byId.set(option.id, option))
+        })
+        return Array.from(byId.values()).sort((a, b) => a.name_vi.localeCompare(b.name_vi, 'vi'))
     }, [questions])
 
     const handleQuickSaveOrder = async (id: string, newOrderVal: string | undefined) => {
@@ -212,6 +268,11 @@ export default function InterviewModuleAdminPage() {
                     return false
                 }
 
+                const questionIndustry = question.industry || 'Sản xuất chế tạo'
+                if (filterIndustry !== 'all' && questionIndustry !== filterIndustry) {
+                    return false
+                }
+
                 if (filterReviewStatus === 'verified') {
                     return question.review_status === 'verified'
                 }
@@ -226,7 +287,7 @@ export default function InterviewModuleAdminPage() {
                 || question.question_text.toLowerCase().includes(normalizedQuery)
                 || question.vietnamese_meaning?.toLowerCase().includes(normalizedQuery)
             )
-    }, [filterCategory, filterMyAssignedOnly, filterReviewStatus, myAssignments, questions, searchQuery])
+    }, [filterCategory, filterIndustry, filterMyAssignedOnly, filterReviewStatus, myAssignments, questions, searchQuery])
 
     const allVisibleSelected = visibleQuestions.length > 0
         && visibleQuestions.every((question) => selectedQuestionIds.has(question.id))
@@ -240,14 +301,15 @@ export default function InterviewModuleAdminPage() {
     useEffect(() => {
         if (isRestoringListState.current) return
         const current = readListState()
-        sessionStorage.setItem(LIST_STATE_KEY, JSON.stringify({ ...current, searchQuery, filterCategory }))
-    }, [filterCategory, searchQuery])
+        sessionStorage.setItem(LIST_STATE_KEY, JSON.stringify({ ...current, searchQuery, filterCategory, filterIndustry }))
+    }, [filterCategory, filterIndustry, searchQuery])
 
     useEffect(() => {
         const stored = readListState()
         pendingScrollY.current = stored.scrollY
         setSearchQuery(stored.searchQuery)
         setFilterCategory(stored.filterCategory)
+        setFilterIndustry(stored.filterIndustry)
         isRestoringListState.current = false
     }, [])
 
@@ -402,6 +464,7 @@ export default function InterviewModuleAdminPage() {
         sessionStorage.setItem(LIST_STATE_KEY, JSON.stringify({
             searchQuery,
             filterCategory,
+            filterIndustry,
             scrollY: window.scrollY,
         }))
     }
@@ -410,9 +473,9 @@ export default function InterviewModuleAdminPage() {
         if (q.category !== 'Sử dụng công cụ') return null
         const config = resolveToolQuestionConfig(q.question_text || '', q.vietnamese_meaning || '', q.tool_config)
         return {
-            tool: definitionLabel(TOOL_DEFINITIONS, config.correct_tool),
-            target: config.requires_target === false ? 'Không nêu trong câu' : definitionLabel(TARGET_DEFINITIONS, config.target_object),
-            action: config.requires_action ? definitionLabel(ACTION_DEFINITIONS, config.correct_action || '') : 'Đặt/cất đúng vị trí',
+            tool: toolDisplay(config, config.correct_tool).label,
+            target: config.requires_target === false ? 'Không nêu trong câu' : targetDisplay(config, config.target_object).label,
+            action: config.requires_action ? actionDisplay(config, config.correct_action || '').label : 'Đặt/cất đúng vị trí',
             vocabulary: config.vocabulary_analysis || []
         }
     }
@@ -435,7 +498,7 @@ export default function InterviewModuleAdminPage() {
                 ...current,
                 ...patch,
             }
-            if (patch.correct_action !== undefined) {
+            if (patch.correct_action !== undefined && !isFisheryConfig(current)) {
                 const autoTarget = getRequiredTargetForAction(patch.correct_action)
                 if (autoTarget) {
                     nextDraft.requires_target = true
@@ -461,23 +524,25 @@ export default function InterviewModuleAdminPage() {
                 answerSteps.push({ step: inlineDraft.requires_target === false ? 2 : 3, kind: 'action', expected: inlineDraft.correct_action || '' })
             }
 
-            const toolDef = TOOL_DEFINITIONS.find((item) => item.id === inlineDraft.correct_tool)
-            const targetDef = TARGET_DEFINITIONS.find((item) => item.id === inlineDraft.target_object)
-            const actionDef = ACTION_DEFINITIONS.find((item) => item.id === inlineDraft.correct_action)
+            const toolDef = toolDisplay(inlineDraft, inlineDraft.correct_tool)
+            const targetDef = targetDisplay(inlineDraft, inlineDraft.target_object)
+            const actionDef = actionDisplay(inlineDraft, inlineDraft.correct_action || '')
             const updatedVocabulary: VocabularyItem[] = [
-                { term: toolDef ? (toolDef.patterns.map((p) => question.question_text?.match(p)?.[0]).find(Boolean) || toolDef.ko) : inlineDraft.correct_tool, meaning: toolDef?.label || inlineDraft.correct_tool, role: 'tool' },
+                { term: toolDef.ko, meaning: toolDef.label, role: 'tool' },
                 inlineDraft.requires_target !== false
-                    ? { term: targetDef ? (targetDef.patterns.map((p) => question.question_text?.match(p)?.[0]).find(Boolean) || targetDef.ko) : inlineDraft.target_object, meaning: targetDef?.label || inlineDraft.target_object, role: 'target' }
+                    ? { term: targetDef.ko, meaning: targetDef.label, role: 'target' }
                     : { term: '—', meaning: 'Không nêu trong câu', role: 'target' },
-                inlineDraft.requires_action && actionDef
-                    ? { term: actionDef.patterns.map((p) => question.question_text?.match(p)?.[0]).find(Boolean) || actionDef.ko, meaning: actionDef.label, role: 'action' }
+                inlineDraft.requires_action
+                    ? { term: actionDef.ko, meaning: actionDef.label, role: 'action' }
                     : { term: '정해진 곳에 넣다', meaning: 'Đặt/cất đúng vị trí', role: 'action' }
             ]
 
             const updatedConfig: ToolQuestionConfig = {
                 ...inlineDraft,
                 manual_override: true,
-                tools_on_desk: resolveDeskTools(inlineDraft.correct_tool),
+                tools_on_desk: isFisheryConfig(inlineDraft)
+                    ? (inlineDraft.tool_options?.map((item) => item.id) || inlineDraft.tools_on_desk)
+                    : resolveDeskTools(inlineDraft.correct_tool),
                 vocabulary_analysis: updatedVocabulary,
                 answer_steps: answerSteps,
                 scoring: {
@@ -486,11 +551,22 @@ export default function InterviewModuleAdminPage() {
                     action: inlineDraft.requires_action ? 1 : 0,
                     pass_all_required: true,
                 },
-                game_config: legacyToolConfigToWorkshopGame({ ...inlineDraft, game_config: null }),
+                game_config: isFisheryConfig(inlineDraft)
+                    ? {
+                        ...(inlineDraft.game_config || {}),
+                        schemaVersion: 1,
+                        type: 'select_tool',
+                        toolId: inlineDraft.correct_tool,
+                        objectId: inlineDraft.target_object,
+                        distractorIds: (inlineDraft.tool_options || [])
+                            .filter((item) => item.id !== inlineDraft.correct_tool)
+                            .map((item) => item.id),
+                    }
+                    : legacyToolConfigToWorkshopGame({ ...inlineDraft, game_config: null }),
             }
-            const toolLabel = definitionLabel(TOOL_DEFINITIONS, updatedConfig.correct_tool)
-            const targetLabel = definitionLabel(TARGET_DEFINITIONS, updatedConfig.target_object)
-            const actionLabel = definitionLabel(ACTION_DEFINITIONS, updatedConfig.correct_action || '')
+            const toolLabel = toolDisplay(updatedConfig, updatedConfig.correct_tool).label
+            const targetLabel = targetDisplay(updatedConfig, updatedConfig.target_object).label
+            const actionLabel = actionDisplay(updatedConfig, updatedConfig.correct_action || '').label
             const generatedAnswer = updatedConfig.requires_target === false
                 ? `Chọn ${toolLabel}; thực hiện ${actionLabel}.`
                 : updatedConfig.requires_action
@@ -643,6 +719,20 @@ export default function InterviewModuleAdminPage() {
                                 </SelectContent>
                             </Select>
 
+                            <Select value={filterIndustry} onValueChange={setFilterIndustry}>
+                                <SelectTrigger className="w-[170px] text-xs">
+                                    <SelectValue placeholder="Ngành nghề" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Tất cả ngành</SelectItem>
+                                    {INDUSTRY_FILTER_OPTIONS.map((industry) => (
+                                        <SelectItem key={industry} value={industry}>
+                                            {industry === 'COMMON' ? 'Dùng chung (COMMON)' : industry}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
                             <Select value={filterReviewStatus} onValueChange={setFilterReviewStatus}>
                                 <SelectTrigger className="w-[150px] text-xs">
                                     <SelectValue placeholder="Trạng thái duyệt" />
@@ -782,6 +872,13 @@ export default function InterviewModuleAdminPage() {
                                     {visibleQuestions.map((q, idx) => {
                                         const isVerified = q.review_status === 'verified'
                                         const isVerifyingThis = verifyingId === q.id
+                                        const resolvedToolConfig = q.category === 'Sử dụng công cụ'
+                                            ? resolveToolQuestionConfig(q.question_text || '', q.vietnamese_meaning || '', q.tool_config)
+                                            : null
+                                        const usesFisheryCatalog = isFisheryConfig(resolvedToolConfig)
+                                        const toolSelectOptions = usesFisheryCatalog
+                                            ? fisheryToolOptions
+                                            : TOOL_DEFINITIONS.map((item) => ({ id: item.id, name_vi: item.label, name_ko: item.ko, image_url: getWorkshopToolImage(item.id) }))
 
                                         return (
                                             <tr
@@ -845,26 +942,36 @@ export default function InterviewModuleAdminPage() {
                                                             {inlineEditingId === q.id && inlineDraft ? (
                                                                 <div className="mt-3 rounded-lg border border-blue-200 bg-white p-3 shadow-sm">
                                                                     <div className="grid gap-3 lg:grid-cols-3">
-                                                                        <label className="space-y-1"><span className="font-semibold text-slate-700">Dụng cụ đúng</span><select className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-900" onChange={(event) => updateInlineDraft({ correct_tool: event.target.value })} value={inlineDraft.correct_tool}>{TOOL_DEFINITIONS.map((item) => <option key={item.id} value={item.id}>{item.label} ({item.ko})</option>)}</select></label>
-                                                                        <label className="space-y-1"><span className="font-semibold text-slate-700">Vật thể đúng</span><select className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-900" onChange={(event) => event.target.value === '__none__' ? updateInlineDraft({ requires_target: false }) : updateInlineDraft({ requires_target: true, target_object: event.target.value })} value={inlineDraft.requires_target === false ? '__none__' : inlineDraft.target_object}><option disabled={!inlineDraft.requires_action || Boolean(getRequiredTargetForAction(inlineDraft.correct_action))} value="__none__">Không có vật thể</option>{TARGET_DEFINITIONS.map((item) => <option key={item.id} value={item.id}>{item.label} ({item.ko})</option>)}</select></label>
-                                                                        <label className="space-y-1"><span className="font-semibold text-slate-700">Thao tác đúng</span>{inlineDraft.requires_action ? <select className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-900" onChange={(event) => updateInlineDraft({ correct_action: event.target.value })} value={inlineDraft.correct_action || ''}>{ACTION_DEFINITIONS.filter((item) => item.id !== 'store').map((item) => <option key={item.id} value={item.id}>{item.label} ({item.ko})</option>)}</select> : <div className="flex h-9 items-center rounded-md border border-slate-200 bg-slate-100 px-2 text-xs font-medium text-slate-600">Đặt/cất đúng vị trí</div>}</label>
+                                                                        <label className="space-y-1"><span className="font-semibold text-slate-700">Dụng cụ đúng</span><select className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-900" onChange={(event) => {
+                                                                            const selectedId = event.target.value
+                                                                            const selectedOption = fisheryToolOptions.find((item) => item.id === selectedId)
+                                                                            const existingOptions = inlineDraft.tool_options || []
+                                                                            updateInlineDraft({
+                                                                                correct_tool: selectedId,
+                                                                                tool_options: selectedOption && !existingOptions.some((item) => item.id === selectedId)
+                                                                                    ? [...existingOptions.slice(0, 4), selectedOption]
+                                                                                    : existingOptions,
+                                                                            })
+                                                                        }} value={inlineDraft.correct_tool}>{toolSelectOptions.map((item) => <option key={item.id} value={item.id}>{item.name_vi} ({item.name_ko})</option>)}</select></label>
+                                                                        <label className="space-y-1"><span className="font-semibold text-slate-700">Vật thể đúng</span><select className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-900" onChange={(event) => event.target.value === '__none__' ? updateInlineDraft({ requires_target: false }) : updateInlineDraft({ requires_target: true, target_object: event.target.value })} value={inlineDraft.requires_target === false ? '__none__' : inlineDraft.target_object}><option disabled={!inlineDraft.requires_action || Boolean(!usesFisheryCatalog && getRequiredTargetForAction(inlineDraft.correct_action))} value="__none__">Không có vật thể</option>{(usesFisheryCatalog ? FISHERY_TARGET_DEFINITIONS : TARGET_DEFINITIONS).map((item) => <option key={item.id} value={item.id}>{item.label} ({item.ko})</option>)}</select></label>
+                                                                        <label className="space-y-1"><span className="font-semibold text-slate-700">Thao tác đúng</span>{inlineDraft.requires_action ? <select className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-900" onChange={(event) => updateInlineDraft({ correct_action: event.target.value })} value={inlineDraft.correct_action || ''}>{(usesFisheryCatalog ? FISHERY_ACTION_DEFINITIONS : ACTION_DEFINITIONS.filter((item) => item.id !== 'store')).map((item) => <option key={item.id} value={item.id}>{item.label} ({item.ko})</option>)}</select> : <div className="flex h-9 items-center rounded-md border border-slate-200 bg-slate-100 px-2 text-xs font-medium text-slate-600">Đặt/cất đúng vị trí</div>}</label>
                                                                     </div>
                                                                     <div className="mt-3 grid gap-2 border-t border-slate-100 pt-3 sm:grid-cols-3">
                                                                         <div className="flex min-w-0 items-center gap-2 rounded-lg bg-slate-50 p-2 ring-1 ring-slate-200">
                                                                             <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-md bg-white">
-                                                                                {getWorkshopToolImage(inlineDraft.correct_tool) ? <Image alt={definitionLabel(TOOL_DEFINITIONS, inlineDraft.correct_tool)} className="size-14 object-contain" height={64} src={getWorkshopToolImage(inlineDraft.correct_tool)!} width={64} /> : <span className="text-[10px] text-slate-400">Chưa có ảnh</span>}
+                                                                                {toolDisplay(inlineDraft, inlineDraft.correct_tool).imageUrl ? <Image alt={toolDisplay(inlineDraft, inlineDraft.correct_tool).label} className="size-14 object-contain" height={64} src={toolDisplay(inlineDraft, inlineDraft.correct_tool).imageUrl!} width={64} /> : <Wrench className="size-7 text-blue-500" aria-hidden="true" />}
                                                                             </div>
-                                                                            <div className="min-w-0"><p className="text-[10px] font-bold uppercase text-blue-500">1. Dụng cụ</p><p className="mt-1 line-clamp-2 font-semibold text-slate-800">{definitionLabel(TOOL_DEFINITIONS, inlineDraft.correct_tool)}</p></div>
+                                                                            <div className="min-w-0"><p className="text-[10px] font-bold uppercase text-blue-500">1. Dụng cụ</p><p className="mt-1 line-clamp-2 font-semibold text-slate-800">{toolDisplay(inlineDraft, inlineDraft.correct_tool).label}</p><p className="truncate text-[10px] text-slate-500">{toolDisplay(inlineDraft, inlineDraft.correct_tool).ko}</p></div>
                                                                         </div>
                                                                         <div className="flex min-w-0 items-center gap-2 rounded-lg bg-slate-50 p-2 ring-1 ring-slate-200">
                                                                             <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-md bg-white">
-                                                                                {inlineDraft.requires_target === false ? <span className="px-1 text-center text-[10px] font-semibold text-slate-500">Không có vật thể</span> : getWorkshopDetailImage(inlineDraft.target_object) ? <Image alt={definitionLabel(TARGET_DEFINITIONS, inlineDraft.target_object)} className="size-14 object-contain" height={64} src={getWorkshopDetailImage(inlineDraft.target_object)!} width={64} /> : <span className="text-[10px] text-slate-400">Chưa có ảnh</span>}
+                                                                                {inlineDraft.requires_target === false ? <span className="px-1 text-center text-[10px] font-semibold text-slate-500">Không có vật thể</span> : usesFisheryCatalog ? <Image alt={targetDisplay(inlineDraft, inlineDraft.target_object).label} className="size-14 object-contain drop-shadow-sm" height={64} src={getFisheryTargetImage(inlineDraft.target_object)!} width={64} /> : getWorkshopDetailImage(inlineDraft.target_object) ? <Image alt={definitionLabel(TARGET_DEFINITIONS, inlineDraft.target_object)} className="size-14 object-contain" height={64} src={getWorkshopDetailImage(inlineDraft.target_object)!} width={64} /> : <span className="text-[10px] text-slate-400">Chưa có ảnh</span>}
                                                                             </div>
-                                                                            <div className="min-w-0"><p className="text-[10px] font-bold uppercase text-violet-500">2. Vật thể</p><p className="mt-1 line-clamp-2 font-semibold text-slate-800">{inlineDraft.requires_target === false ? 'Không có vật thể' : definitionLabel(TARGET_DEFINITIONS, inlineDraft.target_object)}</p></div>
+                                                                            <div className="min-w-0"><p className="text-[10px] font-bold uppercase text-violet-500">2. Vật thể</p><p className="mt-1 line-clamp-2 font-semibold text-slate-800">{inlineDraft.requires_target === false ? 'Không có vật thể' : targetDisplay(inlineDraft, inlineDraft.target_object).label}</p>{inlineDraft.requires_target !== false ? <p className="truncate text-[10px] text-slate-500">{targetDisplay(inlineDraft, inlineDraft.target_object).ko}</p> : null}</div>
                                                                         </div>
                                                                         <div className="flex min-w-0 items-center gap-2 rounded-lg bg-emerald-50 p-2 ring-1 ring-emerald-100">
-                                                                            <div className="grid size-16 shrink-0 place-items-center rounded-md bg-emerald-100 px-1 text-center text-[11px] font-black text-emerald-700">{inlineDraft.requires_action ? definitionLabel(ACTION_DEFINITIONS, inlineDraft.correct_action || '') : 'Không yêu cầu'}</div>
-                                                                            <div className="min-w-0"><p className="text-[10px] font-bold uppercase text-emerald-600">{inlineDraft.requires_target === false ? '2' : '3'}. Thao tác</p><p className="mt-1 line-clamp-2 font-semibold text-slate-800">{inlineDraft.requires_action ? definitionLabel(ACTION_DEFINITIONS, inlineDraft.correct_action || '') : 'Không yêu cầu thao tác'}</p></div>
+                                                                            <div className="grid size-16 shrink-0 place-items-center rounded-md bg-emerald-100 text-emerald-700">{inlineDraft.requires_action && usesFisheryCatalog ? <FisheryEntityIcon className="size-8" id={inlineDraft.correct_action} kind="action" /> : <span className="px-1 text-center text-[11px] font-black">{inlineDraft.requires_action ? actionDisplay(inlineDraft, inlineDraft.correct_action || '').label : 'Không yêu cầu'}</span>}</div>
+                                                                            <div className="min-w-0"><p className="text-[10px] font-bold uppercase text-emerald-600">{inlineDraft.requires_target === false ? '2' : '3'}. Thao tác</p><p className="mt-1 line-clamp-2 font-semibold text-slate-800">{inlineDraft.requires_action ? actionDisplay(inlineDraft, inlineDraft.correct_action || '').label : 'Không yêu cầu thao tác'}</p>{inlineDraft.requires_action ? <p className="truncate text-[10px] text-slate-500">{actionDisplay(inlineDraft, inlineDraft.correct_action || '').ko}</p> : null}</div>
                                                                         </div>
                                                                     </div>
                                                                     <div className="mt-3 flex justify-end gap-2">

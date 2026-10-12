@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Play, ArrowLeft, Volume2, CheckCircle2, AlertTriangle, Sparkles, HelpCircle, RotateCcw, Eye, EyeOff, ChevronRight, X } from 'lucide-react'
 import toolConfigMap from './tool_config_map.json'
 import { speakText, stopTTS } from '@/lib/tts'
-import { resolveToolQuestionConfig, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type VocabularyItem } from './toolQuestionAnalysis'
+import { resolveToolQuestionConfig, ACTION_DEFINITIONS, TARGET_DEFINITIONS, TOOL_DEFINITIONS, type ToolOption, type VocabularyItem } from './toolQuestionAnalysis'
 import { WorkshopToolIcon } from './WorkshopToolIcon'
 import { FULL_TOOL_IDS, FULL_TOOL_NAMES, InterviewToolTableGame } from './InterviewToolTableGame'
 import { ToolGameOnboarding, type ToolGameTourStep } from './ToolGameOnboarding'
+import { FISHERY_ACTION_DEFINITIONS, FISHERY_TARGET_DEFINITIONS, FisheryEntityIcon, findFisheryAction, findFisheryTarget, getFisheryTargetImage } from './fisheryVisualCatalog'
 
 const TOOL_GAME_ONBOARDING_KEY = 'tool_game_onboarding_v1'
 const TOOL_GAME_KOREAN_VISIBILITY_KEY = 'tool_game_show_korean'
@@ -58,6 +59,7 @@ const TOOL_NAMES: Record<string, { ko: string; vi: string }> = {
 
 const TARGET_NAMES: Record<string, string> = {
     ...Object.fromEntries(TARGET_DEFINITIONS.map((item) => [item.id, item.label])),
+    ...Object.fromEntries(FISHERY_TARGET_DEFINITIONS.map((item) => [item.id, item.label])),
     'phillips_screw': 'Ốc vít rãnh chữ thập',
     'slotted_screw': 'Ốc vít rãnh dẹt',
     'hex_bolt': 'Bu lông',
@@ -77,6 +79,7 @@ const TARGET_NAMES: Record<string, string> = {
 
 const ACTION_NAMES: Record<string, string> = {
     ...Object.fromEntries(ACTION_DEFINITIONS.map((item) => [item.id, item.label])),
+    ...Object.fromEntries(FISHERY_ACTION_DEFINITIONS.map((item) => [item.id, item.label])),
     'counter_clockwise': 'Tháo',
     'clockwise': 'Siết',
     'cut': 'Cắt',
@@ -95,9 +98,11 @@ const ACTION_HINTS: Record<string, string> = {
 }
 
 function getActionDisplay(actionId: string) {
+    const fisheryAction = findFisheryAction(actionId)
     const rawLabel = ACTION_NAMES[actionId] || actionId
     return {
-        label: rawLabel.split(/\s*\/\s*/)[0].trim(),
+        label: fisheryAction?.label || rawLabel.split(/\s*\/\s*/)[0].trim(),
+        ko: fisheryAction?.ko || '',
         hint: ACTION_HINTS[actionId],
     }
 }
@@ -228,6 +233,7 @@ type ToolPracticeConfig = {
     requires_action?: boolean
     vocabulary_analysis?: VocabularyItem[]
     required_tools?: string[]
+    tool_options?: ToolOption[]
 }
 
 type ToolPracticeQuestion = {
@@ -242,6 +248,7 @@ type ToolPracticeQuestion = {
 
 interface ToolDragPracticeScreenProps {
     questions: ToolPracticeQuestion[]
+    inventoryQuestions?: ToolPracticeQuestion[]
     onFinish: (answers?: Record<string, string>, newlyMasteredIds?: string[]) => void
     onBack?: () => void
     mode?: 'practice' | 'exam'
@@ -383,6 +390,17 @@ function normalizeToolId(toolId: string | undefined): string {
 
 function normalizeToolConfig(rawConfig: ToolPracticeConfig, question: ToolPracticeQuestion): ToolPracticeConfig {
     const sourceConfig = resolveToolQuestionConfig(question.question_text || '', question.vietnamese_meaning || '', rawConfig)
+    if (sourceConfig.tool_options?.length) {
+        const correctTool = normalizeToolId(sourceConfig.correct_tool)
+        return {
+            ...sourceConfig,
+            correct_tool: correctTool,
+            tools_on_desk: Array.from(new Set([
+                correctTool,
+                ...sourceConfig.tool_options.map((item) => normalizeToolId(item.id)),
+            ])),
+        }
+    }
     const text = `${question?.question_text || ''} ${question?.vietnamese_meaning || ''} ${sourceConfig.vietnamese_instruction || ''}`.toLowerCase()
     const koreanText = question.question_text || ''
     const vietnameseText = `${question.vietnamese_meaning || ''} ${sourceConfig.vietnamese_instruction || ''}`.toLowerCase()
@@ -741,6 +759,20 @@ function LegacySmallToolIcon({ type, className = "w-10 h-10" }: { type: string; 
 }
 
 function TargetObjectIcon({ type, className = "w-10 h-10", activeAction }: { type: string; className?: string; activeAction?: string | null }) {
+    const fisheryTarget = findFisheryTarget(type)
+    if (fisheryTarget) {
+        const imageSrc = getFisheryTargetImage(type)!
+        return (
+            <Image
+                src={imageSrc}
+                alt={fisheryTarget.label}
+                width={222}
+                height={222}
+                draggable={false}
+                className={`${className} pointer-events-none object-contain drop-shadow-[0_5px_7px_rgba(15,23,42,0.2)]`}
+            />
+        )
+    }
     const detailAsset = DETAIL_ASSETS[type]
     if (detailAsset) {
         return (
@@ -926,6 +958,7 @@ function TargetObjectIcon({ type, className = "w-10 h-10", activeAction }: { typ
 
 export function ToolDragPracticeScreen({
     questions,
+    inventoryQuestions = questions,
     onFinish,
     onBack,
     mode = 'practice',
@@ -944,6 +977,18 @@ export function ToolDragPracticeScreen({
             )
             : null
     ), [currentQ])
+
+    const industryToolOptions = useMemo(() => {
+        const byId = new Map<string, ToolOption>()
+        for (const question of inventoryQuestions) {
+            for (const option of question.tool_config?.tool_options || []) byId.set(option.id, option)
+        }
+        return Array.from(byId.values())
+    }, [inventoryQuestions])
+    const isFisheryQuestion = Boolean(
+        config?.correct_tool?.startsWith('fishery_')
+        || industryToolOptions.some((item) => item.id.startsWith('fishery_')),
+    )
 
     // Audio & Speed States
     const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -990,6 +1035,16 @@ export function ToolDragPracticeScreen({
         const correct = normalizeToolId(config.correct_tool || 'screwdriver')
         const requiredTools = (config.required_tools || []).map(normalizeToolId)
         const configuredTools = (config.tools_on_desk || []).map(normalizeToolId)
+        const scopedOptions = industryToolOptions.length > 0 ? industryToolOptions : (config.tool_options || [])
+        const scopedToolIds = scopedOptions.map((item) => normalizeToolId(item.id))
+        if (scopedToolIds.length > 0) {
+            return shuffleBySeed(
+                Array.from(new Set([correct, ...requiredTools, ...configuredTools, ...scopedToolIds]))
+                    .filter((tool) => scopedToolIds.includes(tool)),
+                `${currentQ.id}-${choiceSessionSeed}-scoped-tool-order`,
+            )
+        }
+
         const deskToolCount = ALL_SYSTEM_TOOLS.length
         const baseTools = Array.from(new Set([correct, ...requiredTools, ...configuredTools])).slice(0, deskToolCount)
         const distractorPool = [
@@ -1012,10 +1067,31 @@ export function ToolDragPracticeScreen({
             finalTools.slice(0, deskToolCount),
             `${currentQ.id}-${choiceSessionSeed}-tool-order`,
         )
-    }, [choiceSessionSeed, config, currentIndex, currentQ.id])
+    }, [choiceSessionSeed, config, currentIndex, currentQ.id, industryToolOptions])
+
+    const currentToolNames = useMemo(() => ({
+        ...TOOL_NAMES,
+        ...Object.fromEntries(industryToolOptions.map((item) => [item.id, { ko: item.name_ko, vi: item.name_vi }])),
+    }), [industryToolOptions])
+
+    const currentToolImageUrls = useMemo(() => Object.fromEntries(
+        industryToolOptions.flatMap((item) => item.image_url ? [[item.id, item.image_url]] : []),
+    ), [industryToolOptions])
 
     const currentTargetsOnDesk = useMemo(() => {
         const correctTarget = config?.target_object || 'workpiece'
+        if (isFisheryQuestion) {
+            const distractors = shuffleBySeed(
+                FISHERY_TARGET_DEFINITIONS
+                    .map((item) => item.id)
+                    .filter((target) => target !== correctTarget),
+                `${currentQ.id}-${currentIndex}-${correctTarget}-fishery-targets`,
+            ).slice(0, 5)
+            return shuffleBySeed(
+                [correctTarget, ...distractors],
+                `${currentQ.id}-${choiceSessionSeed}-${correctTarget}-fishery-target-order`,
+            )
+        }
         const distractors = shuffleBySeed(
             TARGET_DISTRACTOR_POOL.filter((target) => target !== correctTarget),
             `${currentQ.id}-${currentIndex}-${correctTarget}-targets`,
@@ -1024,7 +1100,7 @@ export function ToolDragPracticeScreen({
             [correctTarget, ...distractors],
             `${currentQ.id}-${choiceSessionSeed}-${correctTarget}-target-order`,
         )
-    }, [choiceSessionSeed, config?.target_object, currentIndex, currentQ.id])
+    }, [choiceSessionSeed, config?.target_object, currentIndex, currentQ.id, isFisheryQuestion])
 
     // Feedback States
     const [isShake, setIsShake] = useState(false)
@@ -1367,7 +1443,7 @@ export function ToolDragPracticeScreen({
         ? [targetObjectId, ...ALL_WORKBENCH_ITEMS.filter((t) => t !== targetObjectId)].slice(0, 4)
         : ALL_WORKBENCH_ITEMS.slice(0, 4)
 
-    const actionCandidates = Array.from(new Set([
+    const manufacturingActionCandidates = Array.from(new Set([
         ...(selectedTarget === 'hex_bolt' || selectedTarget === 'phillips_screw' || selectedTarget === 'slotted_screw' ? ['clockwise', 'counter_clockwise'] : []),
         ...(['electric_wire', 'metal_wire'].includes(selectedTarget || '') ? ['cut', 'strip', 'pull', 'bend'] : []),
         ...(selectedTarget === 'switch_power' ? ['turn_on', 'turn_off'] : []),
@@ -1381,6 +1457,11 @@ export function ToolDragPracticeScreen({
         'cut',
         'measure'
     ])).filter(Boolean)
+    const fisheryActionCandidates = shuffleBySeed(
+        FISHERY_ACTION_DEFINITIONS.map((item) => item.id).filter((actionId) => actionId !== correctActionId),
+        `${currentQ.id}-${choiceSessionSeed}-${selectedTarget || 'no-target'}-fishery-actions`,
+    )
+    const actionCandidates = isFisheryQuestion ? fisheryActionCandidates : manufacturingActionCandidates
     const actionChoiceIds = shuffleBySeed(
         [correctActionId, ...actionCandidates.filter((actionId) => actionId !== correctActionId)].filter(Boolean).slice(0, 4),
         `${currentQ.id}-${choiceSessionSeed}-${selectedTarget || 'no-target'}-action-order`,
@@ -1506,7 +1587,8 @@ export function ToolDragPracticeScreen({
                         placedTools={placedTools}
                         targets={currentTargetsOnDesk}
                         placedTarget={selectedTarget}
-                        toolNames={TOOL_NAMES}
+                        toolNames={currentToolNames}
+                        toolImageUrls={currentToolImageUrls}
                         targetNames={EXACT_TARGET_LABELS}
                         stage={step}
                         requiresTarget={config.requires_target !== false}
@@ -1520,15 +1602,16 @@ export function ToolDragPracticeScreen({
                                     </div>
                                     <span className="shrink-0 text-[8px] font-bold uppercase tracking-wide text-slate-500 sm:px-2 sm:py-1 sm:text-[9px]">Bước 3</span>
                                 </div>
-                                <div className="grid grid-cols-4 gap-1 sm:gap-1.5">
+                                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                                     {actionChoiceIds.map((actionId) => (
                                         <Button
                                             key={actionId}
                                             type="button"
                                             onClick={() => executeAction(actionId)}
-                                            className="flex min-h-8 min-w-0 flex-col whitespace-normal rounded-md border border-white/70 bg-gradient-to-b from-white/95 to-slate-100/90 px-1 py-1 text-center text-[9px] font-bold leading-tight text-slate-700 shadow-[0_3px_0_rgba(148,163,184,0.48),0_5px_9px_rgba(15,23,42,0.1),inset_0_1px_0_rgba(255,255,255,0.95)] transition-[transform,box-shadow,color,background-color] hover:-translate-y-0.5 hover:text-blue-700 hover:shadow-[0_4px_0_rgba(96,165,250,0.42),0_7px_12px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,1)] active:translate-y-[2px] active:shadow-[0_1px_0_rgba(148,163,184,0.5),0_2px_4px_rgba(15,23,42,0.1),inset_0_1px_3px_rgba(148,163,184,0.18)] focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 sm:min-h-10 sm:rounded-lg sm:px-2 sm:py-1.5 sm:text-[11px]"
+                                            className="flex min-h-14 min-w-0 flex-row items-center justify-start gap-2 whitespace-normal rounded-lg border border-white/70 bg-gradient-to-b from-white/95 to-slate-100/90 px-2 py-1.5 text-left text-[9px] font-bold leading-tight text-slate-700 shadow-[0_3px_0_rgba(148,163,184,0.48),0_5px_9px_rgba(15,23,42,0.1),inset_0_1px_0_rgba(255,255,255,0.95)] transition-[transform,box-shadow,color,background-color] hover:-translate-y-0.5 hover:text-blue-700 hover:shadow-[0_4px_0_rgba(96,165,250,0.42),0_7px_12px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,1)] active:translate-y-[2px] active:shadow-[0_1px_0_rgba(148,163,184,0.5),0_2px_4px_rgba(15,23,42,0.1),inset_0_1px_3px_rgba(148,163,184,0.18)] focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 sm:min-h-16 sm:px-2.5 sm:text-[11px]"
                                         >
-                                            <span className="line-clamp-2">{getActionDisplay(actionId).label}</span>
+                                            {isFisheryQuestion ? <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-100 text-emerald-700"><FisheryEntityIcon className="size-5" id={actionId} kind="action" /></span> : null}
+                                            <span className="min-w-0"><span className="line-clamp-2">{getActionDisplay(actionId).label}</span>{isFisheryQuestion && getActionDisplay(actionId).ko ? <span className="mt-0.5 block truncate text-[8px] font-medium text-slate-500 sm:text-[9px]">{getActionDisplay(actionId).ko}</span> : null}</span>
                                         </Button>
                                     ))}
                                 </div>

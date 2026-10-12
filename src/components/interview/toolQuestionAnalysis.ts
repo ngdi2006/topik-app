@@ -2,6 +2,14 @@ export type VocabularyItem = {
     term: string
     meaning: string
     role: 'tool' | 'target' | 'action' | 'location' | 'keyword'
+    group?: string
+}
+
+export type ToolOption = {
+    id: string
+    name_ko: string
+    name_vi: string
+    image_url?: string | null
 }
 
 export type ToolAnswerStep = {
@@ -14,7 +22,10 @@ export type ToolQuestionConfig = {
     schema_version?: number
     /** When true, the saved grading answer takes precedence over text inference. */
     manual_override?: boolean
+    source_document?: string
+    source_item?: string
     tools_on_desk: string[]
+    tool_options?: ToolOption[]
     correct_tool: string
     target_object: string
     requires_target?: boolean
@@ -455,8 +466,10 @@ export function resolveToolQuestionConfig(
         const manualConfig = {
             ...analyzedConfig,
             ...storedConfig,
-            schema_version: 3,
-            tools_on_desk: resolveDeskTools(storedConfig.correct_tool || analyzedConfig.correct_tool),
+            schema_version: storedConfig.schema_version || 3,
+            tools_on_desk: storedConfig.tool_options?.length
+                ? storedConfig.tool_options.map((item) => item.id)
+                : resolveDeskTools(storedConfig.correct_tool || analyzedConfig.correct_tool),
         } as ToolQuestionConfig
         return completeToolConfig(manualConfig)
     }

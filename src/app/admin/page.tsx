@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react"
 import Link from "next/link"
+import { unstable_cache } from "next/cache"
 import { Activity, AlertTriangle, Award, Banknote, BrainCircuit, CheckCircle2, FileText, Gauge, GraduationCap, Lightbulb, ShieldCheck, TrendingUp, UserCheck, Users } from "lucide-react"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { OnlineUsersCounter } from "@/components/admin/OnlineUsersCounter"
@@ -17,6 +18,28 @@ type LearningEventRow = { event_name: string; content_id: string | null; is_corr
 const DAY = 86_400_000
 const formatNumber = new Intl.NumberFormat('vi-VN')
 const formatMoney = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value)
+
+const loadDashboardData = unstable_cache(async () => {
+    const admin = createAdminClient()
+    const now = Date.now()
+    const since7 = new Date(now - 7 * DAY).toISOString()
+    const since30 = new Date(now - 30 * DAY).toISOString()
+
+    const results = await Promise.all([
+        admin.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'learner'),
+        admin.from('exams').select('*', { count: 'exact', head: true }),
+        admin.from('exam_attempts').select('user_id, status, score, total_points, started_at, completed_at, created_at').gte('created_at', since30),
+        admin.from('payment_transactions').select('user_id, amount_vnd, payment_status, created_at, verified_at').eq('payment_status', 'completed').or(`verified_at.gte.${since30},and(verified_at.is.null,created_at.gte.${since30})`).order('verified_at', { ascending: false, nullsFirst: false }).limit(5000),
+        admin.from('sepay_webhook_logs').select('id, sepay_id, amount_in, status, transaction_date, created_at, matched_transaction_id').gt('amount_in', 0).gte('created_at', since30),
+        admin.from('user_interview_entitlements').select('user_id, status, expires_at').eq('status', 'active').gt('expires_at', new Date(now).toISOString()),
+        admin.from('interview_api_usage_logs').select('feature, status, latency_ms, estimated_cost_usd, created_at').gte('created_at', since30),
+        admin.from('user_progress').select('user_id, progress_percent, is_completed, last_accessed_at, created_at').gte('last_accessed_at', since30),
+        admin.from('learning_analytics_events').select('event_name, content_id, is_correct, metadata, occurred_at').gte('occurred_at', since30).in('event_name', ['question_answered', 'question_skipped']),
+        admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+    ])
+
+    return { now, since7, since30, results }
+}, ['admin-dashboard-data-v1'], { revalidate: 60 })
 
 function MetricCard({ label, value, hint, icon: Icon, tone = 'blue' }: { label: string; value: string | number; hint: string; icon: LucideIcon; tone?: 'blue' | 'green' | 'violet' | 'amber' }) {
     const tones = {
@@ -62,27 +85,11 @@ function RetentionCard({ label, value, eligible, description }: { label: string;
 }
 
 export default async function AdminDashboardPage() {
-    const admin = createAdminClient()
-    // Server dashboard is intentionally evaluated against the request time.
-    // eslint-disable-next-line react-hooks/purity
-    const now = Date.now()
-    const since7 = new Date(now - 7 * DAY).toISOString()
-    const since30 = new Date(now - 30 * DAY).toISOString()
+    const { now, since7, since30, results } = await loadDashboardData()
     const since14 = new Date(now - 13 * DAY)
     since14.setHours(0, 0, 0, 0)
 
-    const [studentResult, examResult, attemptResult, paymentResult, sepayResult, entitlementResult, usageResult, progressResult, learningEventResult, authResult] = await Promise.all([
-        admin.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'learner'),
-        admin.from('exams').select('*', { count: 'exact', head: true }),
-        admin.from('exam_attempts').select('user_id, status, score, total_points, started_at, completed_at, created_at').gte('created_at', since30),
-        admin.from('payment_transactions').select('user_id, amount_vnd, payment_status, created_at, verified_at').eq('payment_status', 'completed').order('verified_at', { ascending: false, nullsFirst: false }).limit(5000),
-        admin.from('sepay_webhook_logs').select('id, sepay_id, amount_in, status, transaction_date, created_at, matched_transaction_id').gt('amount_in', 0).gte('created_at', since30),
-        admin.from('user_interview_entitlements').select('user_id, status, expires_at'),
-        admin.from('interview_api_usage_logs').select('feature, status, latency_ms, estimated_cost_usd, created_at').gte('created_at', since30),
-        admin.from('user_progress').select('user_id, progress_percent, is_completed, last_accessed_at, created_at').gte('last_accessed_at', since30),
-        admin.from('learning_analytics_events').select('event_name, content_id, is_correct, metadata, occurred_at').gte('occurred_at', since30).in('event_name', ['question_answered', 'question_skipped']),
-        admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-    ])
+    const [studentResult, examResult, attemptResult, paymentResult, sepayResult, entitlementResult, usageResult, progressResult, learningEventResult, authResult] = results
 
     const attempts = (attemptResult.data || []) as AttemptRow[]
     const payments = (paymentResult.data || []) as PaymentRow[]

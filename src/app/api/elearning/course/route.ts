@@ -15,7 +15,19 @@ export async function GET(request: Request) {
 
   const lessons = [...(course.elearning_lessons || [])].sort((a, b) => a.sort_order - b.sort_order)
   const stepIds = lessons.flatMap(lesson => lesson.elearning_steps.map(step => step.id))
-  const { data: progress } = stepIds.length ? await admin.from('elearning_step_progress').select('step_id,status,progress_percent,score,watched_seconds').eq('user_id', user.id).in('step_id', stepIds) : { data: [] }
+  const [{ data: progress }, { data: interactions }] = await Promise.all([
+    stepIds.length ? admin.from('elearning_step_progress').select('step_id,status,progress_percent,score,watched_seconds,metadata').eq('user_id', user.id).in('step_id', stepIds) : Promise.resolve({ data: [] }),
+    stepIds.length ? admin.from('elearning_video_interactions').select('id,step_id,timestamp_seconds,interaction_type,title,prompt,options,explanation,is_required,points').in('step_id', stepIds).eq('is_published', true).order('timestamp_seconds') : Promise.resolve({ data: [] }),
+  ])
+  const interactionIds = (interactions || []).map(item => item.id)
+  const { data: interactionProgress } = interactionIds.length ? await admin.from('elearning_video_interaction_progress').select('interaction_id,answer,is_correct,completed_at').eq('user_id', user.id).in('interaction_id', interactionIds) : { data: [] }
+  const interactionProgressById = new Map((interactionProgress || []).map(item => [item.interaction_id, item]))
+  const interactionsByStep = new Map<string, Array<Record<string, unknown>>>()
+  for (const interaction of interactions || []) {
+    const items = interactionsByStep.get(interaction.step_id) || []
+    items.push({ ...interaction, step_id: undefined, progress: interactionProgressById.get(interaction.id) || null })
+    interactionsByStep.set(interaction.step_id, items)
+  }
   const progressByStep = new Map((progress || []).map(item => [item.step_id, item]))
   let previousLessonCompleted = true
   const mappedLessons = lessons.map(lesson => {
@@ -25,7 +37,7 @@ export async function GET(request: Request) {
       const stepProgress = progressByStep.get(step.id) || null
       const unlocked = lessonUnlocked && (!course.sequential_learning || previousStepCompleted)
       if (step.is_required && stepProgress?.status !== 'completed') previousStepCompleted = false
-      return { ...step, progress: stepProgress, unlocked }
+      return { ...step, progress: stepProgress, interactions: interactionsByStep.get(step.id) || [], unlocked }
     })
     const required = steps.filter(step => step.is_required)
     const completed = required.filter(step => step.progress?.status === 'completed').length

@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, PlayCircle, BookOpen, BookText, Languages, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles, Mic, ArrowLeft, User, Trophy, ChevronDown, Award, LayoutDashboard, RotateCcw, BarChart3, ListChecks } from "lucide-react"
+import { Clock, PlayCircle, BookOpen, BookText, Languages, GraduationCap, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles, Mic, ArrowLeft, User, Trophy, ChevronDown, Award, LayoutDashboard, RotateCcw, BarChart3, ListChecks } from "lucide-react"
+import { LEARNING_CLUSTER_LOCKED } from "@/lib/learner-feature-flags"
 
 const LessonList = dynamic(() => import("@/components/lessons/LessonList").then((module) => module.LessonList))
 const PracticeHub = dynamic(() => import("@/components/practice/PracticeHub").then((module) => module.PracticeHub))
@@ -718,7 +719,7 @@ export default function DashboardPage() {
                     <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-100/70">Luyện thi</p>
                     {enabledMenuItems.filter(item => item.key !== 'bang-xep-hang').map((item) => renderMenuButton(item))}
                     <p className="mt-4 px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-100/70">Học tập</p>
-                    {[["Giáo trình 2025", "/textbooks", BookOpen], ["Học từ vựng", "/textbooks/learning/vocabulary", Languages], ["Ngữ pháp", "/textbooks/learning/grammar", BookText]].map(([label, href, Icon]) => <button className="flex min-h-10 w-full items-center gap-3 rounded-xl px-4 py-2 text-left text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white" key={String(href)} onClick={() => router.push(String(href))} type="button"><Icon className="size-4" />{String(label)}</button>)}
+                    {[["E-Learning", "/elearning", GraduationCap], ["Giáo trình 2025", "/textbooks", BookOpen], ["Học từ vựng", "/textbooks/learning/vocabulary", Languages], ["Ngữ pháp", "/textbooks/learning/grammar", BookText]].map(([label, href, Icon]) => LEARNING_CLUSTER_LOCKED ? <div className="flex min-h-10 w-full items-center gap-3 rounded-xl px-4 py-2 text-left text-sm font-medium text-blue-100/70" key={String(href)} title="Đang phát triển"><Icon className="size-4" /><span className="min-w-0 flex-1">{String(label)}</span><span className="text-[9px] font-bold uppercase">Sắp ra mắt</span></div> : <button className="flex min-h-10 w-full items-center gap-3 rounded-xl px-4 py-2 text-left text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white" key={String(href)} onClick={() => router.push(String(href))} type="button"><Icon className="size-4" />{String(label)}</button>)}
                     
                     <div className="mt-auto mx-auto w-[204px] pb-4">
                         {enabledMenuItems.filter(item => item.key === 'bang-xep-hang').map((item) => renderMenuButton(item))}
@@ -880,7 +881,7 @@ export default function DashboardPage() {
                             .map((item) => renderMenuButton(item, () => setIsMobileMenuOpen(false)))}
                         <div className="mt-3 space-y-1 border-t border-slate-100 pt-3">
                             <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Học tập</p>
-                            {[["Giáo trình 2025", "/textbooks", BookOpen], ["Học từ vựng", "/textbooks/learning/vocabulary", Languages], ["Ngữ pháp", "/textbooks/learning/grammar", BookText]].map(([label, href, Icon]) => <button className="flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-[13px] font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-700" key={String(href)} onClick={() => { setIsMobileMenuOpen(false); router.push(String(href)) }} type="button"><span className="grid size-8 place-items-center rounded-lg bg-slate-100 text-slate-600"><Icon className="size-3.5" /></span>{String(label)}</button>)}
+                            {[["E-Learning", "/elearning", GraduationCap], ["Giáo trình 2025", "/textbooks", BookOpen], ["Học từ vựng", "/textbooks/learning/vocabulary", Languages], ["Ngữ pháp", "/textbooks/learning/grammar", BookText]].map(([label, href, Icon]) => LEARNING_CLUSTER_LOCKED ? <div className="flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-[13px] font-bold text-slate-400" key={String(href)} title="Đang phát triển"><span className="grid size-8 place-items-center rounded-lg bg-slate-100 text-slate-400"><Icon className="size-3.5" /></span><span className="min-w-0 flex-1">{String(label)}</span><span className="text-[9px] text-amber-700">Sắp ra mắt</span></div> : <button className="flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-[13px] font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-700" key={String(href)} onClick={() => { setIsMobileMenuOpen(false); router.push(String(href)) }} type="button"><span className="grid size-8 place-items-center rounded-lg bg-slate-100 text-slate-600"><Icon className="size-3.5" /></span>{String(label)}</button>)}
                         </div>
 
                     </nav>

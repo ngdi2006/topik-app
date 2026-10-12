@@ -32,26 +32,23 @@ export function UserNav({ variant = "default", onNavigate }: UserNavProps = {}) 
     const router = useRouter()
     const supabase = useMemo(() => createClient(), [])
     const [profile, setProfile] = useState<ProfileSummary | null>(null)
+    const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null)
 
     useEffect(() => {
-        if (!user?.id) {
-            return
-        }
-
         let active = true
-        void supabase
-            .from("profiles")
-            .select("full_name, avatar_url")
-            .eq("id", user.id)
-            .maybeSingle()
-            .then(({ data }) => {
-                if (active && data) setProfile(data)
-            })
+        const loadCurrentUser = async () => {
+            const { data: { user: currentUser } } = await supabase.auth.getUser()
+            if (!active || !currentUser) return
+            setUser(currentUser)
+            const { data } = await supabase.from("profiles").select("full_name, avatar_url").eq("id", currentUser.id).maybeSingle()
+            if (active && data) setProfile(data)
+        }
+        void loadCurrentUser()
 
         return () => {
             active = false
         }
-    }, [supabase, user?.id])
+    }, [setUser, supabase, user?.id])
 
     const handleSignOut = async () => {
         await supabase.auth.signOut()
@@ -64,9 +61,9 @@ export function UserNav({ variant = "default", onNavigate }: UserNavProps = {}) 
         || user?.user_metadata?.name
         || user?.email?.split("@")[0]
         || "Học viên"
-    const avatarUrl = profile?.avatar_url
-        || user?.user_metadata?.avatar_url
+    const avatarUrl = user?.user_metadata?.avatar_url
         || user?.user_metadata?.picture
+        || profile?.avatar_url
         || null
     const initials = displayName
         .trim()
@@ -79,9 +76,9 @@ export function UserNav({ variant = "default", onNavigate }: UserNavProps = {}) 
 
     const renderAvatar = (sizeClass: string) => (
         <span className={`relative grid shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-blue-500 to-violet-600 font-bold text-white ring-1 ring-blue-100 ${sizeClass}`}>
-            {avatarUrl ? (
+            {avatarUrl && failedAvatarUrl !== avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img alt="" className="size-full object-cover" referrerPolicy="no-referrer" src={avatarUrl} />
+                <img alt={`Ảnh đại diện của ${displayName}`} className="size-full object-cover" onError={() => setFailedAvatarUrl(avatarUrl)} referrerPolicy="no-referrer" src={avatarUrl} />
             ) : (
                 <span aria-hidden="true">{initials}</span>
             )}

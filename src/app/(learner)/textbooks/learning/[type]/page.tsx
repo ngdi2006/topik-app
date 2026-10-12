@@ -32,7 +32,9 @@ export default function TextbookLearningPage() {
 
   useEffect(() => {
     const controller = new AbortController()
-    void fetch(`/api/textbooks/learning?type=${type}`, { signal: controller.signal })
+    const unit = new URLSearchParams(window.location.search).get("unit")
+    const unitQuery = unit ? `&unit=${encodeURIComponent(unit)}` : ""
+    void fetch(`/api/textbooks/learning?type=${type}${unitQuery}`, { signal: controller.signal })
       .then((response) => response.ok ? response.json() : Promise.reject(new Error("Không thể tải nội dung")))
       .then((responseData) => setData(responseData))
       .catch((error) => { if (error.name !== "AbortError") setData({}) })

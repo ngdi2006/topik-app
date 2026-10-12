@@ -30,7 +30,7 @@ create table if not exists public.elearning_lessons (
 create table if not exists public.elearning_steps (
   id uuid primary key default gen_random_uuid(),
   lesson_id uuid not null references public.elearning_lessons(id) on delete cascade,
-  step_type text not null check (step_type in ('overview','video','document','vocabulary','grammar','practice','quiz','complete')),
+  step_type text not null check (step_type in ('overview','video','document','vocabulary','grammar','practice','culture_video','quiz','complete')),
   title text not null,
   instructions text,
   content jsonb not null default '{}'::jsonb,
@@ -89,7 +89,7 @@ from public.elearning_lessons l
 cross join (values
   ('overview','Mục tiêu bài học',1), ('video','Video bài giảng',2), ('document','Đọc giáo trình',3),
   ('vocabulary','Học từ vựng',4), ('grammar','Học ngữ pháp',5), ('practice','Luyện tập',6),
-  ('quiz','Quiz cuối bài',7), ('complete','Hoàn thành bài',8)
+  ('culture_video','Video thông tin văn hóa',7), ('quiz','Quiz cuối bài',8), ('complete','Hoàn thành bài',9)
 ) as s(step_type,title,sort_order)
 join public.elearning_courses c on c.id = l.course_id
 where c.slug = 'giao-trinh-quyen-1'

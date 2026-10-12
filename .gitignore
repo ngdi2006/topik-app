@@ -42,3 +42,5 @@ yarn-error.log*
 next-env.d.ts
 scratch/
 /tmp/textbook-vocabulary-*.json
+/reports/learning-cluster-readiness.json
+/reports/learning-cluster-readiness.md

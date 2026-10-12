@@ -1,4 +1,11 @@
-export const LEARNING_CLUSTER_LOCKED = true
+export const LEARNING_CLUSTER_RELEASE_STATE =
+    process.env.NEXT_PUBLIC_LEARNING_CLUSTER_RELEASE_STATE === 'released'
+        ? 'released'
+        : 'development'
+
+// Fail closed: the learner-facing learning cluster stays unavailable unless
+// production is explicitly configured with the released state.
+export const LEARNING_CLUSTER_LOCKED = LEARNING_CLUSTER_RELEASE_STATE !== 'released'
 
 export const LOCKED_LEARNING_PATH_PREFIXES = [
     '/elearning',

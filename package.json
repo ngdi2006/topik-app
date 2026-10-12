@@ -11,6 +11,8 @@
     "import:textbooks": "node scripts/import_textbooks.mjs",
     "optimize:textbooks": "node scripts/optimize_textbook_images.mjs",
     "generate:textbook-grammar": "node scripts/generate_textbook_grammar_summaries.mjs",
+    "seed:elearning-interactions": "node --env-file=.env.local scripts/seed_elearning_video_interactions.mjs",
+    "report:learning-cluster": "node --env-file=.env.local scripts/report_learning_cluster_readiness.mjs",
     "import:textbook-vocabulary": "node scripts/import_textbook_vocabulary.mjs",
     "tts:setup": "node scripts/generate_tts_cache.mjs --setup",
     "tts:generate": "node scripts/generate_tts_cache.mjs",

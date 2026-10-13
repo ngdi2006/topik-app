@@ -11,6 +11,7 @@ import { WorkshopToolIcon } from './WorkshopToolIcon'
 import { FULL_TOOL_IDS, FULL_TOOL_NAMES, InterviewToolTableGame } from './InterviewToolTableGame'
 import { ToolGameOnboarding, type ToolGameTourStep } from './ToolGameOnboarding'
 import { FISHERY_ACTION_DEFINITIONS, FISHERY_TARGET_DEFINITIONS, FisheryEntityIcon, findFisheryAction, findFisheryTarget, getFisheryTargetImage } from './fisheryVisualCatalog'
+import { AGRICULTURE_ACTION_DEFINITIONS, AGRICULTURE_TARGET_DEFINITIONS, AgricultureEntityIcon, findAgricultureAction, findAgricultureTarget, getAgricultureTargetImage, getAgricultureToolImage } from './agricultureVisualCatalog'
 
 const TOOL_GAME_ONBOARDING_KEY = 'tool_game_onboarding_v1'
 const TOOL_GAME_KOREAN_VISIBILITY_KEY = 'tool_game_show_korean'
@@ -60,6 +61,7 @@ const TOOL_NAMES: Record<string, { ko: string; vi: string }> = {
 const TARGET_NAMES: Record<string, string> = {
     ...Object.fromEntries(TARGET_DEFINITIONS.map((item) => [item.id, item.label])),
     ...Object.fromEntries(FISHERY_TARGET_DEFINITIONS.map((item) => [item.id, item.label])),
+    ...Object.fromEntries(AGRICULTURE_TARGET_DEFINITIONS.map((item) => [item.id, item.label])),
     'phillips_screw': 'Ốc vít rãnh chữ thập',
     'slotted_screw': 'Ốc vít rãnh dẹt',
     'hex_bolt': 'Bu lông',
@@ -80,6 +82,7 @@ const TARGET_NAMES: Record<string, string> = {
 const ACTION_NAMES: Record<string, string> = {
     ...Object.fromEntries(ACTION_DEFINITIONS.map((item) => [item.id, item.label])),
     ...Object.fromEntries(FISHERY_ACTION_DEFINITIONS.map((item) => [item.id, item.label])),
+    ...Object.fromEntries(AGRICULTURE_ACTION_DEFINITIONS.map((item) => [item.id, item.label])),
     'counter_clockwise': 'Tháo',
     'clockwise': 'Siết',
     'cut': 'Cắt',
@@ -99,10 +102,11 @@ const ACTION_HINTS: Record<string, string> = {
 
 function getActionDisplay(actionId: string) {
     const fisheryAction = findFisheryAction(actionId)
+    const agricultureAction = findAgricultureAction(actionId)
     const rawLabel = ACTION_NAMES[actionId] || actionId
     return {
-        label: fisheryAction?.label || rawLabel.split(/\s*\/\s*/)[0].trim(),
-        ko: fisheryAction?.ko || '',
+        label: agricultureAction?.label || fisheryAction?.label || rawLabel.split(/\s*\/\s*/)[0].trim(),
+        ko: agricultureAction?.ko || fisheryAction?.ko || '',
         hint: ACTION_HINTS[actionId],
     }
 }
@@ -759,6 +763,19 @@ function LegacySmallToolIcon({ type, className = "w-10 h-10" }: { type: string; 
 }
 
 function TargetObjectIcon({ type, className = "w-10 h-10", activeAction }: { type: string; className?: string; activeAction?: string | null }) {
+    const agricultureTarget = findAgricultureTarget(type)
+    if (agricultureTarget) {
+        return (
+            <Image
+                src={getAgricultureTargetImage(type)!}
+                alt={agricultureTarget.label}
+                width={168}
+                height={165}
+                draggable={false}
+                className={`${className} pointer-events-none object-contain drop-shadow-[0_5px_7px_rgba(15,23,42,0.18)]`}
+            />
+        )
+    }
     const fisheryTarget = findFisheryTarget(type)
     if (fisheryTarget) {
         const imageSrc = getFisheryTargetImage(type)!
@@ -989,6 +1006,10 @@ export function ToolDragPracticeScreen({
         config?.correct_tool?.startsWith('fishery_')
         || industryToolOptions.some((item) => item.id.startsWith('fishery_')),
     )
+    const isAgricultureQuestion = Boolean(
+        config?.correct_tool?.startsWith('agriculture_')
+        || industryToolOptions.some((item) => item.id.startsWith('agriculture_')),
+    )
 
     // Audio & Speed States
     const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -1075,7 +1096,11 @@ export function ToolDragPracticeScreen({
     }), [industryToolOptions])
 
     const currentToolImageUrls = useMemo(() => Object.fromEntries(
-        industryToolOptions.flatMap((item) => item.image_url ? [[item.id, item.image_url]] : []),
+        industryToolOptions.flatMap((item) => {
+            const agricultureImage = getAgricultureToolImage(item.id)
+            const imageUrl = agricultureImage || item.image_url
+            return imageUrl ? [[item.id, imageUrl]] : []
+        }),
     ), [industryToolOptions])
 
     const currentTargetsOnDesk = useMemo(() => {
@@ -1092,6 +1117,13 @@ export function ToolDragPracticeScreen({
                 `${currentQ.id}-${choiceSessionSeed}-${correctTarget}-fishery-target-order`,
             )
         }
+        if (isAgricultureQuestion) {
+            const distractors = shuffleBySeed(
+                AGRICULTURE_TARGET_DEFINITIONS.map((item) => item.id).filter((target) => target !== correctTarget),
+                `${currentQ.id}-${currentIndex}-${correctTarget}-agriculture-targets`,
+            ).slice(0, 5)
+            return shuffleBySeed([correctTarget, ...distractors], `${currentQ.id}-${choiceSessionSeed}-${correctTarget}-agriculture-target-order`)
+        }
         const distractors = shuffleBySeed(
             TARGET_DISTRACTOR_POOL.filter((target) => target !== correctTarget),
             `${currentQ.id}-${currentIndex}-${correctTarget}-targets`,
@@ -1100,7 +1132,7 @@ export function ToolDragPracticeScreen({
             [correctTarget, ...distractors],
             `${currentQ.id}-${choiceSessionSeed}-${correctTarget}-target-order`,
         )
-    }, [choiceSessionSeed, config?.target_object, currentIndex, currentQ.id, isFisheryQuestion])
+    }, [choiceSessionSeed, config?.target_object, currentIndex, currentQ.id, isAgricultureQuestion, isFisheryQuestion])
 
     // Feedback States
     const [isShake, setIsShake] = useState(false)
@@ -1461,7 +1493,11 @@ export function ToolDragPracticeScreen({
         FISHERY_ACTION_DEFINITIONS.map((item) => item.id).filter((actionId) => actionId !== correctActionId),
         `${currentQ.id}-${choiceSessionSeed}-${selectedTarget || 'no-target'}-fishery-actions`,
     )
-    const actionCandidates = isFisheryQuestion ? fisheryActionCandidates : manufacturingActionCandidates
+    const agricultureActionCandidates = shuffleBySeed(
+        AGRICULTURE_ACTION_DEFINITIONS.map((item) => item.id).filter((actionId) => actionId !== correctActionId),
+        `${currentQ.id}-${choiceSessionSeed}-${selectedTarget || 'no-target'}-agriculture-actions`,
+    )
+    const actionCandidates = isAgricultureQuestion ? agricultureActionCandidates : isFisheryQuestion ? fisheryActionCandidates : manufacturingActionCandidates
     const actionChoiceIds = shuffleBySeed(
         [correctActionId, ...actionCandidates.filter((actionId) => actionId !== correctActionId)].filter(Boolean).slice(0, 4),
         `${currentQ.id}-${choiceSessionSeed}-${selectedTarget || 'no-target'}-action-order`,
@@ -1610,8 +1646,8 @@ export function ToolDragPracticeScreen({
                                             onClick={() => executeAction(actionId)}
                                             className="flex min-h-14 min-w-0 flex-row items-center justify-start gap-2 whitespace-normal rounded-lg border border-white/70 bg-gradient-to-b from-white/95 to-slate-100/90 px-2 py-1.5 text-left text-[9px] font-bold leading-tight text-slate-700 shadow-[0_3px_0_rgba(148,163,184,0.48),0_5px_9px_rgba(15,23,42,0.1),inset_0_1px_0_rgba(255,255,255,0.95)] transition-[transform,box-shadow,color,background-color] hover:-translate-y-0.5 hover:text-blue-700 hover:shadow-[0_4px_0_rgba(96,165,250,0.42),0_7px_12px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,1)] active:translate-y-[2px] active:shadow-[0_1px_0_rgba(148,163,184,0.5),0_2px_4px_rgba(15,23,42,0.1),inset_0_1px_3px_rgba(148,163,184,0.18)] focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 sm:min-h-16 sm:px-2.5 sm:text-[11px]"
                                         >
-                                            {isFisheryQuestion ? <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-100 text-emerald-700"><FisheryEntityIcon className="size-5" id={actionId} kind="action" /></span> : null}
-                                            <span className="min-w-0"><span className="line-clamp-2">{getActionDisplay(actionId).label}</span>{isFisheryQuestion && getActionDisplay(actionId).ko ? <span className="mt-0.5 block truncate text-[8px] font-medium text-slate-500 sm:text-[9px]">{getActionDisplay(actionId).ko}</span> : null}</span>
+                                            {isAgricultureQuestion ? <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-lime-100 text-lime-700"><AgricultureEntityIcon className="size-5" id={actionId} kind="action" /></span> : isFisheryQuestion ? <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-100 text-emerald-700"><FisheryEntityIcon className="size-5" id={actionId} kind="action" /></span> : null}
+                                            <span className="min-w-0"><span className="line-clamp-2">{getActionDisplay(actionId).label}</span>{(isFisheryQuestion || isAgricultureQuestion) && getActionDisplay(actionId).ko ? <span className="mt-0.5 block truncate text-[8px] font-medium text-slate-500 sm:text-[9px]">{getActionDisplay(actionId).ko}</span> : null}</span>
                                         </Button>
                                     ))}
                                 </div>

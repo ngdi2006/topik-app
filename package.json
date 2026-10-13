@@ -17,6 +17,7 @@
     "import:fishery-vocabulary": "node scripts/import_supplemental_fishery_vocab.mjs",
     "import:agriculture-vocabulary": "node scripts/import_agriculture_vocabulary.mjs",
     "import:fishery-tool-use": "node scripts/import_fishery_tool_use_questions.mjs",
+    "import:agriculture-tool-use": "node scripts/import_agriculture_tool_use_questions.mjs",
     "tts:setup": "node scripts/generate_tts_cache.mjs --setup",
     "tts:generate": "node scripts/generate_tts_cache.mjs",
     "tts:vocab-fixes": "node scripts/generate_vocabulary_pronunciation_fixes.mjs",

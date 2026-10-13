@@ -77,6 +77,29 @@ function checkSpeechAnswer(userTranscript: string, correctOption: string): boole
     return false
 }
 
+const VOCABULARY_INDUSTRY_CODES: Record<string, string> = {
+    'Sản xuất chế tạo': 'MANUFACTURING',
+    'Ngư nghiệp': 'FISHERY',
+    'Nông nghiệp': 'AGRICULTURE',
+    'Lâm nghiệp': 'FORESTRY',
+    'Xây dựng': 'CONSTRUCTION',
+    'Dịch vụ': 'SERVICE',
+}
+
+function isIndustrySpecificToolQuestion(question: any, industry: string) {
+    if (question.industry !== industry) return false
+
+    // Mục 39–58 trong tài liệu Nông nghiệp là bộ thao tác cơ khí dùng chung.
+    // Vẫn giữ chúng ở phần luyện tập, nhưng đề thi Nông nghiệp chỉ lấy mục 1–38
+    // để không tạo cảm giác đang thi ngành Sản xuất chế tạo.
+    if (industry === 'Nông nghiệp' && question.tool_config?.source_document === 'SDCC-NÔNG NGHIỆP.pdf') {
+        const sourceNumber = Number.parseInt(String(question.tool_config?.source_item || ''), 10)
+        return Number.isNaN(sourceNumber) || sourceNumber <= 38
+    }
+
+    return true
+}
+
 function roundToHalfPoint(value: number) {
     return Math.round(value * 2) / 2
 }
@@ -133,9 +156,10 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
             try {
                 // Fetch the industry pool, vocabulary and the dedicated safety bank in parallel.
                 const url = `/api/interview-questions?industry=${encodeURIComponent(industry)}`
-                const envIndustry = industry === 'Sản xuất chế tạo' ? 'MANUFACTURING' : 'COMMON'
+                const envIndustry = VOCABULARY_INDUSTRY_CODES[industry]
+                if (!envIndustry) throw new Error(`Ngành ${industry} chưa được cấu hình kho dữ liệu thi thử`)
                 const vocabUrl = `/api/vocabulary-vong2?industry=${envIndustry}`
-                const safetyUrl = `/api/interview-questions?category=${encodeURIComponent('An toàn lao động')}`
+                const safetyUrl = `/api/interview-questions?category=${encodeURIComponent('An toàn lao động')}&industry=${encodeURIComponent(industry)}`
                 const [res, resVocab, resSafety] = await Promise.all([
                     fetch(url, { cache: 'no-store' }),
                     fetch(vocabUrl, { cache: 'no-store' }),
@@ -153,7 +177,10 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
 
                 const rawQuestions = qData.data || []
                 const rawVocab = vData.data || []
-                const rawSafetyQuestions = (safetyData.data || []).filter((q: any) => q.category === 'An toàn lao động')
+                const rawSafetyQuestions = (safetyData.data || []).filter((q: any) => (
+                    q.category === 'An toàn lao động'
+                    && (q.industry === industry || q.industry === 'COMMON')
+                ))
 
                 const translationMap: Record<string, string> = {}
                 rawVocab.forEach((v: any) => {
@@ -219,7 +246,10 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
                 })
 
                 // Section 2: Nhận diện dụng cụ (5 questions, 1 pt each)
-                const toolVocab = rawVocab.filter((v: any) => v.type === 'TOOL')
+                const toolVocab = rawVocab.filter((v: any) => v.type === 'TOOL' && v.industry === envIndustry)
+                if (toolVocab.length < 5) {
+                    throw new Error(`Kho dụng cụ ${industry} chỉ có ${toolVocab.length} mục, cần tối thiểu 5 mục để tạo đề`)
+                }
                 const selectedTools = shuffle(toolVocab).slice(0, 5)
                 selectedTools.forEach((v: any, i: number) => {
                     const correctMeaning = v.word_kr
@@ -237,7 +267,13 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
                 })
 
                 // Section 3: Thực hành thao tác (5 questions, 3 pts each)
-                const toolPracticeQs = rawQuestions.filter((q: any) => q.category === 'Sử dụng công cụ')
+                const toolPracticeQs = rawQuestions.filter((q: any) => (
+                    q.category === 'Sử dụng công cụ'
+                    && isIndustrySpecificToolQuestion(q, industry)
+                ))
+                if (toolPracticeQs.length < 5) {
+                    throw new Error(`Kho thực hành ${industry} chỉ có ${toolPracticeQs.length} câu, cần tối thiểu 5 câu để tạo đề`)
+                }
                 const selectedToolPractice = shuffle(toolPracticeQs).slice(0, 5)
                 selectedToolPractice.forEach((q: any, i: number) => {
                     examList.push({
@@ -287,7 +323,9 @@ export function MockExamScreen({ industry, onBack }: MockExamScreenProps) {
                 })
 
                 // Section 5: Biển báo (6 questions, 1 pt each)
-                const signVocab = rawVocab.filter((v: any) => v.type === 'SIGN')
+                const industrySigns = rawVocab.filter((v: any) => v.type === 'SIGN' && v.industry === envIndustry)
+                const commonSigns = rawVocab.filter((v: any) => v.type === 'SIGN' && (v.industry === 'COMMON' || v.industry === 'ALL'))
+                const signVocab = industrySigns.length >= 6 ? industrySigns : [...industrySigns, ...commonSigns]
                 const selectedSigns = shuffle(signVocab).slice(0, 6)
                 selectedSigns.forEach((v: any, i: number) => {
                     const correctMeaning = v.word_kr

@@ -82,8 +82,10 @@ export async function GET(request: Request) {
                 query = query.eq('category', category)
             }
 
-            if (industry && industry !== 'all') {
-                query = query.or(`industry.eq.${industry},industry.eq.COMMON`)
+            if (industry && industry !== 'all' && category !== 'Khẩu lệnh') {
+                query = category && category !== 'all'
+                    ? query.or(`industry.eq.${industry},industry.eq.COMMON`)
+                    : query.or(`industry.eq.${industry},industry.eq.COMMON,category.eq.Khẩu lệnh`)
             }
 
             const { data, error } = await query
@@ -144,7 +146,9 @@ export async function POST(request: Request) {
         const { data, error } = await adminClient
             .from('interview_questions')
             .insert({
-                industry: body.industry || 'Sản xuất chế tạo',
+                industry: body.category === 'Khẩu lệnh'
+                    ? 'COMMON'
+                    : (body.industry || 'Sản xuất chế tạo'),
                 category: body.category,
                 question_text: body.question_text,
                 vietnamese_meaning: body.vietnamese_meaning,

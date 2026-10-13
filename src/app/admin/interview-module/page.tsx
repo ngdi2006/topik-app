@@ -269,7 +269,8 @@ export default function InterviewModuleAdminPage() {
                 }
 
                 const questionIndustry = question.industry || 'Sản xuất chế tạo'
-                if (filterIndustry !== 'all' && questionIndustry !== filterIndustry) {
+                const isSharedCommand = question.category === 'Khẩu lệnh'
+                if (!isSharedCommand && filterIndustry !== 'all' && questionIndustry !== filterIndustry) {
                     return false
                 }
 
@@ -636,7 +637,9 @@ export default function InterviewModuleAdminPage() {
 
             return {
                 'STT': q.order_index !== null && q.order_index !== undefined ? q.order_index : idx + 1,
-                'Ngành nghề': q.industry || 'Sản xuất chế tạo',
+                'Ngành nghề': q.category === 'Khẩu lệnh'
+                    ? 'Dùng chung - Tất cả ngành'
+                    : (q.industry || 'Sản xuất chế tạo'),
                 'Phân loại': q.category || '',
                 'Câu hỏi (Tiếng Hàn)': q.question_text || '',
                 'Dịch nghĩa (Tiếng Việt)': q.vietnamese_meaning || '',
@@ -703,7 +706,13 @@ export default function InterviewModuleAdminPage() {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
-                            <Select value={filterCategory} onValueChange={setFilterCategory}>
+                            <Select
+                                value={filterCategory}
+                                onValueChange={(value) => {
+                                    setFilterCategory(value)
+                                    if (value === 'Khẩu lệnh') setFilterIndustry('all')
+                                }}
+                            >
                                 <SelectTrigger className="w-[160px] text-xs">
                                     <Filter className="w-3.5 h-3.5 mr-1.5 text-gray-500" />
                                     <SelectValue placeholder="Phân loại" />
@@ -719,19 +728,25 @@ export default function InterviewModuleAdminPage() {
                                 </SelectContent>
                             </Select>
 
-                            <Select value={filterIndustry} onValueChange={setFilterIndustry}>
-                                <SelectTrigger className="w-[170px] text-xs">
-                                    <SelectValue placeholder="Ngành nghề" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Tất cả ngành</SelectItem>
-                                    {INDUSTRY_FILTER_OPTIONS.map((industry) => (
-                                        <SelectItem key={industry} value={industry}>
-                                            {industry === 'COMMON' ? 'Dùng chung (COMMON)' : industry}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            {filterCategory === 'Khẩu lệnh' ? (
+                                <div className="flex h-9 w-[190px] items-center rounded-md border border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-700">
+                                    Dùng chung · Tất cả ngành
+                                </div>
+                            ) : (
+                                <Select value={filterIndustry} onValueChange={setFilterIndustry}>
+                                    <SelectTrigger className="w-[170px] text-xs">
+                                        <SelectValue placeholder="Ngành nghề" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Tất cả ngành</SelectItem>
+                                        {INDUSTRY_FILTER_OPTIONS.map((industry) => (
+                                            <SelectItem key={industry} value={industry}>
+                                                {industry === 'COMMON' ? 'Dùng chung (COMMON)' : industry}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
 
                             <Select value={filterReviewStatus} onValueChange={setFilterReviewStatus}>
                                 <SelectTrigger className="w-[150px] text-xs">
@@ -916,7 +931,9 @@ export default function InterviewModuleAdminPage() {
                                                 <td className="px-4 py-4 whitespace-nowrap align-top">
                                                     <div className="flex flex-col gap-1 items-start">
                                                         <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-[11px] font-medium">
-                                                            {q.industry || 'Sản xuất chế tạo'}
+                                                            {q.category === 'Khẩu lệnh'
+                                                                ? 'Dùng chung · Tất cả ngành'
+                                                                : (q.industry || 'Sản xuất chế tạo')}
                                                         </span>
                                                         <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-[11px] font-medium">
                                                             {q.category}

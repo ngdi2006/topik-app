@@ -284,7 +284,9 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
     const [saving, setSaving] = useState(false)
     const [initialToolConfig] = useState(() => resolveInitialToolConfig(initialData))
     const [formData, setFormData] = useState({
-        industry: initialData?.industry || 'Sản xuất chế tạo',
+        industry: (initialData?.category || CATEGORIES[0]) === CATEGORIES[0]
+            ? 'COMMON'
+            : (initialData?.industry || 'Sản xuất chế tạo'),
         category: initialData?.category || 'Khẩu lệnh',
         order_index: initialData?.order_index ?? 0,
         question_text: initialData?.question_text || '',
@@ -321,6 +323,7 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
 
             const payload = {
                 ...formData,
+                industry: formData.category === CATEGORIES[0] ? 'COMMON' : formData.industry,
                 order_index: parseInt(String(formData.order_index), 10) || 0,
                 suggested_answers: finalAnswers.length > 0 ? finalAnswers : null,
                 countdown_after_audio: parseInt(String(formData.countdown_after_audio)) || 0,
@@ -398,6 +401,7 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
     }
 
     const isToolCategory = formData.category === CATEGORIES[3]
+    const isSharedCommand = formData.category === CATEGORIES[0]
     return (
         <div className="w-full space-y-6 pb-20">
             <div className="flex items-center justify-between">
@@ -416,26 +420,38 @@ export function InterviewQuestionForm({ initialData, isEdit }: InterviewQuestion
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="space-y-2">
                         <Label>Ngành nghề (Industry) *</Label>
-                        <Select
-                            value={formData.industry}
-                            onValueChange={(v) => setFormData({...formData, industry: v})}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Chọn ngành nghề" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {INDUSTRIES.map(ind => (
-                                    <SelectItem key={ind} value={ind}>{ind}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        {isSharedCommand ? (
+                            <div className="flex h-10 items-center rounded-md border border-blue-200 bg-blue-50 px-3 text-sm font-medium text-blue-700">
+                                Dùng chung · Tất cả ngành
+                            </div>
+                        ) : (
+                            <Select
+                                value={formData.industry}
+                                onValueChange={(v) => setFormData({...formData, industry: v})}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Chọn ngành nghề" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {INDUSTRIES.map(ind => (
+                                        <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
                     </div>
 
                     <div className="space-y-2">
                         <Label>Phân loại (Category) *</Label>
                         <Select
                             value={formData.category}
-                            onValueChange={(v) => setFormData({...formData, category: v})}
+                            onValueChange={(v) => setFormData({
+                                ...formData,
+                                category: v,
+                                industry: v === CATEGORIES[0]
+                                    ? 'COMMON'
+                                    : (formData.industry === 'COMMON' ? INDUSTRIES[0] : formData.industry)
+                            })}
                         >
                             <SelectTrigger>
                                 <SelectValue placeholder="Chọn phân loại" />

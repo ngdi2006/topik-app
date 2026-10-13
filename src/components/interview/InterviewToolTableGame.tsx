@@ -5,8 +5,9 @@ import Image from 'next/image'
 import { GripVertical, RotateCcw, Trash2 } from 'lucide-react'
 import toolMetadata from '../../../DATA-EPS/img/metadata_tools.json'
 import { FISHERY_TOOL_GROUP_BY_ID, FISHERY_TOOL_GROUP_ORDER, type FisheryToolGroup } from './fisheryVisualCatalog'
+import { AGRICULTURE_TOOL_GROUP_BY_ID, AGRICULTURE_TOOL_GROUP_ORDER, type AgricultureToolGroup } from './agricultureVisualCatalog'
 
-type ToolGroup = 'Tháo lắp' | 'Kìm & cắt' | 'Đo kiểm' | 'Gia công' | 'Sơn & hoàn thiện' | FisheryToolGroup | 'Nông nghiệp' | 'Lâm nghiệp' | 'Xây dựng' | 'Dịch vụ'
+type ToolGroup = 'Tháo lắp' | 'Kìm & cắt' | 'Đo kiểm' | 'Gia công' | 'Sơn & hoàn thiện' | FisheryToolGroup | AgricultureToolGroup | 'Lâm nghiệp' | 'Xây dựng' | 'Dịch vụ'
 
 type ToolAsset = {
     src: string
@@ -14,7 +15,18 @@ type ToolAsset = {
     scale?: number
 }
 
-const TOOL_GROUP_ORDER: ToolGroup[] = [...FISHERY_TOOL_GROUP_ORDER, 'Nông nghiệp', 'Lâm nghiệp', 'Xây dựng', 'Dịch vụ', 'Tháo lắp', 'Kìm & cắt', 'Đo kiểm', 'Gia công', 'Sơn & hoàn thiện']
+const TOOL_GROUP_ORDER: ToolGroup[] = Array.from(new Set<ToolGroup>([
+    ...FISHERY_TOOL_GROUP_ORDER,
+    ...AGRICULTURE_TOOL_GROUP_ORDER,
+    'Lâm nghiệp',
+    'Xây dựng',
+    'Dịch vụ',
+    'Tháo lắp',
+    'Kìm & cắt',
+    'Đo kiểm',
+    'Gia công',
+    'Sơn & hoàn thiện',
+]))
 const SCREWDRIVER_TIP_TOOLS = new Set(['flat_screwdriver', 'phillips_screwdriver'])
 
 const TOOL_IDS_BY_NUMBER = [
@@ -226,7 +238,7 @@ export function InterviewToolTableGame({
             const group = tool.startsWith('fishery_')
                 ? FISHERY_TOOL_GROUP_BY_ID[tool] || 'Đánh bắt'
                 : tool.startsWith('agriculture_')
-                    ? 'Nông nghiệp'
+                    ? AGRICULTURE_TOOL_GROUP_BY_ID[tool] || 'Làm đất & thủ công'
                     : tool.startsWith('forestry_')
                         ? 'Lâm nghiệp'
                         : tool.startsWith('construction_')

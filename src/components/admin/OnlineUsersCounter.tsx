@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Laptop, MapPin, MonitorSmartphone, Smartphone, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -20,6 +20,7 @@ type ConnectionStatus = 'connecting' | 'connected' | 'error'
 type UserIdentity = { id: string; name: string; email: string | null; role: string; groupName: string | null }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const PRESENCE_RENDER_THROTTLE_MS = 3_000
 
 const PAGE_NAMES: Record<string, string> = {
     '/dashboard': 'Tổng quan học tập',
@@ -40,31 +41,77 @@ function locationName(entry: PresenceEntry) {
         .join(', ') || 'Không xác định'
 }
 
+function presenceSignature(entries: PresenceEntry[]) {
+    return JSON.stringify(entries
+        .map(({ key, is_guest, current_page, country, region, city, device, browser }) => ({
+            key, is_guest, current_page, country, region, city, device, browser,
+        }))
+        .sort((a, b) => a.key.localeCompare(b.key)))
+}
+
 export function OnlineUsersCounter() {
     const [users, setUsers] = useState<PresenceEntry[]>([])
     const [open, setOpen] = useState(false)
     const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting')
     const [identities, setIdentities] = useState<Record<string, UserIdentity>>({})
+    const lastPresenceSignatureRef = useRef('')
 
     useEffect(() => {
         const supabase = createClient()
         let channel: ReturnType<typeof supabase.channel> | null = null
         let retryTimer: ReturnType<typeof setTimeout> | null = null
+        let renderTimer: ReturnType<typeof setTimeout> | null = null
+        let pendingUsers: PresenceEntry[] | null = null
         let disposed = false
 
+        const clearRenderTimer = () => {
+            if (renderTimer) clearTimeout(renderTimer)
+            renderTimer = null
+            pendingUsers = null
+        }
+
+        const applyPresence = () => {
+            renderTimer = null
+            const nextUsers = pendingUsers
+            pendingUsers = null
+            if (!nextUsers || disposed) return
+            const signature = presenceSignature(nextUsers)
+            if (signature === lastPresenceSignatureRef.current) return
+            lastPresenceSignatureRef.current = signature
+            setUsers(nextUsers)
+        }
+
+        const schedulePresenceRender = (nextUsers: PresenceEntry[]) => {
+            pendingUsers = nextUsers
+            if (!lastPresenceSignatureRef.current) {
+                applyPresence()
+                return
+            }
+            if (!renderTimer) renderTimer = setTimeout(applyPresence, PRESENCE_RENDER_THROTTLE_MS)
+        }
+
+        const disconnect = () => {
+            if (retryTimer) clearTimeout(retryTimer)
+            retryTimer = null
+            clearRenderTimer()
+            const activeChannel = channel
+            channel = null
+            if (activeChannel) void supabase.removeChannel(activeChannel)
+        }
+
         const connect = () => {
-            if (disposed || document.hidden) return
+            if (disposed || document.hidden || channel) return
             setConnectionStatus('connecting')
             const nextChannel = supabase.channel('global-presence')
             channel = nextChannel
             nextChannel.on('presence', { event: 'sync' }, () => {
                 const state = nextChannel.presenceState()
-                setUsers(Object.entries(state).map(([key, presences]) => ({
+                schedulePresenceRender(Object.entries(state).map(([key, presences]) => ({
                     key,
                     ...((presences as unknown as PresenceEntry[]).at(-1) || {}),
                 })))
             }).subscribe((status) => {
-                if (disposed) return
+                if (disposed || channel !== nextChannel) return
                 if (status === 'SUBSCRIBED') {
                     setConnectionStatus('connected')
                     return
@@ -73,16 +120,18 @@ export function OnlineUsersCounter() {
                 setConnectionStatus('error')
                 if (retryTimer) clearTimeout(retryTimer)
                 retryTimer = setTimeout(() => {
-                    if (channel === nextChannel) channel = null
-                    void supabase.removeChannel(nextChannel)
+                    if (channel === nextChannel) disconnect()
                     connect()
                 }, 3000)
             })
         }
 
         const handleVisibilityChange = () => {
-            if (document.hidden) return
-            if (!channel) connect()
+            if (document.hidden) {
+                disconnect()
+                return
+            }
+            connect()
         }
 
         document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -90,8 +139,7 @@ export function OnlineUsersCounter() {
         return () => {
             disposed = true
             document.removeEventListener('visibilitychange', handleVisibilityChange)
-            if (retryTimer) clearTimeout(retryTimer)
-            if (channel) void supabase.removeChannel(channel)
+            disconnect()
         }
     }, [])
 

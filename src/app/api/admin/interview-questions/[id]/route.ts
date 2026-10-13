@@ -104,7 +104,7 @@ export async function PUT(
         }
 
         const updatePayload: Record<string, unknown> = {
-            industry: body.industry,
+            industry: body.category === 'Khẩu lệnh' ? 'COMMON' : body.industry,
             category: body.category,
             question_text: body.question_text,
             vietnamese_meaning: body.vietnamese_meaning,

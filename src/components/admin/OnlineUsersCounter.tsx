@@ -20,7 +20,8 @@ type ConnectionStatus = 'connecting' | 'connected' | 'error'
 type UserIdentity = { id: string; name: string; email: string | null; role: string; groupName: string | null }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-const PRESENCE_RENDER_THROTTLE_MS = 3_000
+const PRESENCE_ADD_BATCH_MS = 5_000
+const PRESENCE_OFFLINE_GRACE_MS = 60_000
 
 const PAGE_NAMES: Record<string, string> = {
     '/dashboard': 'Tổng quan học tập',
@@ -55,45 +56,87 @@ export function OnlineUsersCounter() {
     const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting')
     const [identities, setIdentities] = useState<Record<string, UserIdentity>>({})
     const lastPresenceSignatureRef = useRef('')
+    const usersRef = useRef<PresenceEntry[]>([])
 
     useEffect(() => {
         const supabase = createClient()
         let channel: ReturnType<typeof supabase.channel> | null = null
         let retryTimer: ReturnType<typeof setTimeout> | null = null
-        let renderTimer: ReturnType<typeof setTimeout> | null = null
-        let pendingUsers: PresenceEntry[] | null = null
+        let additionTimer: ReturnType<typeof setTimeout> | null = null
+        let initialized = false
+        let latestPresence = new Map<string, PresenceEntry>()
+        const pendingAdditions = new Map<string, PresenceEntry>()
+        const removalTimers = new Map<string, ReturnType<typeof setTimeout>>()
         let disposed = false
 
-        const clearRenderTimer = () => {
-            if (renderTimer) clearTimeout(renderTimer)
-            renderTimer = null
-            pendingUsers = null
-        }
-
-        const applyPresence = () => {
-            renderTimer = null
-            const nextUsers = pendingUsers
-            pendingUsers = null
-            if (!nextUsers || disposed) return
+        const publishUsers = (nextUsers: PresenceEntry[]) => {
+            if (disposed) return
             const signature = presenceSignature(nextUsers)
             if (signature === lastPresenceSignatureRef.current) return
             lastPresenceSignatureRef.current = signature
+            usersRef.current = nextUsers
             setUsers(nextUsers)
         }
 
-        const schedulePresenceRender = (nextUsers: PresenceEntry[]) => {
-            pendingUsers = nextUsers
-            if (!lastPresenceSignatureRef.current) {
-                applyPresence()
+        const flushAdditions = () => {
+            additionTimer = null
+            if (disposed || pendingAdditions.size === 0) return
+
+            const displayedKeys = new Set(usersRef.current.map((user) => user.key))
+            const additions = Array.from(pendingAdditions.keys())
+                .filter((key) => latestPresence.has(key) && !displayedKeys.has(key))
+                .map((key) => latestPresence.get(key) as PresenceEntry)
+            pendingAdditions.clear()
+
+            if (additions.length > 0) {
+                publishUsers([...usersRef.current, ...additions])
+            }
+        }
+
+        const reconcilePresence = (nextUsers: PresenceEntry[]) => {
+            latestPresence = new Map(nextUsers.map((user) => [user.key, user]))
+
+            if (!initialized) {
+                initialized = true
+                publishUsers(nextUsers)
                 return
             }
-            if (!renderTimer) renderTimer = setTimeout(applyPresence, PRESENCE_RENDER_THROTTLE_MS)
+
+            for (const key of latestPresence.keys()) {
+                const removalTimer = removalTimers.get(key)
+                if (removalTimer) clearTimeout(removalTimer)
+                removalTimers.delete(key)
+            }
+
+            for (const key of pendingAdditions.keys()) {
+                if (!latestPresence.has(key)) pendingAdditions.delete(key)
+            }
+
+            const displayedKeys = new Set(usersRef.current.map((user) => user.key))
+            const updatedUsers = usersRef.current.map((user) => latestPresence.get(user.key) || user)
+            publishUsers(updatedUsers)
+
+            for (const user of usersRef.current) {
+                if (latestPresence.has(user.key) || removalTimers.has(user.key)) continue
+                const timer = setTimeout(() => {
+                    removalTimers.delete(user.key)
+                    if (disposed || latestPresence.has(user.key)) return
+                    publishUsers(usersRef.current.filter((item) => item.key !== user.key))
+                }, PRESENCE_OFFLINE_GRACE_MS)
+                removalTimers.set(user.key, timer)
+            }
+
+            for (const [key, user] of latestPresence) {
+                if (!displayedKeys.has(key)) pendingAdditions.set(key, user)
+            }
+            if (pendingAdditions.size > 0 && !additionTimer) {
+                additionTimer = setTimeout(flushAdditions, PRESENCE_ADD_BATCH_MS)
+            }
         }
 
         const disconnect = () => {
             if (retryTimer) clearTimeout(retryTimer)
             retryTimer = null
-            clearRenderTimer()
             const activeChannel = channel
             channel = null
             if (activeChannel) void supabase.removeChannel(activeChannel)
@@ -106,7 +149,7 @@ export function OnlineUsersCounter() {
             channel = nextChannel
             nextChannel.on('presence', { event: 'sync' }, () => {
                 const state = nextChannel.presenceState()
-                schedulePresenceRender(Object.entries(state).map(([key, presences]) => ({
+                reconcilePresence(Object.entries(state).map(([key, presences]) => ({
                     key,
                     ...((presences as unknown as PresenceEntry[]).at(-1) || {}),
                 })))
@@ -140,6 +183,10 @@ export function OnlineUsersCounter() {
             disposed = true
             document.removeEventListener('visibilitychange', handleVisibilityChange)
             disconnect()
+            if (additionTimer) clearTimeout(additionTimer)
+            removalTimers.forEach((timer) => clearTimeout(timer))
+            pendingAdditions.clear()
+            removalTimers.clear()
         }
     }, [])
 
@@ -181,7 +228,7 @@ export function OnlineUsersCounter() {
         <button className="group mt-2 text-left" onClick={() => setOpen(true)} type="button">
             <span className={`block text-2xl font-bold ${connectionStatus === 'error' ? 'text-amber-500' : 'text-emerald-500'}`}>{connectionStatus === 'connected' ? users.length : '—'}</span>
             <span className="mt-1 block text-[11px] font-semibold text-blue-600 group-hover:underline">Xem vị trí và hoạt động</span>
-            <span className={`mt-1 block text-[10px] ${connectionStatus === 'error' ? 'text-amber-600' : 'text-slate-400'}`}>{connectionStatus === 'connected' ? 'Đã kết nối thời gian thực' : connectionStatus === 'error' ? 'Mất kết nối — đang thử lại' : 'Đang kết nối...'}</span>
+            <span className={`mt-1 block text-[10px] ${connectionStatus === 'error' ? 'text-amber-600' : 'text-slate-400'}`}>{connectionStatus === 'connected' ? 'Thêm trong 5 giây · xác nhận offline sau 60 giây' : connectionStatus === 'error' ? 'Mất kết nối — đang thử lại' : 'Đang kết nối...'}</span>
         </button>
 
         {open ? <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm" onMouseDown={() => setOpen(false)}>

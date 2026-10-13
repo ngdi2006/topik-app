@@ -196,7 +196,7 @@ export default async function AdminDashboardPage() {
             <MetricCard hint={`${newUsers7} tài khoản mới trong 7 ngày`} icon={Users} label="Tổng học viên" value={formatNumber.format(studentResult.count || 0)} />
             <MetricCard hint={`${activeUsers7} người đăng nhập trong 7 ngày`} icon={UserCheck} label="Người dùng hoạt động" tone="green" value={activeUsers7} />
             <MetricCard hint={`${completedAttempts.length} lượt hoàn thành trong 30 ngày`} icon={GraduationCap} label="Lượt làm bài" tone="violet" value={attempts.length} />
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between"><div><p className="text-sm font-medium text-slate-600">Đang trực tuyến</p><OnlineUsersCounter /></div><span className="grid size-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><Activity className="size-5" /></span></div><p className="mt-2 text-xs text-slate-500">Cập nhật theo thời gian thực</p></div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between"><div><p className="text-sm font-medium text-slate-600">Đang trực tuyến</p><OnlineUsersCounter /></div><span className="grid size-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><Activity className="size-5" /></span></div><p className="mt-2 text-xs text-slate-500">Người mới ≤ 5 giây · offline sau 60 giây</p></div>
         </section>
 
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

@@ -4,7 +4,7 @@ import type { WorkshopObject } from './sampleObjects'
 export const EXAM_DURATION_SECONDS = 60
 export const EXAM_TOLERANCE_MM = 0.20
 export const EXAM_POINTS_PER_TASK = 25
-export const EXAM_TASK_IDS = ['bolt-width', 'bolt-length', 'flange-inner', 'flange-outer'] as const
+export const EXAM_TASK_IDS = ['bolt-length', 'bolt-width', 'flange-inner', 'flange-outer'] as const
 export type ExamTaskId = typeof EXAM_TASK_IDS[number]
 export type CaliperExamAnswers = Partial<Record<ExamTaskId, string>>
 export type CaliperExamContacts = Partial<Record<ExamTaskId, boolean>>
@@ -114,8 +114,8 @@ export function generateCaliperExam(
     toolType,
     resolution,
     tasks: [
-      makeTask('bolt-width', '가로', 'Chiều ngang', 'Dùng mỏ đo ngoài kẹp hai đỉnh ren đối diện trên thân bu lông.', boltShaftDiameter, true),
-      makeTask('bolt-length', '세로', 'Chiều dọc', 'Kẹp từ mặt ngoài đầu bu lông đến đầu mút thân ren bằng mỏ đo ngoài.', boltLength, true),
+      makeTask('bolt-length', '가로', 'Chiều ngang', 'Kẹp từ mặt ngoài đầu bu lông đến đầu mút thân ren bằng mỏ đo ngoài.', boltLength, true),
+      makeTask('bolt-width', '세로', 'Chiều dọc', 'Dùng mỏ đo ngoài kẹp hai đỉnh ren đối diện trên thân bu lông.', boltShaftDiameter, true),
       makeTask('flange-inner', '내측', 'Đường kính trong', 'Mở hai mỏ đo trong để chạm hai thành đối diện của lỗ mặt bích.', flangeInner, false),
       makeTask('flange-outer', '외측', 'Đường kính ngoài', 'Kẹp hai mép ngoài đối diện của mặt bích bằng mỏ đo ngoài.', flangeOuter, false),
     ],

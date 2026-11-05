@@ -33,7 +33,9 @@ test('random specimens share dimensions and every measured target changes on ret
       const attempt = generateCaliperExam(tool, previous)
       assert.equal(attempt.tasks.length, 4)
       assert.equal(new Set(attempt.tasks.map(task => task.id)).size, 4)
-      const [width, length, inner, outer] = attempt.tasks
+      const width = attempt.tasks.find(task => task.id === 'bolt-width')
+      const length = attempt.tasks.find(task => task.id === 'bolt-length')
+      const [inner, outer] = attempt.tasks.slice(2)
       assert.equal(width.targetMm, width.workpiece.features.boltShaftDiameter)
       assert.equal(width.targetMm, width.workpiece.features.outerDiameter)
       assert(width.workpiece.features.boltHeadWidth > width.targetMm)
@@ -50,6 +52,32 @@ test('random specimens share dimensions and every measured target changes on ret
       }
       previous = attempt
     }
+  }
+})
+
+test('worksheet directions select the matching bolt pose and score its actual dimension', () => {
+  const { generateCaliperExam, gradeCaliperExam, formatExamCm, EXAM_TASK_IDS } = loadExam()
+  for (const tool of ['mechanical', 'digital']) {
+    const attempt = generateCaliperExam(tool)
+    const [horizontal, vertical] = attempt.tasks
+    assert.deepEqual(attempt.tasks.map(task => task.id), EXAM_TASK_IDS)
+    assert.equal(horizontal.labelKo, '가로')
+    assert.equal(horizontal.labelVi, 'Chiều ngang')
+    assert.equal(horizontal.workpiece.geometry, 'bolt-length')
+    assert.equal(horizontal.targetMm, horizontal.workpiece.features.boltLength)
+    assert.equal(vertical.labelKo, '세로')
+    assert.equal(vertical.labelVi, 'Chiều dọc')
+    assert.equal(vertical.workpiece.geometry, 'bolt-width')
+    assert.equal(vertical.targetMm, vertical.workpiece.features.boltShaftDiameter)
+
+    const contacts = Object.fromEntries(attempt.tasks.map(task => [task.id, true]))
+    const answers = Object.fromEntries(attempt.tasks.map(task => [task.id, formatExamCm(task.targetMm)]))
+    assert.equal(gradeCaliperExam(attempt, answers, contacts).score, 100)
+    ;[answers[horizontal.id], answers[vertical.id]] = [answers[vertical.id], answers[horizontal.id]]
+    const swapped = gradeCaliperExam(attempt, answers, contacts)
+    assert.equal(swapped.results[0].points, 0)
+    assert.equal(swapped.results[1].points, 0)
+    assert.equal(swapped.score, 50)
   }
 })
 

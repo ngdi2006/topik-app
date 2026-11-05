@@ -7,12 +7,13 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { useUserStore } from "@/store/userStore"
 import { Button } from "@/components/ui/button"
+import { SkillTestSidebarLinks } from "@/components/shared/SkillTestSidebarLinks"
 import { UserNav } from "@/components/shared/UserNav"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, PlayCircle, BookOpen, BookText, Languages, GraduationCap, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles, Mic, ArrowLeft, User, Trophy, ChevronDown, Award, LayoutDashboard, RotateCcw, BarChart3, ListChecks } from "lucide-react"
+import { Clock, PlayCircle, BookOpen, BookText, Languages, GraduationCap, Target, FileText, Bot, ClipboardCheck, Coins, ShoppingCart, Phone, X, Factory, Sparkles, Mic, ArrowLeft, User, Trophy, ChevronDown, Award, LayoutDashboard, RotateCcw, BarChart3, ListChecks, Ruler } from "lucide-react"
 import { LEARNING_CLUSTER_LOCKED } from "@/lib/learner-feature-flags"
 
 const LessonList = dynamic(() => import("@/components/lessons/LessonList").then((module) => module.LessonList))
@@ -219,6 +220,7 @@ export default function DashboardPage() {
     const [currentUserRank, setCurrentUserRank] = useState<CurrentUserRank | null>(() => cachedDashboard?.currentUserRank || null)
     const [isPhongVanMenuOpen, setIsPhongVanMenuOpen] = useState(false)
     const [isExamMenuOpen, setIsExamMenuOpen] = useState(false)
+    const [isSkillTestMenuOpen, setIsSkillTestMenuOpen] = useState(false)
     const [hasInterviewMobileBack, setHasInterviewMobileBack] = useState(false)
 
     useEffect(() => {
@@ -575,6 +577,21 @@ export default function DashboardPage() {
                             })}
                         </div>
                     )}
+                    {/* TAY NGHỀ VÒNG 2 (DASHBOARD SIDEBAR) */}
+                    <div className="space-y-1 w-full pt-1">
+                        <Button
+                            variant="ghost"
+                            className={`relative w-full justify-between overflow-hidden border-0 ${isDrawer ? 'h-10 rounded-xl text-[13px] font-bold text-slate-700 hover:bg-slate-50 hover:text-blue-700' : 'rounded-xl font-medium text-white/80 hover:bg-white/10 hover:text-white'}`}
+                            onClick={() => setIsSkillTestMenuOpen((current) => !current)}
+                        >
+                            <span className="flex min-w-0 flex-1 items-center">
+                                <span className={isDrawer ? 'mr-2.5 grid size-8 shrink-0 place-items-center rounded-lg bg-blue-600 text-white shadow-sm' : 'mr-3'}><Ruler className="size-3.5" /></span>
+                                <span className="truncate">Tay nghề Vòng 2</span>
+                            </span>
+                            <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isSkillTestMenuOpen ? 'rotate-180' : ''}`} />
+                        </Button>
+                        {isSkillTestMenuOpen && <SkillTestSidebarLinks mobile={isDrawer} onNavigate={onClick} />}
+                    </div>
                 </div>
             )
         }

@@ -1,0 +1,32 @@
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (133kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+⨯ ./src/components/skill-test/CaliperSpeedDrill.tsx:15:1
+Module not found: Can't resolve './caliperDrill.module.css'
+  13 | import { Flame, Award, CheckCircle2, XCircle, Clock, ArrowRight, TrendingUp } from 'lucide-react'
+  14 | import controlStyles from './caliperControls.module.css'
+> 15 | import styles from './caliperDrill.module.css'
+     | ^
+  16 |
+  17 | const Caliper3D = dynamic(() => import('./Caliper3D'), { ssr: false })
+  18 | const noAction = () => {}
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/components/skill-test/SkillTestHub.tsx
+./src/app/(learner)/skill-test/page.tsx
+⨯ ./src/components/skill-test/MockSkillExamModal.tsx:15:1
+Module not found: Can't resolve './caliperExam.module.css'
+  13 | import type { DigitalCaliperDisplay } from './Caliper3D'
+  14 | import controlStyles from './caliperControls.module.css'
+> 15 | import styles from './caliperExam.module.css'
+     | ^
+  16 |
+  17 | const Caliper3D = dynamic(() => import('./Caliper3D'), {
+  18 |   ssr: false,
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/components/skill-test/SkillTestHub.tsx
+./src/app/(learner)/skill-test/page.tsx

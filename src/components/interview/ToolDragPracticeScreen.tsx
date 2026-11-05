@@ -11,7 +11,7 @@ import { WorkshopToolIcon } from './WorkshopToolIcon'
 import { FULL_TOOL_IDS, FULL_TOOL_NAMES, InterviewToolTableGame } from './InterviewToolTableGame'
 import { ToolGameOnboarding, type ToolGameTourStep } from './ToolGameOnboarding'
 import { FISHERY_ACTION_DEFINITIONS, FISHERY_TARGET_DEFINITIONS, FisheryEntityIcon, findFisheryAction, findFisheryTarget, getFisheryTargetImage } from './fisheryVisualCatalog'
-import { AGRICULTURE_ACTION_DEFINITIONS, AGRICULTURE_TARGET_DEFINITIONS, AgricultureEntityIcon, findAgricultureAction, findAgricultureTarget, getAgricultureTargetImage, getAgricultureToolImage } from './agricultureVisualCatalog'
+import { AGRICULTURE_ACTION_DEFINITIONS, AGRICULTURE_TARGET_DEFINITIONS, AgricultureEntityIcon, findAgricultureAction, findAgricultureTarget, getAgricultureTargetImage, getAgricultureToolImage, getAgricultureToolImageOverride } from './agricultureVisualCatalog'
 
 const TOOL_GAME_ONBOARDING_KEY = 'tool_game_onboarding_v1'
 const TOOL_GAME_KOREAN_VISIBILITY_KEY = 'tool_game_show_korean'
@@ -1098,7 +1098,10 @@ export function ToolDragPracticeScreen({
     const currentToolImageUrls = useMemo(() => Object.fromEntries(
         industryToolOptions.flatMap((item) => {
             const agricultureImage = getAgricultureToolImage(item.id)
-            const imageUrl = agricultureImage || item.image_url
+            const agricultureOverride = getAgricultureToolImageOverride(item.id)
+            // Prefer the image attached to the exact vocabulary/tool record. Local 3D
+            // assets are fallbacks, except curated replacements verified for this game.
+            const imageUrl = agricultureOverride || item.image_url || agricultureImage
             return imageUrl ? [[item.id, imageUrl]] : []
         }),
     ), [industryToolOptions])

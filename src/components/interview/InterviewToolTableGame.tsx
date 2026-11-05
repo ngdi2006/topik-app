@@ -422,6 +422,11 @@ export function InterviewToolTableGame({
         setTapSelected(null)
     }
 
+    const draggedToolAsset = drag?.kind === 'tool' ? TOOL_ASSETS[drag.id] : undefined
+    const draggedToolImage = drag?.kind === 'tool'
+        ? toolImageUrls[drag.id] || draggedToolAsset?.src
+        : undefined
+
     return (
         <section aria-label="Bàn thi thực hành" className="w-full lg:pr-[300px]">
             <div data-tour="operation-zone" className="relative mx-auto mb-[338px] aspect-[6/5] w-full overflow-visible bg-slate-100 overscroll-contain sm:mb-[354px] sm:aspect-square sm:rounded-lg lg:mb-0">
@@ -716,8 +721,16 @@ export function InterviewToolTableGame({
                     className={`pointer-events-none fixed left-0 top-0 z-[100] grid h-[90px] w-[90px] place-items-center will-change-transform motion-reduce:transition-none ${drag.origin === 'table' ? 'drop-shadow-[0_12px_10px_rgba(15,23,42,0.38)]' : 'rounded-2xl bg-white/95 shadow-2xl'}`}
                     aria-hidden="true"
                 >
-                    {drag.kind === 'target' ? renderTarget(drag.id, 'h-16 w-16') : TOOL_ASSETS[drag.id] ? (
-                        <Image src={TOOL_ASSETS[drag.id].src} alt="" width={84} height={84} draggable={false} className={`h-full w-full object-contain ${drag.origin === 'table' ? '' : 'p-2'}`} />
+                    {drag.kind === 'target' ? renderTarget(drag.id, 'h-16 w-16') : draggedToolImage ? (
+                        <Image
+                            src={draggedToolImage}
+                            alt=""
+                            width={84}
+                            height={84}
+                            draggable={false}
+                            className={`h-full w-full object-contain ${drag.origin === 'table' ? '' : 'p-2'}`}
+                            style={{ transform: draggedToolAsset?.scale ? `scale(${draggedToolAsset.scale})` : undefined }}
+                        />
                     ) : renderFallback(drag.id, 'h-16 w-16')}
                 </div>
             ) : null}

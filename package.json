@@ -17,6 +17,7 @@
     "import:fishery-vocabulary": "node scripts/import_supplemental_fishery_vocab.mjs",
     "import:agriculture-vocabulary": "node scripts/import_agriculture_vocabulary.mjs",
     "import:fishery-tool-use": "node scripts/import_fishery_tool_use_questions.mjs",
+    "import:fishery-situations": "node scripts/import_fishery_situation_questions.mjs",
     "import:agriculture-tool-use": "node scripts/import_agriculture_tool_use_questions.mjs",
     "tts:setup": "node scripts/generate_tts_cache.mjs --setup",
     "tts:generate": "node scripts/generate_tts_cache.mjs",
@@ -58,6 +59,7 @@
     "react-hook-form": "^7.71.2",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
+    "three": "^0.187.0",
     "xlsx": "^0.18.5",
     "zod": "^4.3.6",
     "zustand": "^5.0.11"
@@ -68,6 +70,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.187.0",
     "dotenv": "^16.4.5",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",

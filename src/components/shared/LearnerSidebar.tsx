@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, BookOpen, BookText, ChevronDown, FileText, GraduationCap, Languages, LayoutDashboard, Mic, Phone, RotateCcw, Target, Trophy, UserRound, X } from "lucide-react"
+import { BarChart3, BookOpen, BookText, ChevronDown, FileText, GraduationCap, Languages, LayoutDashboard, Mic, Phone, RotateCcw, Ruler, Target, Trophy, UserRound, X } from "lucide-react"
+import { SkillTestSidebarLinks } from "@/components/shared/SkillTestSidebarLinks"
 import { UserNav } from "@/components/shared/UserNav"
 import { LEARNING_CLUSTER_LOCKED } from "@/lib/learner-feature-flags"
 
@@ -25,6 +26,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     const pathname = usePathname()
     const [examOpen, setExamOpen] = useState(false)
     const [interviewOpen, setInterviewOpen] = useState(false)
+    const [skillTestOpen, setSkillTestOpen] = useState(() => pathname.startsWith("/skill-test"))
+
     return (
         <>
             <div className="flex h-[72px] shrink-0 items-center justify-center border-b border-white/10">
@@ -38,6 +41,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                 {examOpen ? <div className="ml-6 space-y-0.5 border-l border-white/20 pb-1 pl-3">{[["Tổng quan kỳ thi", "/dashboard?section=thi-thu", LayoutDashboard], ["Danh sách đề thi", "/dashboard?section=thi-thu-de-thi", FileText], ["Bảng xếp hạng", "/dashboard?section=thi-thu-bang-xep-hang", Trophy]].map(([label, href, Icon]) => <Link className="flex min-h-9 items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-blue-50 transition hover:bg-white/15 hover:text-white" href={String(href)} key={String(label)} onClick={onNavigate}><Icon className="size-3.5" />{String(label)}</Link>)}</div> : null}
                 <button aria-expanded={interviewOpen} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-bold text-white transition hover:bg-white/15" onClick={() => setInterviewOpen((open) => !open)} type="button"><Mic className="size-5 shrink-0" /><span className="min-w-0 flex-1">Phỏng vấn Vòng 2</span><ChevronDown className={`size-3.5 transition-transform ${interviewOpen ? "rotate-180" : ""}`} /></button>
                 {interviewOpen ? <div className="ml-6 space-y-0.5 border-l border-white/20 pb-1 pl-3">{[["Tổng quan", "/dashboard?section=phong-van-tong-quan", LayoutDashboard], ["Luyện tập", "/dashboard?section=phong-van-luyen-tap", Target], ["Thi thử", "/dashboard?section=phong-van-thi-thu", UserRound], ["Củng cố", "/dashboard?section=phong-van-cung-co", RotateCcw], ["Báo cáo", "/dashboard?section=phong-van-bao-cao", BarChart3]].map(([label, href, Icon]) => <Link className="flex min-h-9 items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-blue-50 transition hover:bg-white/15 hover:text-white" href={String(href)} key={String(label)} onClick={onNavigate}><Icon className="size-3.5" />{String(label)}</Link>)}</div> : null}
+                
+                {/* TAY NGHỀ VÒNG 2 (THƯỚC KẸP CƠ & ĐIỆN TỬ) */}
+                <button aria-expanded={skillTestOpen} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-bold text-white transition hover:bg-white/15" onClick={() => setSkillTestOpen((open) => !open)} type="button"><Ruler className="size-5 shrink-0" /><span className="min-w-0 flex-1">Tay nghề Vòng 2</span><ChevronDown className={`size-3.5 transition-transform ${skillTestOpen ? "rotate-180" : ""}`} /></button>
+                {skillTestOpen ? <SkillTestSidebarLinks onNavigate={onNavigate} /> : null}
+                
                 <p className="mt-4 px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-100/70">Học tập</p>
                 {LEARNING_CLUSTER_LOCKED ? <LockedLearningItems /> : learningItems.map(([label, href, Icon]) => {
                     const active = href === "/textbooks" ? pathname === href : pathname.startsWith(String(href))
@@ -60,6 +68,7 @@ export function LearnerSidebar({ mobileOpen, onMobileOpenChange, desktopOpen = t
     const pathname = usePathname()
     const [examOpen, setExamOpen] = useState(false)
     const [interviewOpen, setInterviewOpen] = useState(false)
+    const [skillTestOpen, setSkillTestOpen] = useState(() => pathname.startsWith("/skill-test"))
 
     useEffect(() => {
         if (!mobileOpen) return
@@ -96,6 +105,7 @@ export function LearnerSidebar({ mobileOpen, onMobileOpenChange, desktopOpen = t
                             return <Link aria-current={active ? "page" : undefined} className={`flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-[13px] font-bold ${active ? "bg-emerald-50 text-emerald-700 shadow-sm" : "text-slate-700 hover:bg-slate-50 hover:text-emerald-700"}`} href={String(href)} key={String(href)} onClick={() => onMobileOpenChange(false)}><span className={`grid size-8 place-items-center rounded-lg ${active ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"}`}><Icon className="size-3.5" /></span>{String(label)}</Link>
                         })}
                     </div>
+                    
                     <div className="order-1 space-y-1">
                         <button aria-expanded={examOpen} className="flex h-10 w-full items-center rounded-xl bg-blue-50 px-3 text-[13px] font-bold text-blue-700 shadow-sm" onClick={() => setExamOpen((open) => !open)} type="button">
                             <span className="mr-2.5 grid size-8 place-items-center rounded-lg bg-blue-600 text-white shadow-sm"><FileText className="size-3.5" /></span><span className="min-w-0 flex-1 truncate text-left">Thi Thử EPS-TOPIK</span><ChevronDown className={`size-3.5 transition-transform ${examOpen ? "rotate-180" : ""}`} />
@@ -122,6 +132,14 @@ export function LearnerSidebar({ mobileOpen, onMobileOpenChange, desktopOpen = t
                                 ["Báo cáo", "/dashboard?section=phong-van-bao-cao", BarChart3],
                             ].map(([label, href, Icon]) => <Link className="flex min-h-9 items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-violet-50 hover:text-violet-700" href={String(href)} key={String(label)} onClick={() => onMobileOpenChange(false)}><Icon className="size-3.5" />{String(label)}</Link>)}
                         </div> : null}
+                    </div>
+
+                    {/* TAY NGHỀ VÒNG 2 (MOBILE) */}
+                    <div className="order-2 space-y-1">
+                        <button aria-expanded={skillTestOpen} className="flex h-10 w-full items-center rounded-xl bg-blue-50 px-3 text-[13px] font-bold text-blue-700 shadow-sm" onClick={() => setSkillTestOpen((open) => !open)} type="button">
+                            <span className="mr-2.5 grid size-8 place-items-center rounded-lg bg-blue-600 text-white shadow-sm"><Ruler className="size-3.5" /></span><span className="min-w-0 flex-1 truncate text-left">Tay nghề Vòng 2</span><ChevronDown className={`size-3.5 transition-transform ${skillTestOpen ? "rotate-180" : ""}`} />
+                        </button>
+                        {skillTestOpen ? <SkillTestSidebarLinks mobile onNavigate={() => onMobileOpenChange(false)} /> : null}
                     </div>
                 </nav>
 

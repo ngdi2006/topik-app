@@ -59,6 +59,16 @@ const groups: Record<AgricultureToolGroup,string[]> = {
 export const AGRICULTURE_TOOL_GROUP_BY_ID = Object.fromEntries(Object.entries(groups).flatMap(([group,toolIds])=>toolIds.map(id=>[id,group]))) as Record<string,AgricultureToolGroup>
 export const findAgricultureTarget = (id:string|null|undefined) => AGRICULTURE_TARGET_DEFINITIONS.find(item=>item.id===id)
 export const getAgricultureTargetImage = (id:string|null|undefined) => findAgricultureTarget(id) ? `/assets/workshop/agriculture-targets-3d/${id}.png` : null
-export const getAgricultureToolImage = (id:string|null|undefined) => id?.startsWith('agriculture_') ? `/assets/workshop/agriculture-tools-3d/${id}.png` : null
+const AGRICULTURE_TOOL_IMAGE_OVERRIDES: Record<string, string> = {
+  agriculture_대빗자루: '/assets/workshop/agriculture-tools-3d/agriculture_대빗자루_v2.png',
+  agriculture_전원스위치: '/assets/workshop/agriculture-tools-3d/agriculture_전원스위치_v2.png',
+  agriculture_스위치: '/assets/workshop/agriculture-tools-3d/agriculture_스위치_v2.png',
+  agriculture_핸들: '/assets/workshop/agriculture-tools-3d/agriculture_핸들_v2.png',
+  agriculture_레버: '/assets/workshop/agriculture-tools-3d/agriculture_레버_v2.png',
+}
+export const getAgricultureToolImageOverride = (id:string|null|undefined) => id ? AGRICULTURE_TOOL_IMAGE_OVERRIDES[id] || null : null
+export const getAgricultureToolImage = (id:string|null|undefined) => id?.startsWith('agriculture_')
+  ? getAgricultureToolImageOverride(id) || `/assets/workshop/agriculture-tools-3d/${id}.png`
+  : null
 export const findAgricultureAction = (id:string|null|undefined) => AGRICULTURE_ACTION_DEFINITIONS.find(item=>item.id===id)
 export function AgricultureEntityIcon({id,kind,className='size-7'}:{id:string|null|undefined;kind:'target'|'action';className?:string}) { const Icon=(kind==='target'?findAgricultureTarget(id):findAgricultureAction(id))?.icon||Sprout; return <Icon aria-hidden="true" className={className} strokeWidth={1.8}/> }

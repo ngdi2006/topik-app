@@ -1,14 +1,16 @@
 'use client'
 
 import controlStyles from './caliperControls.module.css'
+import guideStyles from './caliperGuide.module.css'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Box, Focus, Minus, Plus, Maximize2 } from 'lucide-react'
+import { Box, Focus, Minus, Plus, Maximize2, Hand, Unlock, Check } from 'lucide-react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import { VERNIER_CONFIGS, type VernierResolution } from '@/lib/skill-test/caliperMath'
 import type { WorkshopObject } from '@/lib/skill-test/sampleObjects'
 import { createWorkpieceGeometry } from './workpieceGeometry'
+import { layoutCaliperGuidance } from '@/lib/skill-test/caliperGuidance'
 
 export interface DigitalCaliperDisplay {
   text: string
@@ -58,9 +60,16 @@ export default function Caliper3D(props: Props) {
   const { presentation, onReady } = props
   const digitalMode = Boolean(props.digital)
   const sampleContact = Boolean(props.workpiece && Math.abs(props.position - props.workpiece.targetValueMm) < .005)
+  const guided = presentation === 'exam' && Boolean(props.workpiece)
+  const guidePhase = sampleContact ? 'contact' : props.locked ? 'locked' : 'drag'
   const hostRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<View | null>(null)
   const latestRef = useRef(props)
+  const guideRef = useRef<HTMLDivElement>(null)
+  const guideLabelRef = useRef<HTMLDivElement>(null)
+  const guideTargetRef = useRef<SVGGElement>(null)
+  const guideLeaderRef = useRef<SVGPathElement>(null)
+  const guideDirectionRef = useRef<SVGPathElement>(null)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => { latestRef.current = props }, [props])
@@ -68,6 +77,7 @@ export default function Caliper3D(props: Props) {
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
+    const guideOverlay = guideRef.current
     let renderer: THREE.WebGLRenderer
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
@@ -115,6 +125,7 @@ export default function Caliper3D(props: Props) {
     let sampleFocused = false
     let sampleZoomMultiplier = 1
     let previousZoom = 1
+    let sliderDragging = false
     const overviewHalfHeight = props.workpiece ? Math.max(60, props.workpiece.heightMm + 15) : 43
     const reset = () => {
       readingFocused = false
@@ -420,6 +431,10 @@ export default function Caliper3D(props: Props) {
     const sampleBounds = () => {
       const bounds = specimen!.frame.clone()
       if (props.workpiece?.measureType === 'outer') bounds.max.x = Math.max(bounds.max.x, slider.position.x + 14)
+      if (guided) {
+        // Keep the indicated drag handle in the specimen view, including wide flanges.
+        bounds.expandByPoint(new THREE.Vector3(slider.position.x + sliderWidth - 6 + 8, -6.8, 8))
+      }
       return bounds
     }
     const fitSampleZoom = () => {
@@ -438,6 +453,45 @@ export default function Caliper3D(props: Props) {
     }
     const readingTarget = new THREE.Vector3()
     const focusDelta = new THREE.Vector3()
+    const guideWorld = new THREE.Vector3()
+    const guideProjected = new THREE.Vector3()
+    const guideToward = new THREE.Vector3()
+    const projectGuideAnchor = (lock: boolean) => {
+      if (lock) lockAssembly.localToWorld(guideWorld.set(shaftX, 22.2, .6))
+      else thumb.getWorldPosition(guideWorld)
+      return guideProjected.copy(guideWorld).project(camera)
+    }
+    const updateGuidance = () => {
+      const overlay = guideRef.current
+      const label = guideLabelRef.current
+      if (!guided || !overlay || !label) return
+      const current = latestRef.current
+      if (current.readOnly || sliderDragging || readingFocused) {
+        overlay.style.visibility = 'hidden'
+        return
+      }
+      const contact = Boolean(current.workpiece && Math.abs(current.position - current.workpiece.targetValueMm) < .005)
+      const unlock = current.locked && !contact
+      const projected = projectGuideAnchor(unlock)
+      const width = host.clientWidth, height = host.clientHeight
+      overlay.dataset.compact = String(height < 160)
+      const direction = current.workpiece?.measureType === 'outer' ? -1 : 1
+      guideToward.copy(guideWorld).add(new THREE.Vector3(direction * 8, 0, 0)).project(camera)
+      const layout = layoutCaliperGuidance({
+        anchor: { x: (projected.x + 1) * width / 2, y: (1 - projected.y) * height / 2, z: projected.z },
+        toward: { x: (guideToward.x + 1) * width / 2, y: (1 - guideToward.y) * height / 2, z: guideToward.z },
+        width, height, labelWidth: label.offsetWidth, labelHeight: label.offsetHeight,
+        direction: !contact && !unlock,
+      })
+      if (!layout) { overlay.style.visibility = 'hidden'; return }
+      guideTargetRef.current?.setAttribute('transform', `translate(${layout.anchorX} ${layout.anchorY})`)
+      guideTargetRef.current?.style.setProperty('--swipe-x', `${layout.swipeX}px`)
+      guideTargetRef.current?.style.setProperty('--swipe-y', `${layout.swipeY}px`)
+      guideLeaderRef.current?.setAttribute('d', layout.leaderPath)
+      guideDirectionRef.current?.setAttribute('d', layout.directionPath)
+      label.style.transform = `translate(${layout.labelX}px, ${layout.labelY}px)`
+      overlay.style.visibility = 'visible'
+    }
     const centerReading = () => {
       if (sampleFocused && specimen) {
         sampleBounds().getCenter(readingTarget)
@@ -471,7 +525,7 @@ export default function Caliper3D(props: Props) {
       renderer.setScissorTest(false)
       renderer.setViewport(0, 0, width, height)
       renderer.render(scene, camera)
-
+      updateGuidance()
     }
     let disposed = false
     const resize = () => {
@@ -512,19 +566,31 @@ export default function Caliper3D(props: Props) {
         event.stopImmediatePropagation()
         return
       }
-      if (raycaster.intersectObject(lockAssembly, true).length) {
+      const hitsGuideHandle = (lock: boolean) => {
+        if (!guided) return false
+        const projected = projectGuideAnchor(lock)
+        if (projected.z < -1 || projected.z > 1 || Math.abs(projected.x) > 1 || Math.abs(projected.y) > 1) return false
+        const rect = canvas.getBoundingClientRect()
+        return Math.hypot(event.clientX - rect.left - (projected.x + 1) * rect.width / 2,
+          event.clientY - rect.top - (1 - projected.y) * rect.height / 2) <= 20
+      }
+      const current = latestRef.current
+      const contact = Boolean(current.workpiece && Math.abs(current.position - current.workpiece.targetValueMm) < .005)
+      if (raycaster.intersectObject(lockAssembly, true).length || (current.locked && !contact && hitsGuideHandle(true))) {
         latestRef.current.onLock()
         event.stopImmediatePropagation()
         return
       }
       const sampleHandle = specimen?.handle && raycaster.intersectObject(specimen.handle, true).length > 0
       const depthHandle = props.workpiece?.measureType === 'depth' && raycaster.intersectObject(depthRod).length > 0
-      if (!sampleHandle && !depthHandle && !raycaster.intersectObject(slider, true).length) return
+      if (!sampleHandle && !depthHandle && !hitsGuideHandle(false) && !raycaster.intersectObject(slider, true).length) return
       if (latestRef.current.locked || latestRef.current.readOnly) {
         event.stopImmediatePropagation(); return
       }
       if (!raycaster.ray.intersectPlane(plane, hit)) return
       drag = { start: hit.x, value: latestRef.current.position, pointerId: event.pointerId, camera: camera.clone() }
+      sliderDragging = true
+      updateGuidance()
       controls.enabled = false
       canvas.setPointerCapture(event.pointerId)
       event.stopImmediatePropagation()
@@ -544,9 +610,11 @@ export default function Caliper3D(props: Props) {
     const up = (event: PointerEvent) => {
       if (!drag || event.pointerId !== drag.pointerId) return
       drag = null
+      sliderDragging = false
       controls.enabled = true
       if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId)
       canvas.style.cursor = 'grab'
+      render()
     }
     const keydown = (event: KeyboardEvent) => {
       const current = latestRef.current
@@ -606,6 +674,7 @@ export default function Caliper3D(props: Props) {
 
     return () => {
       disposed = true
+      if (guideOverlay) guideOverlay.style.visibility = 'hidden'
       viewRef.current = null
       observer.disconnect()
       controls.dispose()
@@ -626,7 +695,7 @@ export default function Caliper3D(props: Props) {
       renderer.dispose()
       canvas.remove()
     }
-  }, [props.maxMm, props.resolution, digitalMode, props.workpiece, presentation])
+  }, [props.maxMm, props.resolution, digitalMode, props.workpiece, presentation, guided])
 
   useEffect(() => {
     const view = viewRef.current
@@ -647,8 +716,29 @@ export default function Caliper3D(props: Props) {
     }
   }, [props.digital])
 
+  useEffect(() => {
+    viewRef.current?.render()
+  }, [props.locked, props.readOnly])
+
   return <div data-presentation={props.presentation} className="relative w-full min-w-0 overflow-hidden bg-[#f3f5f6]">
-    <div ref={hostRef} className="w-full min-w-0" style={{ height: presentation === 'quiz' ? 'clamp(100px, calc(100dvh - 480px), 340px)' : presentation === 'exam' ? 'clamp(100px, calc(100dvh - 590px), 320px)' : 'clamp(260px, 40vw, 410px)' }} />
+    <div className={guideStyles.viewport}>
+      <div ref={hostRef} className="w-full min-w-0" style={{ height: presentation === 'quiz' ? 'clamp(100px, calc(100dvh - 480px), 340px)' : presentation === 'exam' ? 'clamp(100px, calc(100dvh - 590px), 320px)' : 'clamp(260px, 40vw, 410px)' }} />
+      {guided && <div ref={guideRef} className={guideStyles.guide} data-measure-guide="true" data-phase={guidePhase}>
+        <svg className={guideStyles.svg} aria-hidden="true">
+          <path ref={guideLeaderRef} className={guideStyles.leader} />
+          <path ref={guideDirectionRef} data-guide-direction="true" className={guideStyles.direction} />
+          <g ref={guideTargetRef} data-guide-handle="true">
+            <circle r="18" className={guideStyles.halo} />
+            <circle r="13" className={guideStyles.core} />
+            <g className={guideStyles.hand}>{sampleContact ? <Check x="-8" y="-8" width="16" height="16" /> : props.locked ? <Unlock x="-8" y="-8" width="16" height="16" /> : <Hand x="-8" y="-8" width="16" height="16" />}</g>
+          </g>
+        </svg>
+        <div ref={guideLabelRef} className={guideStyles.label} role="status" aria-live="polite">
+          <span className={guideStyles.step}>{sampleContact ? '2' : '1'}</span>
+          <div><strong>{sampleContact ? 'Đã chạm khít' : props.locked ? 'Mở vít khóa để kéo' : 'Giữ và kéo núm trượt'}</strong><small>{sampleContact ? `Bấm ${digitalMode ? 'Đọc LCD' : 'Đọc vạch'}, rồi ghi kết quả.` : props.locked ? 'Bấm ổ khóa bên dưới hoặc vít trên thước.' : 'Kéo theo mũi tên đến khi chạm mẫu.'}</small></div>
+        </div>
+      </div>}
+    </div>
     {presentation !== 'exam' && <div className="pointer-events-none absolute left-2 top-2 rounded-full border border-white/80 bg-white/90 px-2 py-1 text-[9px] font-semibold tracking-wider text-slate-500 sm:left-3 sm:top-3 sm:text-[10px]">3D · THÉP KHÔNG GỈ · {props.maxMm} mm</div>}
     <div data-sample={props.workpiece ? true : undefined} className={`${controlStyles.viewActions} flex items-center sm:justify-end`}>
       {props.workpiece && !sampleContact

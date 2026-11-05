@@ -114,8 +114,8 @@ export function generateCaliperExam(
     toolType,
     resolution,
     tasks: [
-      makeTask('bolt-width', '가로', 'Đường kính ren bu lông', 'Dùng mỏ đo ngoài kẹp hai đỉnh ren đối diện trên thân bu lông.', boltShaftDiameter, true),
-      makeTask('bolt-length', '세로', 'Chiều dài bu lông', 'Kẹp từ mặt ngoài đầu bu lông đến đầu mút thân ren bằng mỏ đo ngoài.', boltLength, true),
+      makeTask('bolt-width', '가로', 'Chiều ngang', 'Dùng mỏ đo ngoài kẹp hai đỉnh ren đối diện trên thân bu lông.', boltShaftDiameter, true),
+      makeTask('bolt-length', '세로', 'Chiều dọc', 'Kẹp từ mặt ngoài đầu bu lông đến đầu mút thân ren bằng mỏ đo ngoài.', boltLength, true),
       makeTask('flange-inner', '내측', 'Đường kính trong', 'Mở hai mỏ đo trong để chạm hai thành đối diện của lỗ mặt bích.', flangeInner, false),
       makeTask('flange-outer', '외측', 'Đường kính ngoài', 'Kẹp hai mép ngoài đối diện của mặt bích bằng mỏ đo ngoài.', flangeOuter, false),
     ],

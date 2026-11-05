@@ -23,8 +23,8 @@ const formatError = (value: number) => {
   return `${rounded > 0 ? '+' : ''}${rounded.toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 10, useGrouping: false })} mm`
 }
 const worksheetLabels = [
-  ['가로', 'Đường kính ren bu lông'],
-  ['세로', 'Chiều dài bu lông'],
+  ['가로', 'Chiều ngang'],
+  ['세로', 'Chiều dọc'],
   ['내측', 'Đường kính trong mặt bích'],
   ['외측', 'Đường kính ngoài mặt bích'],
 ]
@@ -194,7 +194,7 @@ export function MockSkillExamModal({ toolType = 'mechanical', onActiveChange }: 
     <p>Kéo thước kẹp bu lông và mặt bích, đọc số đo rồi điền vào bảng. Kích thước thay đổi mỗi lượt thi.</p>
     <div className={styles.sheet}>
       <table><thead><tr><th scope="col"><span lang="ko">측정 항목</span><small>Hạng mục đo</small></th><th scope="col"><span lang="ko">측정값</span><small>Kết quả đo</small></th></tr></thead>
-        <tbody>{worksheetLabels.map(([ko, vi]) => <tr key={ko}><th scope="row"><span lang="ko">{ko}</span> — {vi}</th><td className={styles.blank}>········ cm</td></tr>)}</tbody>
+        <tbody>{worksheetLabels.map(([ko, vi]) => <tr key={ko}><th scope="row"><span lang="ko">{ko}</span> – {vi}</th><td className={styles.blank}>········ cm</td></tr>)}</tbody>
       </table>
     </div>
     <p className={styles.notice}>Thước hiển thị mm. Ghi <strong>cm = mm ÷ 10</strong> với 3 số thập phân, bấm <strong>Tiếp</strong> để đổi phép đo. Hết 60 giây, bài tự nộp.</p>
@@ -227,7 +227,7 @@ export function MockSkillExamModal({ toolType = 'mechanical', onActiveChange }: 
 
   return <section className={styles.exam} aria-label="Bài thi đo 60 giây">
     <header className={styles.examHeader}>
-      <div className={styles.activeTitle}><h2>{activeTask?.id.startsWith('bolt') ? 'Bu lông' : 'Mặt bích'} · {activeTask?.labelKo} <span>{activeTask?.id === 'bolt-width' ? 'Đường kính ren' : activeTask?.id === 'bolt-length' ? 'Dọc' : activeTask?.id === 'flange-inner' ? 'Trong' : 'Ngoài'}</span></h2><p role="status">{!sceneReady ? 'Đang tải vật mẫu…' : touching ? 'Đã chạm khít · Đọc thước và ghi cm' : activeTask?.workpiece.measureType === 'inner' ? 'Kéo mỏ trong ra chạm hai thành lỗ' : activeId === 'bolt-width' ? 'Kẹp mỏ ngoài vào hai mép ren bu lông' : 'Kéo mỏ ngoài hoặc chấm xanh để kẹp'}</p></div>
+      <div className={styles.activeTitle}><h2>{activeTask?.id.startsWith('bolt') ? 'Bu lông' : 'Mặt bích'} · {activeTask?.labelKo} <span>{activeTask?.id === 'bolt-width' ? 'Chiều ngang' : activeTask?.id === 'bolt-length' ? 'Chiều dọc' : activeTask?.id === 'flange-inner' ? 'Trong' : 'Ngoài'}</span></h2><p role="status">{!sceneReady ? 'Đang tải vật mẫu…' : touching ? 'Đã chạm khít · Đọc thước và ghi cm' : activeTask?.workpiece.measureType === 'inner' ? 'Kéo mỏ trong ra chạm hai thành lỗ' : activeId === 'bolt-width' ? 'Kẹp mỏ ngoài vào hai mép ren bu lông' : 'Kéo mỏ ngoài hoặc chấm xanh để kẹp'}</p></div>
       <div className={styles.examProgress}><span aria-label={`Đã ghi ${completed}/4 mục`}>{completed}/4</span><span className={styles.timer} role="timer" data-urgent={timeLeft <= 10} aria-label={`Còn ${timeLeft} giây`}><Clock aria-hidden="true" /><strong>{Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}</strong></span></div>
     </header>
     <div className={styles.workspace}>

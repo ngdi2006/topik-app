@@ -187,6 +187,48 @@ export function createWorkpieceGeometry(object: WorkshopObject, maxMm: number): 
       new THREE.Vector3(centerX - outerRadius - 14, inner ? 7 : -40, -outerRadius - 4),
       new THREE.Vector3(centerX + outerRadius + 22, inner ? markerY + thickness / 2 + 12 : 18, outerRadius + 4),
     )
+  } else if (object.geometry === 'pipe-outer' || object.geometry === 'bearing-outer') {
+    const outerRadius = size / 2
+    const innerRadius = (object.features.innerDiameter ?? size * .6) / 2
+    const bearing = object.geometry === 'bearing-outer'
+    const length = object.heightMm
+    // The pipe and bearing retain an actual bore. Their outside tangents meet
+    // the lower jaws at x=0 and x=D, away from the caliper beam above them.
+    const baseY = bearing ? markerY - length / 2 : -8 - length
+    markerZ = 0
+    const body = addExtrusion(ringShape(outerRadius, innerRadius), length, metal)
+    body.name = bearing ? 'bearing-body' : 'pipe-body'
+    body.rotation.x = -Math.PI / 2
+    body.position.set(outerRadius, baseY, 0)
+    const topY = baseY + length
+    if (bearing) {
+      const sealInset = Math.min(.8, (outerRadius - innerRadius) / 5)
+      const seal = addExtrusion(ringShape(outerRadius - sealInset, innerRadius + sealInset), .2, recess)
+      seal.name = 'bearing-seal'
+      seal.rotation.x = -Math.PI / 2
+      seal.position.set(outerRadius, topY + .02, 0)
+    }
+    // Thin end faces and concentric machining grooves distinguish the hollow
+    // samples while remaining inside their true outside diameter.
+    for (const y of [baseY, topY]) {
+      const rim = addExtrusion(ringShape(outerRadius, innerRadius), .15, face)
+      rim.name = bearing ? 'bearing-rim' : 'pipe-rim'
+      rim.rotation.x = -Math.PI / 2
+      rim.position.set(outerRadius, y - (y === baseY ? .15 : 0), 0)
+    }
+    if (bearing) {
+      for (const radius of [innerRadius + .35, outerRadius - .35]) {
+        const groove = new THREE.Mesh(new THREE.TorusGeometry(radius, .08, 6, 96), recess)
+        groove.name = 'bearing-machining-line'
+        groove.rotation.x = Math.PI / 2
+        groove.position.set(outerRadius, topY + .19, 0)
+        group.add(groove)
+      }
+    }
+    frame = new THREE.Box3(
+      new THREE.Vector3(-16, Math.min(baseY - 6, -40), -outerRadius - 4),
+      new THREE.Vector3(size + 30, 18, outerRadius + 4),
+    )
   } else if (object.measureType === 'outer') {
     if (object.category === 'fastener') {
       // Thread crests, rather than the shaft core, establish the exact outside diameter.
@@ -202,18 +244,23 @@ export function createWorkpieceGeometry(object: WorkshopObject, maxMm: number): 
     } else if (object.category === 'gauge') {
       addBox(0, -8 - object.heightMm, -6, size, object.heightMm, 12, face)
     } else if (object.id.startsWith('flange')) {
-      const radius = object.heightMm / 2
-      const shape = ringShape(radius, 5)
+      const radius = (object.features.outerDiameter ?? object.heightMm) / 2
+      const innerRadius = (object.features.innerDiameter ?? 10) / 2
+      const shape = ringShape(radius, innerRadius)
+      const boltCircleRadius = (radius + innerRadius) / 2
+      const boltHoleRadius = Math.min(1.5, (radius - innerRadius) / 7)
       for (let i = 0; i < 6; i++) {
         const hole = new THREE.Path()
         const angle = i * Math.PI / 3
-        hole.absarc(Math.cos(angle) * radius * .7, Math.sin(angle) * radius * .7, 1.5, 0, Math.PI * 2, true)
+        hole.absarc(Math.cos(angle) * boltCircleRadius, Math.sin(angle) * boltCircleRadius, boltHoleRadius, 0, Math.PI * 2, true)
         shape.holes.push(hole)
       }
       const mesh = addExtrusion(shape, size, face)
       mesh.rotation.y = Math.PI / 2
-      mesh.position.y = -22
-      markerY = -10
+      // Keep even the largest disc below the beam; measure its upper annulus
+      // where both lower jaws can meet its opposite flat faces.
+      mesh.position.y = -8 - radius
+      markerY = mesh.position.y + boltCircleRadius
     } else {
       addCylinder(size / 2, -8 - object.heightMm / 2, 0, size / 2, object.heightMm)
       for (const y of [-10, -object.heightMm + 2]) {
@@ -223,16 +270,22 @@ export function createWorkpieceGeometry(object: WorkshopObject, maxMm: number): 
         group.add(band)
       }
     }
-    frame = new THREE.Box3(new THREE.Vector3(-16, -object.heightMm - 12, -18), new THREE.Vector3(size + 30, 18, 18))
+    const thicknessFlange = object.id.startsWith('flange')
+    const radius = object.category === 'gauge' ? 6 : thicknessFlange ? (object.features.outerDiameter ?? object.heightMm) / 2 : size / 2
+    frame = new THREE.Box3(
+      new THREE.Vector3(-16, thicknessFlange ? Math.min(-40, -8 - 2 * radius - 6) : -object.heightMm - 12, -Math.max(18, radius + 4)),
+      new THREE.Vector3(size + 30, 18, Math.max(18, radius + 4)),
+    )
   } else if (object.measureType === 'inner') {
     fixedX = -6
     markerY = 32
     markerZ = .75
     if (object.id.startsWith('u-slot')) {
       const wall = Math.max(5, (object.widthMm - size) / 2)
-      addBox(fixedX - wall, 22, -5, wall, 20, 10)
-      addBox(fixedX + size, 22, -5, wall, 20, 10)
-      addBox(fixedX - wall, 42, -5, size + 2 * wall, 5, 10, face)
+      const wallHeight = object.heightMm - 5
+      addBox(fixedX - wall, 22, -5, wall, wallHeight, 10)
+      addBox(fixedX + size, 22, -5, wall, wallHeight, 10)
+      addBox(fixedX - wall, 22 + wallHeight, -5, size + 2 * wall, 5, 10, face)
     } else {
       // The bore axis points upwards. Its two inner tangents coincide with the
       // caliper's outward-facing knife edges at x=-6 and x=-6+opening.
@@ -245,7 +298,7 @@ export function createWorkpieceGeometry(object: WorkshopObject, maxMm: number): 
       // Retain the whole bore geometry, with its front half translucent so the
       // knife edges and their contact with the inside wall remain visible.
       for (const [start, material] of [[0, metal], [Math.PI, seeThrough]] as const) {
-        const ring = addExtrusion(ringHalf(outer, size / 2, start), object.id.startsWith('ball-bearing') ? 8 : 12, material)
+        const ring = addExtrusion(ringHalf(outer, size / 2, start), object.heightMm, material)
         ring.rotation.x = -Math.PI / 2
         ring.position.set(fixedX + size / 2, 26, 0)
       }
@@ -258,18 +311,24 @@ export function createWorkpieceGeometry(object: WorkshopObject, maxMm: number): 
         for (const [start, material] of [[0, face], [Math.PI, transparentFace]] as const) {
           const race = addExtrusion(ringHalf(outer - .5, size / 2 + 1, start), .4, material)
           race.rotation.x = -Math.PI / 2
-          race.position.set(fixedX + size / 2, 34, 0)
+          race.position.set(fixedX + size / 2, 26 + object.heightMm, 0)
         }
         const ballRadius = (outer + size / 2) / 2
         for (let i = 0; i < 12; i++) {
           const angle = i * Math.PI / 6
           const ball = new THREE.Mesh(new THREE.SphereGeometry(1.25, 14, 10), Math.sin(angle) > 0 ? transparentFace : face)
-          ball.position.set(fixedX + size / 2 + Math.cos(angle) * ballRadius, 34.5, Math.sin(angle) * ballRadius)
+          ball.position.set(fixedX + size / 2 + Math.cos(angle) * ballRadius, 26 + object.heightMm + .5, Math.sin(angle) * ballRadius)
           group.add(ball)
         }
       }
     }
-    frame = new THREE.Box3(new THREE.Vector3(-23, 5, -23), new THREE.Vector3(size + 20, 53, 23))
+    const halfWidth = object.id.startsWith('u-slot') ? size / 2 + Math.max(5, (object.widthMm - size) / 2) : (object.features.outerDiameter ?? object.widthMm) / 2
+    const centerX = fixedX + size / 2
+    const halfDepth = object.id.startsWith('u-slot') ? 5 : halfWidth
+    frame = new THREE.Box3(
+      new THREE.Vector3(centerX - halfWidth - 14, 5, -halfDepth - 4),
+      new THREE.Vector3(centerX + halfWidth + 22, object.id.startsWith('u-slot') ? 28 + object.heightMm : Math.max(53, 26 + object.heightMm + 3), halfDepth + 4),
+    )
   } else {
     // A longitudinal cutaway reveals the depth rod meeting the blind hole floor.
     fixedX = maxMm + 60
@@ -285,10 +344,14 @@ export function createWorkpieceGeometry(object: WorkshopObject, maxMm: number): 
     const wall = addExtrusion(section, size)
     wall.rotation.y = Math.PI / 2
     wall.position.set(fixedX, markerY, markerZ)
-    const floor = addCylinder(fixedX + size + 2, markerY, markerZ, radius, 4, recess)
+    const floorThickness = Math.max(4, object.heightMm - size)
+    const floor = addCylinder(fixedX + size + floorThickness / 2, markerY, markerZ, radius, floorThickness, recess)
     floor.rotation.z = Math.PI / 2
     fixedMarker.position.set(fixedX + size, markerY, markerZ)
-    frame = new THREE.Box3(new THREE.Vector3(fixedX - 12, -16, -19), new THREE.Vector3(fixedX + size + 12, 27, 19))
+    frame = new THREE.Box3(
+      new THREE.Vector3(fixedX - 12, markerY - radius - 6, markerZ - radius - 4),
+      new THREE.Vector3(fixedX + size + floorThickness + 8, markerY + radius + 6, markerZ + radius + 4),
+    )
   }
 
   if (object.measureType === 'outer' || object.measureType === 'inner') fixedMarker.position.set(fixedX, markerY, markerZ)

@@ -31,6 +31,8 @@ interface MechanicalCaliperEngineProps {
   onChangeMm?: (value: number) => void
   readOnly?: boolean
   hideReading?: boolean
+  readingVisible?: boolean
+  onReadingVisibilityChange?: (visible: boolean) => void
   targetClampMm?: number
   maxMm?: number
   resolution?: VernierResolution
@@ -45,6 +47,8 @@ export function MechanicalCaliperEngine({
   onChangeMm,
   readOnly = false,
   hideReading = false,
+  readingVisible,
+  onReadingVisibilityChange,
   targetClampMm,
   maxMm = 150, // Standard 150mm industrial caliper
   resolution: initialResolution = 0.02, // Mitutoyo / GuangLu 0.02mm standard
@@ -57,7 +61,13 @@ export function MechanicalCaliperEngine({
   const [resolution, setResolution] = useState<VernierResolution>(initialResolution)
   const [isLocked, setIsLocked] = useState<boolean>(false)
   const [showTutorExplanation, setShowTutorExplanation] = useState<boolean>(false)
-  const [showReadingResult, setShowReadingResult] = useState<boolean>(!hideReading)
+  const [localReadingVisible, setLocalReadingVisible] = useState<boolean>(!hideReading)
+  const showReadingResult = readingVisible ?? localReadingVisible
+  const handleReadingVisibilityChange = () => {
+    const nextVisible = !showReadingResult
+    if (readingVisible === undefined) setLocalReadingVisible(nextVisible)
+    onReadingVisibilityChange?.(nextVisible)
+  }
 
   const [previousValueMm, setPreviousValueMm] = useState(valueMm)
   if (valueMm !== previousValueMm) {
@@ -155,7 +165,7 @@ export function MechanicalCaliperEngine({
 
           {/* Toggle Live Reading Result */}
           <button
-            onClick={() => setShowReadingResult(!showReadingResult)}
+            onClick={handleReadingVisibilityChange}
             aria-label={showReadingResult ? 'Ẩn đáp án số' : 'Hiện đáp án số'}
             aria-pressed={!showReadingResult}
             className={`flex h-10 shrink-0 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-semibold transition sm:text-xs ${
@@ -292,7 +302,11 @@ export function MechanicalCaliperEngine({
             <span>Hướng dẫn cách đọc bằng mắt thường (Độ chia {resolution} mm):</span>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 divide-y divide-slate-200 text-center sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          {readingVisible === false ? (
+            <p className="leading-relaxed text-slate-600">
+              Đọc vạch thước chính ngay bên trái vạch 0 của du xích, tìm vạch du xích trùng với thước chính rồi cộng hai phần. Bấm Hiện số khi cần đối chiếu kết quả và cách tính.
+            </p>
+          ) : <div className="grid grid-cols-1 gap-3 divide-y divide-slate-200 text-center sm:grid-cols-3 sm:divide-x sm:divide-y-0">
             {/* Step 1: Main Scale */}
             <div className="px-2 py-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
@@ -331,7 +345,7 @@ export function MechanicalCaliperEngine({
                 Kích thước đọc được: <span className="underline font-bold">{position.toFixed(reading.config.decimals)} mm</span>
               </p>
             </div>
-          </div>
+          </div>}
         </div>
       )}
     </div>

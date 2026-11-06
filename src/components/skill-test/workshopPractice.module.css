@@ -1,0 +1,22 @@
+.header { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.newSample { display: inline-flex; height: 40px; min-width: 40px; flex-shrink: 0; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid #dce3ed; border-radius: 9px; background: #fff; color: #345078; font-size: 11px; font-weight: 600; transition: background-color 150ms, border-color 150ms; }
+.newSample:hover:not(:disabled) { border-color: #b7c9eb; background: #edf3ff; color: #1d4ed8; }
+.newSample:focus-visible { outline: 2px solid #5b88f2; outline-offset: 2px; }
+.newSample:disabled { cursor: wait; opacity: .4; }
+.newSample svg { width: 15px; height: 15px; }
+.progress { display: flex; flex-shrink: 0; align-items: center; gap: 8px; margin-left: auto; color: #64748b; font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.progress strong { color: #2456df; font-weight: 600; }
+.loading { display: grid; min-height: clamp(330px, 40vw + 100px, 510px); place-items: center; background: #f3f5f6; color: #64748b; font-size: 12px; }
+.result { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-radius: 8px; font-size: 12px; }
+.result > div { display: flex; min-width: 0; align-items: flex-start; gap: 6px; }
+.result svg { width: 16px; height: 16px; flex-shrink: 0; }
+.result small { display: block; margin-top: 3px; font-size: 11px; }
+.result button { display: inline-flex; min-height: 36px; align-items: center; gap: 5px; padding: 6px 10px; border: 1px solid currentColor; border-radius: 7px; background: #fff; font-size: 11px; font-weight: 600; }
+.result button svg { width: 13px; height: 13px; }
+@media (max-width: 639px) {
+  .header { gap: 6px; }
+  .newSample { gap: 4px; padding-inline: 8px; font-size: 10px; }
+  .progress { gap: 5px; font-size: 10px; }
+  .progress strong { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .newSample { transition: none; } }

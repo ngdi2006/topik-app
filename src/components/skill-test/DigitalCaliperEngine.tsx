@@ -16,6 +16,8 @@ import {
   Lock,
   Unlock,
   AlertTriangle,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 
 const DigitalCaliper3D = dynamic(() => import('./Caliper3D'), { ssr: false })
@@ -26,6 +28,8 @@ interface DigitalCaliperEngineProps {
   readOnly?: boolean
   hideReading?: boolean
   showLcdReading?: boolean
+  readingVisible?: boolean
+  onReadingVisibilityChange?: (visible: boolean) => void
   toolbarActions?: React.ReactNode
   workpiece?: WorkshopObject
   targetClampMm?: number
@@ -39,6 +43,8 @@ export function DigitalCaliperEngine({
   readOnly = false,
   hideReading = false,
   showLcdReading = !hideReading,
+  readingVisible,
+  onReadingVisibilityChange,
   toolbarActions,
   workpiece,
   targetClampMm,
@@ -51,6 +57,8 @@ export function DigitalCaliperEngine({
   const [zeroOffsetMm, setZeroOffsetMm] = useState<number>(0)
   const [isLocked, setIsLocked] = useState<boolean>(false)
   const [zeroWarning, setZeroWarning] = useState<string | null>(null)
+  const showReadingResult = readingVisible ?? !hideReading
+  const showLcdResult = readingVisible ?? showLcdReading
 
   // Synchronize only when the parent supplies a new value; local dragging stays independent.
   const [previousValueMm, setPreviousValueMm] = useState(valueMm)
@@ -146,6 +154,21 @@ export function DigitalCaliperEngine({
       <div className={`${controlStyles.toolbar} mb-2 flex min-w-0 items-center gap-1.5`}>
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {toolbarActions}
+          {readingVisible !== undefined && (
+            <button
+              onClick={() => onReadingVisibilityChange?.(!showReadingResult)}
+              aria-label={showReadingResult ? 'Ẩn đáp án số' : 'Hiện đáp án số'}
+              aria-pressed={!showReadingResult}
+              className={`flex h-10 shrink-0 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-semibold transition sm:text-xs ${
+                showReadingResult
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                  : 'border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              {showReadingResult ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
+              <span>{showReadingResult ? 'Ẩn số' : 'Hiện số'}</span>
+            </button>
+          )}
           {/* Power Button */}
           <button
             onClick={handlePowerToggle}
@@ -218,7 +241,7 @@ export function DigitalCaliperEngine({
         onChange={handleUpdatePosition} onLock={() => setIsLocked(prev => !prev)}
         workpiece={workpiece}
         digital={{
-          text: showLcdReading ? lcdText : '\u2022\u2022.\u2022\u2022', unit,
+          text: showLcdResult ? lcdText : '\u2022\u2022.\u2022\u2022', unit,
           power: isPowerOn, relative: zeroOffsetMm !== 0,
           onPower: handlePowerToggle, onZero: handleZeroPress,
           onUnit: handleUnitToggle,
@@ -230,7 +253,9 @@ export function DigitalCaliperEngine({
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
           <div className="flex min-w-0 items-center gap-2">
             <AlertTriangle className="size-4 shrink-0 text-amber-600" />
-            <span>{zeroWarning}</span>
+            <span>{readingVisible === false
+              ? 'Bạn bấm ZERO khi mỏ kẹp đang mở. Hãy đóng khít thước rồi bấm ZERO để đo tuyệt đối.'
+              : zeroWarning}</span>
           </div>
           <button
             onClick={() => {
@@ -305,7 +330,7 @@ export function DigitalCaliperEngine({
 
         {/* Status display */}
         <div className={workpiece ? 'flex w-full min-w-0 items-center justify-end' : 'flex min-w-0 items-center justify-end gap-3 lg:col-span-5'}>
-          {!hideReading ? (
+          {showReadingResult ? (
             <div className={`${controlStyles.readingPanel} flex w-full min-w-0 items-baseline justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-white sm:w-auto`}>
               <span className="text-xs text-slate-400 font-medium">LCD Thực tế:</span>
               <span className="text-xl md:text-2xl font-black font-mono text-emerald-400 tabular-nums">
@@ -316,14 +341,16 @@ export function DigitalCaliperEngine({
           ) : (
             <div className="flex items-center gap-2 px-1 py-2 text-xs font-semibold text-amber-800">
               <Sparkles className="size-4 text-amber-600" />
-              <span>{showLcdReading ? 'Đọc chỉ số trên LCD để chọn đáp án.' : 'Chế độ kiểm tra: Màn hình LCD đã bị che!'}</span>
+              <span>{readingVisible === false
+                ? 'Đang ẩn đáp án. Bấm Hiện số khi cần kiểm tra.'
+                : showLcdResult ? 'Đọc chỉ số trên LCD để chọn đáp án.' : 'Chế độ kiểm tra: Màn hình LCD đã bị che!'}</span>
             </div>
           )}
         </div>
       </div>
 
       {/* Industrial Practical Tips */}
-      <div className="mt-4 border-t border-slate-200 pt-4 text-xs text-slate-700">
+      {!workpiece && <div className="mt-4 border-t border-slate-200 pt-4 text-xs text-slate-700">
         <div className="flex items-center gap-2 mb-1.5 text-emerald-950 font-bold text-sm">
           <Info className="size-4 text-emerald-600" />
           <span>Bí quyết đạt điểm tối đa thao tác thước điện tử thi EPS:</span>
@@ -342,7 +369,7 @@ export function DigitalCaliperEngine({
             <p className="text-slate-600">Luôn để ý góc trên màn hình LCD là chữ &quot;mm&quot;, tránh nhầm sang đơn vị &quot;in&quot; (inch).</p>
           </li>
         </ul>
-      </div>
+      </div>}
     </div>
   )
 }

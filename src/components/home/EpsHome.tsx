@@ -6,8 +6,9 @@ import ExamInvitation from "./ExamInvitation"
 import Link from "next/link"
 import { ArrowRight, ArrowUpRight, BookOpen, Headphones, MousePointer2, Sparkles, Target } from "lucide-react"
 import LearningVisual from "./LearningVisual"
+import HomeAccount, { type HomeAccountInfo } from "./HomeAccount"
 
-type Account = { name: string; avatarUrl: string | null } | null
+type Account = HomeAccountInfo | null
 export default function EpsHome({ account }: { account: Account }) {
   const destination = (path: string) => account ? path : `/login?next=${encodeURIComponent(path)}`
   const exams = destination("/dashboard?section=thi-thu-de-thi")
@@ -18,7 +19,7 @@ export default function EpsHome({ account }: { account: Account }) {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-5 sm:h-21 sm:px-8 lg:px-10">
         <Link href="/" aria-label="Korea Link · Trang chủ" className="flex shrink-0 items-center gap-2.5"><span className="relative block size-9 overflow-hidden rounded-xl bg-white ring-1 ring-slate-200"><Image src="/images/logo/logo.k.png" alt="" width={56} height={56} className="absolute left-1/2 top-1/2 size-14 max-w-none -translate-x-1/2 -translate-y-1/2 object-contain" /></span><span className="text-lg font-extrabold tracking-tight sm:text-xl">Korea Link<span className="mt-0.5 hidden text-[9px] font-semibold uppercase tracking-[.22em] text-slate-500 sm:block">Tiếng Hàn · EPS-TOPIK</span></span></Link>
         <nav aria-label="Điều hướng trang chủ" className="hidden items-center gap-7 text-sm font-medium text-slate-500 lg:flex"><a href="#giao-trinh" className="py-3 transition-colors hover:text-blue-700">Giáo trình</a><a href="#luyen-thi" className="py-3 transition-colors hover:text-blue-700">Luyện thi</a><a href="#cach-hoc" className="py-3 transition-colors hover:text-blue-700">Cách học</a></nav>
-        <div className="flex shrink-0 items-center gap-3">{account ? <Link href="/dashboard" className="inline-flex min-h-10 items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-4 text-xs font-semibold text-white transition-colors hover:from-blue-700 hover:to-violet-700 sm:px-5 sm:text-sm">Vào học <ArrowUpRight className="size-4" /><span className="sr-only"> · {account.name}</span></Link> : <><Link href="/login" className="hidden min-h-11 items-center px-2 text-sm font-semibold hover:text-blue-700 sm:inline-flex">Đăng nhập</Link><Link href="/register" className="inline-flex min-h-10 items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-4 text-xs font-semibold text-white transition-colors hover:from-blue-700 hover:to-violet-700 sm:px-5 sm:text-sm">Bắt đầu học <ArrowUpRight className="size-4" /></Link></>}</div>
+        <HomeAccount account={account} />
       </div>
     </header>
     <main id="noi-dung">

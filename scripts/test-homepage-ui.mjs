@@ -7,7 +7,7 @@ import { chromium } from '../tmp/workbook-validation/node_modules/playwright/ind
 import { compile } from '@tailwindcss/node'
 import { Scanner } from '@tailwindcss/oxide'
 
-await writeFile('tmp/workbook-validation/home-entry.jsx', `import React from'react';import{createRoot}from'react-dom/client';import Home from'../../src/components/home/EpsHome';import Settings from'../../src/components/admin/HomepageSettings';const signed=new URLSearchParams(location.search).has('signed');createRoot(document.getElementById('root')).render(location.pathname==='/settings'?<Settings/>:<Home account={signed?{name:'Learner',avatarUrl:null}:null}/>);`)
+await writeFile('tmp/workbook-validation/home-entry.jsx', `import React from'react';import{createRoot}from'react-dom/client';import Home from'../../src/components/home/EpsHome';import Settings from'../../src/components/admin/HomepageSettings';const params=new URLSearchParams(location.search),signed=params.has('signed'),avatar=params.get('avatar');createRoot(document.getElementById('root')).render(location.pathname==='/settings'?<Settings/>:<Home account={signed?{name:'Learner',avatarUrl:avatar==='broken'?'/images/fixture-avatar.png':avatar?'/images/logo/logo.k.png':null}:null}/>);`)
 const bundle = await build({ entryPoints: ['tmp/workbook-validation/home-entry.jsx'], bundle: true, write: false, format: 'iife', jsx: 'automatic', define: { 'process.env.NODE_ENV': '"development"' }, plugins: [{ name: 'next-elements', setup(builder) {
   builder.onResolve({ filter: /^next\/(image|link)$/ }, args => ({ path: args.path, namespace: 'fixture' }))
   builder.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ contents: args.path.endsWith('image') ? "import React from'react';export default function Image({priority,fill,sizes,...props}){return <img {...props} style={fill?{position:'absolute',height:'100%',width:'100%',inset:0,...props.style}:props.style}/>;}" : "import React from'react';export default function Link(props){return <a {...props}/>;}", loader: 'jsx', resolveDir: process.cwd() }))
@@ -38,6 +38,9 @@ try {
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 1000 }); await page.goto(base)
     await page.locator('[data-homepage=eps]').waitFor()
+    assert.equal(await page.locator('header [data-home-login]').textContent(), 'Đăng nhập')
+    assert.equal(await page.locator('header [data-home-login]').getAttribute('href'), '/login')
+    assert.equal(await page.locator('header [data-home-avatar]').count(), 0)
     assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1)
     assert.equal(await page.getByText('Bứt phá Vòng 2', { exact: true }).count(), 0)
     assert.ok(await page.getByRole('link', { name: 'Khám phá giáo trình', exact: true }).getAttribute('href').then(value => value.includes('/login?next=')))
@@ -77,6 +80,10 @@ try {
     await lesson.getByRole('button', { name: '02 Học sinh', exact: true }).click()
     await lesson.getByText('Đúng rồi! 학생 có nghĩa là học sinh.', { exact: true }).waitFor()
     await page.goto(base + '?signed=1')
+    await page.locator('header [data-home-avatar]').waitFor()
+    assert.equal(await page.locator('header [data-home-login]').count(), 0)
+    assert.equal(await page.locator('header [data-home-avatar]').textContent(), 'L')
+    assert.equal(await page.locator('header [data-home-avatar]').getAttribute('href'), '/dashboard')
     assert.equal(await page.getByRole('link', { name: 'Khám phá giáo trình', exact: true }).getAttribute('href'), '/textbooks')
     assert.equal(await page.getByRole('link', { name: 'Thi thử ngay', exact: true }).getAttribute('href'), '/dashboard?section=thi-thu-de-thi')
     await page.goto(base + '/settings')
@@ -94,6 +101,14 @@ try {
     await page.waitForFunction(() => document.querySelector('button')?.disabled === true && document.querySelector('button')?.textContent === 'Áp dụng cho trang chủ')
     assert.equal(variant, 'eps')
   }
+  await page.goto(base + '?signed=1&avatar=1')
+  const photo = page.locator('header [data-home-avatar] img')
+  await photo.waitFor(); await photo.evaluate(image => image.decode())
+  assert.equal(await photo.getAttribute('src'), '/images/logo/logo.k.png')
+  await page.route('**/images/fixture-avatar.png', route => route.abort())
+  await page.goto(base + '?signed=1&avatar=broken')
+  await page.waitForFunction(() => document.querySelector('[data-home-avatar]') && !document.querySelector('[data-home-avatar] img'))
+  assert.equal(await page.locator('header [data-home-avatar]').textContent(), 'L', 'Failed avatar falls back to initials')
   allowed = false; await page.goto(base + '/settings')
   await page.getByRole('heading', { name: 'Giao diện trang chủ', exact: true }).waitFor({ state: 'hidden' })
   assert.equal(await page.getByRole('heading', { name: 'Giao diện trang chủ', exact: true }).count(), 0)

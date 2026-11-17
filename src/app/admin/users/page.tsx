@@ -8,6 +8,8 @@ import * as XLSX from "xlsx"
 import { useUserStore } from "@/store/userStore"
 import { UserBulkImportModal } from "@/components/admin/UserBulkImportModal"
 import WorkbookAccessControl from "@/components/admin/WorkbookAccessControl"
+import type { WorkbookVolumeAccess } from "@/lib/textbooks/workbook-entitlement"
+import type { WorkbookAccessUpdate } from "@/lib/textbooks/workbook-access-admin"
 import { UserLearningReport, type UserLearningReportData } from "@/components/admin/UserLearningReport"
 import {
     Dialog,
@@ -24,6 +26,7 @@ import { ADMIN_MENU_ITEMS, ADMIN_PERMISSION_KEYS, sanitizeAdminPermissions, type
 interface UserProfile {
     workbookAccess: boolean
     workbookAccessExpiresAt: string | null
+    workbookVolumes: WorkbookVolumeAccess
     id: string
     name: string
     email: string
@@ -875,6 +878,12 @@ export default function AdminUsersPage() {
     }
 
     const uniqueGroups = Array.from(new Set(users.map(u => u.groupName).filter(Boolean)))
+    const selectedWorkbookUserIds = users.filter(user => selectedUserIds.includes(user.id) && !['admin', 'teacher'].includes(user.role)).map(user => user.id)
+    const updateWorkbookAccess = (updates: WorkbookAccessUpdate[]) => {
+        const byId = new Map(updates.map(update => [update.userId, update]))
+        setUsers(current => current.map(user => byId.has(user.id) ? { ...user, ...byId.get(user.id) } : user))
+        setSelectedDetailUser(current => current && byId.has(current.id) ? { ...current, ...byId.get(current.id) } : current)
+    }
     const selectedLearnerCount = users.reduce(
         (count, user) => count + Number(selectedUserIds.includes(user.id) && user.role === 'learner'),
         0,
@@ -905,6 +914,7 @@ export default function AdminUsersPage() {
                                     Kích hoạt Vòng 2 ({selectedLearnerCount})
                                 </Button>
                             )}
+                            {currentUserRole === 'admin' ? <WorkbookAccessControl userIds={selectedWorkbookUserIds} onChanged={updates => { updateWorkbookAccess(updates); const completed = new Set(updates.map(update => update.userId)); setSelectedUserIds(current => current.filter(id => !completed.has(id))) }} /> : null}
                             <Button variant="secondary" onClick={() => setIsBulkGrantDialogOpen(true)} className="border-amber-300 bg-amber-100 text-amber-800 hover:bg-amber-200">
                                 <Coins className="mr-2 size-4" aria-hidden="true" />
                                 Điều chỉnh lượt ({selectedUserIds.length})
@@ -1231,7 +1241,7 @@ export default function AdminUsersPage() {
                                                 <ShieldCheck className="h-4 w-4" />
                                             </Button>
                                         )}
-                                        {currentUserRole === 'admin' && !['admin', 'teacher'].includes(user.role) ? <WorkbookAccessControl userId={user.id} enabled={user.workbookAccess} expiresAt={user.workbookAccessExpiresAt} onChanged={(enabled, expiresAt) => setUsers(current => current.map(item => item.id === user.id ? { ...item, workbookAccess: enabled, workbookAccessExpiresAt: expiresAt } : item))} /> : null}
+                                        {currentUserRole === 'admin' && !['admin', 'teacher'].includes(user.role) ? <WorkbookAccessControl userId={user.id} access={user.workbookVolumes} onChanged={updateWorkbookAccess} /> : null}
                                         <Button
                                             variant="ghost"
                                             size="icon"
@@ -1721,9 +1731,9 @@ export default function AdminUsersPage() {
 
                                 <section aria-labelledby="workbook-access-title" className="rounded-xl border border-blue-100 bg-blue-50/40 p-4">
                                     <h3 id="workbook-access-title" className="text-sm font-bold text-slate-900">Sách bài tập EPS</h3>
-                                    <p className="my-2 text-xs text-slate-500">{['admin', 'teacher'].includes(selectedDetailUser.role) ? 'Tài khoản có quyền mặc định theo vai trò.' : selectedDetailUser.workbookAccess ? 'Đang còn thời hạn sử dụng.' : selectedDetailUser.workbookAccessExpiresAt ? (Date.parse(selectedDetailUser.workbookAccessExpiresAt) <= filterReferenceTime ? 'Đã hết thời hạn sử dụng.' : 'Quyền sử dụng đã bị hủy.') : 'Chưa được cấp thời hạn sử dụng.'}</p>
-                                    {selectedDetailUser.workbookAccessExpiresAt ? <p className="mb-3 text-xs text-slate-600">Hạn sử dụng: {new Date(selectedDetailUser.workbookAccessExpiresAt).toLocaleString('vi-VN', { timeZone: 'Asia/Bangkok' })}</p> : null}
-                                    {currentUserRole === 'admin' && !['admin', 'teacher'].includes(selectedDetailUser.role) ? <WorkbookAccessControl showLabel userId={selectedDetailUser.id} enabled={selectedDetailUser.workbookAccess} expiresAt={selectedDetailUser.workbookAccessExpiresAt} onChanged={(enabled, expiresAt) => { setUsers(current => current.map(item => item.id === selectedDetailUser.id ? { ...item, workbookAccess: enabled, workbookAccessExpiresAt: expiresAt } : item)); setSelectedDetailUser(current => current ? { ...current, workbookAccess: enabled, workbookAccessExpiresAt: expiresAt } : current) }} /> : null}
+                                    <div className="my-3 grid grid-cols-2 gap-2">{([1, 2] as const).map(volume => { const access = selectedDetailUser.workbookVolumes?.[volume]; return <div className="rounded-lg border border-blue-100 bg-white p-3 text-xs" key={volume}><strong>Quyển {volume}</strong><p className={access?.active ? 'mt-1 text-emerald-700' : 'mt-1 text-slate-500'}>{['admin', 'teacher'].includes(selectedDetailUser.role) ? 'Toàn quyền theo vai trò' : access?.active ? 'Đang còn hạn' : access?.expiresAt ? 'Hết hạn / Đã hủy' : 'Chưa kích hoạt'}</p>{access?.expiresAt ? <p className="mt-1 text-slate-500">{new Date(access.expiresAt).toLocaleString('vi-VN', { timeZone: 'Asia/Bangkok' })}</p> : null}</div> })}</div>
+
+                                    {currentUserRole === 'admin' && !['admin', 'teacher'].includes(selectedDetailUser.role) ? <WorkbookAccessControl showLabel userId={selectedDetailUser.id} access={selectedDetailUser.workbookVolumes} onChanged={updateWorkbookAccess} /> : null}
                                 </section>
                                 <section aria-labelledby="login-info-title">
                                     <h3 className="mb-3 text-sm font-bold text-slate-900" id="login-info-title">Hoạt động đăng nhập</h3>

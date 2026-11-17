@@ -2,6 +2,7 @@ import { canPreviewTextbooks, hasWorkbookAccess } from "@/lib/textbooks/access"
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { workbookVolumeFromCode } from "@/lib/textbooks/workbook-entitlement"
 
 export async function GET() {
   const supabase = await createClient()
@@ -10,7 +11,7 @@ export async function GET() {
 
   const admin = createAdminClient()
   const preview = await canPreviewTextbooks(user.id)
-  const workbookAccess = preview || await hasWorkbookAccess(user.id)
+  const [volume1Access, volume2Access] = preview ? [true, true] : await Promise.all([hasWorkbookAccess(user.id, 1), hasWorkbookAccess(user.id, 2)])
   let booksQuery = admin.from("textbooks").select("id,code,title_ko,title_vi,volume,edition,total_pages,cover_path,metadata,textbook_units(id,unit_number,title_ko,title_vi,start_page,end_page,sort_order)").order("volume")
   if (!preview) booksQuery = booksQuery.or("is_published.eq.true,code.in.(eps-topik-2025-workbook-1,eps-topik-2025-workbook-2)").eq("textbook_units.is_published", true)
   const [{ data: books, error }, { data: progress }] = await Promise.all([
@@ -31,7 +32,7 @@ export async function GET() {
       metadata: undefined,
       progress: progressByBook.get(book.id) ?? null,
       coverUrl,
-      canAccess: !book.code.includes("-workbook-") || (workbookAccess && (preview || book.metadata?.activation_enabled !== false)),
+      canAccess: !book.code.includes("-workbook-") || ((workbookVolumeFromCode(book.code) === 1 ? volume1Access : workbookVolumeFromCode(book.code) === 2 ? volume2Access : false) && (preview || book.metadata?.activation_enabled !== false)),
     }
   }))
   return NextResponse.json({ books: result }, { headers: { "Cache-Control": "private, no-store" } })

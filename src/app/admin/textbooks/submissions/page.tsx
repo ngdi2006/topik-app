@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { sectionLabels } from "@/lib/textbooks/workbook"
+import { choiceAnswerText, sectionLabels } from "@/lib/textbooks/workbook"
 import { submissionTotal, type WorkbookSubmission } from "@/lib/textbooks/submissions"
 
 type Row = { id: string; teacherId: string; bookId: string; content: WorkbookSubmission }
@@ -25,7 +25,7 @@ function Review({ row, onSaved }: { row: Row; onSaved: () => void }) {
   return <details className="rounded-xl border bg-white p-4"><summary className="cursor-pointer text-sm font-bold">{row.content.studentName} · {row.content.unitTitle} · {sectionLabels[row.content.section]} <span className="ml-2 text-xs text-blue-700">{row.content.review ? `${row.content.review.correct}/${row.content.review.total} · Đã chấm` : "Chờ chấm"}</span></summary>
     <p className="mt-2 text-xs text-slate-500">{row.content.bookTitle} · {new Date(row.content.submittedAt).toLocaleString("vi-VN")}</p>
     <div className="my-3 space-y-2">{row.content.answers.map(answer => <div className="rounded-lg border bg-slate-50 p-3 text-sm" key={`${answer.pageNumber}:${answer.fieldId}`}><Link className="text-xs text-blue-700" href={`/textbooks/${row.bookId}/read?page=${answer.pageNumber}`} target="_blank" rel="noreferrer">Xem trang {answer.pageNumber} ↗</Link><p className="mt-1 font-semibold" lang="ko">{answer.label}</p>
-      {answer.kind === "match" ? answer.sources.map(source => { const value = typeof answer.value === "object" ? answer.value[source.id] : ""; return <p className="mt-1 text-xs" key={source.id}>{source.label} → {answer.targets.find(target => target.id === value)?.label || "Chưa trả lời"}</p> }) : <p className="mt-1 whitespace-pre-wrap text-blue-900" lang="ko">{typeof answer.value === "string" ? (answer.kind === "choice" ? answer.options.find(option => option.id === answer.value)?.label : answer.value) || "Chưa trả lời" : "Chưa trả lời"}</p>}
+      {answer.kind === "match" ? answer.sources.map(source => { const value = typeof answer.value === "object" ? answer.value[source.id] : ""; return <p className="mt-1 text-xs" key={source.id}>{source.label} → {answer.targets.find(target => target.id === value)?.label || "Chưa trả lời"}</p> }) : <p className="mt-1 whitespace-pre-wrap text-blue-900" lang="ko">{answer.kind === "choice" ? choiceAnswerText(answer, answer.value) || "Chưa trả lời" : typeof answer.value === "string" ? answer.value || "Chưa trả lời" : "Chưa trả lời"}</p>}
     </div>)}</div>
     <div className="flex items-center gap-2 text-sm"><label htmlFor={`score-${row.id}`}>Số câu đúng</label><input id={`score-${row.id}`} className="w-20 rounded border p-2" type="number" min={0} max={total} value={correct} onChange={event => setCorrect(Number(event.target.value))} /><span>/ {total}</span></div>
     <label className="mt-3 block text-sm">Nhận xét<textarea className="mt-1 min-h-20 w-full rounded border p-2" maxLength={5000} value={feedback} onChange={event => setFeedback(event.target.value)} /></label>

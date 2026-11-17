@@ -1,4 +1,5 @@
 import type { WorkbookField, WorkbookPage, WorkbookValue } from "./workbook"
+import { choiceAnswerText, inlineChoiceGroups, inlineChoiceSelection, validWorkbookValue } from "./workbook"
 
 export type GradeItem = { pageNumber: number; fieldId: string; sourceId?: string; section: WorkbookField["section"]; label: string; status: "correct" | "incorrect" | "unanswered" | "ungraded"; expected?: string }
 export type WorkbookGrade = { items: GradeItem[]; correct: number; total: number; incorrect: number; unanswered: number; ungraded: number }
@@ -16,7 +17,11 @@ export function validAnswerKey(field: WorkbookField) {
   const key = field.answer_key
   if (!key) return true
   if (field.kind === "text") return typeof key.value === "string" && !!normalize(key.value)
-  if (field.kind === "choice") return typeof key.value === "string" && field.options.some(option => option.id === key.value)
+  if (field.kind === "choice") {
+    const groups = inlineChoiceGroups(field)
+    if (groups.length) return typeof key.value === "object" && key.value !== null && validWorkbookValue(field, key.value) && groups.every(group => !!inlineChoiceSelection(field, key.value)[group.id])
+    return typeof key.value === "string" && field.options.some(option => option.id === key.value)
+  }
   if (typeof key.value !== "object" || key.value === null) return false
   const pairs = key.value
   const sources = field.sources.filter(node => !node.is_context)
@@ -37,6 +42,13 @@ export function gradeWorkbook(pages: { pageNumber: number; workbook: WorkbookPag
         const selected = typeof actual === "object" && actual !== null ? actual[source.id] : undefined
         items.push({ ...base, sourceId: source.id, label: `${field.label} · ${source.label}`, status: !reviewed ? "ungraded" : !selected ? "unanswered" : selected === expected ? "correct" : "incorrect", expected: expected ? field.targets.find(node => node.id === expected)?.label : undefined })
       }
+    } else if (inlineChoiceGroups(field).length) {
+      const groups = inlineChoiceGroups(field)
+      const selected = inlineChoiceSelection(field, actual)
+      const expected = inlineChoiceSelection(field, key?.value)
+      const complete = groups.every(group => !!selected[group.id])
+      const correct = complete && groups.every(group => selected[group.id] === expected[group.id])
+      items.push({ ...base, status: !reviewed ? "ungraded" : !complete ? "unanswered" : correct ? "correct" : "incorrect", expected: reviewed ? choiceAnswerText(field, key?.value) : undefined })
     } else {
       const selected = typeof actual === "string" ? actual : ""
       const expected = typeof key?.value === "string" ? key.value : ""

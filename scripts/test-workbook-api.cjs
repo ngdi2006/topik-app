@@ -9,7 +9,7 @@ const model = {}
 const transpile = path => ts.transpileModule(fs.readFileSync(path, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
 vm.runInNewContext(transpile('src/lib/textbooks/workbook.ts'), { exports: model, require: () => zod })
 const grading = {}
-vm.runInNewContext(transpile('src/lib/textbooks/grading.ts'), { exports: grading, require })
+vm.runInNewContext(transpile('src/lib/textbooks/grading.ts'), { exports: grading, require: name => name === './workbook' ? model : require(name) })
 const submissionModel = {}
 vm.runInNewContext(transpile('src/lib/textbooks/submissions.ts'), { exports: submissionModel, require })
 const userA = '00000000-0000-4000-a000-000000000001'
@@ -89,6 +89,20 @@ function fixture({ uid = userA, canRead = true, admin = true, failInsert = false
   const review=value=>reviewRoute.PATCH({json:async()=>value})
   return { tables, get, post, patch, grade, submit, submissions, queue, review }
 }
+test('two bracket choices save independently and reload; cross-group values are rejected', async () => {
+  const env = fixture()
+  const field = JSON.parse(fs.readFileSync('tmp/workbook-choice-rows/eps-topik-2025-workbook-1/planned.json','utf8')).pages.find(page=>page.pageNumber===40).workbook.fields.find(field=>field.id==='p40-f11')
+  env.tables.textbook_pages[0].ocr_payload.workbook.fields = [field]
+  const answer = { pageNumber:16, fieldId:field.id, value:{g1:'2',g2:'3'} }
+  assert.equal((await env.post({userId:userA,answers:[answer]})).status,200)
+  const loaded=await(await env.get('unitId=unit-1')).json()
+  assert.equal(JSON.stringify(loaded.answers[0].value),JSON.stringify(answer.value))
+  assert.equal(loaded.progress[0].answered,1)
+  assert.equal((await env.post({userId:userA,answers:[{...answer,value:{g1:'3',g2:'1'}}]})).status,409)
+  const after=await(await env.get('unitId=unit-1')).json()
+  assert.equal(JSON.stringify(after.answers[0].value),JSON.stringify(answer.value))
+})
+
 test('workbook endpoints reject unauthenticated and unauthorized draft access', async () => {
   assert.equal((await fixture({ uid: null }).get('unitId=unit-1')).status, 401)
   assert.equal((await fixture({ canRead: false }).post({})).status, 404)

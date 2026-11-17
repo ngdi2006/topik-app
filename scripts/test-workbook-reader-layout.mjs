@@ -43,6 +43,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, "http://fixture")
     const json = data => { res.setHeader("content-type", "application/json"); res.end(JSON.stringify(data)) }
+    if (url.pathname === "/textbooks/tutorial/listening-example.mp3") { res.setHeader("content-type", "audio/mpeg"); res.end(await readFile("public/textbooks/tutorial/listening-example.mp3")); return }
     if (url.pathname === "/fixture.js") { res.setHeader("content-type", "text/javascript"); res.end(bundle.outputFiles[0].contents); return }
     if (url.pathname === "/fixture.css") { res.setHeader("content-type", "text/css"); res.end(css); return }
     if (url.pathname === "/api/textbooks") { json({ books }); return }
@@ -112,10 +113,12 @@ try {
   browser=await chromium.launch({channel:"msedge",headless:true,args:["--mute-audio"]})
   for(const width of [320,390,768,1440]){
     const page=await browser.newPage({viewport:{width,height:900},isMobile:width<768,hasTouch:width<768})
+    await page.addInitScript(()=>localStorage.setItem("workbook-guide:v1:00000000-0000-4000-a000-000000000001","done"))
     page.on('pageerror',error=>errors.push(error.message))
     for(const lesson of (smoke ? [28] : Array.from({length:60},(_,index)=>index+1))){
       const manifest=manifests.get(lesson),volume=lesson<=30?1:2
       await page.goto(`${base}/read?volume=${volume}&page=${manifest.segments[0].pageNumber}`)
+      await page.getByRole("button",{name:"Bật/tắt làm bài trên sách",exact:true}).click()
       await page.waitForFunction(count=>document.querySelectorAll('[data-audio-group]').length===count,manifest.segments.length)
       const interaction=page.getByRole('button',{name:'Bật/tắt làm bài trên sách',exact:true})
       if(await interaction.getAttribute('aria-pressed')!=='true') await interaction.click()
@@ -149,6 +152,7 @@ try {
     }
     // Reproduce the supplied B28 view, including active playback and zoom/pan.
     await page.goto(`${base}/read?volume=1&page=252`)
+    await page.getByRole("button",{name:"Bật/tắt làm bài trên sách",exact:true}).click()
     await page.locator('[data-audio-group="s900002"]').waitFor()
     await page.locator('[data-audio-group="s900002"]').click()
     await page.waitForFunction(()=>!document.querySelector('audio').paused)
@@ -230,6 +234,7 @@ try {
       const definition=definitions.get('layout-unit-1').find(item=>item.workbook.fields.some(field=>field.kind===kind&&!field.is_context))
       const field=definition.workbook.fields.find(field=>field.kind===kind&&!field.is_context)
       await page.goto(`${base}/read?volume=1&page=${definition.pageNumber}`)
+      await page.getByRole("button",{name:"Bật/tắt làm bài trên sách",exact:true}).click()
       const save=page.waitForResponse(res=>res.url().endsWith('/workbook')&&res.request().method()==='POST')
       if(kind==='text'){
         if(width<640){
@@ -269,6 +274,7 @@ try {
     await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click()
     assert.ok(await page.locator('[aria-label$=": Đúng"]').count()>0,'Grading must mark correct questions on the workbook image')
     await page.goto(`${base}/read?volume=1&page=21`)
+    await page.getByRole("button",{name:"Bật/tắt làm bài trên sách",exact:true}).click()
     await page.waitForFunction(()=>document.querySelectorAll('[data-audio-group]').length===3)
     await page.evaluate(()=>document.querySelectorAll('[data-page-canvas] img').forEach(img=>{img.loading='eager'}))
     await page.waitForFunction(()=>[...document.querySelectorAll('[data-page-canvas] img')].every(img=>img.complete&&img.naturalWidth>0))
@@ -283,6 +289,7 @@ try {
     await page.getByText(/1\/\d+ · Đã chấm/).first().waitFor()
     await page.screenshot({path:`reports/workbook-teacher-review-${width}.png`})
     await page.goto(`${base}/read?volume=1&page=21`)
+    await page.getByRole("button",{name:"Bật/tắt làm bài trên sách",exact:true}).click()
     await page.getByRole('button',{name:'Chấm bài',exact:true}).click()
     await page.getByText('Giáo viên đã chấm',{exact:true}).waitFor()
     await page.getByText('Đã nhận và chấm bài thử nghiệm.',{exact:true}).waitFor()
@@ -293,6 +300,7 @@ try {
       await route.fulfill({json:{...data,canViewTranscript:false,answerGuide:[],segments:data.segments.map(segment=>({...segment,text_ko:'',text_vi:''}))}})
     })
     await page.goto(`${base}/read?volume=1&page=21`)
+    await page.getByRole("button",{name:"Bật/tắt làm bài trên sách",exact:true}).click()
     await page.locator('[data-audio-group="s900001"]').waitFor()
     assert.equal(await page.locator('[data-reader-mini-player]').count(),0,'Learners must not see the bottom player')
     assert.equal(await page.getByRole('button',{name:'Xem lời thoại đang nghe',exact:true}).count(),0)

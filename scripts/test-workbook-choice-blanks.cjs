@@ -25,9 +25,14 @@ for (const volume of [1, 2]) {
       assert.equal(fields.some(f => f.id === 'p95-f4'), false)
       assert.equal(fields.find(f => f.id === 'p95-f5').options.length, 4)
     }
+    if (volume === 1 && page.pageNumber === 35) {
+      for (const id of ['p35-f6', 'p35-f7', 'p35-f8']) assert.equal(fields.some(f => f.id === id), false)
+      for (const id of ['p35-f9', 'p35-f10', 'p35-f11']) assert.equal(fields.find(f => f.id === id).options.length, 4)
+      assert.equal(fields.filter(f => f.section === 'grammar').length, 5, 'Keep inline grammar choices')
+    }
   }
 }
-assert.equal(removed.length, 19)
+assert.equal(removed.length, 22)
 assert.ok(retainedText > 100)
 fs.writeFileSync('reports/workbook-choice-blank-audit.json', JSON.stringify({ pages, choices, retainedText, removed }, null, 2))
 console.log(`PASS ${pages} pages: removed ${removed.length} duplicate choice blanks; retained ${choices} choices and ${retainedText} text fields`)

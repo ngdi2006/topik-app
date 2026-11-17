@@ -17,10 +17,57 @@ export const workbookPageSchema = z.object({
 })
 export type WorkbookField = z.infer<typeof workbookFieldSchema>
 export type WorkbookPage = z.infer<typeof workbookPageSchema>
+type InlineChoiceField = { kind: string; label: string; options: { id: string; label: string; presentation?: string }[] }
+export function inlineChoiceGroups(field: InlineChoiceField) {
+  if (field.kind !== "choice" || field.options.some(option => option.presentation && option.presentation !== "word")) return []
+  const brackets = Array.from(field.label.matchAll(/[（(]([^()（）]*[/／][^()（）]*)[)）]/gu))
+  if (brackets.length < 2) return []
+  let offset = 0
+  const groups = brackets.map((match, index) => {
+    const labels = match[1].split(/[/／]/u).map(label => label.trim())
+    const options = field.options.slice(offset, offset + labels.length)
+    offset += labels.length
+    return { id: `g${index + 1}`, label: `Ngoặc ${index + 1}`, options, valid: options.length === labels.length && options.every((option, i) => option.label.trim() === labels[i]) }
+  })
+  return offset === field.options.length && groups.every(group => group.valid) ? groups : []
+}
+export function inlineChoiceSelection(field: InlineChoiceField, value: WorkbookValue | undefined): Record<string, string> {
+  const groups = inlineChoiceGroups(field)
+  if (typeof value === "object" && value !== null) return value
+  const group = groups.find(group => group.options.some(option => option.id === value))
+  return group && typeof value === "string" ? { [group.id]: value } : {}
+}
+export function choiceOptionSelected(field: WorkbookField, value: WorkbookValue | undefined, optionId: string) {
+  return inlineChoiceGroups(field).length ? Object.values(inlineChoiceSelection(field, value)).includes(optionId) : value === optionId
+}
+export function selectChoiceOption(field: WorkbookField, value: WorkbookValue | undefined, optionId: string): WorkbookValue {
+  const groups = inlineChoiceGroups(field)
+  if (!groups.length) return value === optionId ? "" : optionId
+  const group = groups.find(group => group.options.some(option => option.id === optionId))
+  const next = { ...inlineChoiceSelection(field, value) }
+  if (group) {
+    if (next[group.id] === optionId) delete next[group.id]
+    else next[group.id] = optionId
+  }
+  return next
+}
+export function choiceAnswerText(field: InlineChoiceField, value: WorkbookValue | undefined) {
+  const groups = inlineChoiceGroups(field)
+  if (!groups.length) return typeof value === "string" ? field.options.find(option => option.id === value)?.label ?? "" : ""
+  const selected = inlineChoiceSelection(field, value)
+  return groups.map(group => `${group.label}: ${group.options.find(option => option.id === selected[group.id])?.label || "Chưa trả lời"}`).join(" · ")
+}
 export function workbookAnswerFields(fields: WorkbookField[]) {
   const questionNumber = (label: string) => label.match(/^\s*\[?(\d+)\s*[.\]\s]/u)?.[1]
+  const passageMarkers = (label: string): string[] => label.match(/[\u3260-\u327b\u24d0-\u24e9]/gu) ?? []
   const choices = fields.filter(field => field.kind === "choice" && !field.is_context && field.options.length === 4 && field.options.every(option => /^[1-4]$/.test(option.id) && option.presentation !== "word"))
-  return fields.filter(field => field.kind !== "text" || !choices.some(choice => choice.section === field.section && (choice.label === field.label || (questionNumber(field.label) !== undefined && questionNumber(choice.label) === questionNumber(field.label)))))
+  return fields.filter(field => field.kind !== "text" || !choices.some(choice => choice.section === field.section && (
+    choice.label === field.label ||
+    (questionNumber(field.label) !== undefined && questionNumber(choice.label) === questionNumber(field.label)) ||
+    // A shared passage can contain unnumbered gaps (㉠, ㉡, …), while
+    // the actual answers belong to the numbered multiple-choice questions.
+    (field.rect.y < choice.rect.y && passageMarkers(field.label).some(marker => passageMarkers(choice.label).includes(marker)))
+  )))
 }
 // SVG coordinates use a 1000 x 1000 viewBox. Aligned ports need a sideways
 // bow, otherwise their connections merge into one vertical line.
@@ -36,6 +83,18 @@ export function matchingCurvePath(start: { x: number; y: number }, end: { x: num
   return `M ${sx} ${sy} C ${sx + reach} ${sy - bow}, ${ex - reach} ${ey - bow}, ${ex} ${ey}`
 }
 export function matchingPort(field: WorkbookField, node: WorkbookField["sources"][number], side: "source" | "target") {
+  if (field.id === "p10-f1" && field.sources.map(source => source.label).join("|") === "박|있다|낮|술|집") {
+    // Centers of the printed black dots, measured on the 1440 × 2037 scan.
+    const sourceY = [479.5, 630, 780.5, 931.5, 1076.5]
+    const targetY = [284.5, 437.5, 515.5, 593.5, 666, 738, 816.5, 894.5, 967.5, 1040.5, 1112.5]
+    const index = (side === "source" ? field.sources : field.targets).findIndex(item => item.id === node.id)
+    const y = (side === "source" ? sourceY : targetY)[index]
+    if (y !== undefined) return { x: (side === "source" ? 381.5 : 773.5) / 1440, y: y / 2037 }
+  }
+  if (field.id === "p3-f7" && field.sources.map(source => source.label).join("|") === "오이|오|아이|이") {
+    const rect = matchingContentRect(field, node, side)
+    return { x: side === "source" ? 0.25 : 0.57, y: rect.y + rect.height / 2 }
+  }
   if (field.id === "p85-f1") return { x: side === "source" ? 0.46 : 0.55, y: node.rect.y + node.rect.height / 2 }
   if (node.port) return node.port
   const sources = field.sources.filter(n => !n.is_context), targets = field.targets.filter(n => !n.is_context)
@@ -43,6 +102,14 @@ export function matchingPort(field: WorkbookField, node: WorkbookField["sources"
   return { x: Math.max(0.015, Math.min(0.985, x)), y: node.rect.y + node.rect.height / 2 }
 }
 export function matchingContentRect(field: WorkbookField, node: WorkbookField["sources"][number], side: "source" | "target") {
+  if (field.id === "p10-f1" && side === "source" && field.sources.map(source => source.label).join("|") === "박|있다|낮|술|집") {
+    const y = [479.5, 630, 780.5, 931.5, 1076.5][field.sources.findIndex(item => item.id === node.id)]
+    if (y !== undefined) return { x: 260 / 1440, y: (y - 20) / 2037, width: (node.label.length > 1 ? 65 : 40) / 1440, height: 40 / 2037 }
+  }
+  if (field.id === "p3-f7" && field.sources.map(source => source.label).join("|") === "오이|오|아이|이") {
+    if (side === "source") return { ...node.rect, width: node.label.length > 1 ? 0.052 : 0.028 }
+    if (node.id === "4") return { x: 0.60, y: 0.65, width: 0.10, height: 0.075 }
+  }
   // The OCR box for the first flag only covered its central emblem.
   if (field.id === "p15-f1" && side === "source" && node.id === "1") return { x: 0.19, y: 0.421, width: 0.177, height: 0.078 }
   // Sentence OCR included the image's letter label, collapsing both port columns.
@@ -71,7 +138,11 @@ export function parseWorkbookPage(payload: unknown): WorkbookPage | null {
 export function validWorkbookValue(field: WorkbookField, value: WorkbookValue) {
   if (field.is_context) return false
   if (field.kind === "text") return typeof value === "string"
-  if (field.kind === "choice") return typeof value === "string" && (value === "" || field.options.some(option => option.id === value))
+  if (field.kind === "choice") {
+    if (typeof value === "string") return value === "" || field.options.some(option => option.id === value)
+    const groups = inlineChoiceGroups(field)
+    return groups.length > 1 && value !== null && !Array.isArray(value) && Object.entries(value).every(([id, optionId]) => groups.some(group => group.id === id && group.options.some(option => option.id === optionId)))
+  }
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false
   const targets = new Set(Object.values(value))
   return (field.allow_shared_targets || targets.size === Object.values(value).length) && Object.entries(value).every(([source, target]) => field.sources.some(node => node.id === source) && field.targets.some(node => node.id === target))
@@ -79,6 +150,8 @@ export function validWorkbookValue(field: WorkbookField, value: WorkbookValue) {
 export function fieldTotal(field: WorkbookField) { return field.is_context ? 0 : field.kind === "match" ? field.sources.filter(n => !n.is_context).length : 1 }
 export function fieldAnswered(field: WorkbookField, value: WorkbookValue | undefined) {
   if (value === undefined || !validWorkbookValue(field, value)) return 0
+  const groups = inlineChoiceGroups(field)
+  if (groups.length) { const selected = inlineChoiceSelection(field, value); return groups.every(group => !!selected[group.id]) ? 1 : 0 }
   return field.kind === "match" ? Object.entries(value).filter(([source, target]) => field.sources.some(n => n.id === source && !n.is_context) && field.targets.some(n => n.id === target && !n.is_context)).length : typeof value === "string" && value.trim() ? 1 : 0
 }
 export function answerKey(pageNumber: number, fieldId: string) { return `${pageNumber}:${fieldId}` }

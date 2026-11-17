@@ -4,7 +4,8 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import Image from "next/image"
 import Link from "next/link"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
-import { ChevronDown, ChevronLeft, ChevronRight, Headphones, Languages, List, LoaderCircle, Minus, MousePointer2, PanelRight, ScrollText, Pause, Play, Plus, X } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Headphones, Languages, List, LoaderCircle, Minus, MousePointer2, PanelRight, ScrollText, Pause, Play, Plus, X } from "lucide-react"
+import WorkbookOnboarding from "@/components/textbooks/WorkbookOnboarding"
 import type { TextbookPagePayload, TextbookSummary, TextbookUnit } from "@/lib/textbooks/types"
 import WorkbookPageOverlay from "@/components/textbooks/WorkbookPageOverlay"
 import WorkbookPageAudio from "@/components/textbooks/WorkbookPageAudio"
@@ -34,6 +35,8 @@ export default function TextbookReader({ bookId, initialPage }: { bookId: string
   const [resourceOpen, setResourceOpen] = useState(true)
   const [mobileResourceOpen, setMobileResourceOpen] = useState(false)
   const [interactionMode, setInteractionMode] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
+  const guideChecked = useRef<string | null>(null)
   const [regionsByPage, setRegionsByPage] = useState<Record<number, OcrRegion[]>>({})
   const [selectedRegion, setSelectedRegion] = useState<OcrRegion | null>(null)
   const [unitSummary, setUnitSummary] = useState<UnitSummary | null>(null)
@@ -50,6 +53,17 @@ export default function TextbookReader({ bookId, initialPage }: { bookId: string
   const playbackDuration = activeAudioGroup?.duration ?? listeningController.duration
   const playbackTime = Math.max(0, Math.min(playbackDuration, listeningController.currentTime - (activeAudioGroup?.startTime ?? 0)))
   const formatPlaybackTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`
+  const guideStorageKey = workbook.userId ? `workbook-guide:v1:${workbook.userId}` : null
+  useEffect(() => {
+    if (!isWorkbook || !workbook.ready || loading || !guideStorageKey || guideChecked.current === guideStorageKey) return
+    guideChecked.current = guideStorageKey
+    try { if (localStorage.getItem(guideStorageKey) === "done") return } catch { /* The guide is still usable without browser storage. */ }
+    setGuideOpen(true)
+  }, [guideStorageKey, isWorkbook, loading, workbook.ready])
+  const closeGuide = () => {
+    setGuideOpen(false)
+    try { if (guideStorageKey) localStorage.setItem(guideStorageKey, "done") } catch { /* Read-only browser storage must not block reading. */ }
+  }
   useEffect(() => {
     const desktop = window.matchMedia("(min-width: 1280px)")
     const closeMobilePanel = () => { if (desktop.matches) setMobileResourceOpen(false) }
@@ -80,7 +94,7 @@ export default function TextbookReader({ bookId, initialPage }: { bookId: string
       if (!found) throw new Error("Không tìm thấy giáo trình")
       setBook(found)
       if (found.code.includes("-workbook-")) {
-        setInteractionMode(true)
+        setInteractionMode(false)
         setResourceTab("audio")
       }
       setUnit(found.units.find((item) => initialPage >= item.start_page && initialPage <= item.end_page) ?? found.units[0] ?? null)
@@ -204,7 +218,7 @@ export default function TextbookReader({ bookId, initialPage }: { bookId: string
     <section className="relative flex min-w-0 flex-1 flex-col">
       <header className="flex min-h-12 shrink-0 items-center justify-between gap-1 border-b bg-white px-2 py-1 shadow-sm sm:gap-2 sm:px-5">
         <button aria-label="Mở mục lục" className="grid min-h-9 min-w-8 sm:min-h-11 sm:min-w-11 place-items-center rounded-lg hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600 lg:hidden" onClick={() => setTocOpen(true)} type="button"><List aria-hidden="true" /></button>
-        <div className="min-w-0 flex-1"><strong className="block truncate text-sm">{unitLabel(unit)}</strong><span className="block truncate text-[10px] tabular-nums text-slate-500">Trang {activePage}</span></div>
+        <div className="min-w-0 flex-1"><div className="flex min-w-0 items-center gap-1"><strong className="block min-w-0 truncate text-sm">{unitLabel(unit)}</strong>{isWorkbook ? <button type="button" aria-label="Xem hướng dẫn làm bài" title="Hướng dẫn · thực hành 3 bước" className="hidden sm:grid size-6 shrink-0 place-items-center rounded-full text-blue-600 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-blue-600" onClick={() => { listeningController.pause(); setGuideOpen(true) }}><CircleHelp className="size-4" /></button> : null}</div><span className="block truncate text-[10px] tabular-nums text-slate-500">Trang {activePage}</span></div>
         <div aria-label="Tỉ lệ trang sách" className="flex shrink-0 items-center gap-0" data-reader-zoom role="group">
           <button aria-label="Thu nhỏ" className="grid min-h-9 min-w-7 sm:min-w-9 place-items-center rounded-lg hover:bg-slate-100 disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-blue-600" disabled={zoom <= 70} onClick={() => setZoom(value => Math.max(70, value - 25))} type="button"><Minus aria-hidden="true" className="size-4" /></button>
           <button aria-label="Vừa chiều rộng trang" className="min-h-9 min-w-10 rounded-lg px-1 text-[11px] font-bold tabular-nums text-blue-700 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-blue-600" onClick={() => setZoom(100)} title="Trở về 100%" type="button">{zoom}%</button>
@@ -215,6 +229,7 @@ export default function TextbookReader({ bookId, initialPage }: { bookId: string
           {unitSummary?.audio[0]?.resource_url ? (
             <button
               aria-label="Mở file nghe"
+              data-workbook-audio
               className={`flex min-h-9 min-w-8 sm:min-h-11 sm:min-w-11 items-center justify-center gap-1.5 rounded-lg border px-1.5 text-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-blue-600 ${
                 resourceOpen && resourceTab === "audio"
                   ? "border-blue-600 bg-blue-600 text-white"
@@ -231,7 +246,7 @@ export default function TextbookReader({ bookId, initialPage }: { bookId: string
               <span className="hidden xl:inline">File nghe</span>
             </button>
           ) : null}
-          <button aria-label={isWorkbook ? "Bật/tắt làm bài trên sách" : "Bật lớp tương tác OCR"} className={`flex min-h-9 min-w-8 sm:min-h-11 sm:min-w-11 items-center justify-center gap-1.5 rounded-lg px-1.5 text-xs font-bold focus-visible:outline-2 focus-visible:outline-blue-600 ${interactionMode ? "bg-amber-100 text-amber-800" : "hover:bg-slate-100"}`} onClick={() => { setInteractionMode(value => !value); setSelectedRegion(null) }} aria-pressed={interactionMode} type="button"><MousePointer2 aria-hidden="true" className="size-4" /><span className="hidden xl:inline">{isWorkbook ? "Làm bài" : "Tương tác"}</span></button>
+          <button data-workbook-mode aria-label={isWorkbook ? "Bật/tắt làm bài trên sách" : "Bật lớp tương tác OCR"} className={`flex min-h-9 min-w-8 sm:min-h-11 sm:min-w-11 items-center justify-center gap-1.5 rounded-lg px-1.5 text-xs font-bold focus-visible:outline-2 focus-visible:outline-blue-600 ${interactionMode ? "bg-amber-100 text-amber-800" : "hover:bg-slate-100"}`} onClick={() => { setInteractionMode(value => !value); setSelectedRegion(null) }} aria-pressed={interactionMode} type="button"><MousePointer2 aria-hidden="true" className="size-4" /><span className="hidden xl:inline">{isWorkbook ? "Làm bài" : "Tương tác"}</span></button>
           <SheetTrigger asChild><button aria-label="Nội dung liên kết" className="grid min-h-9 min-w-8 sm:min-h-11 sm:min-w-11 place-items-center rounded-lg hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600 xl:hidden" type="button"><PanelRight aria-hidden="true" className="size-4" /></button></SheetTrigger>
           <button aria-label="Nội dung liên kết" aria-expanded={resourceOpen} className="hidden min-h-9 min-w-8 sm:min-h-11 sm:min-w-11 place-items-center rounded-lg hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600 xl:grid" onClick={() => setResourceOpen(value => !value)} type="button"><PanelRight aria-hidden="true" className="size-4" /></button>
         </div>
@@ -242,10 +257,10 @@ export default function TextbookReader({ bookId, initialPage }: { bookId: string
         {error ? <div className="grid min-h-80 place-items-center text-center"><div><p className="font-bold text-red-700">{error}</p>{unit ? <button className="mt-3 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white" onClick={() => void loadUnit(unit, activePage)} type="button">Thử tải lại</button> : null}</div></div> : null}
         <div className="mx-auto flex flex-col items-center gap-4" style={{ width: `${zoom}%`, maxWidth: `${zoom * 10}px` }}>
           {pages.map((page) => <div className="w-full scroll-mt-3 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-md" data-page={page.page_number} key={page.page_number} ref={(element) => { if (element) pageElements.current.set(page.page_number, element); else pageElements.current.delete(page.page_number) }}>
-            <div className="border-b border-slate-100 bg-white px-3 py-2 text-[11px] font-medium tabular-nums text-slate-500">Trang {page.page_number}</div>
+            <div className="flex items-center justify-between border-b border-slate-100 bg-white px-3 py-2 text-[11px] font-medium tabular-nums text-slate-500"><span>Trang {page.page_number}</span><button type="button" aria-label="Xem hướng dẫn làm bài" title="Hướng dẫn · thực hành 3 bước" className="grid sm:hidden size-6 shrink-0 place-items-center rounded-full text-blue-600 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-blue-600" onClick={() => { listeningController.pause(); setGuideOpen(true) }}><CircleHelp className="size-4" /></button></div>
             <div className="relative w-full" data-page-canvas={page.page_number} style={{ containerType: "inline-size" }}>
             <WorkbookPageAudio bookCode={book?.code || ""} controller={listeningController} groups={audioGroups.filter(group => group.pageNumber === page.page_number)} pageNumber={page.page_number} />
-            {isWorkbook && workbook.canEdit && workbook.ready && workbookPages.get(page.page_number) ? <div className="hidden xl:block"><WorkbookLayoutEditor canManageAnswerKeys={workbook.canManageAnswerKeys} bookId={bookId} onSaved={workbook.refresh} pageNumber={page.page_number} workbook={workbookPages.get(page.page_number)!} /></div> : null}
+            {isWorkbook && interactionMode && workbook.canEdit && workbook.ready && workbookPages.get(page.page_number) ? <div className="hidden xl:block"><WorkbookLayoutEditor canManageAnswerKeys={workbook.canManageAnswerKeys} bookId={bookId} onSaved={workbook.refresh} pageNumber={page.page_number} workbook={workbookPages.get(page.page_number)!} /></div> : null}
             {isWorkbook && interactionMode && workbook.ready && workbookPages.get(page.page_number) ? <WorkbookPageOverlay grades={grading?.unitId === unit?.id && grading?.answers === workbook.answers ? grading.result.items : []} allListeningFields={allListeningFields} answers={workbook.answers} listeningController={listeningController} onChange={workbook.change} pageNumber={page.page_number} workbook={workbookPages.get(page.page_number)!} /> : null}
             {page.error ? <div className="grid aspect-[3/4] place-items-center text-sm text-red-600">{page.error}</div> : <Image alt={`Trang ${page.page_number}`} className="h-auto w-full" height={page.height || 1400} loading={page.page_number === pages[0]?.page_number ? "eager" : "lazy"} width={page.width || 1000} src={page.imageUrl} unoptimized />}
             {!isWorkbook && interactionMode && page.page_number === activePage ? <div className="absolute inset-0 z-10">{(regionsByPage[page.page_number] ?? []).map((region) => <button aria-label={`Chọn đoạn: ${region.text}`} className={`absolute rounded-sm border transition ${selectedRegion?.id === region.id ? "border-orange-500 bg-orange-300/35 ring-2 ring-orange-300" : "border-amber-400/55 bg-yellow-200/10 hover:bg-yellow-300/35"}`} key={region.id} onClick={() => { setSelectedRegion(region); setResourceOpen(true) }} style={{ left: `${region.x * 100}%`, top: `${region.y * 100}%`, width: `${region.width * 100}%`, height: `${region.height * 100}%` }} title={region.text} type="button" />)}</div> : null}
@@ -312,5 +327,6 @@ export default function TextbookReader({ bookId, initialPage }: { bookId: string
       {summaryContent}
     </SheetContent>
     {interactionMode && selectedRegion ? <div className="fixed inset-x-3 bottom-16 z-30 rounded-2xl border border-amber-200 bg-white p-4 shadow-2xl xl:hidden"><button aria-label="Đóng đoạn đã chọn" className="absolute right-3 top-3" onClick={() => setSelectedRegion(null)} type="button"><X className="size-4" /></button><p className="pr-7 text-sm font-bold leading-6">{selectedRegion.text}</p><div className="mt-2 flex gap-2"><button className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white" onClick={() => speak(selectedRegion.text)} type="button">Nghe</button><button className="rounded-lg border px-3 py-1.5 text-xs font-bold" onClick={() => void navigator.clipboard.writeText(selectedRegion.text)} type="button">Sao chép</button></div></div> : null}
+    {isWorkbook && guideOpen ? <WorkbookOnboarding onClose={closeGuide} onRead={() => { closeGuide(); setInteractionMode(false) }} onStart={() => { closeGuide(); setInteractionMode(true); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>("[data-workbook-mode]")?.focus()) }} /> : null}
   </main></Sheet>
 }

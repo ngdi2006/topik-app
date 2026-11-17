@@ -17,7 +17,9 @@ function BookCard({ book }: { book: TextbookSummary }) {
   const lastPage = Math.min(book.total_pages, Math.max(1, Math.floor(Number(book.progress?.last_page) || 1)))
   const started = !!book.progress && (progress > 0 || lastPage > 1)
   const lessons = book.units.filter(unit => unit.unit_number > 0).length
-  const cover = /^eps-topik-2025-[12]$/.test(book.code) ? `/textbooks/covers/eps-topik-2025-volume-${book.volume}.png` : book.coverUrl
+  const cover = /^eps-topik-2025-workbook-[12]$/.test(book.code)
+    ? `/textbooks/covers/eps-topik-2025-workbook-volume-${book.volume}.webp`
+    : /^eps-topik-2025-[12]$/.test(book.code) ? `/textbooks/covers/eps-topik-2025-volume-${book.volume}.png` : book.coverUrl
   const Icon = workbook ? FilePenLine : BookOpen
   return <article data-library-book={book.id} className="flex min-w-0 gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm transition-shadow hover:shadow-md sm:gap-5 sm:p-5">
     <div className={`relative aspect-[3/4] w-[82px] shrink-0 self-start overflow-hidden rounded-lg border border-slate-200/70 sm:w-[124px] ${workbook ? "bg-violet-50" : "bg-blue-50"}`}>

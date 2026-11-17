@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { permissionsForRole } from '@/lib/admin-permissions'
 import { recordAdminUserActivity, type AdminUserAuditEntry } from '@/lib/admin-user-audit'
+import { workbookEntitlement } from '@/lib/textbooks/workbook-entitlement'
 
 type ProfileRow = { id: string; full_name?: string | null; role?: string | null; group_name?: string | null; admin_permissions?: string[] | null }
 type CreditRow = { user_id: string; remaining_credits: number }
@@ -148,6 +149,8 @@ export async function GET() {
                 email: u.email,
                 name: prof?.full_name || u.user_metadata?.full_name || 'Học viên',
                 role: prof?.role || 'learner',
+                workbookAccess: ['admin', 'teacher'].includes(prof?.role || '') || workbookEntitlement(u.app_metadata).active,
+                workbookAccessExpiresAt: ['admin', 'teacher'].includes(prof?.role || '') ? null : workbookEntitlement(u.app_metadata).expiresAt,
                 adminPermissions: prof?.admin_permissions || u.app_metadata?.admin_permissions || [],
                 adminActivity,
                 lastAdminActivity: adminActivity[0] || null,

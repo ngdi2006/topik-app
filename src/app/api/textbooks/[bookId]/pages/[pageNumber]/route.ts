@@ -1,3 +1,4 @@
+import { canReadTextbook } from "@/lib/textbooks/access"
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
@@ -13,10 +14,12 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ bo
 
   const admin = createAdminClient()
   const { data: book } = await admin.from("textbooks").select("id,total_pages,is_published").eq("id", bookId).maybeSingle()
-  if (!book?.is_published) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  if (!book || !await canReadTextbook(user.id, bookId)) return NextResponse.json({ error: "Not found" }, { status: 404 })
   const { data, error } = await admin.from("textbook_pages").select("page_number,image_path,width,height,ocr_text,ocr_payload").eq("textbook_id", bookId).eq("page_number", page).maybeSingle()
   if (error || !data) return NextResponse.json({ error: error?.message ?? "Page not found" }, { status: 404 })
   const { data: signed } = await admin.storage.from("textbooks").createSignedUrl(data.image_path, 3600)
   if (!signed?.signedUrl) return NextResponse.json({ error: "Page image unavailable" }, { status: 503 })
-  return NextResponse.json({ page: { ...data, imageUrl: signed.signedUrl }, totalPages: book.total_pages })
+  const publicPayload = data.ocr_payload && typeof data.ocr_payload === "object" ? { ...data.ocr_payload } : {}
+  delete publicPayload.workbook
+  return NextResponse.json({ page: { ...data, ocr_payload: publicPayload, imageUrl: signed.signedUrl }, totalPages: book.total_pages })
 }

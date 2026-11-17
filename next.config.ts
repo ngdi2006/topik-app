@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Allow isolated verification without touching a running development server's cache.
+  distDir: process.env.NEXT_BUILD_DIR || '.next',
   images: {
     remotePatterns: [
       {

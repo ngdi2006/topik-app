@@ -1,3 +1,4 @@
+import { canReadTextbook } from "@/lib/textbooks/access"
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
@@ -14,7 +15,7 @@ export async function GET(_request: Request, context: { params: Promise<{ bookId
   if (!Number.isInteger(number) || number < 1) return NextResponse.json({ error: "Invalid page" }, { status: 400 })
   const admin = createAdminClient()
   const { data: book } = await admin.from("textbooks").select("is_published").eq("id", bookId).maybeSingle()
-  if (!book?.is_published) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  if (!book || !await canReadTextbook(user.id, bookId)) return NextResponse.json({ error: "Not found" }, { status: 404 })
   const { data, error } = await admin.from("textbook_pages").select("ocr_payload").eq("textbook_id", bookId).eq("page_number", number).maybeSingle()
   if (error || !data) return NextResponse.json({ error: error?.message ?? "Page not found" }, { status: 404 })
 
@@ -26,5 +27,5 @@ export async function GET(_request: Request, context: { params: Promise<{ bookId
     if (!text || ![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return []
     return [{ id: `${number}-${index}`, text, confidence: typeof paragraph.confidence === "number" ? paragraph.confidence : null, x: Math.max(0, x), y: Math.max(0, y), width: Math.min(1 - x, width), height: Math.min(1 - y, height) }]
   })
-  return NextResponse.json({ regions }, { headers: { "Cache-Control": "private, max-age=3600" } })
+  return NextResponse.json({ regions }, { headers: { "Cache-Control": "private, no-store" } })
 }

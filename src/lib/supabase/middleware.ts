@@ -1,3 +1,4 @@
+import { isLockedLearningPath } from "@/lib/learner-feature-flags"
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { sanitizeNextPath } from '@/lib/auth-flow'
@@ -9,13 +10,24 @@ export async function updateSession(request: NextRequest) {
         request,
     })
 
+    const locked = isLockedLearningPath(request.nextUrl.pathname)
+    const lockedResponse = () => {
+        if (request.nextUrl.pathname.startsWith('/api/')) {
+            return NextResponse.json({ error: 'Cụm học tập đang được phát triển và tạm khóa.' }, { status: 503 })
+        }
+        const url = request.nextUrl.clone()
+        url.pathname = '/dashboard'
+        url.search = '?notice=learning-in-development'
+        return NextResponse.redirect(url)
+    }
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     // If Supabase is not configured, skip auth check and let the request through
     if (!supabaseUrl || !supabaseKey) {
         console.warn('Supabase environment variables not set, skipping auth middleware')
-        return supabaseResponse
+        return locked ? lockedResponse() : supabaseResponse
     }
 
     const supabase = createServerClient(supabaseUrl, supabaseKey, {
@@ -49,6 +61,7 @@ export async function updateSession(request: NextRequest) {
         // Administrative APIs must fail closed because many of them use the
         // service-role client after this authorization boundary.
         console.warn('Middleware auth check failed or timed out:', error)
+        if (locked) return lockedResponse()
         if (request.nextUrl.pathname.startsWith('/api/admin/')) {
             return NextResponse.json(
                 { error: 'Dịch vụ xác thực tạm thời chưa sẵn sàng.' },
@@ -56,6 +69,26 @@ export async function updateSession(request: NextRequest) {
             )
         }
         return supabaseResponse
+    }
+
+    if (locked) {
+        const pathname = request.nextUrl.pathname
+        const textbookPath = pathname === '/textbooks' || pathname.startsWith('/textbooks/')
+            || pathname === '/api/textbooks' || pathname.startsWith('/api/textbooks/')
+        let previewAllowed = false
+        if (user && textbookPath) {
+            try {
+                const role = await getTrustedUserRole(user, supabase)
+                if (role === 'admin') previewAllowed = true
+                else if (isAdminRole(role)) {
+                    const { data: profile, error } = await supabase.from('profiles').select('admin_permissions').eq('id', user.id).maybeSingle()
+                    previewAllowed = !error && permissionsForRole(role, profile?.admin_permissions).includes('textbooks')
+                }
+            } catch {
+                previewAllowed = false
+            }
+        }
+        if (!previewAllowed) return lockedResponse()
     }
 
     if (

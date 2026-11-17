@@ -1,3 +1,4 @@
+import { canReadTextbook } from "@/lib/textbooks/access"
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
@@ -21,7 +22,7 @@ export async function GET(
     admin.from("textbooks").select("id,is_published").eq("id", bookId).maybeSingle(),
     admin.from("textbook_pages").select("image_path,checksum").eq("textbook_id", bookId).eq("page_number", pageNumber).maybeSingle(),
   ])
-  if (!book?.is_published || pageError || !page?.image_path) {
+  if (!book || !await canReadTextbook(user.id, bookId) || pageError || !page?.image_path) {
     return NextResponse.json({ error: "Page not found" }, { status: 404 })
   }
 
@@ -33,7 +34,7 @@ export async function GET(
   return new NextResponse(await image.arrayBuffer(), {
     headers: {
       "Content-Type": image.type || "image/webp",
-      "Cache-Control": "private, max-age=3600, stale-while-revalidate=86400",
+      "Cache-Control": "private, no-store",
       ...(page.checksum ? { ETag: `"${page.checksum}"` } : {}),
     },
   })

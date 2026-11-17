@@ -9,6 +9,7 @@ export type TextbookUnit = {
 }
 
 export type TextbookSummary = {
+  canAccess?: boolean
   id: string
   code: string
   title_ko: string

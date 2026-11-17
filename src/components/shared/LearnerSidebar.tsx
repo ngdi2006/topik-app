@@ -4,12 +4,13 @@ import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, BookOpen, BookText, ChevronDown, FileText, GraduationCap, Languages, LayoutDashboard, Mic, Phone, RotateCcw, Ruler, Target, Trophy, UserRound, X } from "lucide-react"
+import { BarChart3, BookText, ChevronDown, FileText, GraduationCap, Languages, LayoutDashboard, Mic, Phone, RotateCcw, Ruler, Target, Trophy, UserRound, X } from "lucide-react"
 import { SkillTestSidebarLinks } from "@/components/shared/SkillTestSidebarLinks"
 import { UserNav } from "@/components/shared/UserNav"
 import { LEARNING_CLUSTER_LOCKED } from "@/lib/learner-feature-flags"
+import { TextbookNavigationLink, CampusNavigationLink } from "@/components/shared/TextbookNavigationLink"
 
-const learningItems = [["E-Learning", "/elearning", GraduationCap], ["Giáo trình 2025", "/textbooks", BookOpen], ["Học từ vựng", "/textbooks/learning/vocabulary", Languages], ["Ngữ pháp", "/textbooks/learning/grammar", BookText]] as const
+const learningItems = [["E-Learning", "/elearning", GraduationCap], ["Học từ vựng", "/textbooks/learning/vocabulary", Languages], ["Ngữ pháp", "/textbooks/learning/grammar", BookText]] as const
 
 function LockedLearningItems({ mobile = false }: { mobile?: boolean }) {
     return <div className="space-y-1" aria-label="Các chức năng đang phát triển">
@@ -47,8 +48,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                 {skillTestOpen ? <SkillTestSidebarLinks onNavigate={onNavigate} /> : null}
                 
                 <p className="mt-4 px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-100/70">Học tập</p>
+                <TextbookNavigationLink onNavigate={onNavigate} />
+                <CampusNavigationLink onNavigate={onNavigate} />
                 {LEARNING_CLUSTER_LOCKED ? <LockedLearningItems /> : learningItems.map(([label, href, Icon]) => {
-                    const active = href === "/textbooks" ? pathname === href : pathname.startsWith(String(href))
+                    const active = pathname.startsWith(String(href))
                     return <Link aria-current={active ? "page" : undefined} className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium text-white transition ${active ? "bg-white/15 hover:bg-white/20" : "text-white/80 hover:bg-white/10 hover:text-white"}`} href={String(href)} key={String(href)} onClick={onNavigate}><Icon className="size-4 shrink-0" />{String(label)}</Link>
                 })}
                 <div className="mt-auto" />
@@ -100,8 +103,10 @@ export function LearnerSidebar({ mobileOpen, onMobileOpenChange, desktopOpen = t
                     <p className="px-3 pb-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Học và luyện thi</p>
                     <div className="order-3 mt-3 space-y-1 border-t border-slate-100 pt-3">
                         <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Học tập</p>
+                        <TextbookNavigationLink mobile onNavigate={() => onMobileOpenChange(false)} />
+                        <CampusNavigationLink mobile onNavigate={() => onMobileOpenChange(false)} />
                         {LEARNING_CLUSTER_LOCKED ? <LockedLearningItems mobile /> : learningItems.map(([label, href, Icon]) => {
-                            const active = href === "/textbooks" ? pathname === href : pathname.startsWith(String(href))
+                            const active = pathname.startsWith(String(href))
                             return <Link aria-current={active ? "page" : undefined} className={`flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-[13px] font-bold ${active ? "bg-emerald-50 text-emerald-700 shadow-sm" : "text-slate-700 hover:bg-slate-50 hover:text-emerald-700"}`} href={String(href)} key={String(href)} onClick={() => onMobileOpenChange(false)}><span className={`grid size-8 place-items-center rounded-lg ${active ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"}`}><Icon className="size-3.5" /></span>{String(label)}</Link>
                         })}
                     </div>

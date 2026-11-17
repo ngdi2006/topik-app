@@ -15,6 +15,10 @@ export const LOCKED_LEARNING_PATH_PREFIXES = [
 ] as const
 
 export function isLockedLearningPath(pathname: string) {
+    // The textbook library/reader is released independently of unfinished learning tools.
+    const library = pathname === '/textbooks' || (pathname.startsWith('/textbooks/') && !pathname.startsWith('/textbooks/learning'))
+        || pathname === '/api/textbooks' || (pathname.startsWith('/api/textbooks/') && !pathname.startsWith('/api/textbooks/learning'))
+    if (library) return false
     return LEARNING_CLUSTER_LOCKED && LOCKED_LEARNING_PATH_PREFIXES.some(
         (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
     )

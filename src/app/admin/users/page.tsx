@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import * as XLSX from "xlsx"
 import { useUserStore } from "@/store/userStore"
 import { UserBulkImportModal } from "@/components/admin/UserBulkImportModal"
+import WorkbookAccessControl from "@/components/admin/WorkbookAccessControl"
 import { UserLearningReport, type UserLearningReportData } from "@/components/admin/UserLearningReport"
 import {
     Dialog,
@@ -21,6 +22,8 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { ADMIN_MENU_ITEMS, ADMIN_PERMISSION_KEYS, sanitizeAdminPermissions, type AdminPermissionKey } from "@/lib/admin-permissions"
 
 interface UserProfile {
+    workbookAccess: boolean
+    workbookAccessExpiresAt: string | null
     id: string
     name: string
     email: string
@@ -1228,6 +1231,7 @@ export default function AdminUsersPage() {
                                                 <ShieldCheck className="h-4 w-4" />
                                             </Button>
                                         )}
+                                        {currentUserRole === 'admin' && !['admin', 'teacher'].includes(user.role) ? <WorkbookAccessControl userId={user.id} enabled={user.workbookAccess} expiresAt={user.workbookAccessExpiresAt} onChanged={(enabled, expiresAt) => setUsers(current => current.map(item => item.id === user.id ? { ...item, workbookAccess: enabled, workbookAccessExpiresAt: expiresAt } : item))} /> : null}
                                         <Button
                                             variant="ghost"
                                             size="icon"
@@ -1715,6 +1719,12 @@ export default function AdminUsersPage() {
                                     </dl>
                                 </section>
 
+                                <section aria-labelledby="workbook-access-title" className="rounded-xl border border-blue-100 bg-blue-50/40 p-4">
+                                    <h3 id="workbook-access-title" className="text-sm font-bold text-slate-900">Sách bài tập EPS</h3>
+                                    <p className="my-2 text-xs text-slate-500">{['admin', 'teacher'].includes(selectedDetailUser.role) ? 'Tài khoản có quyền mặc định theo vai trò.' : selectedDetailUser.workbookAccess ? 'Đang còn thời hạn sử dụng.' : selectedDetailUser.workbookAccessExpiresAt ? (Date.parse(selectedDetailUser.workbookAccessExpiresAt) <= filterReferenceTime ? 'Đã hết thời hạn sử dụng.' : 'Quyền sử dụng đã bị hủy.') : 'Chưa được cấp thời hạn sử dụng.'}</p>
+                                    {selectedDetailUser.workbookAccessExpiresAt ? <p className="mb-3 text-xs text-slate-600">Hạn sử dụng: {new Date(selectedDetailUser.workbookAccessExpiresAt).toLocaleString('vi-VN', { timeZone: 'Asia/Bangkok' })}</p> : null}
+                                    {currentUserRole === 'admin' && !['admin', 'teacher'].includes(selectedDetailUser.role) ? <WorkbookAccessControl showLabel userId={selectedDetailUser.id} enabled={selectedDetailUser.workbookAccess} expiresAt={selectedDetailUser.workbookAccessExpiresAt} onChanged={(enabled, expiresAt) => { setUsers(current => current.map(item => item.id === selectedDetailUser.id ? { ...item, workbookAccess: enabled, workbookAccessExpiresAt: expiresAt } : item)); setSelectedDetailUser(current => current ? { ...current, workbookAccess: enabled, workbookAccessExpiresAt: expiresAt } : current) }} /> : null}
+                                </section>
                                 <section aria-labelledby="login-info-title">
                                     <h3 className="mb-3 text-sm font-bold text-slate-900" id="login-info-title">Hoạt động đăng nhập</h3>
                                     <div className="space-y-3 rounded-xl border border-slate-200 p-4 text-sm">

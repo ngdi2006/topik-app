@@ -31,6 +31,7 @@ export function sanitizeAdminPermissions(value: unknown): AdminPermissionKey[] {
 
 export function permissionsForRole(role: string | null | undefined, stored: unknown): AdminPermissionKey[] {
     if (role === 'admin') return [...ADMIN_PERMISSION_KEYS]
+    if (role === 'teacher') return [...new Set<AdminPermissionKey>(['textbooks', ...sanitizeAdminPermissions(stored)])]
     return sanitizeAdminPermissions(stored)
 }
 

@@ -1,3 +1,4 @@
+import { canReadTextbook, canPreviewTextbooks } from "@/lib/textbooks/access"
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
@@ -10,7 +11,7 @@ export async function GET(_request: Request, context: { params: Promise<{ bookId
   const { bookId, unitId } = await context.params
   const admin = createAdminClient()
   const { data: unit, error: unitError } = await admin.from("textbook_units").select("id,start_page,end_page,is_published,textbook_id").eq("id", unitId).eq("textbook_id", bookId).maybeSingle()
-  if (unitError || !unit?.is_published) return NextResponse.json({ error: "Unit not found" }, { status: 404 })
+  if (unitError || !unit || !await canReadTextbook(user.id, bookId) || (!unit.is_published && !await canPreviewTextbooks(user.id))) return NextResponse.json({ error: "Unit not found" }, { status: 404 })
 
   const { data: pages, error } = await admin.from("textbook_pages").select("page_number,image_path,width,height,ocr_text").eq("textbook_id", bookId).gte("page_number", unit.start_page).lte("page_number", unit.end_page).order("page_number")
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -25,5 +26,5 @@ export async function GET(_request: Request, context: { params: Promise<{ bookId
       ocr_text: page.ocr_text,
       ocr_payload: {},
     })),
-  }, { headers: { "Cache-Control": "private, max-age=300" } })
+  }, { headers: { "Cache-Control": "private, no-store" } })
 }

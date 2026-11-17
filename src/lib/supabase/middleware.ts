@@ -6,6 +6,11 @@ import { getTrustedUserRole, isAdminRole } from '@/lib/admin-role'
 import { firstAdminPathForPermissions, permissionForPath, permissionsForRole } from '@/lib/admin-permissions'
 
 export async function updateSession(request: NextRequest) {
+    // Public, short learning sample used on the landing page. Full lesson
+    // audio remains behind its existing authenticated resource endpoints.
+    if (request.nextUrl.pathname === '/textbooks/tutorial/listening-example.mp3') {
+        return NextResponse.next({ request })
+    }
     let supabaseResponse = NextResponse.next({
         request,
     })

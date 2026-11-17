@@ -1,0 +1,21 @@
+import Image from "next/image"
+import Link from "next/link"
+import { ArrowRight, ArrowUp, ArrowUpRight, Phone } from "lucide-react"
+
+export default function HomeFooter({ library, exams, signedIn }: { library: string; exams: string; signedIn: boolean }) {
+  const navigation = [
+    { title: "Nội dung học tập", items: [{ label: "Giáo trình EPS-TOPIK", href: library }, { label: "Sách bài tập tương tác", href: library }, { label: "Thi thử trực tuyến", href: exams }] },
+    { title: "Không gian của bạn", items: [{ label: signedIn ? "Tiếp tục học" : "Tạo tài khoản", href: signedIn ? "/dashboard" : "/register" }, { label: signedIn ? "Tài khoản của bạn" : "Đăng nhập", href: signedIn ? "/account" : "/login" }, { label: "Trải nghiệm bài học mẫu", href: "#cach-hoc" }] },
+  ]
+  return <footer className="relative overflow-hidden border-t border-[#253458] bg-[#101a32] text-slate-300" data-home-footer>
+    <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-400/60 to-transparent" />
+    <div className="mx-auto max-w-7xl px-5 pt-10 sm:px-8 sm:pt-12 lg:px-10">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-8 pb-9 lg:grid-cols-[1.4fr_1fr_1fr_1.1fr] lg:gap-10">
+        <div className="col-span-2 lg:col-span-1"><Link href="/" className="inline-flex items-center gap-2.5"><span className="relative block size-10 overflow-hidden rounded-xl bg-white"><Image src="/images/logo/logo.k.png" alt="" width={56} height={56} className="absolute left-1/2 top-1/2 size-14 max-w-none -translate-x-1/2 -translate-y-1/2 object-contain" /></span><span><span className="block text-xl font-extrabold tracking-tight text-white">Korea Link<span className="text-blue-400">.</span></span><span className="mt-0.5 block text-[8px] font-semibold uppercase tracking-[.2em] text-blue-200">Korean learning platform</span></span></Link><p className="mt-4 max-w-xs text-xs leading-6 text-slate-400">Kết nối kiến thức, nuôi dưỡng sự tự tin. Đồng hành cùng bạn trên hành trình học tiếng Hàn và luyện thi EPS-TOPIK.</p><a href="#giao-trinh" className="mt-4 inline-flex min-h-10 items-center gap-2 text-xs font-semibold text-blue-300 transition-colors hover:text-white">Khám phá không gian học<ArrowRight className="size-3.5" /></a></div>
+        {navigation.map(({ title, items }) => <nav aria-label={title} key={title}><h2 className="mb-3 text-xs font-bold text-white">{title}</h2><ul className="space-y-1">{items.map(({ label, href }) => <li key={label}><Link href={href} className="group inline-flex min-h-10 items-center gap-2 text-xs leading-5 text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-300">{label}<ArrowUpRight className="size-3 shrink-0 text-slate-500 group-hover:text-blue-300" /></Link></li>)}</ul></nav>)}
+        <div className="col-span-2 lg:col-span-1"><h2 className="mb-3 text-xs font-bold text-white">Bạn cần hướng dẫn?</h2><p className="max-w-xs text-xs leading-6 text-slate-400">Liên hệ để được hỗ trợ tài khoản và cách sử dụng nền tảng.</p><a href="tel:0965577882" aria-label="Gọi hotline hỗ trợ 0965577882" className="mt-4 inline-flex min-h-14 items-center gap-3 rounded-xl border border-white/10 bg-white/[.04] px-4 py-2 transition-colors hover:border-blue-400/40 hover:bg-white/[.08] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-300"><span className="grid size-8 place-items-center rounded-full bg-blue-500/15 text-blue-300"><Phone className="size-3.5" /></span><span><span className="block text-[9px] text-slate-400">Hotline hỗ trợ</span><span className="mt-0.5 block text-sm font-bold tracking-wide text-white">0965 577 882</span></span></a></div>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 py-5 text-[10px] leading-5 text-slate-400"><p>© {new Date().getFullYear()} Korea Link. Học tiếng Hàn, kết nối tương lai.</p><a href="#noi-dung" className="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/10 py-1 pl-3 pr-1.5 text-slate-300 transition-colors hover:border-blue-400/40 hover:text-white">Về đầu trang<span className="grid size-6 place-items-center rounded-full bg-white/5"><ArrowUp className="size-3" /></span></a></div>
+    </div>
+  </footer>
+}

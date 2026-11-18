@@ -8,7 +8,7 @@ const roles={[adminId]:'admin',[teacherId]:'teacher',[studentId]:'learner'}
 const users=Object.fromEntries(Object.keys(roles).map(id=>[id,{id,app_metadata:{keep:true,workbook_access_volumes:{1:{enabled:true,expires_at:'2099-01-01T00:00:00Z'}}},user_metadata:{reference_book_access:{[catalog.referenceBookCodes[0]]:{enabled:true,expires_at:'2099-01-01T00:00:00Z'}}}}]))
 let actor=adminId,enabled=true
 const db={auth:{admin:{getUserById:async id=>({data:{user:users[id]},error:null}),updateUserById:async(id,value)=>{users[id].app_metadata=value.app_metadata;return {error:null}}}},from:table=>{let id;return {select(){return this},eq(key,value){if(key==='id')id=value;return this},maybeSingle:async()=>({data:table==='profiles'?(roles[id]?{role:roles[id]}:null):{code:id,is_published:id==='course',metadata:{access_mode:'reference_activation',activation_enabled:enabled}},error:null})}}}
-const common={'@/lib/supabase/admin':{createAdminClient:()=>db},'@/lib/textbooks/workbook-entitlement':workbook,'./catalog':catalog,'./reference-entitlement':entitlement}
+const common={'@/lib/supabase/admin':{createAdminClient:()=>db},'@/lib/textbooks/workbook-entitlement':workbook,'./catalog':catalog,'./reference-entitlement':entitlement,'./workbook-entitlement':workbook}
 const access=load('src/lib/textbooks/access.ts',common)
 const deps={...common,zod,'next/server':{NextResponse:{json:(body,init)=>Response.json(body,init)}},'@/lib/supabase/server':{createClient:async()=>({auth:{getUser:async()=>({data:{user:users[actor]}})}})},'@/lib/textbooks/access':access,'@/lib/admin-user-audit':{recordAdminUserActivity:async()=>{}}}
 const service=load('src/lib/textbooks/reference-access-admin.ts',deps)
@@ -45,5 +45,8 @@ const patch=body=>single.PATCH({json:async()=>body},{params:Promise.resolve({id:
  const response=await bulk.POST({json:async()=>({userIds:[studentId,teacherId],books:catalog.referenceBookCodes,action:'extend',days:30})})
  const result=await response.json();assert.equal(result.succeeded,1);assert.equal(result.failed,1)
  for(const code of catalog.referenceBookCodes)assert.equal(await access.canReadTextbook(studentId,code),true)
- console.log('PASS five independent expiring grants, extension, fixed expiry, revoke, current-session checks, metadata isolation, admin-only APIs, validation and partial bulk results')
+ const mixed={books:['eps-topik-2025-workbook-2',first],action:'extend',days:7};
+ const responseMixed=await patch(mixed);assert.equal(responseMixed.status,200);const mixedResult=await responseMixed.json();assert.equal(mixedResult.workbookVolumes[2].active,true);assert.equal(mixedResult.referenceBooks[first].active,true);
+ await patch({books:['eps-topik-2025-workbook-2',first],action:'revoke'});assert.equal(await access.hasWorkbookAccess(studentId,2),false);assert.equal(await access.canReadTextbook(studentId,first),false);assert.equal(await access.canReadTextbook(studentId,second),true);
+ console.log('PASS mixed workbook/reference grants and revokes plus five independent expiring grants, extension, fixed expiry, revoke, current-session checks, metadata isolation, admin-only APIs, validation and partial bulk results')
 })().catch(error=>{console.error(error);process.exitCode=1})

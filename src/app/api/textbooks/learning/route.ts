@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { isReferenceBook } from "@/lib/textbooks/catalog"
 
 type BookRow = { id: string; volume: number; edition: string; title_vi: string }
 type UnitRow = {
@@ -55,10 +56,10 @@ export async function GET(request: Request) {
   const admin = createAdminClient()
 
   const { data: books, error: bookError } = await admin.from("textbooks")
-    .select("id,volume,edition,title_vi").eq("is_published", true).order("volume")
+    .select("id,code,volume,edition,title_vi").eq("is_published", true).order("volume")
   if (bookError) return NextResponse.json({ error: bookError.message }, { status: 500 })
 
-  const bookRows = (books ?? []) as BookRow[]
+  const bookRows = (books ?? []).filter(book => !isReferenceBook(book)) as BookRow[]
   const bookIds = bookRows.map((book) => book.id)
   if (!bookIds.length) return NextResponse.json({ books: [], lessons: [], items: [] })
 

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Headphones, Languages, List, LoaderCircle, Minus, MousePointer2, PanelRight, ScrollText, Pause, Play, Plus, X } from "lucide-react"
 import WorkbookOnboarding from "@/components/textbooks/WorkbookOnboarding"
 import type { TextbookPagePayload, TextbookSummary, TextbookUnit } from "@/lib/textbooks/types"
+import { isReferenceBook, textbookKind } from "@/lib/textbooks/catalog"
 import WorkbookPageOverlay from "@/components/textbooks/WorkbookPageOverlay"
 import WorkbookPageAudio from "@/components/textbooks/WorkbookPageAudio"
 import ListeningTranscript from "@/components/textbooks/ListeningTranscript"
@@ -21,8 +22,9 @@ import { buildCanonicalGroups, useWorkbookListening } from "@/components/textboo
 type LoadedPage = TextbookPagePayload & { error?: string }
 type OcrRegion = { id: string; text: string; confidence: number | null; x: number; y: number; width: number; height: number }
 type UnitSummary = { grammar: Array<{ title: string; summary: string; analysis_vi?: string; examples?: Array<{ ko: string; vi: string }>; page_number: number }>; audio: Array<{ id: string; title: string; resource_url: string | null }>; listening: { page_number: number; track: string | null } | null }
+const readerHref = (bookId: string, page: number, unitId?: string) => `/textbooks/${bookId}/read?page=${page}${unitId ? `&unit=${encodeURIComponent(unitId)}` : ""}`
 
-export default function TextbookReader({ bookId, initialPage }: { bookId: string; initialPage: number }) {
+export default function TextbookReader({ bookId, initialPage, initialUnitId }: { bookId: string; initialPage: number; initialUnitId?: string }) {
   const [book, setBook] = useState<TextbookSummary | null>(null)
   const [unit, setUnit] = useState<TextbookUnit | null>(null)
   const [pages, setPages] = useState<LoadedPage[]>([])
@@ -44,6 +46,8 @@ export default function TextbookReader({ bookId, initialPage }: { bookId: string
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const isWorkbook = !!book?.code.includes("-workbook-")
+  const isReference = !!book && isReferenceBook(book)
+  const isGrammarReference = !!book && textbookKind(book) === "grammar"
   const workbook = useWorkbook(bookId, unit?.id, isWorkbook)
   const workbookPages = useMemo(() => new Map(workbook.pages.map(page => [page.pageNumber, page.workbook])), [workbook.pages])
   const allListeningFields = useMemo(() => (workbook.pages || []).flatMap((p) => (p.workbook?.fields || []).map((f) => ({ ...f, pageNumber: p.pageNumber }))), [workbook.pages])
@@ -93,14 +97,20 @@ export default function TextbookReader({ bookId, initialPage }: { bookId: string
       const found = (data.books as TextbookSummary[] | undefined)?.find((item) => item.id === bookId)
       if (!found) throw new Error("Không tìm thấy giáo trình")
       setBook(found)
+      if (isReferenceBook(found)) {
+        setResourceOpen(false)
+        setMobileResourceOpen(false)
+        setInteractionMode(false)
+      }
       if (found.code.includes("-workbook-")) {
         setInteractionMode(false)
         setResourceTab("audio")
       }
-      setUnit(found.units.find((item) => initialPage >= item.start_page && initialPage <= item.end_page) ?? found.units[0] ?? null)
+      const requestedUnit = found.units.find(item => item.id === initialUnitId && initialPage >= item.start_page && initialPage <= item.end_page)
+      setUnit(requestedUnit ?? found.units.find((item) => initialPage >= item.start_page && initialPage <= item.end_page) ?? found.units[0] ?? null)
     }).catch((cause) => { if (active) { setError(cause instanceof Error ? cause.message : "Không tải được giáo trình"); setLoading(false) } })
     return () => { active = false }
-  }, [bookId, initialPage])
+  }, [bookId, initialPage, initialUnitId])
 
   const loadUnit = useCallback(async (selected: TextbookUnit, focusPage = selected.start_page) => {
     const version = ++loadVersion.current
@@ -116,13 +126,13 @@ export default function TextbookReader({ bookId, initialPage }: { bookId: string
       const loaded = payload.pages as LoadedPage[]
       if (loadVersion.current !== version) return
       setPages(loaded)
-      window.history.replaceState(null, "", `/textbooks/${bookId}/read?page=${focusPage}`)
+      window.history.replaceState(null, "", readerHref(bookId, focusPage, isReference ? selected.id : undefined))
     } catch (cause) {
       if (loadVersion.current === version) setError(cause instanceof Error ? cause.message : "Không tải được Unit")
     } finally {
       if (loadVersion.current === version) setLoading(false)
     }
-  }, [bookId])
+  }, [bookId, isReference])
 
   useEffect(() => { if (unit) void loadUnit(unit, unitPage >= unit.start_page && unitPage <= unit.end_page ? unitPage : unit.start_page) }, [unitPage, loadUnit, unit])
 
@@ -139,12 +149,12 @@ export default function TextbookReader({ bookId, initialPage }: { bookId: string
       if (!number || number === activePageRef.current) return
       activePageRef.current = number
       setActivePage(number)
-      window.history.replaceState(null, "", `/textbooks/${bookId}/read?page=${number}`)
+      window.history.replaceState(null, "", readerHref(bookId, number, isReference ? unit?.id : undefined))
       void fetch(`/api/textbooks/${bookId}/progress`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ page: number, totalPages: book.total_pages }) })
     }, { root: document.querySelector("[data-reader-scroll]"), threshold: [0.25, 0.55, 0.8] })
     pageElements.current.forEach((element) => observer.observe(element))
     return () => observer.disconnect()
-  }, [book, bookId, pages])
+  }, [book, bookId, pages, isReference, unit?.id])
 
   useEffect(() => {
     if (isWorkbook || !interactionMode || regionsByPage[activePage]) return
@@ -157,12 +167,12 @@ export default function TextbookReader({ bookId, initialPage }: { bookId: string
   }, [activePage, bookId, interactionMode, isWorkbook, regionsByPage])
 
   useEffect(() => {
-    if (!unit) return
+    if (!unit || isReference) return
     let active = true
     setUnitSummary(null)
     void fetch(`/api/textbooks/${bookId}/units/${unit.id}/summary?v=2`, { cache: "no-store" }).then((response) => response.ok ? response.json() : Promise.reject()).then((data) => { if (active) setUnitSummary(data) }).catch(() => { if (active) setUnitSummary({ grammar: [], audio: [], listening: null }) })
     return () => { active = false }
-  }, [bookId, unit])
+  }, [bookId, unit, isReference])
 
   const unitIndex = useMemo(() => book?.units.findIndex((item) => item.id === unit?.id) ?? -1, [book, unit])
   const chooseUnit = (next: TextbookUnit) => {
@@ -170,7 +180,7 @@ export default function TextbookReader({ bookId, initialPage }: { bookId: string
     else { setUnitPage(next.start_page); setUnit(next) }
     setTocOpen(false)
   }
-  const unitLabel = (item: TextbookUnit | null) => !item ? "Bài học" : item.unit_number > 0 ? `Bài ${item.unit_number}` : item.title_vi || "Mở đầu"
+  const unitLabel = (item: TextbookUnit | null) => !item ? "Mục lục" : item.unit_number > 0 ? `${isGrammarReference ? "Chủ đề" : "Bài"} ${item.unit_number}` : item.title_vi || "Mở đầu"
   const renderUnitBadge = (item: TextbookUnit) => {
     const progress = workbook.progress.get(item.id)
     const percent = progress?.total ? Math.max(0, Math.min(100, Math.round(progress.answered / progress.total * 100))) : 0
@@ -208,10 +218,10 @@ export default function TextbookReader({ bookId, initialPage }: { bookId: string
     <button aria-label="Đóng mục lục" className={`fixed inset-0 z-40 bg-slate-950/40 lg:hidden ${tocOpen ? "block" : "hidden"}`} onClick={() => setTocOpen(false)} type="button" />
     <aside className={`${tocOpen ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-50 flex w-[min(86vw,310px)] flex-col border-r bg-white shadow-xl transition-transform lg:static lg:translate-x-0 lg:shadow-none`}>
       <div className="flex h-16 shrink-0 items-center justify-between border-b px-4"><Link className="flex items-center gap-2 font-black text-blue-700" href="/textbooks"><ChevronLeft className="size-4" />Thư viện</Link><button className="lg:hidden" onClick={() => setTocOpen(false)} type="button"><X /></button></div>
-      <div className="border-b px-3 py-3"><p className="text-[9px] font-bold uppercase tracking-[0.14em] text-blue-600">{book ? `Quyển ${book.volume} · ${book.edition}` : "Giáo trình"}</p><h1 className="mt-1 text-[13px] font-bold leading-5 text-slate-900">{book?.title_vi ?? "Đang tải..."}</h1></div>
+      <div className="border-b px-3 py-3"><p className="text-[9px] font-bold uppercase tracking-[0.14em] text-blue-600">{book ? `${isGrammarReference ? "Tổng hợp" : `Quyển ${book.volume}`} · ${book.edition}` : "Giáo trình"}</p><h1 className="mt-1 text-[13px] font-bold leading-5 text-slate-900">{book?.title_vi ?? "Đang tải..."}</h1></div>
       <nav aria-label="Mục lục Unit" className="min-h-0 flex-1 overflow-y-auto p-2">
         <p className="px-2 pb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Mục lục</p>
-        {book?.units.map((item) => { const progress = workbook.progress.get(item.id); const percent = progress?.total ? Math.max(0, Math.min(100, Math.round(progress.answered / progress.total * 100))) : 0; return <a aria-current={item.id === unit?.id ? "location" : undefined} className={`mb-0.5 flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left transition-colors ${item.id === unit?.id ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50"}`} href={`/textbooks/${bookId}/read?page=${item.start_page}`} key={item.id} onClick={(event) => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); chooseUnit(item) }}>{renderUnitBadge(item)}<span className="min-w-0 flex-1"><strong className="block text-[11px] font-semibold leading-4">{item.unit_number > 0 ? `Bài ${item.unit_number}` : "Mở đầu"}{item.title_ko ? ` · ${item.title_ko}` : ""}</strong>{item.title_vi ? <span className="block text-[10px] leading-[14px] text-slate-600">{item.title_vi}</span> : null}<span className="mt-0.5 flex items-center justify-between gap-2 text-[9px] leading-3 text-slate-400"><span>Trang {item.start_page}–{item.end_page}</span>{isWorkbook ? <span className={`shrink-0 font-semibold tabular-nums ${percent === 100 ? "text-emerald-600" : "text-blue-600"}`}>{percent}%</span> : null}</span></span></a> })}
+        {book?.units.map((item) => { const progress = workbook.progress.get(item.id); const percent = progress?.total ? Math.max(0, Math.min(100, Math.round(progress.answered / progress.total * 100))) : 0; return <a aria-current={item.id === unit?.id ? "location" : undefined} className={`mb-0.5 flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left transition-colors ${item.id === unit?.id ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50"}`} href={readerHref(bookId, item.start_page, isReference ? item.id : undefined)} key={item.id} onClick={(event) => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); chooseUnit(item) }}>{renderUnitBadge(item)}<span className="min-w-0 flex-1"><strong className="block text-[11px] font-semibold leading-4">{unitLabel(item)}{item.title_ko ? ` · ${item.title_ko}` : ""}</strong>{item.title_vi ? <span className="block text-[10px] leading-[14px] text-slate-600">{item.title_vi}</span> : null}<span className="mt-0.5 flex items-center justify-between gap-2 text-[9px] leading-3 text-slate-400"><span>Trang {item.start_page}–{item.end_page}</span>{isWorkbook ? <span className={`shrink-0 font-semibold tabular-nums ${percent === 100 ? "text-emerald-600" : "text-blue-600"}`}>{percent}%</span> : null}</span></span></a> })}
       </nav>
     </aside>
 
@@ -246,9 +256,9 @@ export default function TextbookReader({ bookId, initialPage }: { bookId: string
               <span className="hidden xl:inline">File nghe</span>
             </button>
           ) : null}
-          <button data-workbook-mode aria-label={isWorkbook ? "Bật/tắt làm bài trên sách" : "Bật lớp tương tác OCR"} className={`flex min-h-9 min-w-8 sm:min-h-11 sm:min-w-11 items-center justify-center gap-1.5 rounded-lg px-1.5 text-xs font-bold focus-visible:outline-2 focus-visible:outline-blue-600 ${interactionMode ? "bg-amber-100 text-amber-800" : "hover:bg-slate-100"}`} onClick={() => { setInteractionMode(value => !value); setSelectedRegion(null) }} aria-pressed={interactionMode} type="button"><MousePointer2 aria-hidden="true" className="size-4" /><span className="hidden xl:inline">{isWorkbook ? "Làm bài" : "Tương tác"}</span></button>
+          {!isReference ? <><button data-workbook-mode aria-label={isWorkbook ? "Bật/tắt làm bài trên sách" : "Bật lớp tương tác OCR"} className={`flex min-h-9 min-w-8 sm:min-h-11 sm:min-w-11 items-center justify-center gap-1.5 rounded-lg px-1.5 text-xs font-bold focus-visible:outline-2 focus-visible:outline-blue-600 ${interactionMode ? "bg-amber-100 text-amber-800" : "hover:bg-slate-100"}`} onClick={() => { setInteractionMode(value => !value); setSelectedRegion(null) }} aria-pressed={interactionMode} type="button"><MousePointer2 aria-hidden="true" className="size-4" /><span className="hidden xl:inline">{isWorkbook ? "Làm bài" : "Tương tác"}</span></button>
           <SheetTrigger asChild><button aria-label="Nội dung liên kết" className="grid min-h-9 min-w-8 sm:min-h-11 sm:min-w-11 place-items-center rounded-lg hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600 xl:hidden" type="button"><PanelRight aria-hidden="true" className="size-4" /></button></SheetTrigger>
-          <button aria-label="Nội dung liên kết" aria-expanded={resourceOpen} className="hidden min-h-9 min-w-8 sm:min-h-11 sm:min-w-11 place-items-center rounded-lg hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600 xl:grid" onClick={() => setResourceOpen(value => !value)} type="button"><PanelRight aria-hidden="true" className="size-4" /></button>
+          <button aria-label="Nội dung liên kết" aria-expanded={resourceOpen} className="hidden min-h-9 min-w-8 sm:min-h-11 sm:min-w-11 place-items-center rounded-lg hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600 xl:grid" onClick={() => setResourceOpen(value => !value)} type="button"><PanelRight aria-hidden="true" className="size-4" /></button></> : null}
         </div>
       </header>
 
@@ -321,7 +331,7 @@ export default function TextbookReader({ bookId, initialPage }: { bookId: string
       </footer>
     </section>
 
-    {resourceOpen ? <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:flex xl:flex-col 2xl:w-[380px]">{summaryContent}</aside> : null}
+    {!isReference && resourceOpen ? <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:flex xl:flex-col 2xl:w-[380px]">{summaryContent}</aside> : null}
     <SheetContent aria-describedby={undefined} className="h-dvh w-[min(92vw,380px)] gap-0 bg-white p-0" showCloseButton={false}>
       <SheetTitle className="sr-only">Tổng kết nhanh</SheetTitle>
       {summaryContent}

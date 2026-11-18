@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { permissionsForRole } from '@/lib/admin-permissions'
+import { referenceBookCodes } from '@/lib/textbooks/catalog'
 
 type LessonRow = {
     id: string
@@ -84,6 +85,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
                 .select('id, textbook_id, unit_number, title_vi, start_page, end_page, textbooks!inner(title_vi, volume, is_published)')
                 .eq('is_published', true)
                 .eq('textbooks.is_published', true)
+                .not('textbooks.code', 'in', `(${referenceBookCodes.join(',')})`)
                 .order('sort_order', { ascending: true }),
             admin.from('user_textbook_progress')
                 .select('textbook_id, unit_id, last_page, progress_percent, completed_units, updated_at')

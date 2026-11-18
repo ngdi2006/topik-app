@@ -7,8 +7,10 @@ let signedIn=adminId,audits=0,activationEnabled=true
 const db={auth:{admin:{getUserById:async id=>({data:{user:users.get(id)},error:null}),updateUserById:async(id,body)=>{users.get(id).app_metadata=body.app_metadata;return {error:null}}}},from:table=>{let id;return {select(){return this},eq(key,value){if(key==='id')id=value;return this},maybeSingle:async()=>({data:table==='profiles'?profiles.get(id):{code:id==='workbook2'?'eps-topik-2025-workbook-2':id==='workbook'?'eps-topik-2025-workbook-1':'eps-topik-2025-1',is_published:id!=='draft'&&id!=='workbook'&&id!=='workbook2',metadata:['workbook','workbook2'].includes(id)?{access_mode:'workbook_activation',activation_enabled:activationEnabled}:{}},error:null})}}}
 const entitlement={}
 vm.runInNewContext(compile('src/lib/textbooks/workbook-entitlement.ts'),{exports:entitlement})
+const catalog={};vm.runInNewContext(compile('src/lib/textbooks/catalog.ts'),{exports:catalog})
+const reference={};vm.runInNewContext(compile('src/lib/textbooks/reference-entitlement.ts'),{exports:reference,require:()=>catalog})
 const access={}
-vm.runInNewContext(compile('src/lib/textbooks/access.ts'),{exports:access,require:key=>key==='@/lib/textbooks/workbook-entitlement'?entitlement:({createAdminClient:()=>db})})
+vm.runInNewContext(compile('src/lib/textbooks/access.ts'),{exports:access,require:key=>key==='@/lib/textbooks/workbook-entitlement'?entitlement:key==='./catalog'?catalog:key==='./reference-entitlement'?reference:({createAdminClient:()=>db})})
 const route={},deps={'@/lib/textbooks/workbook-entitlement':entitlement,zod,'next/server':{NextResponse:{json:(data,init)=>Response.json(data,init)}},'@/lib/supabase/server':{createClient:async()=>({auth:{getUser:async()=>({data:{user:signedIn?users.get(signedIn):null}})}})},'@/lib/supabase/admin':{createAdminClient:()=>db},'@/lib/textbooks/access':access,'@/lib/admin-user-audit':{recordAdminUserActivity:async()=>{audits++}}}
 const service={};vm.runInNewContext(compile('src/lib/textbooks/workbook-access-admin.ts'),{exports:service,console,require:key=>key==='./workbook-entitlement'?entitlement:deps[key]});deps['@/lib/textbooks/workbook-access-admin']=service
 vm.runInNewContext(compile('src/app/api/admin/users/[id]/workbook-access/route.ts'),{exports:route,require:key=>{assert.ok(deps[key],key);return deps[key]}})
@@ -56,10 +58,11 @@ const patch=enabled=>route.PATCH({json:async()=>enabled?({action:"extend",days:3
  assert.equal(await access.canReadTextbook(learnerId,'workbook2'),true)
  await patch(false);assert.equal(await access.canReadTextbook(learnerId,'workbook'),false);assert.equal(await access.canReadTextbook(learnerId,'workbook2'),true,'legacy grant remains valid for unedited volume');assert.equal(users.get(learnerId).app_metadata.workbook_access_volumes['2'].expires_at,legacyExpiry)
 
- const catalog={};let grantedVolume=1
+ deps['@/lib/textbooks/catalog']=catalog;deps['@/lib/textbooks/reference-entitlement']=reference
+ const catalogRoute={};let grantedVolume=1
  const query={order(){return this},or(){return this},eq(){return this},then(resolve){return Promise.resolve({data:[{id:'b1',code:'eps-topik-2025-workbook-1',volume:1,metadata:{},textbook_units:[]},{id:'b2',code:'eps-topik-2025-workbook-2',volume:2,metadata:{},textbook_units:[]},{id:'course',code:'eps-topik-2025-1',metadata:{},textbook_units:[]}],error:null}).then(resolve)}}
- const catalogDb={from:table=>({select:()=>table==='textbooks'?query:{eq:async()=>({data:[]})}})}
- vm.runInNewContext(compile('src/app/api/textbooks/route.ts'),{exports:catalog,require:key=>key==='@/lib/textbooks/access'?{canPreviewTextbooks:async()=>false,hasWorkbookAccess:async(id,volume)=>volume===grantedVolume}:key==='@/lib/supabase/admin'?{createAdminClient:()=>catalogDb}:deps[key]})
- for(const volume of [1,2]){grantedVolume=volume;const books=(await(await catalog.GET()).json()).books;assert.equal(books.find(book=>book.id==='b1').canAccess,volume===1);assert.equal(books.find(book=>book.id==='b2').canAccess,volume===2);assert.equal(books.find(book=>book.id==='course').canAccess,true)}
+ const catalogDb={auth:db.auth,from:table=>({select:()=>table==='textbooks'?query:{eq:async()=>({data:[]})}})}
+ vm.runInNewContext(compile('src/app/api/textbooks/route.ts'),{exports:catalogRoute,require:key=>key==='@/lib/textbooks/access'?{canPreviewTextbooks:async()=>false,hasWorkbookAccess:async(id,volume)=>volume===grantedVolume}:key==='@/lib/supabase/admin'?{createAdminClient:()=>catalogDb}:deps[key]})
+ for(const volume of [1,2]){grantedVolume=volume;const books=(await(await catalogRoute.GET()).json()).books;assert.equal(books.find(book=>book.id==='b1').canAccess,volume===1);assert.equal(books.find(book=>book.id==='b2').canAccess,volume===2);assert.equal(books.find(book=>book.id==='course').canAccess,true)}
  console.log('PASS per-volume access, legacy compatibility, independent expiry/revoke, bulk validation/partial results, admin-only security')
 })().catch(error=>{console.error(error);process.exitCode=1})

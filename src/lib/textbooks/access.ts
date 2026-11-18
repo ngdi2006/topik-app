@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { workbookEntitlement, workbookVolumeFromCode, type WorkbookVolume } from "@/lib/textbooks/workbook-entitlement"
+import { isReferenceBook } from './catalog'
+import { referenceEntitlement, type ReferenceBookCode } from './reference-entitlement'
 export function textbookPermissionsForRole(role: unknown) {
   const manager = role === "admin" || role === "teacher"
   return { canEditLayout: manager, canManageAnswerKeys: role === "admin", canViewTranscript: manager }
@@ -26,6 +28,11 @@ export async function canReadTextbook(userId: string, bookId: string) {
   const { data } = await createAdminClient().from("textbooks").select("is_published,code,metadata").eq("id", bookId).maybeSingle()
   if (!data) return false
   if (await canPreviewTextbooks(userId)) return true
+  if (isReferenceBook(data)) {
+    if (data.metadata?.access_mode === 'reference_activation' && data.metadata.activation_enabled === false) return false
+    const current = await createAdminClient().auth.admin.getUserById(userId)
+    return !current.error && referenceEntitlement(current.data.user?.app_metadata, data.code as ReferenceBookCode).active
+  }
   if (data.code?.includes("-workbook-")) {
     const volume = workbookVolumeFromCode(data.code)
     if (!volume) return false

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { isReferenceBook } from '@/lib/textbooks/catalog'
 
 async function authorize() {
   const supabase = await createClient()
@@ -42,7 +43,7 @@ export async function PATCH(request: NextRequest) {
       if (audioUpdate.error) return NextResponse.json({ error: audioUpdate.error.message }, { status: 500 })
     }
   }
-  const restricted = bookResult.data.code.includes("-workbook-")
-  const { error } = await admin.from("textbooks").update({ is_published: restricted ? false : is_published, ...(restricted ? { metadata: { ...bookResult.data.metadata, access_mode: "workbook_activation", activation_enabled: is_published } } : {}), updated_at: new Date().toISOString() }).eq("id", id)
+  const restricted = bookResult.data.code.includes("-workbook-") || isReferenceBook(bookResult.data)
+  const { error } = await admin.from("textbooks").update({ is_published: restricted ? false : is_published, ...(restricted ? { metadata: { ...bookResult.data.metadata, access_mode: isReferenceBook(bookResult.data) ? 'reference_activation' : "workbook_activation", activation_enabled: is_published } } : {}), updated_at: new Date().toISOString() }).eq("id", id)
   return error ? NextResponse.json({ error: error.message }, { status: 500 }) : NextResponse.json({ ok: true })
 }

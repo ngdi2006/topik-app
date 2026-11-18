@@ -18,7 +18,7 @@ export const listeningGuideSchema = z.object({
   explanation_vi: z.string().max(8000), evidenceSegmentIds: z.array(z.string().max(80)).max(50),
   status: z.enum(["draft", "reviewed"]), confidence: z.enum(["high", "medium", "low", "insufficient"]),
 })
-const manifestSchema = z.object({ version: z.literal(1), status: z.enum(["draft", "reviewed"]), sourceChecksum: z.string(), duration: z.number().positive(), lesson: z.number().int().positive(), transcriptionProvider: z.enum(["elevenlabs", "gemini"]), waveform: waveform.optional(), segments: z.array(listeningSegmentSchema).max(3000), answerGuide: z.array(listeningGuideSchema).max(500) })
+const manifestSchema = z.object({ version: z.literal(1), status: z.enum(["draft", "reviewed"]), sourceChecksum: z.string(), duration: z.number().positive(), lesson: z.number().int().min(-2), transcriptionProvider: z.enum(["elevenlabs", "gemini"]), waveform: waveform.optional(), segments: z.array(listeningSegmentSchema).max(3000), answerGuide: z.array(listeningGuideSchema).max(500) })
 export function parseListening(metadata: unknown) {
   const result = manifestSchema.safeParse((metadata as { listening?: unknown } | null)?.listening)
   return result.success ? result.data : null

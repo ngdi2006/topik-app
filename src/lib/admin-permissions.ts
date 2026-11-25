@@ -1,5 +1,4 @@
 export const ADMIN_MENU_ITEMS = [
-    { key: 'eps_curriculum', label: 'Giáo trình EPS', path: '/admin/giao-trinh-eps', description: 'Kiểm soát lộ trình, học liệu, lớp học và đánh giá EPS.' },
     { key: 'elearning', label: 'E-Learning', path: '/admin/elearning', description: 'Quản lý lộ trình E-Learning, video và các bước học.' },
     { key: 'textbooks', label: 'Giáo trình số', path: '/admin/textbooks', description: 'Kiểm duyệt và xuất bản giáo trình EPS-TOPIK.' },
     { key: 'dashboard', label: 'Dashboard', path: '/admin', description: 'Xem tổng quan hệ thống.' },
@@ -51,7 +50,6 @@ export function permissionForPath(pathname: string): AdminPermissionKey | null {
 
     if (normalizedPathname.startsWith('/api/admin/')) {
         const apiMappings: Array<[string, AdminPermissionKey]> = [
-            ['/api/admin/giao-trinh-eps', 'eps_curriculum'],
             ['/api/admin/elearning', 'elearning'],
             ['/api/admin/textbooks', 'textbooks'],
             ['/api/admin/me', 'dashboard'],

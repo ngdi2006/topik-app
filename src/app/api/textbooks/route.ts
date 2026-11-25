@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { workbookVolumeFromCode } from "@/lib/textbooks/workbook-entitlement"
 import { isReferenceBook, referenceBookCodes } from '@/lib/textbooks/catalog'
 import { referenceEntitlement, type ReferenceBookCode } from '@/lib/textbooks/reference-entitlement'
+import {withCourseUnitTitles} from '@/lib/textbooks/course-unit-titles'
 
 export async function GET() {
   const supabase = await createClient()
@@ -30,7 +31,7 @@ export async function GET() {
       : null
     return {
       ...book,
-      units: [...(book.textbook_units ?? [])].sort((a, b) => a.sort_order - b.sort_order),
+      units: [...(book.textbook_units ?? [])].sort((a, b) => a.sort_order - b.sort_order).map(unit=>withCourseUnitTitles(book,unit)),
       textbook_units: undefined,
       metadata: undefined,
       progress: progressByBook.get(book.id) ?? null,

@@ -4,15 +4,17 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import Image from "next/image"
 import Link from "next/link"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
-import { ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Headphones, Languages, List, LoaderCircle, Minus, MousePointer2, PanelRight, ScrollText, Pause, Play, Plus, X } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Search, Headphones, Languages, List, LoaderCircle, Minus, MousePointer2, PanelRight, ScrollText, Pause, Play, Plus, X } from "lucide-react"
 import WorkbookOnboarding from "@/components/textbooks/WorkbookOnboarding"
 import type { TextbookPagePayload, TextbookSummary, TextbookUnit } from "@/lib/textbooks/types"
+import {withCourseUnitTitles} from '@/lib/textbooks/course-unit-titles'
 import { isReferenceBook, textbookKind } from "@/lib/textbooks/catalog"
 import WorkbookPageOverlay from "@/components/textbooks/WorkbookPageOverlay"
 import WorkbookPageAudio from "@/components/textbooks/WorkbookPageAudio"
 import ListeningTranscript from "@/components/textbooks/ListeningTranscript"
 import AudioWaveform from "@/components/textbooks/AudioWaveform"
 import { useWorkbook } from "@/components/textbooks/useWorkbook"
+import TextbookTrackPlaylist,{TextbookTrackProvider,TextbookTrackMiniPlayer,TextbookPageTrackAudio} from '@/components/textbooks/TextbookTrackPlaylist'
 import WorkbookListeningPanel from "@/components/textbooks/WorkbookListeningPanel"
 import WorkbookLayoutEditor from "@/components/textbooks/WorkbookLayoutEditor"
 import WorkbookGrading from "@/components/textbooks/WorkbookGrading"
@@ -21,7 +23,7 @@ import { buildCanonicalGroups, useWorkbookListening } from "@/components/textboo
 
 type LoadedPage = TextbookPagePayload & { error?: string }
 type OcrRegion = { id: string; text: string; confidence: number | null; x: number; y: number; width: number; height: number }
-type UnitSummary = { grammar: Array<{ title: string; summary: string; analysis_vi?: string; examples?: Array<{ ko: string; vi: string }>; page_number: number }>; audio: Array<{ id: string; title: string; resource_url: string | null }>; listening: { page_number: number; track: string | null } | null }
+type UnitSummary = { grammar: Array<{ title: string; summary: string; analysis_vi?: string; examples?: Array<{ ko: string; vi: string }>; page_number: number }>; audio: Array<{ id: string; title: string; resource_url: string | null; page_number?: number | null }>; listening: { page_number: number; track: string | null } | null }
 const readerHref = (bookId: string, page: number, unitId?: string) => `/textbooks/${bookId}/read?page=${page}${unitId ? `&unit=${encodeURIComponent(unitId)}` : ""}`
 
 export default function TextbookReader({ bookId, initialPage, initialUnitId }: { bookId: string; initialPage: number; initialUnitId?: string }) {
@@ -32,6 +34,7 @@ export default function TextbookReader({ bookId, initialPage, initialUnitId }: {
   const [unitPage, setUnitPage] = useState(initialPage)
   const [zoom, setZoom] = useState(100)
   const [tocOpen, setTocOpen] = useState(false)
+  const [tocQuery, setTocQuery] = useState('')
   const [showTranscript, setShowTranscript] = useState(false)
   const [grading, setGrading] = useState<{ unitId: string; answers: typeof workbook.answers; result: WorkbookGrade } | null>(null)
   const [resourceOpen, setResourceOpen] = useState(true)
@@ -51,7 +54,7 @@ export default function TextbookReader({ bookId, initialPage, initialUnitId }: {
   const workbook = useWorkbook(bookId, unit?.id, isWorkbook)
   const workbookPages = useMemo(() => new Map(workbook.pages.map(page => [page.pageNumber, page.workbook])), [workbook.pages])
   const allListeningFields = useMemo(() => (workbook.pages || []).flatMap((p) => (p.workbook?.fields || []).map((f) => ({ ...f, pageNumber: p.pageNumber }))), [workbook.pages])
-  const listeningController = useWorkbookListening(unitSummary?.audio[0], workbook.userId)
+  const listeningController = useWorkbookListening(isWorkbook ? unitSummary?.audio[0] : undefined, workbook.userId)
   const audioGroups = useMemo(() => buildCanonicalGroups(allListeningFields, listeningController.segments), [allListeningFields, listeningController.segments])
   const activeAudioGroup = audioGroups.find(group => group.id === listeningController.activeGroupId)
   const playbackDuration = activeAudioGroup?.duration ?? listeningController.duration
@@ -96,7 +99,8 @@ export default function TextbookReader({ bookId, initialPage, initialUnitId }: {
       if (!active) return
       const found = (data.books as TextbookSummary[] | undefined)?.find((item) => item.id === bookId)
       if (!found) throw new Error("Không tìm thấy giáo trình")
-      setBook(found)
+      const titled={...found,units:found.units.map(item=>withCourseUnitTitles(found,item))}
+      setBook(titled)
       if (isReferenceBook(found)) {
         setResourceOpen(false)
         setMobileResourceOpen(false)
@@ -106,8 +110,8 @@ export default function TextbookReader({ bookId, initialPage, initialUnitId }: {
         setInteractionMode(false)
         setResourceTab("audio")
       }
-      const requestedUnit = found.units.find(item => item.id === initialUnitId && initialPage >= item.start_page && initialPage <= item.end_page)
-      setUnit(requestedUnit ?? found.units.find((item) => initialPage >= item.start_page && initialPage <= item.end_page) ?? found.units[0] ?? null)
+      const requestedUnit = titled.units.find(item => item.id === initialUnitId && initialPage >= item.start_page && initialPage <= item.end_page)
+      setUnit(requestedUnit ?? titled.units.find((item) => initialPage >= item.start_page && initialPage <= item.end_page) ?? titled.units[0] ?? null)
     }).catch((cause) => { if (active) { setError(cause instanceof Error ? cause.message : "Không tải được giáo trình"); setLoading(false) } })
     return () => { active = false }
   }, [bookId, initialPage, initialUnitId])
@@ -179,19 +183,28 @@ export default function TextbookReader({ bookId, initialPage, initialUnitId }: {
     if (next.id === unit?.id && unitPage === next.start_page) void loadUnit(next, next.start_page)
     else { setUnitPage(next.start_page); setUnit(next) }
     setTocOpen(false)
+    setTocQuery('')
   }
   const unitLabel = (item: TextbookUnit | null) => !item ? "Mục lục" : item.unit_number > 0 ? `${isGrammarReference ? "Chủ đề" : "Bài"} ${item.unit_number}` : item.title_vi || "Mở đầu"
+  const searchKey=(text:string)=>text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\u0111/gi,'d').toLowerCase().replace(/\s+/g,'')
+  const visibleUnits=book?.units.filter(item=>!tocQuery.trim()||(/^\d+$/.test(tocQuery.trim())?item.unit_number===Number(tocQuery.trim()):searchKey(`${unitLabel(item)} ${item.title_ko||''} ${item.title_vi||''}`).includes(searchKey(tocQuery))))||[]
   const renderUnitBadge = (item: TextbookUnit) => {
     const progress = workbook.progress.get(item.id)
     const percent = progress?.total ? Math.max(0, Math.min(100, Math.round(progress.answered / progress.total * 100))) : 0
     const selected = item.id === unit?.id
-    return <span aria-label={`${unitLabel(item)}${isWorkbook ? ` · Hoàn thành ${percent}%` : ""}`} className="relative mt-0.5 grid size-9 shrink-0 place-items-center" title={progress?.total ? `Đã làm ${progress.answered}/${progress.total} · ${percent}%` : undefined}>
-      {isWorkbook ? <svg aria-hidden="true" className="absolute inset-0 size-9 -rotate-90" viewBox="0 0 40 40"><circle className={selected ? "text-blue-200" : "text-slate-200"} cx="20" cy="20" fill="none" r="17" stroke="currentColor" strokeWidth="2.5" /><circle className={percent === 100 ? "text-emerald-500" : "text-blue-600"} cx="20" cy="20" fill="none" pathLength="100" r="17" stroke="currentColor" strokeDasharray={`${percent} 100`} strokeLinecap={percent ? "round" : "butt"} strokeWidth="2.5" /></svg> : null}
-      <span aria-hidden="true" className={`grid size-7 place-items-center rounded-full text-[11px] font-bold tabular-nums ${selected ? "bg-blue-600 text-white" : "bg-slate-50 text-slate-600"}`}>{item.unit_number > 0 ? item.unit_number : "MĐ"}</span>
+    return <span aria-label={`${unitLabel(item)}${isWorkbook ? ` · Hoàn thành ${percent}%` : ""}`} className="relative mt-0.5 grid size-7 shrink-0 place-items-center" title={progress?.total ? `Đã làm ${progress.answered}/${progress.total} · ${percent}%` : undefined}>
+      {isWorkbook ? <svg aria-hidden="true" className="absolute inset-0 size-7 -rotate-90" viewBox="0 0 40 40"><circle className={selected ? "text-blue-200" : "text-slate-200"} cx="20" cy="20" fill="none" r="17" stroke="currentColor" strokeWidth="2.5" /><circle className={percent === 100 ? "text-emerald-500" : "text-blue-600"} cx="20" cy="20" fill="none" pathLength="100" r="17" stroke="currentColor" strokeDasharray={`${percent} 100`} strokeLinecap={percent ? "round" : "butt"} strokeWidth="2.5" /></svg> : null}
+      <span aria-hidden="true" className={`grid ${isWorkbook ? 'size-5' : 'size-7'} place-items-center rounded-full text-[10px] font-bold tabular-nums ${selected ? "bg-blue-600 text-white" : "bg-slate-50 text-slate-600"}`}>{item.unit_number > 0 ? item.unit_number : "MĐ"}</span>
     </span>
   }
   const adjacentUnit = (offset: number) => { const next = book?.units[unitIndex + offset]; if (next) chooseUnit(next) }
   const speak = (text: string) => { if (!("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = "ko-KR"; window.speechSynthesis.speak(utterance) }
+
+  const unitNavigation=(<nav aria-label="Chuyển bài học" className="flex shrink-0 items-center justify-center gap-0 px-0.5">
+        <button aria-label="Unit trước" title="Bài trước" className="flex size-8 items-center justify-center rounded-lg text-xs font-semibold hover:bg-slate-100 disabled:opacity-30 focus-visible:outline-2 focus-visible:outline-blue-600" disabled={unitIndex <= 0} onClick={() => adjacentUnit(-1)} type="button"><ChevronLeft aria-hidden="true" className="size-4" /></button>
+        <span className="max-w-12 truncate text-center text-[10px] font-bold tabular-nums">{unitLabel(unit)}</span>
+        <button aria-label="Unit tiếp theo" title="Bài sau" className="flex size-8 items-center justify-center rounded-lg text-xs font-semibold hover:bg-slate-100 disabled:opacity-30 focus-visible:outline-2 focus-visible:outline-blue-600" disabled={!book || unitIndex >= book.units.length - 1} onClick={() => adjacentUnit(1)} type="button"><ChevronRight aria-hidden="true" className="size-4" /></button>
+      </nav>)
 
   const summaryContent = <>
       <div className="shrink-0 border-b px-4 pb-0 pt-3">
@@ -199,11 +212,11 @@ export default function TextbookReader({ bookId, initialPage, initialUnitId }: {
         <div className="mt-3 grid grid-cols-2"><button className={`flex items-center justify-center gap-1.5 border-b-2 px-2 py-2.5 text-xs font-bold ${resourceTab === "grammar" ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500"}`} onClick={() => setResourceTab("grammar")} type="button"><Languages className="size-3.5" />Ngữ pháp</button><button className={`flex items-center justify-center gap-1.5 border-b-2 px-2 py-2.5 text-xs font-bold ${resourceTab === "audio" ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500"}`} onClick={() => setResourceTab("audio")} type="button"><Headphones className="size-3.5" />File nghe</button></div>
       </div>
       <div className={`min-h-0 flex-1 ${resourceTab === "audio" ? "flex flex-col overflow-hidden" : "overflow-y-auto p-3"}`}>
-        {!unitSummary ? <div className="grid min-h-36 place-items-center"><LoaderCircle className="size-5 animate-spin text-blue-600" /></div> : resourceTab === "grammar" ? <div className="space-y-2.5">{unitSummary.grammar.length ? unitSummary.grammar.map((grammar, index) => <details className="group overflow-hidden rounded-xl border border-blue-100 bg-white" key={`${grammar.title}-${grammar.page_number}`} open={index === 0}><summary className="flex cursor-pointer list-none items-center gap-2 bg-gradient-to-r from-blue-50 to-violet-50 px-3 py-3"><span className="grid size-6 place-items-center rounded-lg bg-blue-600 text-[10px] font-black text-white">{index + 1}</span><strong className="min-w-0 flex-1 text-sm font-black text-blue-800">{grammar.title}</strong><ChevronDown className="size-3.5 text-blue-500 transition-transform group-open:rotate-180" /></summary><div className="space-y-3 border-t border-blue-100 px-3 py-3">{grammar.summary ? <div><p className="text-[9px] font-black uppercase tracking-wider text-blue-600">Ý nghĩa · Cách dùng</p><p className="mt-1 text-xs leading-5 text-slate-700">{grammar.summary}</p></div> : null}{grammar.analysis_vi ? <div className="rounded-lg bg-amber-50 p-2.5"><p className="text-[9px] font-black uppercase tracking-wider text-amber-700">Phân tích cấu trúc</p><p className="mt-1 text-xs leading-5 text-slate-700">{grammar.analysis_vi}</p></div> : null}{grammar.examples?.length ? <div><p className="text-[9px] font-black uppercase tracking-wider text-emerald-700">Ví dụ thực tế</p><div className="mt-1.5 space-y-2">{grammar.examples.map((example, exampleIndex) => <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-2.5" key={`${example.ko}-${exampleIndex}`}><p className="text-xs font-bold leading-5 text-slate-900"><span className="mr-1 text-emerald-600">{exampleIndex + 1}.</span>{example.ko}</p><p className="mt-0.5 text-[11px] leading-4 text-slate-500">{example.vi}</p></div>)}</div></div> : null}<button className="text-[10px] font-bold text-blue-600" onClick={() => pageElements.current.get(grammar.page_number)?.scrollIntoView({ behavior: "smooth", block: "start" })} type="button">Xem trang {grammar.page_number} →</button></div></details>) : <p className="rounded-xl bg-slate-50 p-4 text-center text-xs text-slate-500">Unit này chưa trích xuất được tóm tắt ngữ pháp.</p>}</div> : <div className="flex h-full min-h-0 flex-col">{unitSummary.audio.length ? <WorkbookListeningPanel controller={listeningController} key={unitSummary.audio[0].id} onNavigatePage={(p) => pageElements.current.get(p)?.scrollIntoView({ behavior: "instant", block: "start" })} workbookPages={workbook.pages} /> : <div className="p-4"><div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center"><Headphones className="mx-auto size-6 text-slate-400" /><p className="mt-2 text-sm font-bold text-slate-700">{unitSummary.listening?.track ? `Track ${unitSummary.listening.track}` : "File nghe"}</p><p className="mt-1 text-xs leading-5 text-slate-500">Chưa có MP3 trong dữ liệu nguồn của Unit này.</p>{unitSummary.listening ? <button className="mt-3 text-[10px] font-bold text-blue-600" onClick={() => pageElements.current.get(unitSummary.listening!.page_number)?.scrollIntoView({ behavior: "smooth", block: "start" })} type="button">Xem bài nghe trang {unitSummary.listening.page_number} →</button> : null}</div></div>}</div>}
+        {!unitSummary ? <div className="grid min-h-36 place-items-center"><LoaderCircle className="size-5 animate-spin text-blue-600" /></div> : resourceTab === "grammar" ? <div className="space-y-2.5">{unitSummary.grammar.length ? unitSummary.grammar.map((grammar, index) => <details className="group overflow-hidden rounded-xl border border-blue-100 bg-white" key={`${grammar.title}-${grammar.page_number}`} open={index === 0}><summary className="flex cursor-pointer list-none items-center gap-2 bg-gradient-to-r from-blue-50 to-violet-50 px-3 py-3"><span className="grid size-6 place-items-center rounded-lg bg-blue-600 text-[10px] font-black text-white">{index + 1}</span><strong className="min-w-0 flex-1 text-sm font-black text-blue-800">{grammar.title}</strong><ChevronDown className="size-3.5 text-blue-500 transition-transform group-open:rotate-180" /></summary><div className="space-y-3 border-t border-blue-100 px-3 py-3">{grammar.summary ? <div><p className="text-[9px] font-black uppercase tracking-wider text-blue-600">Ý nghĩa · Cách dùng</p><p className="mt-1 text-xs leading-5 text-slate-700">{grammar.summary}</p></div> : null}{grammar.analysis_vi ? <div className="rounded-lg bg-amber-50 p-2.5"><p className="text-[9px] font-black uppercase tracking-wider text-amber-700">Phân tích cấu trúc</p><p className="mt-1 text-xs leading-5 text-slate-700">{grammar.analysis_vi}</p></div> : null}{grammar.examples?.length ? <div><p className="text-[9px] font-black uppercase tracking-wider text-emerald-700">Ví dụ thực tế</p><div className="mt-1.5 space-y-2">{grammar.examples.map((example, exampleIndex) => <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-2.5" key={`${example.ko}-${exampleIndex}`}><p className="text-xs font-bold leading-5 text-slate-900"><span className="mr-1 text-emerald-600">{exampleIndex + 1}.</span>{example.ko}</p><p className="mt-0.5 text-[11px] leading-4 text-slate-500">{example.vi}</p></div>)}</div></div> : null}<button className="text-[10px] font-bold text-blue-600" onClick={() => pageElements.current.get(grammar.page_number)?.scrollIntoView({ behavior: "smooth", block: "start" })} type="button">Xem trang {grammar.page_number} →</button></div></details>) : <p className="rounded-xl bg-slate-50 p-4 text-center text-xs text-slate-500">Unit này chưa trích xuất được tóm tắt ngữ pháp.</p>}</div> : <div className="flex h-full min-h-0 flex-col">{unitSummary.audio.length ? !isWorkbook ? <TextbookTrackPlaylist key={unit?.id} tracks={unitSummary.audio} onNavigatePage={p=>pageElements.current.get(p)?.scrollIntoView({behavior:"instant",block:"start"})}/> : <WorkbookListeningPanel controller={listeningController} key={unitSummary.audio[0].id} onNavigatePage={(p) => pageElements.current.get(p)?.scrollIntoView({ behavior: "instant", block: "start" })} workbookPages={workbook.pages} /> : <div className="p-4"><div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center"><Headphones className="mx-auto size-6 text-slate-400" /><p className="mt-2 text-sm font-bold text-slate-700">{unitSummary.listening?.track ? `Track ${unitSummary.listening.track}` : "File nghe"}</p><p className="mt-1 text-xs leading-5 text-slate-500">Chưa có MP3 trong dữ liệu nguồn của Unit này.</p>{unitSummary.listening ? <button className="mt-3 text-[10px] font-bold text-blue-600" onClick={() => pageElements.current.get(unitSummary.listening!.page_number)?.scrollIntoView({ behavior: "smooth", block: "start" })} type="button">Xem bài nghe trang {unitSummary.listening.page_number} →</button> : null}</div></div>}</div>}
       </div>
   </>
 
-  return <Sheet open={mobileResourceOpen} onOpenChange={setMobileResourceOpen}><main className="flex h-dvh overflow-hidden bg-slate-100 text-slate-800">
+  return <TextbookTrackProvider key={unit?.id} tracks={!isWorkbook ? unitSummary?.audio||[] : []} onNavigatePage={p=>pageElements.current.get(p)?.scrollIntoView({behavior:"instant",block:"start"})}><Sheet open={mobileResourceOpen} onOpenChange={setMobileResourceOpen}><main className="flex h-dvh overflow-hidden bg-slate-100 text-slate-800">
     <audio
       ref={listeningController.audioRef}
       src={listeningController.audioUrl || undefined}
@@ -221,7 +234,16 @@ export default function TextbookReader({ bookId, initialPage, initialUnitId }: {
       <div className="border-b px-3 py-3"><p className="text-[9px] font-bold uppercase tracking-[0.14em] text-blue-600">{book ? `${isGrammarReference ? "Tổng hợp" : `Quyển ${book.volume}`} · ${book.edition}` : "Giáo trình"}</p><h1 className="mt-1 text-[13px] font-bold leading-5 text-slate-900">{book?.title_vi ?? "Đang tải..."}</h1></div>
       <nav aria-label="Mục lục Unit" className="min-h-0 flex-1 overflow-y-auto p-2">
         <p className="px-2 pb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Mục lục</p>
-        {book?.units.map((item) => { const progress = workbook.progress.get(item.id); const percent = progress?.total ? Math.max(0, Math.min(100, Math.round(progress.answered / progress.total * 100))) : 0; return <a aria-current={item.id === unit?.id ? "location" : undefined} className={`mb-0.5 flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left transition-colors ${item.id === unit?.id ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50"}`} href={readerHref(bookId, item.start_page, isReference ? item.id : undefined)} key={item.id} onClick={(event) => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); chooseUnit(item) }}>{renderUnitBadge(item)}<span className="min-w-0 flex-1"><strong className="block text-[11px] font-semibold leading-4">{unitLabel(item)}{item.title_ko ? ` · ${item.title_ko}` : ""}</strong>{item.title_vi ? <span className="block text-[10px] leading-[14px] text-slate-600">{item.title_vi}</span> : null}<span className="mt-0.5 flex items-center justify-between gap-2 text-[9px] leading-3 text-slate-400"><span>Trang {item.start_page}–{item.end_page}</span>{isWorkbook ? <span className={`shrink-0 font-semibold tabular-nums ${percent === 100 ? "text-emerald-600" : "text-blue-600"}`}>{percent}%</span> : null}</span></span></a> })}
+        <div className="relative mb-2"><Search aria-hidden="true" className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-slate-400"/><input type="search" aria-label="Tìm bài trong mục lục" placeholder="Tìm bài, tiếng Hàn hoặc chủ đề…" value={tocQuery} onChange={e=>setTocQuery(e.target.value)} className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-2 text-[11px] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"/></div>
+        {!visibleUnits.length&&<p role="status" className="px-2 py-4 text-xs text-slate-500">Không tìm thấy bài phù hợp.</p>}
+        {visibleUnits.map((item) => {
+          const progress=workbook.progress.get(item.id),percent=progress?.total?Math.max(0,Math.min(100,Math.round(progress.answered/progress.total*100))):0
+          const label=item.unit_number===0&&/^eps-topik-2025-[12]$/.test(book?.code??'')?'Nhập môn':unitLabel(item)
+          const titleVi=item.title_vi&&item.title_vi!==label&&item.title_vi!==`Bài ${item.unit_number}`?item.title_vi.replace(/^Nhập môn\s*[·:–-]\s*/,''):''
+          return <a aria-current={item.id===unit?.id?'location':undefined} title={[label,item.title_ko,titleVi,`Trang ${item.start_page}–${item.end_page}`].filter(Boolean).join(' · ')} className={`mb-0.5 flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left transition-colors ${item.id===unit?.id?'bg-blue-50 text-blue-700':'hover:bg-slate-50'}`} href={readerHref(bookId,item.start_page,isReference?item.id:undefined)} key={item.id} onClick={event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();chooseUnit(item)}}>
+            {renderUnitBadge(item)}<span className="min-w-0 flex-1"><span className="block text-[11px] font-semibold leading-[17px]">{label}{item.title_ko&&<><span aria-hidden="true" className="px-1 text-slate-300">·</span><span lang="ko" className="text-xs font-medium [overflow-wrap:anywhere]">{item.title_ko}</span></>}</span><span className="mt-0.5 flex min-w-0 items-center gap-2 text-[10px] leading-[14px] text-slate-500">{titleVi&&<span className="min-w-0 flex-1 truncate">{titleVi}</span>}<span aria-label={`Trang ${item.start_page} đến ${item.end_page}`} className="shrink-0 text-[9px] tabular-nums text-slate-400">{item.start_page}–{item.end_page}</span>{isWorkbook&&<span className={`ml-auto shrink-0 text-[9px] font-semibold tabular-nums ${percent===100?'text-emerald-600':'text-blue-600'}`}>{percent}%</span>}</span></span>
+          </a>
+        })}
       </nav>
     </aside>
 
@@ -269,6 +291,7 @@ export default function TextbookReader({ bookId, initialPage, initialUnitId }: {
           {pages.map((page) => <div className="w-full scroll-mt-3 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-md" data-page={page.page_number} key={page.page_number} ref={(element) => { if (element) pageElements.current.set(page.page_number, element); else pageElements.current.delete(page.page_number) }}>
             <div className="flex items-center justify-between border-b border-slate-100 bg-white px-3 py-2 text-[11px] font-medium tabular-nums text-slate-500"><span>Trang {page.page_number}</span><button type="button" aria-label="Xem hướng dẫn làm bài" title="Hướng dẫn · thực hành 3 bước" className="grid sm:hidden size-6 shrink-0 place-items-center rounded-full text-blue-600 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-blue-600" onClick={() => { listeningController.pause(); setGuideOpen(true) }}><CircleHelp className="size-4" /></button></div>
             <div className="relative w-full" data-page-canvas={page.page_number} style={{ containerType: "inline-size" }}>
+            {!isWorkbook&&!isReference&&<TextbookPageTrackAudio pageNumber={page.page_number}/>}
             <WorkbookPageAudio bookCode={book?.code || ""} controller={listeningController} groups={audioGroups.filter(group => group.pageNumber === page.page_number)} pageNumber={page.page_number} />
             {isWorkbook && interactionMode && workbook.canEdit && workbook.ready && workbookPages.get(page.page_number) ? <div className="hidden xl:block"><WorkbookLayoutEditor canManageAnswerKeys={workbook.canManageAnswerKeys} bookId={bookId} onSaved={workbook.refresh} pageNumber={page.page_number} workbook={workbookPages.get(page.page_number)!} /></div> : null}
             {isWorkbook && interactionMode && workbook.ready && workbookPages.get(page.page_number) ? <WorkbookPageOverlay grades={grading?.unitId === unit?.id && grading?.answers === workbook.answers ? grading.result.items : []} allListeningFields={allListeningFields} answers={workbook.answers} listeningController={listeningController} onChange={workbook.change} pageNumber={page.page_number} workbook={workbookPages.get(page.page_number)!} /> : null}
@@ -323,11 +346,7 @@ export default function TextbookReader({ bookId, initialPage, initialUnitId }: {
       ) : null}
 
       {listeningController.canViewTranscript && showTranscript && unitSummary?.audio[0] ? <div className="order-first col-span-2 mx-auto w-full max-h-[25dvh] max-w-3xl overflow-y-auto rounded-lg border border-indigo-100 bg-white/90 px-3 py-2 text-xs leading-6" data-footer-transcript><div className="flex items-center justify-between"><strong>Lời thoại {activeAudioGroup ? `nhóm ${activeAudioGroup.rangeLabel}` : "cả bài"}</strong><button aria-label="Đóng lời thoại" className="grid size-8 place-items-center" onClick={() => setShowTranscript(false)} type="button"><X className="size-4" /></button></div><ListeningTranscript text={listeningController.segments.filter(segment => !activeAudioGroup || segment.id === activeAudioGroup.id || (segment.start >= activeAudioGroup.startTime && segment.start < activeAudioGroup.endTime)).map(segment => segment.text_ko).join("\n")} /></div> : null}
-      <nav aria-label="Chuyển bài học" className="flex items-center justify-center gap-0 px-0.5">
-        <button aria-label="Unit trước" title="Bài trước" className="flex size-8 items-center justify-center rounded-lg text-xs font-semibold hover:bg-slate-100 disabled:opacity-30 focus-visible:outline-2 focus-visible:outline-blue-600" disabled={unitIndex <= 0} onClick={() => adjacentUnit(-1)} type="button"><ChevronLeft aria-hidden="true" className="size-4" /></button>
-        <span className="max-w-12 truncate text-center text-[10px] font-bold tabular-nums">{unitLabel(unit)}</span>
-        <button aria-label="Unit tiếp theo" title="Bài sau" className="flex size-8 items-center justify-center rounded-lg text-xs font-semibold hover:bg-slate-100 disabled:opacity-30 focus-visible:outline-2 focus-visible:outline-blue-600" disabled={!book || unitIndex >= book.units.length - 1} onClick={() => adjacentUnit(1)} type="button"><ChevronRight aria-hidden="true" className="size-4" /></button>
-      </nav>
+      {isWorkbook?unitNavigation:<TextbookTrackMiniPlayer>{unitNavigation}</TextbookTrackMiniPlayer>}
       </footer>
     </section>
 
@@ -338,5 +357,5 @@ export default function TextbookReader({ bookId, initialPage, initialUnitId }: {
     </SheetContent>
     {interactionMode && selectedRegion ? <div className="fixed inset-x-3 bottom-16 z-30 rounded-2xl border border-amber-200 bg-white p-4 shadow-2xl xl:hidden"><button aria-label="Đóng đoạn đã chọn" className="absolute right-3 top-3" onClick={() => setSelectedRegion(null)} type="button"><X className="size-4" /></button><p className="pr-7 text-sm font-bold leading-6">{selectedRegion.text}</p><div className="mt-2 flex gap-2"><button className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white" onClick={() => speak(selectedRegion.text)} type="button">Nghe</button><button className="rounded-lg border px-3 py-1.5 text-xs font-bold" onClick={() => void navigator.clipboard.writeText(selectedRegion.text)} type="button">Sao chép</button></div></div> : null}
     {isWorkbook && guideOpen ? <WorkbookOnboarding onClose={closeGuide} onRead={() => { closeGuide(); setInteractionMode(false) }} onStart={() => { closeGuide(); setInteractionMode(true); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>("[data-workbook-mode]")?.focus()) }} /> : null}
-  </main></Sheet>
+  </main></Sheet></TextbookTrackProvider>
 }

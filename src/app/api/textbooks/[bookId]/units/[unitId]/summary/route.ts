@@ -49,6 +49,7 @@ export async function GET(_request: Request, context: { params: Promise<{ bookId
   const track = listeningMarker >= 0 ? listeningLines.slice(listeningMarker + 1).find((line) => /^\d{1,4}$/.test(line)) ?? null : null
   const audio = (resources ?? []).filter(resource => resource.kind === "audio").map(resource => ({
     id: resource.id, title: resource.title,
+    page_number: (() => { const page=(resource.metadata as {source_page?:number}|null)?.source_page; return Number.isInteger(page)&&Number(page)>=unit.start_page&&Number(page)<=unit.end_page?page:null })(),
     resource_url: (resource.metadata as { storage_path?: string } | null)?.storage_path ? `/api/textbooks/${bookId}/units/${unitId}/audio/${resource.id}` : resource.resource_url,
   }))
   return NextResponse.json({ grammar, audio, listening: listeningPage ? { page_number: listeningPage.page_number, track } : null }, { headers: { "Cache-Control": "no-store, max-age=0" } })

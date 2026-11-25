@@ -1,0 +1,1157 @@
+[
+  {
+    "lessonNumber": 1,
+    "lessonId": "unit-01",
+    "nodeId": "unit-01-vocabulary",
+    "titleVi": "Giới thiệu bản thân",
+    "titleKo": "자기소개",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      3,
+      4,
+      5
+    ],
+    "version": "b7a1cb93422d1652",
+    "reviewStatus": "source_checked_pending_teacher",
+    "wordCount": 136,
+    "flaggedCount": 0
+  },
+  {
+    "lessonNumber": 2,
+    "lessonId": "unit-02",
+    "nodeId": "unit-02-vocabulary",
+    "titleVi": "Đồ dùng sinh hoạt",
+    "titleKo": "생활용품",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      6,
+      7
+    ],
+    "version": "1db79afd5b16e935",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 77,
+    "flaggedCount": 12
+  },
+  {
+    "lessonNumber": 3,
+    "lessonId": "unit-03",
+    "nodeId": "unit-03-vocabulary",
+    "titleVi": "Vị trí và địa điểm",
+    "titleKo": "위치와 장소",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      8,
+      9,
+      10
+    ],
+    "version": "77414e2f63b4843f",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 98,
+    "flaggedCount": 17
+  },
+  {
+    "lessonNumber": 4,
+    "lessonId": "unit-04",
+    "nodeId": "unit-04-vocabulary",
+    "titleVi": "Hành động và đồ vật",
+    "titleKo": "동작과 사물",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      10,
+      11
+    ],
+    "version": "c94e1d90bfcf2383",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 62,
+    "flaggedCount": 7
+  },
+  {
+    "lessonNumber": 5,
+    "lessonId": "unit-05",
+    "nodeId": "unit-05-vocabulary",
+    "titleVi": "Ngày tháng và thứ",
+    "titleKo": "날짜와 요일",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      12,
+      13
+    ],
+    "version": "e6267645fce43185",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 89,
+    "flaggedCount": 5
+  },
+  {
+    "lessonNumber": 6,
+    "lessonId": "unit-06",
+    "nodeId": "unit-06-vocabulary",
+    "titleVi": "Sinh hoạt hằng ngày",
+    "titleKo": "하루 일과",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      14,
+      15
+    ],
+    "version": "936640a7fce5f9ee",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 80,
+    "flaggedCount": 11
+  },
+  {
+    "lessonNumber": 7,
+    "lessonId": "unit-07",
+    "nodeId": "unit-07-vocabulary",
+    "titleVi": "Mùa và thời tiết",
+    "titleKo": "계절과 날씨",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      16,
+      17
+    ],
+    "version": "067a35b178ae90f0",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 90,
+    "flaggedCount": 12
+  },
+  {
+    "lessonNumber": 8,
+    "lessonId": "unit-08",
+    "nodeId": "unit-08-vocabulary",
+    "titleVi": "Gia đình và bạn bè",
+    "titleKo": "가족과 친구",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      18,
+      19
+    ],
+    "version": "8ed6e0d2ac438fa2",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 80,
+    "flaggedCount": 16
+  },
+  {
+    "lessonNumber": 9,
+    "lessonId": "unit-09",
+    "nodeId": "unit-09-vocabulary",
+    "titleVi": "Gọi món ăn",
+    "titleKo": "음식 주문",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      20,
+      21,
+      22
+    ],
+    "version": "e888fd64a7bce85a",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 142,
+    "flaggedCount": 38
+  },
+  {
+    "lessonNumber": 10,
+    "lessonId": "unit-10",
+    "nodeId": "unit-10-vocabulary",
+    "titleVi": "Mua sắm",
+    "titleKo": "물건 구입",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      23,
+      24
+    ],
+    "version": "4e7fc5e036ee4233",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 72,
+    "flaggedCount": 20
+  },
+  {
+    "lessonNumber": 11,
+    "lessonId": "unit-11",
+    "nodeId": "unit-11-vocabulary",
+    "titleVi": "Việc nhà",
+    "titleKo": "집안일",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      24,
+      25
+    ],
+    "version": "b8e39b768b9032c7",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 61,
+    "flaggedCount": 14
+  },
+  {
+    "lessonNumber": 12,
+    "lessonId": "unit-12",
+    "nodeId": "unit-12-vocabulary",
+    "titleVi": "Giao thông công cộng",
+    "titleKo": "대중 교통",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      26,
+      27
+    ],
+    "version": "c001e345a6e9f072",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 61,
+    "flaggedCount": 7
+  },
+  {
+    "lessonNumber": 13,
+    "lessonId": "unit-13",
+    "nodeId": "unit-13-vocabulary",
+    "titleVi": "Hoạt động cuối tuần",
+    "titleKo": "주말 활동",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      27,
+      28
+    ],
+    "version": "33e2354c8d06b347",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 61,
+    "flaggedCount": 3
+  },
+  {
+    "lessonNumber": 14,
+    "lessonId": "unit-14",
+    "nodeId": "unit-14-vocabulary",
+    "titleVi": "Tìm đường",
+    "titleKo": "길 찾기",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      29
+    ],
+    "version": "e56c90fb7162ab00",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 47,
+    "flaggedCount": 11
+  },
+  {
+    "lessonNumber": 15,
+    "lessonId": "unit-15",
+    "nodeId": "unit-15-vocabulary",
+    "titleVi": "Trang phục",
+    "titleKo": "옷차림",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      30,
+      31
+    ],
+    "version": "a85408ac6cce985c",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 62,
+    "flaggedCount": 8
+  },
+  {
+    "lessonNumber": 16,
+    "lessonId": "unit-16",
+    "nodeId": "unit-16-vocabulary",
+    "titleVi": "Tìm nhà",
+    "titleKo": "집 구하기",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      31,
+      32,
+      33
+    ],
+    "version": "d730b64cf36b3ecf",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 102,
+    "flaggedCount": 11
+  },
+  {
+    "lessonNumber": 17,
+    "lessonId": "unit-17",
+    "nodeId": "unit-17-vocabulary",
+    "titleVi": "Kỳ nghỉ",
+    "titleKo": "휴가",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      34,
+      35,
+      36
+    ],
+    "version": "8f42bfdf1f0d36be",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 106,
+    "flaggedCount": 13
+  },
+  {
+    "lessonNumber": 18,
+    "lessonId": "unit-18",
+    "nodeId": "unit-18-vocabulary",
+    "titleVi": "Sở thích",
+    "titleKo": "취미",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      36,
+      37,
+      38
+    ],
+    "version": "c8c12c11f5bf7929",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 117,
+    "flaggedCount": 16
+  },
+  {
+    "lessonNumber": 19,
+    "lessonId": "unit-19",
+    "nodeId": "unit-19-vocabulary",
+    "titleVi": "Nấu ăn",
+    "titleKo": "요리",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      39,
+      40
+    ],
+    "version": "03229a8b82177e67",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 100,
+    "flaggedCount": 15
+  },
+  {
+    "lessonNumber": 20,
+    "lessonId": "unit-20",
+    "nodeId": "unit-20-vocabulary",
+    "titleVi": "Internet và điện thoại thông minh",
+    "titleKo": "인터넷과 스마트폰",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      41,
+      42
+    ],
+    "version": "0e6129b7112ed231",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 90,
+    "flaggedCount": 20
+  },
+  {
+    "lessonNumber": 21,
+    "lessonId": "unit-21",
+    "nodeId": "unit-21-vocabulary",
+    "titleVi": "Bệnh viện",
+    "titleKo": "병원",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      43,
+      44
+    ],
+    "version": "7e7c52abe3c5dbbb",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 101,
+    "flaggedCount": 16
+  },
+  {
+    "lessonNumber": 22,
+    "lessonId": "unit-22",
+    "nodeId": "unit-22-vocabulary",
+    "titleVi": "Hiệu thuốc",
+    "titleKo": "약국",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      45,
+      46
+    ],
+    "version": "3da7a59218bf2ed9",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 70,
+    "flaggedCount": 14
+  },
+  {
+    "lessonNumber": 23,
+    "lessonId": "unit-23",
+    "nodeId": "unit-23-vocabulary",
+    "titleVi": "Bưu điện",
+    "titleKo": "우체국",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      46,
+      47
+    ],
+    "version": "b7248c0dc9633915",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 64,
+    "flaggedCount": 8
+  },
+  {
+    "lessonNumber": 24,
+    "lessonId": "unit-24",
+    "nodeId": "unit-24-vocabulary",
+    "titleVi": "Ngân hàng",
+    "titleKo": "은행",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      48,
+      49
+    ],
+    "version": "4c6d0057e96b0c60",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 65,
+    "flaggedCount": 10
+  },
+  {
+    "lessonNumber": 25,
+    "lessonId": "unit-25",
+    "nodeId": "unit-25-vocabulary",
+    "titleVi": "Cơ quan hỗ trợ lao động nước ngoài",
+    "titleKo": "외국인 근로자 지원기관",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      49,
+      50,
+      51
+    ],
+    "version": "9cf3b3a4fd8a8ee2",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 108,
+    "flaggedCount": 19
+  },
+  {
+    "lessonNumber": 26,
+    "lessonId": "unit-26",
+    "nodeId": "unit-26-vocabulary",
+    "titleVi": "Văn hóa nhà ở và ẩm thực Hàn Quốc",
+    "titleKo": "한국의 주거 문화와 음식",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      52,
+      53
+    ],
+    "version": "9b70ad99a99079ba",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 82,
+    "flaggedCount": 10
+  },
+  {
+    "lessonNumber": 27,
+    "lessonId": "unit-27",
+    "nodeId": "unit-27-vocabulary",
+    "titleVi": "Các ngày kỷ niệm ở Hàn Quốc",
+    "titleKo": "한국의 기념일",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      54,
+      55
+    ],
+    "version": "620a1d21f00f5cae",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 86,
+    "flaggedCount": 13
+  },
+  {
+    "lessonNumber": 28,
+    "lessonId": "unit-28",
+    "nodeId": "unit-28-vocabulary",
+    "titleVi": "Các ngày lễ truyền thống Hàn Quốc",
+    "titleKo": "한국의 명절",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      56,
+      57
+    ],
+    "version": "05116581668da25c",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 58,
+    "flaggedCount": 15
+  },
+  {
+    "lessonNumber": 29,
+    "lessonId": "unit-29",
+    "nodeId": "unit-29-vocabulary",
+    "titleVi": "Phép lịch sự ở Hàn Quốc",
+    "titleKo": "한국의 예절",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      57,
+      58
+    ],
+    "version": "f98a1002045fbca9",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 72,
+    "flaggedCount": 14
+  },
+  {
+    "lessonNumber": 30,
+    "lessonId": "unit-30",
+    "nodeId": "unit-30-vocabulary",
+    "titleVi": "Văn hóa đại chúng Hàn Quốc",
+    "titleKo": "한국의 대중문화",
+    "bookId": "166c339c-35ec-4c47-a81b-a05248adf70a",
+    "bookVolume": 1,
+    "sourceFile": "TV-Q1.pdf",
+    "sourceSha256": "6c39038aebd7badb3ace90acdeb293e48a7e958b6f707286dbaeb30990b1e72e",
+    "sourcePages": [
+      59,
+      60
+    ],
+    "version": "e3f7b098d5b44538",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 71,
+    "flaggedCount": 16
+  },
+  {
+    "lessonNumber": 31,
+    "lessonId": "unit-31",
+    "nodeId": "unit-31-vocabulary",
+    "titleVi": "Trang phục và thái độ làm việc",
+    "titleKo": "복장과 근무 태도",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      1,
+      2
+    ],
+    "version": "f9f7a4658db55164",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 82,
+    "flaggedCount": 15
+  },
+  {
+    "lessonNumber": 32,
+    "lessonId": "unit-32",
+    "nodeId": "unit-32-vocabulary",
+    "titleVi": "Sử dụng cơ sở vật chất của công ty",
+    "titleKo": "회사 시설 이용",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      3,
+      4
+    ],
+    "version": "b16077a7287c6a71",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 73,
+    "flaggedCount": 16
+  },
+  {
+    "lessonNumber": 33,
+    "lessonId": "unit-33",
+    "nodeId": "unit-33-vocabulary",
+    "titleVi": "Quan hệ với đồng nghiệp",
+    "titleKo": "동료와의 관계",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      5,
+      6
+    ],
+    "version": "3b709f00b36ae8e7",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 76,
+    "flaggedCount": 11
+  },
+  {
+    "lessonNumber": 34,
+    "lessonId": "unit-34",
+    "nodeId": "unit-34-vocabulary",
+    "titleVi": "Phòng tránh quấy rối và xâm hại tình dục",
+    "titleKo": "성희롱 및 성추행 예방",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      7,
+      8
+    ],
+    "version": "1476601eaf86da0c",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 69,
+    "flaggedCount": 12
+  },
+  {
+    "lessonNumber": 35,
+    "lessonId": "unit-35",
+    "nodeId": "unit-35-vocabulary",
+    "titleVi": "Quản lý nơi làm việc",
+    "titleKo": "작업장 관리",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      9,
+      10,
+      11
+    ],
+    "version": "a15fbb5bad788f33",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 118,
+    "flaggedCount": 22
+  },
+  {
+    "lessonNumber": 36,
+    "lessonId": "unit-36",
+    "nodeId": "unit-36-vocabulary",
+    "titleVi": "Quản lý xuất hàng",
+    "titleKo": "출하 관리",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      12,
+      13,
+      14
+    ],
+    "version": "075fe71789d48734",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 110,
+    "flaggedCount": 16
+  },
+  {
+    "lessonNumber": 37,
+    "lessonId": "unit-37",
+    "nodeId": "unit-37-vocabulary",
+    "titleVi": "Gia công cơ khí",
+    "titleKo": "기계 가공",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      15,
+      16
+    ],
+    "version": "a1cbdc16c22bc54b",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 85,
+    "flaggedCount": 13
+  },
+  {
+    "lessonNumber": 38,
+    "lessonId": "unit-38",
+    "nodeId": "unit-38-vocabulary",
+    "titleVi": "Lắp ráp máy móc",
+    "titleKo": "기계 조립",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      17,
+      18
+    ],
+    "version": "9f226efb4075fe32",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 74,
+    "flaggedCount": 9
+  },
+  {
+    "lessonNumber": 39,
+    "lessonId": "unit-39",
+    "nodeId": "unit-39-vocabulary",
+    "titleVi": "Gia công kim loại",
+    "titleKo": "금속 가공",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      19,
+      20
+    ],
+    "version": "fa5afd47c075d732",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 58,
+    "flaggedCount": 14
+  },
+  {
+    "lessonNumber": 40,
+    "lessonId": "unit-40",
+    "nodeId": "unit-40-vocabulary",
+    "titleVi": "Tạo hình nhựa và cao su",
+    "titleKo": "플라스틱 고무 성형",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      20,
+      21
+    ],
+    "version": "0e00d320a2266133",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 73,
+    "flaggedCount": 15
+  },
+  {
+    "lessonNumber": 41,
+    "lessonId": "unit-41",
+    "nodeId": "unit-41-vocabulary",
+    "titleVi": "Sản xuất sợi",
+    "titleKo": "섬유 제조",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      22,
+      23
+    ],
+    "version": "8e029310a2fd195e",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 59,
+    "flaggedCount": 7
+  },
+  {
+    "lessonNumber": 42,
+    "lessonId": "unit-42",
+    "nodeId": "unit-42-vocabulary",
+    "titleVi": "Chế tạo đồ nội thất",
+    "titleKo": "가구 제작",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      24,
+      25
+    ],
+    "version": "37eb78380bd2ef78",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 73,
+    "flaggedCount": 14
+  },
+  {
+    "lessonNumber": 43,
+    "lessonId": "unit-43",
+    "nodeId": "unit-43-vocabulary",
+    "titleVi": "Thi công kiến trúc",
+    "titleKo": "건축 시공",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      26,
+      27
+    ],
+    "version": "f361c661fa22a22c",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 60,
+    "flaggedCount": 14
+  },
+  {
+    "lessonNumber": 44,
+    "lessonId": "unit-44",
+    "nodeId": "unit-44-vocabulary",
+    "titleVi": "Thi công công trình dân dụng",
+    "titleKo": "토목 시공",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      28,
+      29
+    ],
+    "version": "263b534fd2ae4af6",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 57,
+    "flaggedCount": 13
+  },
+  {
+    "lessonNumber": 45,
+    "lessonId": "unit-45",
+    "nodeId": "unit-45-vocabulary",
+    "titleVi": "Trồng trọt",
+    "titleKo": "농작물 재배",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      30,
+      31,
+      32
+    ],
+    "version": "dc556a0f3951609a",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 99,
+    "flaggedCount": 15
+  },
+  {
+    "lessonNumber": 46,
+    "lessonId": "unit-46",
+    "nodeId": "unit-46-vocabulary",
+    "titleVi": "Quản lý chăn nuôi",
+    "titleKo": "사육 관리",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      32,
+      33,
+      34
+    ],
+    "version": "cf5a6e6e737833c5",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 83,
+    "flaggedCount": 9
+  },
+  {
+    "lessonNumber": 47,
+    "lessonId": "unit-47",
+    "nodeId": "unit-47-vocabulary",
+    "titleVi": "Đánh bắt ven bờ và nuôi trồng thủy sản",
+    "titleKo": "연안 어업과 양식",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      34,
+      35,
+      36
+    ],
+    "version": "a8b0f4b53da2aad6",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 86,
+    "flaggedCount": 14
+  },
+  {
+    "lessonNumber": 48,
+    "lessonId": "unit-48",
+    "nodeId": "unit-48-vocabulary",
+    "titleVi": "Đóng thân tàu",
+    "titleKo": "선체 건조",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      36,
+      37,
+      38
+    ],
+    "version": "0efe348bbfcdd1e6",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 99,
+    "flaggedCount": 16
+  },
+  {
+    "lessonNumber": 49,
+    "lessonId": "unit-49",
+    "nodeId": "unit-49-vocabulary",
+    "titleVi": "Khai thác và sản xuất tài nguyên khoáng sản",
+    "titleKo": "광물 자원 개발 생산",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      39,
+      40
+    ],
+    "version": "9c940ec0e3a768c5",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 63,
+    "flaggedCount": 12
+  },
+  {
+    "lessonNumber": 50,
+    "lessonId": "unit-50",
+    "nodeId": "unit-50-vocabulary",
+    "titleVi": "Phát triển tài nguyên rừng",
+    "titleKo": "산림 자원 조성",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      41,
+      42
+    ],
+    "version": "40f35e8b13a79d32",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 90,
+    "flaggedCount": 8
+  },
+  {
+    "lessonNumber": 51,
+    "lessonId": "unit-51",
+    "nodeId": "unit-51-vocabulary",
+    "titleVi": "Dịch vụ lưu trú",
+    "titleKo": "숙박 서비스",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      43,
+      44,
+      45
+    ],
+    "version": "989e13673664aa4a",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 104,
+    "flaggedCount": 18
+  },
+  {
+    "lessonNumber": 52,
+    "lessonId": "unit-52",
+    "nodeId": "unit-52-vocabulary",
+    "titleVi": "Chế biến món ăn",
+    "titleKo": "음식 조리",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      46,
+      47
+    ],
+    "version": "b0748c462d358618",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 89,
+    "flaggedCount": 15
+  },
+  {
+    "lessonNumber": 53,
+    "lessonId": "unit-53",
+    "nodeId": "unit-53-vocabulary",
+    "titleVi": "Biển báo an toàn và sức khỏe lao động",
+    "titleKo": "산업 안전 및 보건 표지",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      48,
+      49
+    ],
+    "version": "a7f3c7c6116119c5",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 80,
+    "flaggedCount": 25
+  },
+  {
+    "lessonNumber": 54,
+    "lessonId": "unit-54",
+    "nodeId": "unit-54-vocabulary",
+    "titleVi": "Quy tắc an toàn và sức khỏe lao động",
+    "titleKo": "산업 안전 및 보건 수칙",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      50,
+      51
+    ],
+    "version": "fc2865f205d2d710",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 77,
+    "flaggedCount": 16
+  },
+  {
+    "lessonNumber": 55,
+    "lessonId": "unit-55",
+    "nodeId": "unit-55-vocabulary",
+    "titleVi": "Thiết bị an toàn và vệ sinh lao động",
+    "titleKo": "산업 안전 및 위생 장비",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      52,
+      53
+    ],
+    "version": "85b57d226326365c",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 74,
+    "flaggedCount": 5
+  },
+  {
+    "lessonNumber": 56,
+    "lessonId": "unit-56",
+    "nodeId": "unit-56-vocabulary",
+    "titleVi": "Tai nạn lao động và sơ cứu",
+    "titleKo": "산업 재해 및 응급 처치",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      54,
+      55,
+      56
+    ],
+    "version": "a2dc66e2f35e5d80",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 103,
+    "flaggedCount": 10
+  },
+  {
+    "lessonNumber": 57,
+    "lessonId": "unit-57",
+    "nodeId": "unit-57-vocabulary",
+    "titleVi": "Chế độ cấp phép việc làm",
+    "titleKo": "고용허가제",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      56,
+      57,
+      58
+    ],
+    "version": "186501e70c602b1c",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 76,
+    "flaggedCount": 8
+  },
+  {
+    "lessonNumber": 58,
+    "lessonId": "unit-58",
+    "nodeId": "unit-58-vocabulary",
+    "titleVi": "Luật tiêu chuẩn lao động",
+    "titleKo": "근로기준법",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      58,
+      59
+    ],
+    "version": "d30d1ef5e2f35af2",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 65,
+    "flaggedCount": 10
+  },
+  {
+    "lessonNumber": 59,
+    "lessonId": "unit-59",
+    "nodeId": "unit-59-vocabulary",
+    "titleVi": "Luật quản lý xuất nhập cảnh",
+    "titleKo": "출입국관리법",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      60,
+      61
+    ],
+    "version": "590be02318520773",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 62,
+    "flaggedCount": 16
+  },
+  {
+    "lessonNumber": 60,
+    "lessonId": "unit-60",
+    "nodeId": "unit-60-vocabulary",
+    "titleVi": "Bảo hiểm cho người lao động",
+    "titleKo": "근로자 보험",
+    "bookId": "b958669d-f2db-4890-8470-3dabf8f13228",
+    "bookVolume": 2,
+    "sourceFile": "TV-Q2.pdf",
+    "sourceSha256": "a4283cffc7eb8ba5960ffcd2b0a0cf9ffb8e9f34947be7e56aa1766e31ff523b",
+    "sourcePages": [
+      62,
+      63
+    ],
+    "version": "5307e8b91453947c",
+    "reviewStatus": "ocr_pending_review",
+    "wordCount": 57,
+    "flaggedCount": 12
+  }
+]

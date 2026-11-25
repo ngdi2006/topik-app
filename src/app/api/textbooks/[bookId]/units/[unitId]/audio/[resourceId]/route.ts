@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { canPreviewTextbooks, canReadTextbook, getTextbookPermissions, usesPrivateWorkbookAccess } from "@/lib/textbooks/access"
 import { parseListening } from "@/lib/textbooks/listening"
+import { parseTrackLearning } from '@/lib/textbooks/track-learning'
 
 type Params = { params: Promise<{ bookId: string; unitId: string; resourceId: string }> }
 const headers = { "Cache-Control": "private, no-store" }
@@ -16,7 +17,7 @@ async function authorize(params: Params["params"], clipId: string | null = null)
   const db = createAdminClient()
   if (!await canReadTextbook(user.id, bookId)) return { error: NextResponse.json({ error: "Not found" }, { status: 404 }) } as const
   const [unit, resource] = await Promise.all([
-    db.from("textbook_units").select("is_published").eq("textbook_id", bookId).eq("id", unitId).maybeSingle(),
+    db.from("textbook_units").select("is_published,start_page,end_page").eq("textbook_id", bookId).eq("id", unitId).maybeSingle(),
     db.from("textbook_resources").select("is_published,metadata,resource_url").eq("id", resourceId).eq("unit_id", unitId).eq("kind", "audio").maybeSingle(),
   ])
   if (!unit.data || !resource.data || ((!unit.data.is_published || !resource.data.is_published) && !await canPreviewTextbooks(user.id) && !await usesPrivateWorkbookAccess(bookId))) return { error: NextResponse.json({ error: "Not found" }, { status: 404 }) } as const
@@ -25,11 +26,18 @@ async function authorize(params: Params["params"], clipId: string | null = null)
   if (clipId && !clip) return { error: NextResponse.json({ error: "Clip not found" }, { status: 404, headers }) } as const
   const hash = createHash("sha256").update(`audio:${user.id}:${bookId}:${unitId}:${resourceId}${clipId ? `:${clipId}:${listening!.sourceChecksum}` : ""}`).digest("hex")
   const annotationId = `${hash.slice(0,8)}-${hash.slice(8,12)}-4${hash.slice(13,16)}-a${hash.slice(17,20)}-${hash.slice(20,32)}`
-  return { user, db, resource: resource.data, annotationId, bookId, unitId, resourceId, listening, clip } as const
+  return { user, db, unit:unit.data, resource: resource.data, annotationId, bookId, unitId, resourceId, listening, clip } as const
 }
 export async function GET(request: NextRequest, context: Params) {
   const access = await authorize(context.params, request.nextUrl.searchParams.get("clip"))
   if (access.error) return access.error
+  if(request.nextUrl.searchParams.get('track-data')==='1'){
+    const permissions=await getTextbookPermissions(access.user.id)
+    const track=parseTrackLearning(access.resource.metadata)
+    if(!track)return NextResponse.json({status:'not_prepared',canViewTranscript:permissions.canViewTranscript,waveform:[],segments:[]},{headers})
+    if(track.pages.some(p=>p<access.unit.start_page||p>access.unit.end_page))return NextResponse.json({error:'Invalid source page'},{status:409,headers})
+    return NextResponse.json({status:track.status,provider:track.provider,model:track.model,canViewTranscript:permissions.canViewTranscript,duration:track.duration,waveform:track.waveform,pageNumber:track.pageNumber,pages:track.pages,segments:permissions.canViewTranscript?track.segments:[]},{headers})
+  }
   if (request.nextUrl.searchParams.get("segments") === "1") {
     const permissions = await getTextbookPermissions(access.user.id)
     const preview = permissions.canViewTranscript

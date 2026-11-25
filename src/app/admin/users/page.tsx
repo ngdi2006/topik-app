@@ -214,6 +214,8 @@ export default function AdminUsersPage() {
     const [itemsPerPage, setItemsPerPage] = useState(20)
     const { role: currentUserRole } = useUserStore()
     const isTeacher = currentUserRole === 'teacher' || currentUserRole === 'supporter'
+    const canManageAccess = currentUserRole === 'admin' || currentUserRole === 'supporter'
+    const canManageTargetAccess = (role: string) => currentUserRole === 'admin' ? !['admin', 'teacher'].includes(role) : currentUserRole === 'supporter' && role === 'learner'
 
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
     const [isBulkImportOpen, setIsBulkImportOpen] = useState(false)
@@ -880,7 +882,7 @@ export default function AdminUsersPage() {
     }
 
     const uniqueGroups = Array.from(new Set(users.map(u => u.groupName).filter(Boolean)))
-    const selectedWorkbookUserIds = users.filter(user => selectedUserIds.includes(user.id) && !['admin', 'teacher'].includes(user.role)).map(user => user.id)
+    const selectedWorkbookUserIds = users.filter(user => selectedUserIds.includes(user.id) && canManageTargetAccess(user.role)).map(user => user.id)
     const updateReferenceAccess = (updates: ReferenceAccessUpdate[]) => {
         const byId = new Map(updates.map(update => [update.userId, update]))
         setUsers(current => current.map(user => byId.has(user.id) ? { ...user, ...byId.get(user.id) } : user))
@@ -910,13 +912,13 @@ export default function AdminUsersPage() {
                                     Xóa ({selectedUserIds.length})
                                 </Button>
                             )}
-                            {!isTeacher && (
+                            {canManageAccess && (
                                 <Button onClick={() => { setBulkInterviewDays(30); setIsBulkInterviewDialogOpen(true) }} disabled={selectedLearnerCount === 0} className="bg-violet-600 text-white hover:bg-violet-700">
                                     <ShieldCheck className="mr-2 size-4" aria-hidden="true" />
                                     Kích hoạt Vòng 2 ({selectedLearnerCount})
                                 </Button>
                             )}
-                            {currentUserRole === 'admin' ? <ReferenceAccessControl userIds={selectedWorkbookUserIds} onChanged={updates => { updateReferenceAccess(updates); const completed = new Set(updates.map(update => update.userId)); setSelectedUserIds(current => current.filter(id => !completed.has(id))) }} /> : null}
+                            {canManageAccess ? <ReferenceAccessControl userIds={selectedWorkbookUserIds} onChanged={updates => { updateReferenceAccess(updates); const completed = new Set(updates.map(update => update.userId)); setSelectedUserIds(current => current.filter(id => !completed.has(id))) }} /> : null}
                             <Button variant="secondary" onClick={() => setIsBulkGrantDialogOpen(true)} className="border-amber-300 bg-amber-100 text-amber-800 hover:bg-amber-200">
                                 <Coins className="mr-2 size-4" aria-hidden="true" />
                                 Điều chỉnh lượt ({selectedUserIds.length})
@@ -1232,7 +1234,7 @@ export default function AdminUsersPage() {
                                         >
                                             <Eye className="h-4 w-4" />
                                         </Button>
-                                        {!isTeacher && (user.role === 'learner' || Boolean(user.interviewAccess)) && (
+                                        {canManageAccess && (currentUserRole !== 'supporter' || user.role === 'learner') && (user.role === 'learner' || Boolean(user.interviewAccess)) && (
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -1243,7 +1245,7 @@ export default function AdminUsersPage() {
                                                 <ShieldCheck className="h-4 w-4" />
                                             </Button>
                                         )}
-                                        {currentUserRole === 'admin' && !['admin', 'teacher'].includes(user.role) ? <ReferenceAccessControl userId={user.id} access={user.referenceBooks} workbookAccess={user.workbookVolumes} onChanged={updateReferenceAccess} /> : null}
+                                        {canManageTargetAccess(user.role) ? <ReferenceAccessControl userId={user.id} access={user.referenceBooks} workbookAccess={user.workbookVolumes} onChanged={updateReferenceAccess} /> : null}
                                         <Button
                                             variant="ghost"
                                             size="icon"
@@ -1735,7 +1737,7 @@ export default function AdminUsersPage() {
                                     <h3 id="workbook-access-title" className="text-sm font-bold text-slate-900">Sách bài tập EPS</h3>
                                     <div className="my-3 grid grid-cols-2 gap-2">{([1, 2] as const).map(volume => { const access = selectedDetailUser.workbookVolumes?.[volume]; return <div className="rounded-lg border border-blue-100 bg-white p-3 text-xs" key={volume}><strong>Quyển {volume}</strong><p className={access?.active ? 'mt-1 text-emerald-700' : 'mt-1 text-slate-500'}>{['admin', 'teacher'].includes(selectedDetailUser.role) ? 'Toàn quyền theo vai trò' : access?.active ? 'Đang còn hạn' : access?.expiresAt ? 'Hết hạn / Đã hủy' : 'Chưa kích hoạt'}</p>{access?.expiresAt ? <p className="mt-1 text-slate-500">{new Date(access.expiresAt).toLocaleString('vi-VN', { timeZone: 'Asia/Bangkok' })}</p> : null}</div> })}</div>
 
-                                    {currentUserRole === 'admin' && !['admin', 'teacher'].includes(selectedDetailUser.role) ? <ReferenceAccessControl showLabel userId={selectedDetailUser.id} access={selectedDetailUser.referenceBooks} workbookAccess={selectedDetailUser.workbookVolumes} onChanged={updateReferenceAccess} /> : null}
+                                    {canManageTargetAccess(selectedDetailUser.role) ? <ReferenceAccessControl showLabel userId={selectedDetailUser.id} access={selectedDetailUser.referenceBooks} workbookAccess={selectedDetailUser.workbookVolumes} onChanged={updateReferenceAccess} /> : null}
                                 </section>
                                 <section aria-labelledby="login-info-title">
                                     <h3 className="mb-3 text-sm font-bold text-slate-900" id="login-info-title">Hoạt động đăng nhập</h3>

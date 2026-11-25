@@ -1,3 +1,4 @@
+import { userAccessManagementRole } from '@/lib/user-access-management'
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -9,7 +10,6 @@ export async function POST(request: Request) {
         const body = await request.json()
         const userIds = body.userIds as string[]
         const credits = Number(body.credits)
-        const notes = typeof body.notes === 'string' ? body.notes.trim() : ''
         const action: CreditAction = body.action === 'deduct' ? 'deduct' : 'add'
 
         if (!Array.isArray(userIds) || userIds.length === 0) {
@@ -24,17 +24,14 @@ export async function POST(request: Request) {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single()
-
-        if (!profile || !['admin', 'teacher', 'supporter'].includes(profile.role)) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-        }
+        const actorRole = await userAccessManagementRole(supabase, user, true)
+        if (!actorRole) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
         const adminClient = createAdminClient()
+        if (actorRole === 'supporter') {
+            const targets = await adminClient.from('profiles').select('id,role').in('id', [...new Set(userIds)])
+            if (targets.error || targets.data?.length !== new Set(userIds).size || targets.data.some(target => target.role !== 'learner')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        }
         
         let successCount = 0
         const errors = []

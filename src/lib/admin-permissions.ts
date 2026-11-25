@@ -1,4 +1,5 @@
 export const ADMIN_MENU_ITEMS = [
+    { key: 'eps_curriculum', label: 'Giáo trình EPS', path: '/admin/giao-trinh-eps', description: 'Kiểm soát lộ trình, học liệu, lớp học và đánh giá EPS.' },
     { key: 'elearning', label: 'E-Learning', path: '/admin/elearning', description: 'Quản lý lộ trình E-Learning, video và các bước học.' },
     { key: 'textbooks', label: 'Giáo trình số', path: '/admin/textbooks', description: 'Kiểm duyệt và xuất bản giáo trình EPS-TOPIK.' },
     { key: 'dashboard', label: 'Dashboard', path: '/admin', description: 'Xem tổng quan hệ thống.' },
@@ -6,7 +7,7 @@ export const ADMIN_MENU_ITEMS = [
     { key: 'practice', label: 'Luyện tập AI', path: '/admin/practice', description: 'Quản lý nội dung luyện tập AI.' },
     { key: 'interview', label: 'Phỏng vấn (Vòng 2)', path: '/admin/interview-module', description: 'Quản lý dữ liệu phỏng vấn Vòng 2.' },
     { key: 'vocabulary_vong2', label: 'Từ vựng Vòng 2', path: '/admin/vocabulary-vong2', description: 'Quản lý từ vựng và biển báo.' },
-    { key: 'users', label: 'Người dùng', path: '/admin/users', description: 'Xem và quản lý tài khoản học viên.' },
+    { key: 'users', label: 'Người dùng', path: '/admin/users', description: 'Quản lý học viên, cấp thời hạn sách/tài liệu, Vòng 2 và điều chỉnh lượt thi.' },
     { key: 'milestones', label: 'Các mốc học', path: '/admin/milestones', description: 'Quản lý các mốc học tập.' },
     { key: 'categories', label: 'Quản lý kho', path: '/admin/categories', description: 'Quản lý danh mục nội dung.' },
     { key: 'question_bank', label: 'Câu hỏi', path: '/admin/question-bank', description: 'Quản lý ngân hàng câu hỏi.' },
@@ -50,6 +51,7 @@ export function permissionForPath(pathname: string): AdminPermissionKey | null {
 
     if (normalizedPathname.startsWith('/api/admin/')) {
         const apiMappings: Array<[string, AdminPermissionKey]> = [
+            ['/api/admin/giao-trinh-eps', 'eps_curriculum'],
             ['/api/admin/elearning', 'elearning'],
             ['/api/admin/textbooks', 'textbooks'],
             ['/api/admin/me', 'dashboard'],

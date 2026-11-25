@@ -1,3 +1,4 @@
+import { canManageInterviewFromUsers } from '@/lib/user-access-management'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -5,7 +6,7 @@ import { recordAdminUserActivity } from '@/lib/admin-user-audit'
 import { permissionsForRole } from '@/lib/admin-permissions'
 import { isAdminRole } from '@/lib/admin-role'
 
-async function requireInterviewAccessActor() {
+async function requireInterviewAccessActor(method = 'GET') {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -21,7 +22,7 @@ async function requireInterviewAccessActor() {
   const storedPermissions = permissionError
     ? user.app_metadata?.admin_permissions
     : permissionProfile?.admin_permissions
-  if (!permissionsForRole(profile.role, storedPermissions).includes('interview_access')) return null
+  if (!permissionsForRole(profile.role, storedPermissions).includes('interview_access') && !canManageInterviewFromUsers(profile.role, storedPermissions, '/api/admin/interview-access', method)) return null
   return { user, role: profile.role }
 }
 
@@ -81,7 +82,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const actor = await requireInterviewAccessActor()
+  const actor = await requireInterviewAccessActor('POST')
   if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   try {
     const { user_id, months, days, note } = await request.json()
@@ -90,6 +91,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Dữ liệu kích hoạt không hợp lệ' }, { status: 400 })
     }
     const admin = createAdminClient()
+    if (actor.role === 'supporter') {
+      const target = await admin.from('profiles').select('role').eq('id', user_id).maybeSingle()
+      if (target.error || target.data?.role !== 'learner') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
     const { data: plan } = await admin.from('interview_subscription_plans').select('id').eq('code', 'INTERVIEW_30D').single()
     if (!plan) return NextResponse.json({ error: 'Chưa cấu hình gói 30 ngày' }, { status: 409 })
     const { data, error } = await admin.rpc('grant_interview_access', {
@@ -116,7 +121,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const actor = await requireInterviewAccessActor()
+  const actor = await requireInterviewAccessActor('PUT')
   if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
@@ -184,7 +189,7 @@ export async function PUT(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const actor = await requireInterviewAccessActor()
+  const actor = await requireInterviewAccessActor('PATCH')
   if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
@@ -194,6 +199,10 @@ export async function PATCH(request: Request) {
     }
 
     const admin = createAdminClient()
+    if (actor.role === 'supporter') {
+      const target = await admin.from('profiles').select('role').eq('id', user_id).maybeSingle()
+      if (target.error || target.data?.role !== 'learner') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
     const now = new Date()
     const targetExpiry = action === 'set_expiry' ? new Date(expires_at) : null
     if (targetExpiry && (!Number.isFinite(targetExpiry.getTime()) || targetExpiry <= now)) {

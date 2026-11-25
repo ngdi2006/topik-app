@@ -1,3 +1,4 @@
+import { canManageInterviewFromUsers } from '@/lib/user-access-management'
 import { isLockedLearningPath } from "@/lib/learner-feature-flags"
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
@@ -169,7 +170,7 @@ export async function updateSession(request: NextRequest) {
                     role,
                     accessProfileError ? user.app_metadata?.admin_permissions : accessProfile?.admin_permissions,
                 )
-                if (!isAdminPermissionsApi && (!requiredPermission || !permissions.includes(requiredPermission))) {
+                if (!isAdminPermissionsApi && !canManageInterviewFromUsers(role, permissions, request.nextUrl.pathname, request.method) && (!requiredPermission || !permissions.includes(requiredPermission))) {
                     if (isAdminApi) {
                         return NextResponse.json({ error: 'Bạn không có quyền thao tác chỉ mục này.' }, { status: 403 })
                     }

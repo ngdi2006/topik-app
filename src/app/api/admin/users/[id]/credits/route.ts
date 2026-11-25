@@ -1,3 +1,4 @@
+import { userAccessManagementRole } from '@/lib/user-access-management'
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -22,17 +23,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single()
-
-        if (!profile || !['admin', 'teacher', 'supporter'].includes(profile.role)) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-        }
+        const actorRole = await userAccessManagementRole(supabase, user, true)
+        if (!actorRole) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
         const adminClient = createAdminClient()
+        if (actorRole === 'supporter') {
+            const target = await adminClient.from('profiles').select('role').eq('id', userId).maybeSingle()
+            if (target.error || target.data?.role !== 'learner') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        }
         const { error: creditError } = action === 'add'
             ? await adminClient.rpc('increment_user_credits', {
                 p_user_id: userId,
@@ -60,7 +58,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         await recordAdminUserActivity({
             targetUserId: userId,
             actor: user,
-            actorRole: profile.role,
+            actorRole,
             action: action === 'add' ? 'credits_added' : 'credits_deducted',
             label: `${action === 'add' ? 'Cộng' : 'Trừ'} ${credits} lượt thi`,
             details: { credits, notes: notes || null },

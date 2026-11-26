@@ -10,6 +10,7 @@ import { wordChoiceRect } from "@/lib/textbooks/workbook-word-choices"
 import { bracketInputRect } from "@/lib/textbooks/workbook-bracket-inputs"
 import { workbookInputRect } from "@/lib/textbooks/workbook-input-layout"
 import WorkbookErrorCorrection from "./WorkbookErrorCorrection"
+import WorkbookBracketChoice, { isBracketChoice } from "./WorkbookBracketChoice"
 import { correctionText, correctionMarks, correctionExercises, isErrorCorrection } from "@/lib/textbooks/error-correction"
 import type { GradeItem } from "@/lib/textbooks/grading"
 import {
@@ -245,6 +246,9 @@ export default function WorkbookPageOverlay({
   const inputRoot = useRef<HTMLDivElement>(null)
   useWorkbookInputFit(inputRoot, answers)
   const bankFields = new Set(wordBankFields(workbook).map(field => field.id))
+  const bracketFields = workbookAnswerFields(workbook.fields).filter(isBracketChoice)
+  const firstBracket = bracketFields[0]?.options[0]
+  const bracketGuideY = firstBracket ? (wordChoiceRect(workbook.image_hash, bracketFields[0].id, firstBracket) ?? firstBracket.rect).y - .05 : 0
   const onChange = (page: number, id: string, value: WorkbookValue) => {
     const field = workbook.fields.find(item => item.id === id)
     const previous = answers[answerKey(page, id)]
@@ -264,6 +268,10 @@ export default function WorkbookPageOverlay({
         ref={inputRoot}
       >
         <WorkbookWordBank workbook={workbook} pageNumber={pageNumber} answers={answers} onChange={onChange} onEdit={setEditing} />
+        {firstBracket ? <p data-bracket-guide className="pointer-events-none absolute text-blue-700"
+          style={{ left: "54%", top: `${bracketGuideY * 100}%`, width: "39%", fontSize: "clamp(8px, 1.1cqw, 12px)", lineHeight: 1.4 }}>
+          Chạm vào ngoặc để chọn. Đáp án được khoanh xanh.
+        </p> : null}
         {workbook.fields.map(field => {
           const exercise = correctionExercises[workbook.image_hash]?.[field.id]
           return exercise && !field.is_context ? <WorkbookErrorCorrection key={field.id} exercise={exercise}
@@ -273,6 +281,8 @@ export default function WorkbookPageOverlay({
           if (bankFields.has(field.id)) return null
           if (field.is_context) return null
           const value = answers[answerKey(pageNumber, field.id)]
+          if (isBracketChoice(field)) return <WorkbookBracketChoice key={field.id} field={field} imageHash={workbook.image_hash} value={value}
+            onChange={next => onChange(pageNumber, field.id, next)} />
           if (isTrueFalseField(field, workbook.image_hash)) {
             const previous = workbook.fields.filter(other => !other.is_context && isTrueFalseField(other, workbook.image_hash) && Math.abs(other.rect.x - field.rect.x) < 0.025 && other.rect.y < field.rect.y).sort((a, b) => b.rect.y - a.rect.y)[0]
             const showHeader = !previous || field.rect.y - previous.rect.y > 0.1

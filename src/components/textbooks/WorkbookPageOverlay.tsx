@@ -9,6 +9,8 @@ import pictureChoices from "@/lib/textbooks/workbook-picture-choices.json"
 import { wordChoiceRect } from "@/lib/textbooks/workbook-word-choices"
 import { bracketInputRect } from "@/lib/textbooks/workbook-bracket-inputs"
 import { workbookInputRect } from "@/lib/textbooks/workbook-input-layout"
+import WorkbookErrorCorrection from "./WorkbookErrorCorrection"
+import { correctionText, correctionMarks, correctionExercises, isErrorCorrection } from "@/lib/textbooks/error-correction"
 import type { GradeItem } from "@/lib/textbooks/grading"
 import {
   answerKey,
@@ -227,7 +229,7 @@ export default function WorkbookPageOverlay({
   pageNumber,
   workbook,
   answers,
-  onChange,
+  onChange: onAnswerChange,
   grades = [],
 }: {
   pageNumber: number
@@ -243,9 +245,15 @@ export default function WorkbookPageOverlay({
   const inputRoot = useRef<HTMLDivElement>(null)
   useWorkbookInputFit(inputRoot, answers)
   const bankFields = new Set(wordBankFields(workbook).map(field => field.id))
+  const onChange = (page: number, id: string, value: WorkbookValue) => {
+    const field = workbook.fields.find(item => item.id === id)
+    const previous = answers[answerKey(page, id)]
+    onAnswerChange(page, id, field && isErrorCorrection(field) && typeof value === "string" && typeof previous === "object"
+      ? { correction: value, marks: correctionMarks(previous) } : value)
+  }
   const textValue = (field: WorkbookField) => {
     const value = answers[answerKey(pageNumber, field.id)]
-    return typeof value === "string" ? value : ""
+    return isErrorCorrection(field) ? correctionText(value) : typeof value === "string" ? value : ""
   }
 
   return (
@@ -256,6 +264,11 @@ export default function WorkbookPageOverlay({
         ref={inputRoot}
       >
         <WorkbookWordBank workbook={workbook} pageNumber={pageNumber} answers={answers} onChange={onChange} onEdit={setEditing} />
+        {workbook.fields.map(field => {
+          const exercise = correctionExercises[workbook.image_hash]?.[field.id]
+          return exercise && !field.is_context ? <WorkbookErrorCorrection key={field.id} exercise={exercise}
+            value={answers[answerKey(pageNumber, field.id)]} onChange={value => onChange(pageNumber, field.id, value)} /> : null
+        })}
         {workbookAnswerFields(workbook.fields).map((field) => {
           if (bankFields.has(field.id)) return null
           if (field.is_context) return null
@@ -359,7 +372,7 @@ export default function WorkbookPageOverlay({
               style={inputStyle} onClick={() => setEditing(field)}>{textValue(field)}</button>
           </div>
           const longAnswer = field.rect.width >= 0.6 && field.rect.height <= 0.025
-          const inputRect = workbookInputRect(field, workbook.fields)
+          const inputRect = correctionExercises[workbook.image_hash]?.[field.id]?.answerRect ?? workbookInputRect(field, workbook.fields, workbook.image_hash)
           const inline = field.rect.width < 0.12
           const lineStyle: CSSProperties = {
             ...position(inputRect),

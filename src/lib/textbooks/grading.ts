@@ -1,4 +1,5 @@
 import type { WorkbookField, WorkbookPage, WorkbookValue } from "./workbook"
+import { correctionText, isErrorCorrection } from "./error-correction"
 import { choiceAnswerText, inlineChoiceGroups, inlineChoiceSelection, validWorkbookValue } from "./workbook"
 
 export type GradeItem = { pageNumber: number; fieldId: string; sourceId?: string; section: WorkbookField["section"]; label: string; status: "correct" | "incorrect" | "unanswered" | "ungraded"; expected?: string }
@@ -50,7 +51,7 @@ export function gradeWorkbook(pages: { pageNumber: number; workbook: WorkbookPag
       const correct = complete && groups.every(group => selected[group.id] === expected[group.id])
       items.push({ ...base, status: !reviewed ? "ungraded" : !complete ? "unanswered" : correct ? "correct" : "incorrect", expected: reviewed ? choiceAnswerText(field, key?.value) : undefined })
     } else {
-      const selected = typeof actual === "string" ? actual : ""
+      const selected = isErrorCorrection(field) ? correctionText(actual) : typeof actual === "string" ? actual : ""
       const expected = typeof key?.value === "string" ? key.value : ""
       const correct = field.kind === "choice" ? selected === expected : [expected, ...(key?.alternatives ?? [])].some(value => normalize(value) === normalize(selected))
       items.push({ ...base, status: !reviewed ? "ungraded" : !selected.trim() ? "unanswered" : correct ? "correct" : "incorrect", expected: reviewed ? field.kind === "choice" ? field.options.find(option => option.id === expected)?.label : expected : undefined })

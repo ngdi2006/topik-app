@@ -4,7 +4,7 @@ import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { canReadTextbook, canPreviewTextbooks } from "@/lib/textbooks/access"
-import { parseWorkbookPage, validWorkbookValue, workbookValueSchema } from "@/lib/textbooks/workbook"
+import { parseWorkbookPage, validWorkbookValue, workbookValueSchema, fieldAnswered } from "@/lib/textbooks/workbook"
 import { isAutoGradedField } from "@/lib/textbooks/grading"
 import { isWorkbookReviewer, type WorkbookSubmission, type SubmissionSummary, type SubmittedAnswer } from "@/lib/textbooks/submissions"
 
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ bo
     if (field.is_context || field.section !== input.section || isAutoGradedField(field)) continue
     const value = input.answers[`${page.page_number}:${field.id}`] ?? (field.kind === "match" ? {} : "")
     if (!validWorkbookValue(field, value)) return reply({ error: "Một câu trả lời không còn phù hợp với bài. Hãy tải lại trang." }, 409)
-    if (typeof value === "string" ? value.trim() : Object.keys(value).length) answered++
+    if (fieldAnswered(field, value)) answered++
     answers.push({ pageNumber: page.page_number, fieldId: field.id, label: field.label, kind: field.kind, value, options: field.options.map(node => ({ id: node.id, label: node.label })), sources: field.sources.filter(node => !node.is_context).map(node => ({ id: node.id, label: node.label })), targets: field.targets.filter(node => !node.is_context).map(node => ({ id: node.id, label: node.label })) })
   }
   if (!answers.length || !answered) return reply({ error: "Hãy làm ít nhất một câu trước khi nộp phần này" }, 400)

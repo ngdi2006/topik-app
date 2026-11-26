@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { correctionText, isErrorCorrection } from "./error-correction"
 
 const rectSchema = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), width: z.number().positive().max(1), height: z.number().positive().max(1) })
 const nodeSchema = z.object({ id: z.string().min(1).max(80), label: z.string().max(300), rect: rectSchema, hit_rect: rectSchema.optional(), port: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).optional(), is_context: z.boolean().optional(), presentation: z.enum(["marker", "word"]).optional() })
@@ -128,7 +129,15 @@ export function choiceHitRect(option: WorkbookField["options"][number], fields: 
 export type WorkbookValue = string | Record<string, string>
 export type WorkbookAnswer = { pageNumber: number; fieldId: string; value: WorkbookValue; updatedAt: string }
 export type WorkbookUnitProgress = { unitId: string; answered: number; total: number }
-export const workbookValueSchema = z.union([z.string().max(8000), z.record(z.string().max(80), z.string().max(80)).refine(value => Object.keys(value).length <= 50)])
+const correctionValueSchema = z.object({
+  correction: z.string().max(8000),
+  marks: z.string().max(2000).regex(/^(?:\d+(?:,\d+)*)?$/),
+}).strict()
+export const workbookValueSchema = z.union([
+  z.string().max(8000),
+  correctionValueSchema,
+  z.record(z.string().max(80), z.string().max(80)).refine(value => Object.keys(value).length <= 50),
+])
 export const workbookSaveSchema = z.object({ userId: z.string().uuid(), answers: z.array(z.object({ pageNumber: z.number().int().positive(), fieldId: z.string().min(1).max(80), value: workbookValueSchema })).min(1).max(50) }).refine(body => new Set(body.answers.map(answer => answerKey(answer.pageNumber, answer.fieldId))).size === body.answers.length)
 
 export function parseWorkbookPage(payload: unknown): WorkbookPage | null {
@@ -137,7 +146,7 @@ export function parseWorkbookPage(payload: unknown): WorkbookPage | null {
 }
 export function validWorkbookValue(field: WorkbookField, value: WorkbookValue) {
   if (field.is_context) return false
-  if (field.kind === "text") return typeof value === "string"
+  if (field.kind === "text") return typeof value === "string" || (isErrorCorrection(field) && correctionValueSchema.safeParse(value).success)
   if (field.kind === "choice") {
     if (typeof value === "string") return value === "" || field.options.some(option => option.id === value)
     const groups = inlineChoiceGroups(field)
@@ -150,6 +159,7 @@ export function validWorkbookValue(field: WorkbookField, value: WorkbookValue) {
 export function fieldTotal(field: WorkbookField) { return field.is_context ? 0 : field.kind === "match" ? field.sources.filter(n => !n.is_context).length : 1 }
 export function fieldAnswered(field: WorkbookField, value: WorkbookValue | undefined) {
   if (value === undefined || !validWorkbookValue(field, value)) return 0
+  if (isErrorCorrection(field)) return correctionText(value).trim() ? 1 : 0
   const groups = inlineChoiceGroups(field)
   if (groups.length) { const selected = inlineChoiceSelection(field, value); return groups.every(group => !!selected[group.id]) ? 1 : 0 }
   return field.kind === "match" ? Object.entries(value).filter(([source, target]) => field.sources.some(n => n.id === source && !n.is_context) && field.targets.some(n => n.id === target && !n.is_context)).length : typeof value === "string" && value.trim() ? 1 : 0
